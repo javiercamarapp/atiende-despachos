@@ -1,0 +1,38 @@
+# Model Configuration — Likida AI Enterprise
+# Solo modelos USA vía OpenRouter
+
+models:
+  # Default — clasificación, respuestas simples, tareas rápidas
+  default:
+    model: "google/gemini-2.5-flash"
+    cost_input: 0.30  # per million tokens
+    cost_output: 2.50
+    use_case: "procesamiento de CFDI, respuestas a clientes, alertas"
+
+  # Complejo — análisis fiscal, devolución IVA, pre-auditoría
+  complex:
+    model: "anthropic/claude-sonnet-5"
+    cost_input: 2.00
+    cost_output: 10.00
+    use_case: "análisis de compliance, conciliación fiscal, auditoría"
+
+  # Ligero — email processing, extracción de datos
+  light:
+    model: "openai/gpt-4o-mini"
+    cost_input: 0.15
+    cost_output: 0.60
+    use_case: "parsing de emails, extracción de CFDI, validación"
+
+  # Coding — para agentes de ingeniería
+  coding:
+    model: "google/gemini-2.5-pro"
+    cost_input: 1.25
+    cost_output: 10.00
+    use_case: "construcción de código, debugging, arquitectura"
+
+  # Research — para agentes de investigación
+  research:
+    model: "google/gemini-2.5-pro"
+    cost_input: 1.25
+    cost_output: 10.00
+    use_case: "research de mercado, análisis competitivo, documentación"
