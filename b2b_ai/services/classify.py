@@ -95,6 +95,19 @@ def classify_cfdi(datos: Dict[str, Any]) -> Dict[str, Any]:
     # Count only BEST category matches, not all categories.
     best_matches = matched.get(best_cat, []) if best_cat else []
     n_matches = len(best_matches)
+    # [35] Ties are the strongest ambiguity signal: if the runner-up has the
+    # same score, the classifier CANNOT decide → requires human review.
+    tied_with_best = sum(
+        1 for cat in KEYWORDS
+        if cat != best_cat and scores.get(cat, 0) >= best_score)
+    if tied_with_best > 0:
+        return {
+            "categoria": best_cat,
+            "confianza": round(max(0.30, 0.55 - 0.10 * tied_with_best), 2),
+            "razon": f"Empate con {tied_with_best} categoría(s) rival(es): "
+                     + ", ".join(sorted(set(matched[best_cat]))),
+            "requires_human_review": True,
+        }
     tied_categories = sum(1 for m in matched.values() if len(m) > 0)
     tie_penalty = 0.05 * max(0, tied_categories - 1)
     confianza = min(0.98, max(0.30, 0.55 + 0.20 * n_matches - tie_penalty))
