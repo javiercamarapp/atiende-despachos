@@ -903,6 +903,67 @@ class Database:
         q += f" ORDER BY timestamp DESC, id DESC LIMIT {int(limit)}"
         return [dict(r) for r in self.conn.execute(q, params).fetchall()]
 
+    # ---- Cobranza: log de pagos (módulo collections) -------------------
+    def add_collection_payment(self, tenant_id, factura_id, event_type,
+                               amount=0.0, currency="MXN", reference="",
+                               provider="manual", paid_at=None,
+                               metadata=None):
+        """Registra un pago recibido vía webhook. Devuelve el id."""
+        import json as _json
+        cur = self.conn.execute(
+            "INSERT INTO collection_payments(tenant_id, factura_id, "
+            "event_type, amount, currency, reference, provider, "
+            "paid_at, metadata) VALUES (?,?,?,?,?,?,?,?,?)",
+            (tenant_id, factura_id, event_type, float(amount), currency,
+             reference, provider, paid_at,
+             _json.dumps(metadata, default=str, ensure_ascii=False)
+             if metadata else None))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def list_collection_payments(self, tenant_id=None, factura_id=None,
+                                  limit=100):
+        """Lista el log de pagos recibidos."""
+        q = "SELECT * FROM collection_payments"
+        params, clauses = [], []
+        if tenant_id is not None:
+            clauses.append("tenant_id=?")
+            params.append(tenant_id)
+        if factura_id is not None:
+            clauses.append("factura_id=?")
+            params.append(factura_id)
+        if clauses:
+            q += " WHERE " + " AND ".join(clauses)
+        q += f" ORDER BY created_at DESC LIMIT {int(limit)}"
+        return [dict(r) for r in self.conn.execute(q, params).fetchall()]
+
+    # ---- Cobranza: configuración por tenant ---------------------------
+    def get_collection_config(self, tenant_id, config_key):
+        """Lee un valor de configuración de cobranza del tenant."""
+        row = self.conn.execute(
+            "SELECT config_value FROM collection_config "
+            "WHERE tenant_id=? AND config_key=?",
+            (tenant_id, config_key)).fetchone()
+        return row["config_value"] if row else None
+
+    def set_collection_config(self, tenant_id, config_key, config_value):
+        """Guarda/actualiza un valor de configuración de cobranza."""
+        with self.conn:
+            self.conn.execute(
+                "INSERT INTO collection_config(tenant_id, config_key, "
+                "config_value) VALUES (?,?,?) "
+                "ON CONFLICT(tenant_id, config_key) DO UPDATE SET "
+                "config_value=excluded.config_value, "
+                "updated_at=CURRENT_TIMESTAMP",
+                (tenant_id, config_key, str(config_value)))
+
+    def list_collection_config(self, tenant_id):
+        """Lista toda la configuración de cobranza del tenant."""
+        rows = self.conn.execute(
+            "SELECT * FROM collection_config WHERE tenant_id=? "
+            "ORDER BY config_key", (tenant_id,)).fetchall()
+        return {r["config_key"]: r["config_value"] for r in rows}
+
 
     # ---- Outreach (outbound emails de adquisición) ---------------------
     def create_outreach_campaign(self, tenant_id, name, sequence_id=1,

@@ -653,6 +653,46 @@ MIGRATIONS = [
             ON bank_confirmations(tenant_id);
         """,
     },
+    {
+        "version": 14,
+        "name": "collections_module",
+        "sql": """
+        -- Log de pagos recibidos vía webhook (módulo de cobranza).
+        -- Cada confirmación de pago se registra aquí para trazabilidad.
+        CREATE TABLE IF NOT EXISTS collection_payments (
+            id INTEGER PRIMARY KEY,
+            tenant_id INTEGER,
+            factura_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            amount REAL DEFAULT 0.0,
+            currency TEXT DEFAULT 'MXN',
+            reference TEXT,
+            provider TEXT DEFAULT 'manual',
+            paid_at TIMESTAMP,
+            metadata TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_coll_pay_tenant
+            ON collection_payments(tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_coll_pay_factura
+            ON collection_payments(factura_id);
+        CREATE INDEX IF NOT EXISTS idx_coll_pay_tenant_factura
+            ON collection_payments(tenant_id, factura_id);
+
+        -- Configuración de cobranza por tenant (días de gracia, canales,
+        -- umbrales de escalamiento, etc.). Formato clave/valor.
+        CREATE TABLE IF NOT EXISTS collection_config (
+            id INTEGER PRIMARY KEY,
+            tenant_id INTEGER,
+            config_key TEXT NOT NULL,
+            config_value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (tenant_id, config_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_coll_config_tenant
+            ON collection_config(tenant_id);
+        """,
+    },
 ]
 
 
