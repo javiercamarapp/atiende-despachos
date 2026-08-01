@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime
 
 from lxml import etree
+from b2b_ai.cfdi.xml_security import safe_parse, safe_fromstring
 
 NS = {
     "cfdi": "http://www.sat.gob.mx/cfd/4",
@@ -83,9 +84,11 @@ def parse_cfdi(xml_path):
         raise OSError(f"Archivo no encontrado: {xml_path}")
 
     try:
-        tree = etree.parse(xml_path)
+        tree = safe_parse(xml_path)
     except etree.XMLSyntaxError as e:
         raise CFDIError(f"XML mal formado: {e}") from e
+    except ValueError as e:
+        raise CFDIError(str(e)) from e
     root = tree.getroot()
 
     if _localname(root) != "Comprobante":

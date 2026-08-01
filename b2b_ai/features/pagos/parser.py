@@ -25,6 +25,7 @@ from decimal import Decimal, InvalidOperation
 from typing import List, Optional
 
 from lxml import etree
+from b2b_ai.cfdi.xml_security import safe_parse, safe_fromstring
 
 # Namespace URIs del SAT para Pagos 1.1 (variantes conocidas).
 PAGOS_NS_URIS = [
@@ -333,7 +334,7 @@ def parse_pagos(xml_path: str) -> Optional[PagosData]:
     if not os.path.exists(xml_path):
         raise OSError(f"Archivo no encontrado: {xml_path}")
 
-    tree = etree.parse(xml_path)
+    tree = safe_parse(xml_path)
     root = tree.getroot()
 
     return _parse_from_root(root)
@@ -347,7 +348,7 @@ def parse_pagos_bytes(xml_bytes: bytes) -> Optional[PagosData]:
     Returns:
         PagosData con los campos extraídos, o None si no hay complemento.
     """
-    root = etree.fromstring(xml_bytes)
+    root = safe_fromstring(xml_bytes)
     return _parse_from_root(root)
 
 

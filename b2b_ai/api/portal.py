@@ -257,6 +257,13 @@ def build_portal_router(db):
     @router.post("/auth/logout")
     def portal_logout(user: dict = Depends(require_user)):
         db.delete_portal_session(user["token"])
+        # Revoke JWT if present
+        try:
+            from b2b_ai.auth.middleware import JWTAuth
+            jwt_auth = JWTAuth(db)
+            jwt_auth.revoke_token(user["token"])
+        except Exception:  # noqa: BLE001
+            pass  # best-effort
         return {"ok": True}
 
     @router.get("/auth/me")

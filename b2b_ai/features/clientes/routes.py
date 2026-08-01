@@ -82,7 +82,12 @@ def build_clientes_router(
     db : Database instance.
     require_api_key : FastAPI dependency for auth.
     """
-    auth_dep = require_api_key or (lambda: None)
+    if require_api_key is None:
+        raise ValueError(
+            "require_api_key es obligatorio. "
+            "Nunca construir el router sin dependencia de auth."
+        )
+    auth_dep = require_api_key
 
     # In-memory stores (per-service instance)
     _services: Dict[str, ClientService] = {}

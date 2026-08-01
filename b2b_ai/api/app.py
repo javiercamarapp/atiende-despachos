@@ -103,6 +103,7 @@ from b2b_ai.features.conciliacion_fiscal.routes import build_fiscal_router
 from b2b_ai.features.declaraciones.routes import build_declaraciones_router
 from b2b_ai.features.devolucion_iva.routes import build_devolucion_iva_router
 from b2b_ai.features.diot.routes import build_diot_router
+from b2b_ai.features.declaraciones.declaration_api import build_declarations_api_router
 from b2b_ai.features.reconciliacion_ingresos_egresos.routes import (
     build_reconciliacion_ingresos_egresos_router,
 )
@@ -1225,10 +1226,10 @@ def create_app(db=None):
     app.include_router(build_nomina_completa_router(require_api_key))
 
     # Reportes Gerenciales: KPIs, cash flow, P&L y exportación.
-    app.include_router(build_reportes_gerenciales_router(require_api_key))
+    app.include_router(build_reportes_gerenciales_router(db, require_api_key))
 
     # Recepción de Correos: monitoreo inbox, extracción de CFDI.
-    app.include_router(build_email_processing_router(require_api_key))
+    app.include_router(build_email_processing_router(db, require_api_key))
 
     # Clientes: consulta y respuesta a clientes del despacho.
     app.include_router(build_clientes_router(db, require_api_key))
@@ -1244,6 +1245,10 @@ def create_app(db=None):
 
     # DIOT: generación, validación e historial de DIOT mensuales.
     app.include_router(build_diot_router(db, require_api_key))
+
+    # Declarations API: cálculo, generación XML, firma FIEL, envío SAT.
+    # Agente 2 — Declaraciones Fiscales Autónomas.
+    app.include_router(build_declarations_api_router(db, require_api_key))
 
     # Reconciliación Ingresos/Egresos: clasificación, balance IVA y papel de trabajo.
     app.include_router(build_reconciliacion_ingresos_egresos_router(db, require_api_key))

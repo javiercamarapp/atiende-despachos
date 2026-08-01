@@ -41,35 +41,11 @@ from b2b_ai.features.compliance import (
     FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
     verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
 )
-
-
-# ISR progressive tax table (2024, monthly basis)
-ISR_TABLE_MONTHLY = [
-    (0.00, 312.41, 0.00, 0.0192),
-    (312.42, 2636.28, 5.99, 0.0640),
-    (2636.29, 4623.01, 154.29, 0.1088),
-    (4623.02, 5409.82, 370.32, 0.1600),
-    (5409.83, 6447.11, 496.04, 0.2136),
-    (6447.12, 12904.06, 717.37, 0.2352),
-    (12904.07, 25808.11, 2235.28, 0.3000),
-    (25808.12, 34410.81, 6106.49, 0.3200),
-    (34410.82, 68821.62, 8857.35, 0.3400),
-    (68821.63, float("inf"), 20557.10, 0.3500),
-]
-
-# ISR progressive tax table (2024, annual basis)
-ISR_TABLE_ANNUAL = [
-    (0.00, 3748.57, 0.00, 0.0192),
-    (3748.58, 31635.36, 71.92, 0.0640),
-    (31635.37, 55476.12, 1851.62, 0.1088),
-    (55476.13, 64917.85, 4443.84, 0.1600),
-    (64917.86, 77365.32, 5952.52, 0.2136),
-    (77365.33, 154854.73, 8608.45, 0.2352),
-    (154854.74, 309709.48, 26823.35, 0.3000),
-    (309709.49, 412946.06, 73267.78, 0.3200),
-    (412946.07, 825892.12, 106293.69, 0.3400),
-    (825892.13, float("inf"), 246695.13, 0.3500),
-]
+from b2b_ai.fiscal_tables import (
+    ISR_MENSUAL_2025 as ISR_TABLE_MONTHLY,
+    ISR_ANUAL_2025 as ISR_TABLE_ANNUAL,
+    get_isr_table,
+)
 
 
 class DeclaracionesService(ManualProcessMixin):

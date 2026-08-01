@@ -100,7 +100,12 @@ def build_alertas_router(
     require_api_key : FastAPI dependency for auth.
     store : AlertStore instance (for testing; defaults to shared instance).
     """
-    auth_dep = require_api_key or (lambda: None)
+    if require_api_key is None:
+        raise ValueError(
+            "require_api_key es obligatorio. "
+            "Nunca construir el router sin dependencia de auth."
+        )
+    auth_dep = require_api_key
     shared_store = store or AlertStore()
     engine = AlertEngine(store=shared_store)
 

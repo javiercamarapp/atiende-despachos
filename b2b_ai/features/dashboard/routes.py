@@ -34,7 +34,12 @@ def build_dashboard_admin_router(
     db : Database instance
     require_api_key : FastAPI dependency for auth (injected from app.py)
     """
-    auth_dep = require_api_key or (lambda: None)
+    if require_api_key is None:
+        raise ValueError(
+            "require_api_key es obligatorio. "
+            "Nunca construir el router sin dependencia de auth."
+        )
+    auth_dep = require_api_key
     router = APIRouter(prefix="/admin/dashboard", tags=["admin-dashboard"])
 
     @router.get(

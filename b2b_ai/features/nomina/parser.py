@@ -22,6 +22,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from lxml import etree
+from b2b_ai.cfdi.xml_security import safe_parse, safe_fromstring
 
 # Namespace URIs del SAT para Nomina 1.2 (ambas variantes conocidas).
 NOMINA_NS_URIS = [
@@ -173,7 +174,7 @@ def parse_nomina(xml_path: str) -> Optional[NominaData]:
     if not os.path.exists(xml_path):
         raise OSError(f"Archivo no encontrado: {xml_path}")
 
-    tree = etree.parse(xml_path)
+    tree = safe_parse(xml_path)
     root = tree.getroot()
 
     # Extraer RFC del Emisor del comprobante (contexto para validación)
@@ -228,7 +229,7 @@ def parse_nomina_bytes(xml_bytes: bytes) -> Optional[NominaData]:
     Returns:
         NominaData con los campos extraídos, o None si no hay complemento.
     """
-    root = etree.fromstring(xml_bytes)
+    root = safe_fromstring(xml_bytes)
 
     # Extraer RFC del Emisor del comprobante
     emisor_cfdi = None

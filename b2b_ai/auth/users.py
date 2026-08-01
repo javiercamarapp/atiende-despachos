@@ -177,6 +177,13 @@ class UserManager:
             raise InvalidTokenError("Usuario inexistente.")
         return self._session(user)
 
+    # ---- Logout (token revocation) -----------------------------------------
+    def logout(self, access_token: str, refresh_token: str = "") -> None:
+        """Revoca los tokens del usuario (blacklist)."""
+        self.jwt.revoke_token(access_token)
+        if refresh_token:
+            self.jwt.revoke_token(refresh_token)
+
     # ---- Consulta / actualización / baja --------------------------------
     def get_user(self, user_id: int) -> Optional[Dict[str, Any]]:
         user = self.db.get_client_user(user_id)

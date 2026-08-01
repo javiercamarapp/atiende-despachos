@@ -16,11 +16,10 @@ Páginas:
     GET  /portal/notifications/stream  SSE tiempo real.
     GET  /portal/invoices/export.xlsx  exporta el historial a Excel.
 
-Auth: sesión por cookie `portal_session` (HttpOnly). El login valida
-email+password con bcrypt y crea una sesión ligada a `client_users` (y por
-tanto a un tenant): TODA consulta filtra por ese tenant (multi-tenant).
-Para compatibilidad, las páginas también aceptan el token vía query
-`?token=` o header `Authorization: Bearer`.
+Auth: sesión por cookie `portal_session` (HttpOnly) o header
+`Authorization: Bearer <token>`. El login valida email+password con
+bcrypt y crea una sesión ligada a `client_users` (y por tanto a un
+tenant): TODA consulta filtra por ese tenant (multi-tenant).
 """
 from __future__ import annotations
 
@@ -96,11 +95,12 @@ def _expires() -> str:
 # Auth helper
 # --------------------------------------------------------------------------
 def _resolve_user(db, request: Request) -> Optional[dict]:
-    """Resuelve el usuario autenticado desde cookie, query `token` o header
-    `Authorization`. Devuelve None si no hay sesión válida."""
+    """Resuelve el usuario autenticado desde cookie HttpOnly o header
+    `Authorization`. Devuelve None si no hay sesión válida.
+
+    SECURITY: El query param ?token= fue eliminado (VULN-04) porque expone
+    sesiones en logs, historial y headers Referer."""
     token = request.cookies.get(COOKIE_NAME)
-    if not token:
-        token = request.query_params.get("token")
     if not token:
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
