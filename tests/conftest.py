@@ -18,6 +18,7 @@ except (ValueError, OSError):
 # supply a deterministic value so nothing falls through to the (now removed)
 # hardcoded dev secret.
 os.environ.setdefault("B2B_JWT_SECRET", "test-jwt-secret-safe-for-ci-only")
+os.environ.setdefault("B2B_ENV", "test")
 
 # Asegurar que el paquete b2b_ai sea importable (root = directorio con el paquete)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -136,7 +136,10 @@ class TestDashboardService:
         assert svc.get_client_detail(999) is None
 
     def test_health(self):
-        svc = DashboardService(self._mock_db())
+        db = self._mock_db()
+        db.path = ""
+        db.count_audit.side_effect = lambda tool_name=None: 0 if tool_name else 100
+        svc = DashboardService(db)
         h = svc.get_system_health()
         assert h.status in ("healthy", "warning", "degraded")
 
@@ -166,8 +169,13 @@ class TestRoutes:
         db.count_invoices.return_value = 5
         db.list_invoices.return_value = [{"total": "500", "fecha": "2025-01-15", "procesado_en": "2025-01-15T10:00:00", "id": 1, "folio_fiscal": "FF1", "categoria": "ingreso", "status": "ok"}]
         db.count_audit.return_value = 50
+        db.path = ""
         db.get_usage.return_value = {"api_calls": 50, "invoices_processed": 10}
-        db.get_tenant_by_id.return_value = {"id": 1, "name": "Test", "rfc": "RFC", "created_at": "2025-01-01"}
+        def mock_get_tenant(tid):
+            if tid == 1:
+                return {"id": 1, "name": "Test", "rfc": "RFC", "created_at": "2025-01-01"}
+            return None
+        db.get_tenant_by_id.side_effect = mock_get_tenant
         db.list_billing_subscriptions.return_value = []
         router = build_dashboard_admin_router(db=db)
         app.include_router(router)
