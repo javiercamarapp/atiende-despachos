@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B&B AI — Checklist de Incorporación de Clientes</title>
+    <style>
+        /* ===== CSS Reset & Base ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2235;
+            --bg-card-hover: #1f2a42;
+            --border: #2a3550;
+            --border-accent: #0055FF;
+            --text-primary: #f0f4ff;
+            --text-secondary: #94a3c8;
+            --text-muted: #6b7fa3;
+            --accent: #0055FF;
+            --accent-light: #3377ff;
+            --accent-glow: rgba(0, 85, 255, 0.15);
+            --accent-glow-strong: rgba(0, 85, 255, 0.3);
+            --success: #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.1);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.1);
+            --info: #06b6d4;
+            --info-bg: rgba(6, 182, 212, 0.1);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.08);
+            --gradient-hero: linear-gradient(135deg, #0055FF 0%, #0033aa 50%, #001a55 100%);
+            --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+            --shadow-glow: 0 0 40px rgba(0, 85, 255, 0.1);
+            --transition: 0.2s ease;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ===== Hero Section ===== */
+        .hero {
+            background: var(--gradient-hero);
+            padding: 60px 24px 48px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            padding: 6px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #fff;
+            margin-bottom: 20px;
+            backdrop-filter: blur(8px);
+        }
+
+        .hero-badge .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 4vw, 3.2rem);
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .hero p {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            color: rgba(255, 255, 255, 0.8);
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .hero-meta {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-top: 28px;
+            flex-wrap: wrap;
+        }
+
+        .hero-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .hero-meta-item .icon {
+            font-size: 1.1rem;
+        }
+
+        /* ===== Container ===== */
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ===== Progress Bar ===== */
+        .progress-section {
+            padding: 32px 0 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 60px;
+            right: 60px;
+            height: 2px;
+            background: var(--border);
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--text-muted);
+            transition: color var(--transition);
+        }
+
+        .progress-step:hover { color: var(--text-secondary); }
+
+        .progress-step .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 700;
+            transition: all var(--transition);
+            position: relative;
+            z-index: 1;
+        }
+
+        .progress-step:hover .step-circle,
+        .progress-step.active .step-circle {
+            border-color: var(--accent);
+            background: var(--accent-glow-strong);
+            color: var(--accent-light);
+            box-shadow: 0 0 20px rgba(0, 85, 255, 0.2);
+        }
+
+        .progress-step .step-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: center;
+        }
+
+        /* ===== Section Headers ===== */
+        .section {
+            padding: 48px 0;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .section-number {
+            flex-shrink: 0;
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius);
+            background: var(--gradient-hero);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #fff;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .section-title-group {
+            flex: 1;
+        }
+
+        .section-title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .section-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .section-divider {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin: 0;
+        }
+
+        /* ===== Cards ===== */
+        .card-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 85, 255, 0.3);
+            background: var(--bg-card-hover);
+            box-shadow: var(--shadow-card);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .card-icon.blue { background: var(--accent-glow); }
+        .card-icon.green { background: var(--success-bg); }
+        .card-icon.yellow { background: var(--warning-bg); }
+        .card-icon.red { background: var(--danger-bg); }
+        .card-icon.cyan { background: var(--info-bg); }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .card-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        /* ===== Checklist Items ===== */
+        .checklist {
+            list-style: none;
+        }
+
+        .checklist li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(42, 53, 80, 0.5);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .checklist li:last-child { border-bottom: none; }
+
+        .check-box {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            margin-top: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .check-box:hover {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .check-box.checked {
+            border-color: var(--success);
+            background: var(--success-bg);
+        }
+
+        .check-box.checked::after {
+            content: '✓';
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .check-text strong {
+            color: var(--text-primary);
+        }
+
+        .check-detail {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ===== Tags ===== */
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .tag-required { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+        .tag-optional { background: var(--warning-bg); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); }
+        .tag-auto { background: var(--success-bg); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.2); }
+
+        /* ===== Timeline ===== */
+        .timeline {
+            position: relative;
+            padding-left: 32px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 11px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--accent), var(--border));
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 28px;
+        }
+
+        .timeline-item:last-child { margin-bottom: 0; }
+
+        .timeline-dot {
+            position: absolute;
+            left: -32px;
+            top: 4px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            border: 3px solid var(--accent);
+            z-index: 1;
+        }
+
+        .timeline-item.completed .timeline-dot {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .timeline-item.completed .timeline-dot::after {
+            content: '✓';
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .timeline-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+
+        .timeline-date {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent-light);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+        }
+
+        .timeline-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .timeline-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .timeline-tasks {
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: rgba(0, 85, 255, 0.05);
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(0, 85, 255, 0.1);
+        }
+
+        .timeline-tasks ul {
+            list-style: none;
+        }
+
+        .timeline-tasks li {
+            padding: 4px 0;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .timeline-tasks li::before {
+            content: '→';
+            color: var(--accent);
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* ===== Info Boxes ===== */
+        .info-box {
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-top: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .info-box.tip {
+            background: rgba(0, 85, 255, 0.06);
+            border: 1px solid rgba(0, 85, 255, 0.15);
+        }
+
+        .info-box.warn {
+            background: var(--warning-bg);
+            border: 1px solid rgba(245, 158, 11, 0.15);
+        }
+
+        .info-box-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .info-box-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .info-box-text strong { color: var(--text-primary); }
+
+        /* ===== Code Block ===== */
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px 20px;
+            margin: 12px 0;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            color: #e6edf3;
+            line-height: 1.6;
+        }
+
+        .code-comment { color: #6b7fa3; }
+        .code-key { color: var(--accent-light); }
+        .code-string { color: #7ee787; }
+        .code-keyword { color: #ff7b72; }
+
+        /* ===== Footer ===== */
+        .footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 40px 24px;
+            margin-top: 48px;
+            text-align: center;
+        }
+
+        .footer-brand {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .footer-brand span { color: var(--accent); }
+
+        .footer-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            max-width: 500px;
+            margin: 0 auto 20px;
+            line-height: 1.5;
+        }
+
+        .footer-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--gradient-hero);
+            color: #fff;
+            text-decoration: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: all var(--transition);
+            box-shadow: 0 4px 20px rgba(0, 85, 255, 0.3);
+        }
+
+        .footer-cta:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 28px rgba(0, 85, 255, 0.4);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color var(--transition);
+        }
+
+        .footer-links a:hover { color: var(--accent-light); }
+
+        /* ===== Print Button ===== */
+        .print-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: var(--gradient-hero);
+            border: none;
+            color: #fff;
+            font-size: 1.3rem;
+            cursor: pointer;
+            box-shadow: 0 4px 24px rgba(0, 85, 255, 0.4);
+            transition: all var(--transition);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .print-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 32px rgba(0, 85, 255, 0.5);
+        }
+
+        .print-btn .tooltip {
+            position: absolute;
+            right: 64px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition);
+        }
+
+        .print-btn:hover .tooltip { opacity: 1; }
+
+        /* ===== Signature Area ===== */
+        .signature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .signature-box {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            text-align: center;
+            background: var(--bg-card);
+        }
+
+        .signature-box .line {
+            width: 100%;
+            height: 1px;
+            background: var(--text-muted);
+            margin-top: 48px;
+            margin-bottom: 8px;
+        }
+
+        .signature-box .label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 640px) {
+            .hero { padding: 40px 16px 36px; }
+            .hero-meta { gap: 16px; }
+            .progress-step .step-label { display: none; }
+            .progress-steps::before { left: 20px; right: 20px; }
+            .section-header { flex-direction: column; }
+            .signature-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ===== PRINT STYLES ===== */
+        @media print {
+            * {
+                color-adjust: exact !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body {
+                background: #fff !important;
+                color: #1a1a2e !important;
+                font-size: 11pt;
+                line-height: 1.4;
+            }
+
+            .hero {
+                background: none !important;
+                background-color: #fff !important;
+                padding: 20px 0 16px;
+                border-bottom: 3px solid var(--accent);
+            }
+
+            .hero::before { display: none; }
+
+            .hero h1 {
+                color: #0a0e1a !important;
+                font-size: 24pt;
+            }
+
+            .hero p {
+                color: #555 !important;
+                font-size: 11pt;
+            }
+
+            .hero-badge {
+                background: #eef3ff !important;
+                border-color: #ccd8ff !important;
+                color: #0055FF !important;
+            }
+
+            .hero-badge .dot { background: #22c55e !important; }
+
+            .hero-meta-item { color: #666 !important; }
+
+            .progress-section {
+                display: none !important;
+            }
+
+            .section {
+                padding: 24px 0;
+                page-break-inside: avoid;
+            }
+
+            .section-title { color: #0a0e1a !important; font-size: 16pt; }
+            .section-subtitle { color: #555 !important; }
+
+            .section-number {
+                background: var(--accent) !important;
+                color: #fff !important;
+            }
+
+            .card {
+                background: #f8f9fc !important;
+                border-color: #dde3ef !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+
+            .card:hover { background: #f8f9fc !important; }
+
+            .card-title { color: #0a0e1a !important; }
+            .card-desc { color: #555 !important; }
+
+            .checklist li { color: #333 !important; border-color: #e0e0e0 !important; }
+            .check-text strong { color: #0a0e1a !important; }
+            .check-detail { color: #777 !important; }
+
+            .check-box {
+                border-color: #ccc !important;
+                background: #fff !important;
+            }
+
+            .check-box.checked::after { color: #22c55e !important; }
+
+            .tag-required {
+                background: #fef2f2 !important;
+                color: #dc2626 !important;
+                border-color: #fca5a5 !important;
+            }
+
+            .tag-optional {
+                background: #fffbeb !important;
+                color: #d97706 !important;
+                border-color: #fcd34d !important;
+            }
+
+            .tag-auto {
+                background: #f0fdf4 !important;
+                color: #16a34a !important;
+                border-color: #86efac !important;
+            }
+
+            .timeline::before { background: #ccc !important; }
+            .timeline-dot {
+                background: #f0f4ff !important;
+                border-color: #0055FF !important;
+            }
+
+            .timeline-content {
+                background: #f8f9fc !important;
+                border-color: #dde3ef !important;
+            }
+
+            .timeline-date { color: #0055FF !important; }
+            .timeline-title { color: #0a0e1a !important; }
+            .timeline-desc { color: #555 !important; }
+
+            .timeline-tasks {
+                background: #f0f4ff !important;
+                border-color: #ccd8ff !important;
+            }
+
+            .timeline-tasks li { color: #555 !important; }
+
+            .info-box.tip {
+                background: #f0f4ff !important;
+                border-color: #ccd8ff !important;
+            }
+
+            .info-box.warn {
+                background: #fffbeb !important;
+                border-color: #fcd34d !important;
+            }
+
+            .info-box-text { color: #555 !important; }
+            .info-box-text strong { color: #0a0e1a !important; }
+
+            .code-block {
+                background: #f1f3f5 !important;
+                border-color: #ddd !important;
+            }
+
+            .code-block code { color: #1a1a2e !important; }
+
+            .print-btn { display: none !important; }
+
+            .footer {
+                background: #f8f9fc !important;
+                border-color: #dde3ef !important;
+                padding: 24px 0;
+            }
+
+            .footer-brand { color: #0a0e1a !important; }
+            .footer-text { color: #666 !important; }
+
+            .footer-cta {
+                background: none !important;
+                background-color: #0055FF !important;
+                box-shadow: none !important;
+                color: #fff !important;
+            }
+
+            .section-divider {
+                background: #ddd !important;
+            }
+
+            a { text-decoration: none !important; }
+
+            @page {
+                size: A4;
+                margin: 18mm 15mm 18mm 15mm;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== HERO ===== -->
+    <header class="hero">
+        <div class="hero-badge">
+            <span class="dot"></span>
+            B&B AI — Incorporación de Clientes
+        </div>
+        <h1>Checklist de Onboarding</h1>
+        <p>Tu guía paso a paso para integrar B&B AI en tu firma contable. Completa cada sección para habilitar el procesamiento inteligente de CFDI, nómina, contabilidad electrónica y más.</p>
+        <div class="hero-meta">
+            <div class="hero-meta-item">
+                <span class="icon">⏱</span>
+                Tiempo estimado: 2–5 días hábiles
+            </div>
+            <div class="hero-meta-item">
+                <span class="icon">📋</span>
+                4 fases · 24 pasos
+            </div>
+            <div class="hero-meta-item">
+                <span class="icon">🔒</span>
+                Cumplimiento SAT / RFC
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== PROGRESS NAV ===== -->
+    <nav class="progress-section" aria-label="Progreso">
+        <div class="progress-steps">
+            <a href="#requisitos" class="progress-step active">
+                <div class="step-circle">1</div>
+                <div class="step-label">Prerrequisitos</div>
+            </a>
+            <a href="#cuenta" class="progress-step">
+                <div class="step-circle">2</div>
+                <div class="step-label">Cuenta</div>
+            </a>
+            <a href="#integracion" class="progress-step">
+                <div class="step-circle">3</div>
+                <div class="step-label">Integración</div>
+            </a>
+            <a href="#primeros-dias" class="progress-step">
+                <div class="step-circle">4</div>
+                <div class="step-label">Primeros 30 Días</div>
+            </a>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <!-- ============================================ -->
+        <!-- SECCIÓN 1 — PRERREQUISITOS                  -->
+        <!-- ============================================ -->
+        <section class="section" id="requisitos">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <div class="section-title-group">
+                    <h2 class="section-title">Prerrequisitos</h2>
+                    <p class="section-subtitle">Documentos y acceso necesarios antes de iniciar la integración.</p>
+                </div>
+            </div>
+
+            <!-- Card: Documentación Fiscal -->
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon blue">📄</div>
+                        <div class="card-title">Documentación Fiscal de la Firma</div>
+                    </div>
+                    <p class="card-desc">Verifica que tu firma cuente con la documentación vigente ante el SAT. Estos documentos son <strong>obligatorios</strong> para cualquier integración.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>RFC de la firma contable (persona moral o física)</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Registro Federal de Contribuyentes vigente. Verifica tu estatus en el portal del SAT.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>E.firma (e.firma digital o e.firma reforzada)</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Certificado de sello digital (CSD) vigente. Se requiere la contraseña (CIEC) para operaciones de timbrado.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>RFC y Constancia de Situación Fiscal de cada cliente</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Al menos un lote inicial de 5–10 clientes para la fase piloto.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Cédula de identificación fiscal</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">Para validación cruzada de información fiscal de clientes.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Card: ERP y Sistemas Actuales -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon green">🖥</div>
+                        <div class="card-title">ERP y Sistemas Actuales</div>
+                    </div>
+                    <p class="card-desc">Documenta el sistema que utilizas actualmente para contabilidad, facturación y nómina. B&B AI se integra con los principales ERPs del mercado.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>ERP contable actual</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Ej: CONTPAQi, CONCAR, Aspel, Quipu, QuickBooks, SAP B1, o sistema personalizado. Indicar versión.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Sistema de facturación / emisión de CFDI</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">¿Utilizas PAC propio o de terceros? Indicar proveedor y tipo de timbrado (API, portal, plugin).</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Sistema de nómina (si aplica)</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">Tipo de nómina: propia o de terceros. ¿Manejas CFDI de nómina tipo nómina 1.2 / 1.1?</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Formato de exportación contable</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">CSV, XML, XLSX, o formato nativo del ERP. Necesario para la migración de catálogo de cuentas.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Card: Equipo y Acceso -->
+                <div class="card">
+                    <div class="card-header">
+                    <div class="card-icon cyan">👥</div>
+                    <div class="card-title">Equipo y Acceso</div>
+                    </div>
+                    <p class="card-desc">Identifica a las personas que participarán en la integración y asegúrate de contar con los accesos necesarios.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Administrador del proyecto (point of contact)</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Una persona responsable de coordinar con el equipo de B&B AI durante todo el onboarding.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Usuario técnico con acceso al ERP</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Permisos de lectura/escritura para configuración de API y migración de datos.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Acceso a internet estable</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">B&B AI opera en la nube. Se requiere conexión estable para sincronización en tiempo real.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-box tip">
+                <span class="info-box-icon">💡</span>
+                <div class="info-box-text">
+                    <strong>Consejo:</strong> Antes de comenzar, ejecuta un reporte de inventario de facturas de los últimos 3 meses en tu ERP. Esto nos ayudará a dimensionar el volumen de datos y personalizar la integración.
+                </div>
+            </div>
+        </section>
+
+        <hr class="section-divider">
+
+        <!-- ============================================ -->
+        <!-- SECCIÓN 2 — CONFIGURACIÓN DE CUENTA          -->
+        <!-- ============================================ -->
+        <section class="section" id="cuenta">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <div class="section-title-group">
+                    <h2 class="section-title">Configuración de Cuenta</h2>
+                    <p class="section-subtitle">Crea tu tenant en B&B AI y obtén las credenciales de acceso a la API.</p>
+                </div>
+            </div>
+
+            <div class="card-grid">
+                <!-- Card: Creación de Tenant -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon blue">🏢</div>
+                        <div class="card-title">Creación del Tenant</div>
+                    </div>
+                    <p class="card-desc">Tu firma contable operará dentro de un tenant aislado que garantiza la seguridad y separación de datos de cada cliente.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Recibir invitación de B&B AI</strong>
+                                <span class="tag tag-auto">Automático</span>
+                                <span class="check-detail">Se envía al correo registrado tras firmar el contrato. Verifica bandeja de spam.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Completar registro de la firma</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Nombre comercial, RFC, dirección fiscal, datos del representante legal.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar usuarios del equipo</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">Asigna roles: Administrador, Contador, Auditor. Mínimo 2 usuarios para la fase piloto.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Card: API Key y Credenciales -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon yellow">🔑</div>
+                        <div class="card-title">API Key y Credenciales de Acceso</div>
+                    </div>
+                    <p class="card-desc">Genera y configura las credenciales que usarán tus sistemas para comunicarse con B&B AI.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Generar API Key (生产环境)</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Dashboard → Settings → API Keys → Generate New. Guarda la clave de forma segura.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar Webhook URL (opcional)</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">URL de callback para notificaciones en tiempo real sobre procesamiento de CFDI.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Verificar conexión con la API</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Ejecuta el health check para confirmar que tu cuenta está activa.</span>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <div class="code-block">
+                        <code>
+<span class="code-comment"># Verificar conexión con B&B AI API</span><br>
+<span class="code-keyword">curl</span> -X GET https://api.bb-ai.mx/v1/health \<br>
+&nbsp;&nbsp;-H <span class="code-string">"Authorization: Bearer TU_API_KEY"</span> \<br>
+&nbsp;&nbsp;-H <span class="code-string">"Content-Type: application/json"</span><br>
+<br>
+<span class="code-comment"># Respuesta esperada:</span><br>
+{<br>
+&nbsp;&nbsp;<span class="code-key">"status"</span>: <span class="code-string">"healthy"</span>,<br>
+&nbsp;&nbsp;<span class="code-key">"tenant"</span>: <span class="code-string">"firma-contable-abc"</span>,<br>
+&nbsp;&nbsp;<span class="code-key">"version"</span>: <span class="code-string">"2.1.0"</span><br>
+}
+                        </code>
+                    </div>
+                </div>
+
+                <!-- Card: Seguridad y Permisos -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon red">🛡</div>
+                        <div class="card-title">Seguridad y Permisos</div>
+                    </div>
+                    <p class="card-desc">Configura las políticas de seguridad y los niveles de acceso antes de conectar datos reales de clientes.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Habilitar autenticación de dos factores (2FA)</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Política de seguridad: todos los usuarios administradores deben tener 2FA activo.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar IP allowlist</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">Restringe el acceso a la API desde las IPs de tu oficina (Dashboard → Security → IP Whitelist).</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Revisar política de retención de datos</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">B&B AI retiene datos por 5 años (cumplimiento fiscal MX). Confirma aceptación en el portal.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-box tip">
+                <span class="info-box-icon">💡</span>
+                <div class="info-box-text">
+                    <strong>Consejo:</strong> Para la fase piloto, puedes usar la API Key de sandbox (prefijo <code>sb_</code>) que permite pruebas sin impactar datos reales. Solicítala al equipo de soporte.
+                </div>
+            </div>
+        </section>
+
+        <hr class="section-divider">
+
+        <!-- ============================================ -->
+        <!-- SECCIÓN 3 — PASOS DE INTEGRACIÓN             -->
+        <!-- ============================================ -->
+        <section class="section" id="integracion">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <div class="section-title-group">
+                    <h2 class="section-title">Pasos de Integración</h2>
+                    <p class="section-subtitle">Conecta tus sistemas con B&B AI y configura los módulos de procesamiento.</p>
+                </div>
+            </div>
+
+            <div class="card-grid">
+                <!-- Card: Conexión con SAT -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon blue">🏛</div>
+                        <div class="card-title">Conexión con el SAT</div>
+                    </div>
+                    <p class="card-desc">Configura el acceso al Servicio de Administración Tributaria para timbrado, cancelación y consulta de CFDI.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Cargar certificado de sello digital (CSD)</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Sube los archivos .cer y .key del CSD vigente en Dashboard → SAT → Certificados.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar contraseña CIEC</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Se encripta y almacena de forma segura. Nunca se comparte en texto plano.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Seleccionar PAC (Proveedor Autorizado de Certificación)</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Integrado con FacturaDirecta, Finkok, Multifactura, o solicita integración con tu PAC actual.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Validar timbrado con CFDI de prueba</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Envía un CFDI de prueba al sandbox del SAT antes de procesar documentos reales.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Card: Catálogo de Cuentas -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon green">📊</div>
+                        <div class="card-title">Catálogo de Cuentas Contables</div>
+                    </div>
+                    <p class="card-desc">Importa y configura tu catálogo de cuentas para que B&B AI clasifique automáticamente las transacciones.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Exportar catálogo actual del ERP</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Formatos soportados: CSV, XLSX, XML, JSON. Incluir código, nombre y nivel jerárquico.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Subir catálogo a B&B AI</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Dashboard → Contabilidad → Catálogo → Importar. Se valida la estructura automáticamente.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar reglas de clasificación automática</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">Define mapeos de cuentas para ISR, IVA, nómina y operaciones frecuentes.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Validar balance de prueba (trial balance)</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Importa un balance de prueba del último mes cerrado para verificar el mapeo.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Card: Configurar Alertas -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon yellow">🔔</div>
+                        <div class="card-title">Configurar Alertas y Notificaciones</div>
+                    </div>
+                    <p class="card-desc">Personaliza las alertas automáticas para que tu equipo reaccione ante eventos críticos en tiempo real.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar alertas de vencimiento fiscal</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">ISR, IVA, nómina, contabilidad electrónica. Alertas 15, 7 y 1 día antes del vencimiento.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar alertas de cobranza</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">Facturas vencidas, aging de cartera, clientes con pagos pendientes > 30 días.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar alertas de facturación</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">Límites de facturación mensual, errores de timbrado, CFDI rechazados por el SAT.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar canales de notificación</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Email, WhatsApp (vía API), SMS, o integración con Slack/Teams.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Card: Conciliación Bancaria -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon cyan">🏦</div>
+                        <div class="card-title">Conciliación Bancaria</div>
+                    </div>
+                    <p class="card-desc">Conecta tus cuentas bancarias para automatizar la conciliación con movimientos contables.</p>
+                    <ul class="checklist">
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Configurar fuente de movimientos bancarios</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Upload manual (CSV OFX), API bancaria (BBVA, Banorte, HSBC, Scotiabank), o lectura de email.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Mapear cuentas bancarias con catálogo</strong>
+                                <span class="tag tag-required">Obligatorio</span>
+                                <span class="check-detail">Vincula cada cuenta bancaria con su correspondiente en el catálogo de cuentas contables.</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="check-box" onclick="this.classList.toggle('checked')"></span>
+                            <div class="check-text">
+                                <strong>Entrenar reglas de conciliación</strong>
+                                <span class="tag tag-optional">Recomendado</span>
+                                <span class="check-detail">Proporciona 3 meses de movimientos conciliados para que el agente de IA aprenda tus patrones.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-box warn">
+                <span class="info-box-icon">⚠️</span>
+                <div class="info-box-text">
+                    <strong>Importante:</strong> Nunca compartas tus credenciales CIEC o API keys por correo electrónico o mensajería. Usa el portal seguro de B&B AI o solicita una reunión de configuración remota con nuestro equipo.
+                </div>
+            </div>
+        </section>
+
+        <hr class="section-divider">
+
+        <!-- ============================================ -->
+        <!-- SECCIÓN 4 — PRIMEROS 30 DÍAS                 -->
+        <!-- ============================================ -->
+        <section class="section" id="primeros-dias">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <div class="section-title-group">
+                    <h2 class="section-title">Primeros 30 Días</h2>
+                    <p class="section-subtitle">Fase piloto, capacitación y puesta en producción con B&B AI.</p>
+                </div>
+            </div>
+
+            <div class="timeline">
+                <!-- Semana 1 -->
+                <div class="timeline-item completed">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-date">Semana 1 — Días 1–7</div>
+                        <div class="timeline-title">Piloto con Datos Sintéticos</div>
+                        <div class="timeline-desc">
+                            Validación completa del sistema con datos de prueba. El objetivo es verificar que cada módulo procesa correctamente antes de conectar datos reales de clientes.
+                        </div>
+                        <div class="timeline-tasks">
+                            <ul>
+                                <li>Procesar lote de 50 CFDI de prueba (compras, ventas, nómina)</li>
+                                <li>Verificar clasificación automática en el catálogo de cuentas</li>
+                                <li>Validar conciliación bancaria con movimientos sintéticos</li>
+                                <li>Revisar generación de alertas y notificaciones</li>
+                                <li>Confirmar que el timbrado funciona con el PAC configurado</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Semana 2 -->
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-date">Semana 2 — Días 8–14</div>
+                        <div class="timeline-title">Capacitación del Equipo</div>
+                        <div class="timeline-desc">
+                            Sesiones de entrenamiento personalizadas para el equipo de tu firma. Cubrimos desde la operación diaria hasta la configuración avanzada.
+                        </div>
+                        <div class="timeline-tasks">
+                            <ul>
+                                <li>Sesión 1: Panel de control y navegación (2 horas)</li>
+                                <li>Sesión 2: Procesamiento de CFDI y contabilidad electrónica (3 horas)</li>
+                                <li>Sesión 3: Nómina, cobranza y facturación (2 horas)</li>
+                                <li>Sesión 4: Conciliación bancaria y reportes (2 horas)</li>
+                                <li>Sesión 5: Administración de usuarios y configuración avanzada (1 hora)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Semana 3 -->
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-date">Semana 3 — Días 15–21</div>
+                        <div class="timeline-title">Piloto con Datos Reales (3–5 Clientes)</div>
+                        <div class="timeline-desc">
+                            Procesamiento de documentos reales de un subconjunto de clientes. Se ejecuta en paralelo con tu proceso actual para detectar cualquier divergencia.
+                        </div>
+                        <div class="timeline-tasks">
+                            <ul>
+                                <li>Seleccionar 3–5 clientes representativos de diferentes giros</li>
+                                <li>Importar sus CFDI recibidos y emitidos de los últimos 3 meses</li>
+                                <li>Ejecutar conciliación bancaria con movimientos reales</li>
+                                <li>Comparar resultados de B&B AI contra tu proceso manual actual</li>
+                                <li>Documentar discrepancias y ajustar configuración</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Semana 4 -->
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-date">Semana 4 — Días 22–30</div>
+                        <div class="timeline-title">Go-Live y Escalamiento</div>
+                        <div class="timeline-desc">
+                            Revisión final, firma del acta de aceptación y migración de la cartera completa de clientes a la plataforma.
+                        </div>
+                        <div class="timeline-tasks">
+                            <ul>
+                                <li>Revisión de métricas del piloto (precisión, tiempo ahorrado, errores)</li>
+                                <li>Firma del acta de aceptación técnica (QA sign-off)</li>
+                                <li>Migración de la cartera completa de clientes</li>
+                                <li>Activación de todas las alertas y notificaciones en producción</li>
+                                <li>Programación de reuniones de seguimiento quincenales (primer mes)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Firma -->
+            <div style="margin-top: 40px;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Acta de Aceptación</h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Al firmar, ambas partes confirman que los requisitos del checklist han sido completados satisfactoriamente.</p>
+
+                <div class="signature-grid">
+                    <div class="signature-box">
+                        <div class="line"></div>
+                        <div class="label">Nombre y firma del representante de la firma contable</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="line"></div>
+                        <div class="label">Nombre y firma del representante de B&B AI</div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-muted);">
+                        <span>Fecha de aceptación:</span>
+                        <span style="display: inline-block; width: 160px; border-bottom: 1px solid var(--text-muted);"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="footer">
+        <div class="footer-brand"><span>B&B</span> AI</div>
+        <p class="footer-text">
+            Agentes de inteligencia artificial para firmas contables mexicanas. Automatiza CFDI, nómina, conciliación bancaria, cobranza y más.
+        </p>
+        <a href="https://bb-ai.mx" class="footer-cta">
+            Empezar ahora →
+        </a>
+        <div class="footer-links">
+            <a href="https://docs.bb-ai.mx">Documentación API</a>
+            <a href="https://bb-ai.mx/soporte">Soporte técnico</a>
+            <a href="https://bb-ai.mx/seguridad">Seguridad y cumplimiento</a>
+            <a href="https://bb-ai.mx/contacto">Contacto</a>
+        </div>
+        <p style="margin-top: 20px; font-size: 0.72rem; color: var(--text-muted);">
+            © 2026 B&B AI · Todos los derechos reservados · RFC: [FIRMA_B&B] · Hecho en México 🇲🇽
+        </p>
+    </footer>
+
+    <!-- ===== PRINT BUTTON ===== -->
+    <button class="print-btn" onclick="window.print()" title="Imprimir checklist">
+        🖨
+        <span class="tooltip">Exportar a PDF</span>
+    </button>
+
+    <!-- ===== JavaScript ===== -->
+    <script>
+        // Interactive checkboxes with local storage persistence
+        document.querySelectorAll('.check-box').forEach((box, index) => {
+            const key = `bb-ai-check-${index}`;
+            if (localStorage.getItem(key) === 'true') {
+                box.classList.add('checked');
+            }
+            box.addEventListener('click', () => {
+                box.classList.toggle('checked');
+                localStorage.setItem(key, box.classList.contains('checked'));
+            });
+        });
+
+        // Progress step highlighting on scroll
+        const sections = document.querySelectorAll('.section');
+        const navSteps = document.querySelectorAll('.progress-step');
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    navSteps.forEach(step => {
+                        step.classList.toggle('active', step.getAttribute('href') === `#${id}`);
+                    });
+                }
+            });
+        }, { rootMargin: '-20% 0px -60% 0px' });
+
+        sections.forEach(section => observer.observe(section));
+    </script>
+
+</body>
+</html>
