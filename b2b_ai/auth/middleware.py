@@ -7,8 +7,10 @@ Sin dependencias externas: los JWT se firman con HMAC-SHA256 (HS256) usando
 la librería estándar (hmac / base64 / hashlib), consistente con el estilo del
 resto del auth de B&B AI (comparaciones en tiempo constante con hmac).
 
-Secret: se lee de `B2B_JWT_SECRET`. Si no está configurado se usa un secreto
-de desarrollo (advertencia clara: NO usar en producción).
+Secret: se lee de `B2B_JWT_SECRET` y debe medir al menos 32 caracteres. Si
+falta, el arranque FALLA salvo en entornos de desarrollo (`B2B_ENV` ausente o
+dev/development/test/local), donde se genera uno aleatorio por proceso. No hay
+ningún secreto literal en el código: ver el bloque de `jwt_secret()`.
 
 Dependencias FastAPI expuestas por `JWTAuth`:
   - require_auth            : valida el Bearer token y devuelve el contexto
@@ -36,15 +38,71 @@ ACCESS_TTL = int(os.environ.get("B2B_JWT_ACCESS_TTL", "1800"))      # 30 min
 REFRESH_TTL = int(os.environ.get("B2B_JWT_REFRESH_TTL", "604800"))  # 7 días
 RESET_TTL = int(os.environ.get("B2B_JWT_RESET_TTL", "3600"))        # 1 hora
 
-_ENV_SECRET = "B2B_JWT_SECRET"
-# Secreto de desarrollo si no se configura. En producción SIEMPRE hay que
-# definir B2B_JWT_SECRET (ver .env.production.example).
-_DEV_SECRET = "b2b-ai-dev-jwt-secret-no-usable-en-produccion"
+# Nombre de la variable de entorno (no es un secreto).
+_JWT_SECRET_ENV = "B2B_JWT_SECRET"
+
+# Longitud mínima aceptada (32 bytes ≈ el `openssl rand -hex 32` de la doc).
+# Un secreto corto es fuerza-brutable offline a partir de un solo token.
+MIN_SECRET_LEN = 32
+
+# NO hay secreto de desarrollo literal en el código.
+#
+# Aquí vivía una constante `_DEV_SECRET` con un literal fijo, usada como
+# fallback de `jwt_secret()`. Con la env sin definir, la aplicación arrancaba
+# igual y firmaba y validaba tokens con una cadena publicada en el repositorio:
+# cualquiera podía forjar un access token con el `tenant_id` y el `role` que
+# quisiera. El fallo de configuración más común que existe —un `.env`
+# incompleto— dejaba la autenticación entera abierta.
+#
+# Ahora, sin la env definida:
+#   · en desarrollo (B2B_ENV ausente o dev/development/test/local) se genera un
+#     secreto ALEATORIO por proceso. Los tokens siguen funcionando dentro de una
+#     misma corrida y dejan de servir al reiniciar, que es justo lo que se
+#     quiere de un entorno de desarrollo.
+#   · en cualquier otro valor de B2B_ENV se lanza y el arranque falla ruidoso.
+_DEV_ENVS = ("", "dev", "development", "test", "testing", "local")
+
+_ephemeral_secret: Optional[str] = None
+
+
+def _is_dev_env() -> bool:
+    return os.environ.get("B2B_ENV", "").strip().lower() in _DEV_ENVS
 
 
 def jwt_secret() -> str:
-    """Secret de firma: B2B_JWT_SECRET o el de desarrollo."""
-    return os.environ.get(_ENV_SECRET, "") or _DEV_SECRET
+    """Secret de firma HS256.
+
+    Lee `B2B_JWT_SECRET`. Si falta o es demasiado corto, falla en producción y
+    genera uno efímero por proceso en desarrollo. Nunca devuelve un valor
+    constante conocido.
+    """
+    global _ephemeral_secret
+    secret = os.environ.get(_JWT_SECRET_ENV, "").strip()
+    if secret:
+        if len(secret) < MIN_SECRET_LEN:
+            raise RuntimeError(
+                f"{_JWT_SECRET_ENV} mide {len(secret)} caracteres; se requieren al "
+                f"menos {MIN_SECRET_LEN}. Genera uno con: openssl rand -hex 32")
+        return secret
+    if not _is_dev_env():
+        raise RuntimeError(
+            f"{_JWT_SECRET_ENV} no está definida y B2B_ENV="
+            f"{os.environ.get('B2B_ENV', '')!r} no es un entorno de desarrollo. "
+            f"Sin ella no se pueden firmar tokens de forma segura. "
+            f"Genera uno con: openssl rand -hex 32")
+    if _ephemeral_secret is None:
+        _ephemeral_secret = secrets.token_urlsafe(48)
+    return _ephemeral_secret
+
+
+def check_jwt_config() -> None:
+    """Valida la configuración de firma al arrancar (fail-fast).
+
+    La llama `create_app`, de modo que un despliegue mal configurado muere en el
+    arranque con un mensaje claro en vez de servir tráfico con autenticación
+    forjable.
+    """
+    jwt_secret()
 
 
 class JWTError(Exception):

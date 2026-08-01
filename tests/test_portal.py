@@ -75,7 +75,11 @@ def test_login_unknown_email(ctx):
 def test_me_requires_token(ctx):
     c = ctx["client"]
     assert c.get("/portal/auth/me").status_code == 401
-    assert c.get("/portal/invoices").status_code == 401
+    # El JSON del portal vive en /portal/invoices.json. /portal/invoices
+    # es la PÁGINA HTML (portal/routes.py), que sin sesión redirige a
+    # /portal/login con un 302 en vez de responder 401.
+    assert c.get("/portal/invoices.json").status_code == 401
+    assert c.get("/portal/invoices", follow_redirects=False).status_code == 302
 
 
 def test_me_with_valid_token(ctx):
@@ -179,8 +183,8 @@ def test_list_isolation_between_tenants(ctx):
     tok1 = _login(c, "cliente1@a.mx", "pass1").json()["token"]
     tok2 = _login(c, "cliente2@b.mx", "pass2").json()["token"]
 
-    r1 = c.get("/portal/invoices", headers=_auth(tok1)).json()
-    r2 = c.get("/portal/invoices", headers=_auth(tok2)).json()
+    r1 = c.get("/portal/invoices.json", headers=_auth(tok1)).json()
+    r2 = c.get("/portal/invoices.json", headers=_auth(tok2)).json()
     assert r1["count"] == 1
     assert r1["invoices"][0]["folio_fiscal"] == "ISO-1"
     assert r2["count"] == 0
@@ -200,13 +204,13 @@ def test_filters_categoria_y_estado(ctx):
                       {"ok": False, "requires_human_review": True, "issues": []})
     tok = _login(c, "cliente1@a.mx", "pass1").json()["token"]
 
-    r = c.get("/portal/invoices?categoria=nomina", headers=_auth(tok)).json()
+    r = c.get("/portal/invoices.json?categoria=nomina", headers=_auth(tok)).json()
     assert r["count"] == 1 and r["invoices"][0]["folio_fiscal"] == "F1"
 
-    r = c.get("/portal/invoices?estado=anomalia", headers=_auth(tok)).json()
+    r = c.get("/portal/invoices.json?estado=anomalia", headers=_auth(tok)).json()
     assert r["count"] == 1 and r["invoices"][0]["folio_fiscal"] == "F2"
 
-    r = c.get("/portal/invoices?fecha_desde=2026-02-02&fecha_hasta=2026-02-02",
+    r = c.get("/portal/invoices.json?fecha_desde=2026-02-02&fecha_hasta=2026-02-02",
               headers=_auth(tok)).json()
     assert r["count"] == 1 and r["invoices"][0]["folio_fiscal"] == "F2"
 

@@ -609,6 +609,50 @@ MIGRATIONS = [
             ON outreach_events(lead_id);
         """,
     },
+    {
+        "version": 13,
+        "name": "bank_reconciliation_state",
+        "sql": """
+        -- Estado de conciliación bancaria, persistido por tenant.
+        --
+        -- Antes vivía en un diccionario a nivel de módulo (_SESSIONS en
+        -- api/reconciliation.py). Eso lo hacía inservible con más de un worker
+        -- —la subida caía en un proceso y el reporte se pedía a otro—, crecía
+        -- en RAM sin techo y se perdía en cada reinicio.
+        --
+        -- Solo se persiste lo que NO es derivable: los movimientos subidos y
+        -- las confirmaciones manuales. Las facturas ya salen de `invoices` y
+        -- los cruces se recalculan en cada petición.
+        CREATE TABLE IF NOT EXISTS bank_transactions (
+            id INTEGER PRIMARY KEY,
+            tenant_id INTEGER,
+            tx_id TEXT NOT NULL,
+            banco TEXT,
+            filename TEXT,
+            data TEXT NOT NULL,          -- movimiento normalizado (JSON)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        -- Un mismo movimiento no se duplica al resubir el estado de cuenta.
+        -- COALESCE porque en SQLite dos NULL no colisionan en un UNIQUE, y el
+        -- tenant nulo (key de servicio) es un caso real.
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bank_tx_unico
+            ON bank_transactions(COALESCE(tenant_id, -1), tx_id);
+        CREATE INDEX IF NOT EXISTS idx_bank_tx_tenant
+            ON bank_transactions(tenant_id);
+
+        CREATE TABLE IF NOT EXISTS bank_confirmations (
+            id INTEGER PRIMARY KEY,
+            tenant_id INTEGER,
+            tx_id TEXT NOT NULL,
+            invoice_id TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bank_conf_unico
+            ON bank_confirmations(COALESCE(tenant_id, -1), tx_id);
+        CREATE INDEX IF NOT EXISTS idx_bank_conf_tenant
+            ON bank_confirmations(tenant_id);
+        """,
+    },
 ]
 
 

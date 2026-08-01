@@ -3,11 +3,53 @@ name: Deploy B&B AI
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ── Puerta: la suite corre ANTES de cualquier despliegue ──
+  #
+  # Antes este workflow tenía solo los dos jobs de despliegue y ninguno instalaba
+  # dependencias ni ejecutaba pytest: cada push a `main` iba directo a Vercel y a
+  # Railway. En el momento de la auditoría eso significaba desplegar con ocho
+  # pruebas en rojo, dos de las cuales señalaban una fuga entre tenants en el
+  # audit log y una conciliación bancaria inservible con más de un worker.
+  #
+  # Corre también en `pull_request`: es donde hay que enterarse, no después de
+  # mergear.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      # Las dependencias FIJADAS de producción, y no las abiertas de
+      # pyproject.toml: la suite tiene que correr contra las mismas versiones que
+      # se despliegan. La diferencia importa —con `lxml>=4.9` el parser de CFDI
+      # resolvería entidades externas, y con la 6.1.1 fijada no—.
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-production.txt
+          pip install pytest httpx 'psycopg[binary]' psycopg-pool
+          pip install -e .
+
+      - name: Pruebas
+        run: pytest -q
+
   # ── Landing → Vercel ──
   deploy-landing:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -26,6 +68,8 @@ jobs:
 
   # ── API → Railway ──
   deploy-api:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

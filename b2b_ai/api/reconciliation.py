@@ -27,17 +27,31 @@ from b2b_ai.services.bank_reconciliation import (BankReconciliation,
 from b2b_ai.services.llm import LLMService
 
 
-# Sesiones por tenant (en memoria). Se crea una sesión por tenant a demanda.
-# Aisladas por tenant_id para que un tenant no vea datos de otro.
-_SESSIONS: dict = {}
-
-
-def _session(tenant_id) -> BankReconciliation:
-    key = tenant_id if tenant_id is not None else "global"
-    if key not in _SESSIONS:
-        _SESSIONS[key] = BankReconciliation(tenant_id=tenant_id,
-                                            llm=LLMService())
-    return _SESSIONS[key]
+# El estado de conciliación vive en la BASE DE DATOS, no en el proceso.
+#
+# Aquí había un `_SESSIONS: dict` a nivel de módulo, cacheado por tenant_id. No
+# estaba ligado ni a la instancia de la aplicación ni a la base, y no se
+# purgaba nunca. Consecuencias, de peor a menos grave:
+#
+#   1. Se rompía con más de un worker. El Dockerfile recomienda
+#      `B2B_WORKERS=$(nproc)`: si la subida del estado de cuenta llegaba al
+#      worker A y el reporte al worker B, el reporte salía vacío. La función
+#      entera era inservible en cualquier despliegue con réplicas.
+#   2. Memoria sin techo: los movimientos se acumulaban por tenant para
+#      siempre.
+#   3. Se perdía todo al reiniciar.
+#   4. El estado sobrevivía entre instancias de la aplicación, que es lo que
+#      hacían visible las pruebas (un reporte sobre una base recién creada
+#      devolvía los movimientos de la prueba anterior).
+#
+# `_session` ahora RECONSTRUYE el servicio en cada petición desde la base. Es
+# barato: el servicio es un motor de cruce sin estado propio, y lo único que no
+# se puede derivar —movimientos subidos y confirmaciones manuales— se persiste.
+def _session(db, tenant_id) -> BankReconciliation:
+    svc = BankReconciliation(tenant_id=tenant_id, llm=LLMService())
+    svc.transactions = db.list_bank_transactions(tenant_id)
+    svc.confirmed = dict(db.list_bank_confirmations(tenant_id))
+    return svc
 
 
 class ConfirmRequest(BaseModel):
@@ -100,8 +114,15 @@ def build_reconciliation_router(db, require_api_key):
             tmp.write(file.file.read())
             tmp_path = tmp.name
         try:
-            svc = _session(tenant)
+            svc = _session(db, tenant)
+            # `upload_statement` parsea y deja los movimientos en `svc`; lo que
+            # se acaba de añadir es la cola de `svc.transactions`. Se persiste
+            # esa cola para que el estado sobreviva al proceso.
+            antes = len(svc.transactions)
             res = svc.upload_statement(tmp_path, bank)
+            db.add_bank_transactions(tenant, svc.transactions[antes:],
+                                     banco=res.get("banco"),
+                                     filename=res.get("filename"))
             db.log_call("reconciliation", "upload", entity="statement",
                         entity_id=file.filename, payload={"bank": bank,
                                                            "rows": res["movimientos"]},
@@ -124,7 +145,7 @@ def build_reconciliation_router(db, require_api_key):
         confidence score 0-100. Cruza contra las facturas del tenant en DB.
         """
         tenant = _scope(auth_info)
-        svc = _session(tenant)
+        svc = _session(db, tenant)
         svc.load_invoices(_tenant_invoices(tenant))
         if refresh or not svc.transactions:
             svc.auto_match()
@@ -139,13 +160,14 @@ def build_reconciliation_router(db, require_api_key):
         `invoice_id`. El cruce queda marcado method=manual, confidence=100.
         """
         tenant = _scope(auth_info)
-        svc = _session(tenant)
+        svc = _session(db, tenant)
         # Asegura que las facturas estén cargadas para resolver el id.
         svc.load_invoices(_tenant_invoices(tenant))
         try:
             m = svc.manual_match(req.transaction_id, req.invoice_id)
         except ValueError as e:
             raise HTTPException(404, str(e))
+        db.set_bank_confirmation(tenant, req.transaction_id, req.invoice_id)
         db.log_call("reconciliation", "confirm", entity="match",
                     entity_id=req.transaction_id,
                     payload={"invoice_id": req.invoice_id},
@@ -160,10 +182,15 @@ def build_reconciliation_router(db, require_api_key):
         pendientes, tasas, por método) para el tenant.
         """
         tenant = _scope(auth_info)
-        svc = _session(tenant)
+        svc = _session(db, tenant)
         if not svc.transactions:
             return {"aviso": "No hay movimientos cargados. Sube un estado "
                              "de cuenta primero.", "ok": False}
+        # El reporte se calcula solo. Antes dependía de que alguien hubiera
+        # llamado a /matches primero sobre la MISMA sesión en memoria: pedir
+        # /report directamente devolvía un reporte con 0 conciliados.
+        svc.load_invoices(_tenant_invoices(tenant))
+        svc.auto_match()
         rep = svc.generate_reconciliation_report()
         rep["ok"] = True
         return rep

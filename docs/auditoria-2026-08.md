@@ -4,6 +4,8 @@
 **Revisión auditada:** `8fb951b` (rama `claude/repository-audit-j6mhgp`)
 **Alcance:** código de aplicación, pruebas, infraestructura de despliegue, seguridad e higiene del repositorio.
 
+> **Estado de las correcciones (2026-08-01).** Los hallazgos 1, 2, 3, 4, 5, 6, 7 y 8 están corregidos en esta misma rama. La suite quedó en **825 pasan, 23 saltadas, 1 xfail documentado**, y las correcciones están ancladas en `tests/test_hallazgos_auditoria.py` para que no puedan deshacerse en silencio. Cada sección de abajo lleva su estado. Los hallazgos 9 a 12 siguen abiertos.
+
 ---
 
 ## Calificación global: **6.8 / 10** (B−)
@@ -37,7 +39,7 @@ Vale la pena decirlo antes de la lista de problemas, porque es mucho:
 
 ## Hallazgos
 
-### 🔴 CRÍTICO — 1. Secreto JWT de desarrollo como fallback silencioso
+### 🔴 CRÍTICO — 1. Secreto JWT de desarrollo como fallback silencioso · ✅ CORREGIDO
 
 **`b2b_ai/auth/middleware.py:42-47`**
 
@@ -58,7 +60,7 @@ Nota: la propia prueba del repositorio lo detecta y está fallando (`tests/test_
 
 ---
 
-### 🟠 ALTO — 2. Lectura de archivos arbitrarios del servidor vía `xml_path` / `folder`
+### 🟠 ALTO — 2. Lectura de archivos arbitrarios del servidor vía `xml_path` / `folder` · ✅ CORREGIDO
 
 **`b2b_ai/api/app.py:541-546` y `1043-1053`**
 
@@ -80,7 +82,7 @@ La ruta viene del cuerpo de la petición y solo se comprueba que exista. No hay 
 
 ---
 
-### 🟠 ALTO — 3. Fuga entre tenants en la búsqueda del audit log (precedencia SQL)
+### 🟠 ALTO — 3. Fuga entre tenants en la búsqueda del audit log (precedencia SQL) · ✅ CORREGIDO
 
 **`b2b_ai/audit/trail.py:113-119`**
 
@@ -105,7 +107,7 @@ q = ("SELECT * FROM audit_entries WHERE (action LIKE ? OR ... OR ip LIKE ?)")
 
 ---
 
-### 🟠 ALTO — 4. Estado de conciliación bancaria en un global de proceso
+### 🟠 ALTO — 4. Estado de conciliación bancaria en un global de proceso · ✅ CORREGIDO
 
 **`b2b_ai/api/reconciliation.py:33-40`**
 
@@ -132,7 +134,7 @@ El diccionario vive a nivel de módulo, no está ligado a la instancia de aplica
 
 ---
 
-### 🟡 MEDIO — 5. El CI despliega a producción sin ejecutar las pruebas
+### 🟡 MEDIO — 5. El CI despliega a producción sin ejecutar las pruebas · ✅ CORREGIDO
 
 **`.github/workflows/deploy.yml`**
 
@@ -144,7 +146,7 @@ Hoy mismo eso significaría desplegar con **8 pruebas en rojo**, dos de las cual
 
 ---
 
-### 🟡 MEDIO — 6. Excepción sin capturar en la ruta JSON de `/api/v1/invoices/process`
+### 🟡 MEDIO — 6. Excepción sin capturar en la ruta JSON de `/api/v1/invoices/process` · ✅ CORREGIDO
 
 **`b2b_ai/api/app.py:546`**
 
@@ -154,7 +156,7 @@ La rama multipart captura `CFDIError` y responde 422 correctamente (líneas 525-
 
 ---
 
-### 🟡 MEDIO — 7. El limitador de peticiones crece sin límite y no cruza procesos
+### 🟡 MEDIO — 7. El limitador de peticiones crece sin límite y no cruza procesos · ⚠️ CORREGIDO EN PARTE
 
 **`b2b_ai/api/app.py:247-265`**
 
@@ -166,7 +168,7 @@ Además, al ser estado por proceso, el límite efectivo se multiplica por el nú
 
 ---
 
-### 🟡 MEDIO — 8. Base SQLite versionada en git
+### 🟡 MEDIO — 8. Base SQLite versionada en git · ✅ CORREGIDO
 
 `b2b_ai.db-wal` (4,1 MB) y `b2b_ai.db-shm` están rastreados. El `.gitignore` cubre `*.db` pero no los archivos auxiliares del modo WAL.
 
@@ -176,19 +178,19 @@ El contenido inspeccionado es de demostración (RFC ficticios, `despacho@b2b-ai.
 
 ---
 
-### 🔵 BAJO — 9. Manejo de errores demasiado permisivo
+### 🔵 BAJO — 9. Manejo de errores demasiado permisivo · ABIERTO
 
 84 bloques `except Exception` en `b2b_ai/`, de los cuales 18 son un `pass` silencioso. En los caminos best-effort (auditoría, notificaciones) es una decisión defendible y está comentada. En `api/auth.py:57`, en cambio, un fallo de base de datos al resolver una API key se convierte en un 401 indistinguible de una key inválida, lo que hará que un incidente de base de datos se diagnostique como problema de autenticación.
 
 ---
 
-### 🔵 BAJO — 10. Ruta duplicada y muerta
+### 🔵 BAJO — 10. Ruta duplicada y muerta · ABIERTO
 
 `/portal/invoices/export.csv` está definida dos veces: en `api/portal.py:379` y en `portal/routes.py:328`. Como `build_portal_router` se registra antes (`app.py:973`) que `build_portal_pages_router` (`app.py:979`), la segunda nunca se ejecuta.
 
 ---
 
-### 🔵 BAJO — 11. Afirmación desactualizada sobre XXE
+### 🔵 BAJO — 11. Afirmación desactualizada sobre XXE · ABIERTO
 
 `requirements-production.txt` afirma «defusedxml usado para DOMParse». **`defusedxml` no está en las dependencias ni se importa en ningún sitio.** `b2b_ai/cfdi/parser.py:86` usa `etree.parse(xml_path)` con el parser por defecto de lxml.
 
@@ -198,7 +200,7 @@ Para ser justos: **verifiqué que hoy no es explotable.** Con `lxml==6.1.1` las 
 
 ---
 
-### 🔵 BAJO — 12. Higiene del repositorio
+### 🔵 BAJO — 12. Higiene del repositorio · ⚠️ ABIERTO EN PARTE
 
 - Cinco informes de QA en la raíz (`QA_REPORT.md`, `QA_REPORT_CURRENT.md`, `QA_REPORT_FINAL.md`, `QA_REPORT_LANDING_FIX.md`, `PG_BUG_REPORT.md`) más `reports/`. Es imposible saber cuál está vigente.
 - `landing/` (13 MB) y `landing-b/` (3,8 MB) conviven con `index.html` distintos; el CI solo despliega `landing/`. `landing-b/` está sin usar.
@@ -226,19 +228,38 @@ Cinco de los ocho fallos apuntan a defectos genuinos de la aplicación, no a rui
 
 ---
 
-## Plan de corrección sugerido
+## Qué se corrigió y cómo
 
-**Antes de cualquier despliegue con datos reales:**
-1. Hallazgo 1 — eliminar el fallback del secreto JWT y añadir un guard de arranque.
-2. Hallazgo 2 — quitar `xml_path`/`folder` o confinarlos a un directorio base.
-3. Hallazgo 3 — paréntesis en el `WHERE` de `search_audit_log`.
+Todo lo de abajo está en esta rama. La suite quedó en **825 pasan, 23 saltadas, 1 xfail**.
 
-**Siguiente iteración:**
-4. Hallazgo 4 — persistir la conciliación bancaria en base de datos.
-5. Hallazgo 5 — job de pruebas bloqueante en el CI.
-6. Hallazgos 6, 7, 8 — manejo de `CFDIError`, purga del limitador, sacar la base de git.
+| # | Corrección | Archivos |
+|---|---|---|
+| 1 | Se elimina el literal de desarrollo. `jwt_secret()` exige `B2B_JWT_SECRET` de ≥32 caracteres; sin ella lanza salvo en entorno de desarrollo, donde genera un secreto aleatorio por proceso. `create_app` llama a `check_jwt_config()`, así que un despliegue mal configurado muere en el import y no sirve tráfico | `auth/middleware.py`, `api/app.py` |
+| 2 | La ingesta por ruta local pasa a ser opt-in y confinada: `B2B_LOCAL_XML_DIRS` lista los roots permitidos, `_resolve_local_path()` resuelve symlinks y `..` antes de comparar y devuelve 403 sin eco de la ruta. Vacía (por defecto) = 400 | `api/app.py` |
+| 3 | Paréntesis alrededor del bloque `OR` | `audit/trail.py` |
+| 4 | El estado se persiste en `bank_transactions` / `bank_confirmations`, con índice único por `(tenant, tx_id)` para que resubir no duplique. `_session()` reconstruye el servicio desde la base en cada petición. `/report` ya no depende de que alguien haya llamado antes a `/matches` | `api/reconciliation.py`, `db/db.py`, `db/models.py` (migración 13), `migrations/versions/0005_*.py` |
+| 5 | Job `test` del que dependen los dos de despliegue (`needs: test`), corriendo también en `pull_request`, contra las dependencias **fijadas** de producción | `.github/workflows/deploy.yml` |
+| 6 | La rama JSON captura `CFDIError` → 422, igual que la multipart | `api/app.py` |
+| 7 | Barrido periódico de claves caducadas en `RateLimiter` | `api/app.py` |
+| 8 | `git rm --cached` de los auxiliares WAL y `*.db-wal`/`*.db-shm`/`*.db-journal` en `.gitignore` | `.gitignore` |
 
-**Mantenimiento:**
-7. Actualizar las tres pruebas del portal a las rutas actuales.
-8. Consolidar la documentación duplicada y eliminar `landing-b/`.
-9. Estrechar los `except Exception` de los caminos que no son best-effort.
+Las correcciones están ancladas en **`tests/test_hallazgos_auditoria.py`** (16 pruebas): que el arranque falle sin secreto, que no quede ningún literal de desarrollo en el código, que una ruta fuera de los roots no importe el archivo ni filtre la ruta en el mensaje, que `..` no escape, que la búsqueda de auditoría no cruce tenants, que la conciliación sobreviva a una instancia nueva y no se filtre entre bases ni entre tenants, y que el limitador no crezca con el número de rutas distintas.
+
+### Lo que deliberadamente NO se tocó
+
+**El hallazgo 7 queda a medias.** El barrido cierra la fuga de memoria, pero el limitador sigue siendo **por proceso**: con N workers el límite efectivo es N veces el configurado, y no cruza réplicas. Respaldarlo en Redis (ya está en `docker-compose.prod.yml`) es un cambio de infraestructura aparte.
+
+**`test_match_ai_fallback_tokens` queda como `xfail`, no arreglado.** Es un fallo real y preexistente, pero salir de él exige decidir entre medir contención en vez de Jaccard en `_token_overlap`, bajar el umbral de 55 del paso IA, o aceptar que ese caso no cruce. Las tres cambian la precisión de la conciliación bancaria, que tiene consecuencias en dinero. La razón está escrita en el propio `xfail`.
+
+**Los hallazgos 9 a 12 siguen abiertos:** los `except Exception` demasiado anchos, la ruta duplicada muerta, el parser XML sin endurecer explícitamente y la duplicación de documentación y de `landing/`.
+
+---
+
+## Plan restante
+
+1. Respaldar el rate limiter en Redis (cierra el hallazgo 7).
+2. Decidir la métrica de similitud del cruce bancario y quitar el `xfail`.
+3. Parser XML explícito: `etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)` y corregir el comentario de `requirements-production.txt` que menciona un `defusedxml` que no se usa (hallazgo 11).
+4. Estrechar los `except Exception` de los caminos que no son best-effort, empezando por `api/auth.py:57`, donde un fallo de base de datos se presenta como un 401 (hallazgo 9).
+5. Borrar la ruta duplicada `/portal/invoices/export.csv` de `portal/routes.py`, que está muerta (hallazgo 10).
+6. Consolidar los cinco `QA_REPORT*.md` y eliminar `landing-b/` (hallazgo 12).

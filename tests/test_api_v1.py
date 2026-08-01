@@ -90,7 +90,8 @@ def test_process_path_inexistente(client):
     r = c.post("/api/v1/invoices/process",
                headers=_auth_headers(),
                json={"xml_path": "/no/existe.xml"})
-    assert r.status_code == 404
+    # Fuera de B2B_LOCAL_XML_DIRS: 403 sin confirmar si el archivo existe.
+    assert r.status_code == 403
 
 
 # ---- listado + filtros -----------------------------------------------------

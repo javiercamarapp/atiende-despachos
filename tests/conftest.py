@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import tempfile
 
 import pytest
 
@@ -14,6 +15,26 @@ FIXTURES = os.path.join(ROOT, "fixtures", "cfdis")
 
 def fixture_path(name):
     return os.path.join(FIXTURES, name)
+
+
+@pytest.fixture(autouse=True)
+def _ingesta_local_habilitada(monkeypatch, tmp_path_factory):
+    """Habilita la ingesta por ruta local para toda la suite.
+
+    `xml_path` / `folder` dejan que el cliente elija una ruta DEL SERVIDOR, así
+    que ahora son opt-in y están confinadas a `B2B_LOCAL_XML_DIRS` (ver
+    `_resolve_local_path` en api/app.py). Sin esta variable la API responde 400.
+
+    Las pruebas que usan `xml_path` representan un despliegue que SÍ habilitó la
+    ingesta local, así que se apuntan los dos directorios de los que leen: las
+    fixtures del repo y la raíz de los temporales de pytest. Que el confinamiento
+    funcione lo cubre `tests/test_ingesta_local.py`, que limpia esta variable a
+    propósito.
+    """
+    roots = os.pathsep.join([FIXTURES, ROOT,
+                             str(tmp_path_factory.getbasetemp()),
+                             tempfile.gettempdir()])
+    monkeypatch.setenv("B2B_LOCAL_XML_DIRS", roots)
 
 
 @pytest.fixture
