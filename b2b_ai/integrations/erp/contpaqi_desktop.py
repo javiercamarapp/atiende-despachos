@@ -140,10 +140,26 @@ class CONTPAQiDesktopAdapter(ERPAdapter):
         if self._use_mock:
             raise ERPAdapterError("Cannot query SQL in mock mode", code="MOCK_MODE")
         cursor = self._db_conn.cursor()
-        cursor.execute(query)
-        columns = [desc[0] for desc in cursor.description] if cursor.description else []
-        rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
-        cursor.close()
+        try:
+            cursor.execute(query)
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        finally:
+            cursor.close()
+        return rows
+
+    def _sql_query_params(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
+        """Execute a parameterized SQL query to prevent SQL injection."""
+        self._ensure_connected()
+        if self._use_mock:
+            raise ERPAdapterError("Cannot query SQL in mock mode", code="MOCK_MODE")
+        cursor = self._db_conn.cursor()
+        try:
+            cursor.execute(query, params)
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        finally:
+            cursor.close()
         return rows
 
     def get_invoices(self, date_range: Optional[Dict[str, str]] = None) -> List[Invoice]:
@@ -151,15 +167,16 @@ class CONTPAQiDesktopAdapter(ERPAdapter):
         if self._use_mock:
             return self._mock_invoices()
         try:
-            where = ""
+            query = "SELECT TOP 100 * FROM CONTPAQi_ComprobantesFiscales"
+            params = ()
             if date_range:
                 start = date_range.get("from", "")
                 end = date_range.get("to", "")
                 if start and end:
-                    where = f"WHERE Fecha >= '{start}' AND Fecha <= '{end}'"
-            rows = self._sql_query(
-                f"SELECT TOP 100 * FROM CONTPAQi_ComprobantesFiscales {where} ORDER BY Fecha DESC"
-            )
+                    query += " WHERE Fecha >= %s AND Fecha <= %s"
+                    params = (start, end)
+            query += " ORDER BY Fecha DESC"
+            rows = self._sql_query_params(query, params)
             return [Invoice(
                 id=str(r.get("IdComprobante", "")),
                 uuid=str(r.get("UUID", "")),
@@ -190,20 +207,22 @@ class CONTPAQiDesktopAdapter(ERPAdapter):
         if self._use_mock:
             return self._mock_polizas()
         try:
-            where = ""
+            query = "SELECT TOP 100 * FROM CONTPAQi_Polizas"
+            params = ()
             if date_range:
                 start = date_range.get("from", "")
                 end = date_range.get("to", "")
                 if start and end:
-                    where = f"WHERE Fecha >= '{start}' AND Fecha <= '{end}'"
-            rows = self._sql_query(
-                f"SELECT TOP 100 * FROM CONTPAQi_Polizas {where} ORDER BY Fecha DESC"
-            )
+                    query += " WHERE Fecha >= %s AND Fecha <= %s"
+                    params = (start, end)
+            query += " ORDER BY Fecha DESC"
+            rows = self._sql_query_params(query, params)
             polizas = []
             for r in rows:
                 poliza_id = r.get("IdPoliza", "")
-                mov_rows = self._sql_query(
-                    f"SELECT * FROM CONTPAQi_MovimientosPoliza WHERE IdPoliza = {poliza_id}"
+                mov_rows = self._sql_query_params(
+                    "SELECT * FROM CONTPAQi_MovimientosPoliza WHERE IdPoliza = %s",
+                    (poliza_id,)
                 )
                 cuentas = [CuentaPoliza(
                     cuenta=str(m.get("Cuenta", "")),
@@ -247,7 +266,7 @@ class CONTPAQiDesktopAdapter(ERPAdapter):
             cursor = self._db_conn.cursor()
             cursor.execute(
                 "INSERT INTO CONTPAQi_Polizas (Fecha, Concepto, Tipo, Numero) "
-                "VALUES (%s, %s, %s, %s) RETURNING IdPoliza",
+                "VALUES (%s, %s, %s, %s); SELECT SCOPE_IDENTITY()",
                 (poliza.fecha, poliza.concepto, poliza.tipo, poliza.numero or 0)
             )
             poliza_id = cursor.fetchone()[0]
@@ -296,8 +315,9 @@ class CONTPAQiDesktopAdapter(ERPAdapter):
         if self._use_mock:
             return self._mock_balanza(ejercicio, mes)
         try:
-            rows = self._sql_query(
-                f"SELECT * FROM CONTPAQi_Balanza WHERE Ejercicio={ejercicio} AND Mes={mes}"
+            rows = self._sql_query_params(
+                "SELECT * FROM CONTPAQi_Balanza WHERE Ejercicio = %s AND Mes = %s",
+                (ejercicio, mes)
             )
             cuentas = [{"cuenta": str(r.get("Cuenta", "")), "nombre": str(r.get("Nombre", "")),
                 "deudor": float(r.get("Deudor", 0)), "acreedor": float(r.get("Acreedor", 0))}

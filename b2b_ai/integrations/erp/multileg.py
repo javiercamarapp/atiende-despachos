@@ -82,7 +82,7 @@ class MultilegAdapter(ERPAdapter):
         self._connected = False
         if self._db_conn:
             try: self._db_conn.close()
-            except: pass
+            except Exception: pass
         self._db_conn = None
         self._empresa_info = {}
 
@@ -91,10 +91,26 @@ class MultilegAdapter(ERPAdapter):
         if self._use_mock:
             raise ERPAdapterError("Cannot query SQL in mock mode", code="MOCK_MODE")
         cursor = self._db_conn.cursor()
-        cursor.execute(query)
-        columns = [desc[0] for desc in cursor.description] if cursor.description else []
-        rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
-        cursor.close()
+        try:
+            cursor.execute(query)
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        finally:
+            cursor.close()
+        return rows
+
+    def _sql_query_params(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
+        """Execute a parameterized SQL query to prevent SQL injection."""
+        self._ensure_connected()
+        if self._use_mock:
+            raise ERPAdapterError("Cannot query SQL in mock mode", code="MOCK_MODE")
+        cursor = self._db_conn.cursor()
+        try:
+            cursor.execute(query, params)
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        finally:
+            cursor.close()
         return rows
 
     def get_invoices(self, date_range: Optional[Dict[str, str]] = None) -> List[Invoice]:
@@ -106,11 +122,15 @@ class MultilegAdapter(ERPAdapter):
                 iva=round(1241.38+i*248.28, 2), status="activa", concepto=f"Servicio Multileg {i}",
                 serie="ML", folio=str(4000+i), moneda="MXN") for i in range(1, 4)]
         try:
-            where = ""
+            query = "SELECT TOP 100 * FROM Multileg_Comprobantes"
+            params = ()
             if date_range:
                 s, e = date_range.get("from", ""), date_range.get("to", "")
-                if s and e: where = f"WHERE Fecha >= '{s}' AND Fecha <= '{e}'"
-            rows = self._sql_query(f"SELECT TOP 100 * FROM Multileg_Comprobantes {where} ORDER BY Fecha DESC")
+                if s and e:
+                    query += " WHERE Fecha >= %s AND Fecha <= %s"
+                    params = (s, e)
+            query += " ORDER BY Fecha DESC"
+            rows = self._sql_query_params(query, params)
             return [Invoice(id=str(r.get("Id", "")), rfc=str(r.get("RFC", "")),
                 fecha=str(r.get("Fecha", ""))[:10], monto=float(r.get("Total", 0)),
                 subtotal=float(r.get("Subtotal", 0)), iva=float(r.get("IVA", 0)),
@@ -128,15 +148,22 @@ class MultilegAdapter(ERPAdapter):
                          CuentaPoliza(cuenta="4101", descripcion="Ingresos", debe=0, haber=6000*i)],
                 monto_total=6000*i, status=StatusPoliza.CONTABILIZADA) for i in range(1, 3)]
         try:
-            where = ""
+            query = "SELECT TOP 100 * FROM Multileg_Polizas"
+            params = ()
             if date_range:
                 s, e = date_range.get("from", ""), date_range.get("to", "")
-                if s and e: where = f"WHERE Fecha >= '{s}' AND Fecha <= '{e}'"
-            rows = self._sql_query(f"SELECT TOP 100 * FROM Multileg_Polizas {where} ORDER BY Fecha DESC")
+                if s and e:
+                    query += " WHERE Fecha >= %s AND Fecha <= %s"
+                    params = (s, e)
+            query += " ORDER BY Fecha DESC"
+            rows = self._sql_query_params(query, params)
             polizas = []
             for r in rows:
                 pid = r.get("IdPoliza", "")
-                movs = self._sql_query(f"SELECT * FROM Multileg_Movimientos WHERE IdPoliza = {pid}")
+                movs = self._sql_query_params(
+                    f"SELECT * FROM Multileg_Movimientos WHERE IdPoliza = %s",
+                    (pid,)
+                )
                 cuentas = [CuentaPoliza(cuenta=str(m.get("Cuenta", "")), descripcion=str(m.get("Descripcion", "")),
                     debe=float(m.get("Debe", 0)), haber=float(m.get("Haber", 0))) for m in movs]
                 polizas.append(Poliza(id=str(pid), fecha=str(r.get("Fecha", ""))[:10],
@@ -156,7 +183,8 @@ class MultilegAdapter(ERPAdapter):
                     "mensaje": "Poliza subida (mock Multileg)", "fecha_registro": datetime.now().isoformat()}
         try:
             cursor = self._db_conn.cursor()
-            cursor.execute("INSERT INTO Multileg_Polizas (Fecha, Concepto, Tipo) VALUES (%s, %s, %s) RETURNING IdPoliza",
+            cursor.execute(
+                "INSERT INTO Multileg_Polizas (Fecha, Concepto, Tipo) VALUES (%s, %s, %s); SELECT SCOPE_IDENTITY()",
                 (poliza.fecha, poliza.concepto, poliza.tipo))
             pid = cursor.fetchone()[0]
             for c in poliza.cuentas:
@@ -193,7 +221,10 @@ class MultilegAdapter(ERPAdapter):
                 cuentas=_MOCK_BALANZA, total_deudor=sum(c["deudor"] for c in _MOCK_BALANZA),
                 total_acreedor=sum(c["acreedor"] for c in _MOCK_BALANZA), fecha_generacion=datetime.now().isoformat())
         try:
-            rows = self._sql_query(f"SELECT * FROM Multileg_Balanza WHERE Ejercicio={ejercicio} AND Mes={mes}")
+            rows = self._sql_query_params(
+                f"SELECT * FROM Multileg_Balanza WHERE Ejercicio = %s AND Mes = %s",
+                (ejercicio, mes)
+            )
             cuentas = [{"cuenta": str(r.get("Cuenta", "")), "nombre": str(r.get("Nombre", "")),
                 "deudor": float(r.get("Deudor", 0)), "acreedor": float(r.get("Acreedor", 0))} for r in rows]
             return BalanzaComprobacion(ejercicio=ejercicio, mes=mes, rfc=self._empresa_info.get("rfc", ""),
