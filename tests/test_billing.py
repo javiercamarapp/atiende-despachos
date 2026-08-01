@@ -166,7 +166,7 @@ def test_conekta_sin_key_real_lanza():
     p = ConektaProvider(mock=False, api_key="")
     with pytest.raises(PaymentError) as exc:
         p.create_customer("a@b.com", "Ana")
-    assert "B2B_CONEXTA_KEY" in str(exc.value)
+    assert "B2B_CONEKTA_KEY" in str(exc.value)
 
 
 # ---------------------------------------------------------------------------

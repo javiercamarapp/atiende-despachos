@@ -15,7 +15,7 @@ El router se construye con `build_billing_router(db, require_api_key,
 provider=None)`. Si no se inyecta un proveedor, se usa `get_default_provider()`
 (base.py): en demo/tests devuelve el MockPaymentProvider (sin red); en
 producción se resuelve por la config de entorno (B2B_STRIPE_KEY /
-B2B_CONEXTA_KEY / B2B_PAYMENTS_PROVIDER).
+B2B_CONEKTA_KEY / B2B_PAYMENTS_PROVIDER).
 """
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
         """Obtiene el secret del webhook para el proveedor."""
         env_map = {
             "stripe": "B2B_STRIPE_WEBHOOK_SECRET",
-            "conekta": "B2B_CONEXTA_WEBHOOK_SECRET",
+            "conekta": "B2B_CONEKTA_WEBHOOK_SECRET",
         }
         env_key = env_map.get(provider_name.lower(), "")
         return os.environ.get(env_key, "") if env_key else ""

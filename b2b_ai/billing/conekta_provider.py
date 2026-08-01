@@ -7,7 +7,7 @@ soporte para los métodos de pago mexicanos: tarjeta, SPEI y OXXO. Conekta
 es el proveedor recomendado para facturar en MXN dentro del país.
 
 Config:
-    B2B_CONEXTA_KEY       clave privada `key_...`.
+    B2B_CONEKTA_KEY       clave privada `key_...`.
     B2B_PAYMENTS_PROVIDER=conekta   usa Conekta por defecto.
     B2B_PAYMENTS_MOCK=1   modo mock (sin red).
 
@@ -38,7 +38,7 @@ from b2b_ai.billing.models import (
     SubscriptionStatus,
 )
 
-_CONEXTA_API = "https://api.conekta.io"
+_CONEKTA_API = "https://api.conekta.io"
 
 
 class ConektaProvider(PaymentProvider):
@@ -50,14 +50,14 @@ class ConektaProvider(PaymentProvider):
     SUPPORTED_METHODS = {t.value for t in PaymentMethodType}
 
     def __init__(self, api_key: Optional[str] = None, mock: Optional[bool] = None):
-        self.api_key = api_key or os.environ.get("B2B_CONEXTA_KEY", "")
+        self.api_key = api_key or os.environ.get("B2B_CONEKTA_KEY", "")
         self._mock = mock if mock is not None else mock_mode_enabled()
 
     # ---- helpers ---------------------------------------------------------
     def _headers(self) -> dict:
         if not self.api_key:
             raise PaymentError(
-                "B2B_CONEXTA_KEY no configurada para el proveedor Conekta.",
+                "B2B_CONEKTA_KEY no configurada para el proveedor Conekta.",
                 self.provider, code="missing_api_key")
         return {
             "Authorization": f"Bearer {self.api_key}",
@@ -67,7 +67,7 @@ class ConektaProvider(PaymentProvider):
 
     def _post(self, path: str, payload: dict) -> dict:
         try:
-            r = httpx.post(f"{_CONEXTA_API}{path}", json=payload,
+            r = httpx.post(f"{_CONEKTA_API}{path}", json=payload,
                            headers=self._headers(), timeout=30.0)
         except httpx.HTTPError as exc:
             raise PaymentError(f"Error de red con Conekta: {exc}",

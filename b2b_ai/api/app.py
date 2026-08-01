@@ -999,7 +999,7 @@ def create_app(db=None):
 
     # Cobros (FASE billing): Stripe / Conekta. En demo/tests usa el provider
     # mock (sin red); en producción resuelve por env (B2B_STRIPE_KEY /
-    # B2B_CONEXTA_KEY / B2B_PAYMENTS_PROVIDER).
+    # B2B_CONEKTA_KEY / B2B_PAYMENTS_PROVIDER).
     app.include_router(build_billing_router(db, require_api_key))
 
     # Onboarding wizard de nuevos clientes (wizard + checklist + score).

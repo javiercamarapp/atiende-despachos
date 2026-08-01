@@ -166,7 +166,7 @@ def get_default_provider() -> PaymentProvider:
 
     Reglas (por orden):
       1. Si B2B_PAYMENTS_MOCK=1  → MockPaymentProvider.
-      2. Si B2B_PAYMENTS_PROVIDER=conekta y hay B2B_CONEXTA_KEY → Conekta.
+      2. Si B2B_PAYMENTS_PROVIDER=conekta y hay B2B_CONEKTA_KEY → Conekta.
       3. Si hay B2B_STRIPE_KEY → Stripe.
       4. Fallback → MockPaymentProvider (demo segura, sin credenciales).
     """
