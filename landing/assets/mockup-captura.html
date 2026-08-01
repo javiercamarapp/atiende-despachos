@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200,initial-scale=1">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#fff;width:1200px;height:700px;overflow:hidden;display:flex}
+.sidebar{width:240px;background:#111;border-right:1px solid #1e1e1e;padding:24px 20px;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar .logo{display:flex;align-items:center;gap:10px;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid #1e1e1e}
+.sidebar .logo .mark{width:32px;height:32px;border-radius:8px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#666}
+.sidebar .logo span{font-weight:700;font-size:14px;color:#999}
+.sidebar nav{display:flex;flex-direction:column;gap:4px}
+.sidebar nav a{color:#666;font-size:13px;padding:10px 12px;border-radius:8px;text-decoration:none;transition:all .15s}
+.sidebar nav a.active{background:#1a1a1a;color:#fff}
+.sidebar nav a:hover{color:#999}
+.sidebar .bottom{margin-top:auto;padding-top:20px;border-top:1px solid #1e1e1e}
+.sidebar .bottom a{color:#555;font-size:12px;text-decoration:none;display:block;padding:6px 0}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:56px;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;justify-content:space-between;padding:0 28px;flex-shrink:0}
+.topbar h2{font-size:16px;font-weight:600;color:#ccc}
+.topbar .actions{display:flex;gap:12px;align-items:center}
+.topbar .search{background:#151515;border:1px solid #222;border-radius:8px;padding:8px 14px;color:#888;font-size:13px;width:240px}
+.topbar .btn-sm{background:#fff;color:#000;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+
+.content{flex:1;padding:24px 28px;overflow:hidden}
+.stats{display:flex;gap:16px;margin-bottom:24px}
+.stat-card{background:#111;border:1px solid #1e1e1e;border-radius:12px;padding:18px 22px;flex:1}
+.stat-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:6px}
+.stat-card .value{font-size:26px;font-weight:800;color:#fff}
+.stat-card .value.green{color:#34d399}
+.stat-card .value.amber{color:#fbbf24}
+.stat-card .sub{font-size:11px;color:#555;margin-top:4px}
+
+.table-wrap{background:#111;border:1px solid #1e1e1e;border-radius:12px;overflow:hidden}
+.table-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #1e1e1e}
+.table-header h3{font-size:14px;font-weight:600;color:#ccc}
+.table-header .tabs{display:flex;gap:2px}
+.table-header .tabs span{padding:6px 14px;border-radius:6px;font-size:12px;color:#666;cursor:pointer}
+.table-header .tabs span.active{background:#1a1a1a;color:#fff}
+
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:12px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#555;border-bottom:1px solid #1e1e1e;font-weight:600}
+td{padding:14px 20px;font-size:13px;color:#999;border-bottom:1px solid #151515}
+tr:last-child td{border-bottom:none}
+.rfc{font-family:'SF Mono',monospace;font-size:12px;color:#666}
+.monto{font-weight:600;color:#fff}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge.valid{background:rgba(52,211,153,.12);color:#34d399}
+.badge.pending{background:rgba(251,191,36,.12);color:#fbbf24}
+.badge.error{background:rgba(239,68,68,.12);color:#ef4444}
+.progress-cell{display:flex;align-items:center;gap:8px}
+.progress-bar{width:80px;height:4px;background:#1e1e1e;border-radius:2px;overflow:hidden}
+.progress-bar .fill{height:100%;background:#34d399;border-radius:2px}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="logo"><div class="mark">L</div><span>Likida AI</span></div>
+  <nav>
+    <a href="#" class="active">Dashboard</a>
+    <a href="#">Captura CFDI</a>
+    <a href="#">Validación fiscal</a>
+    <a href="#">Clasificación</a>
+    <a href="#">Pólizas</a>
+    <a href="#">Reportes</a>
+    <a href="#">Configuración</a>
+  </nav>
+  <div class="bottom">
+    <a>Despacho: García & Asociados</a>
+    <a>Plan: Pro · 423/900 CFDI</a>
+  </div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <h2>Captura de CFDI</h2>
+    <div class="actions">
+      <input class="search" placeholder="Buscar por RFC, folio o monto..." />
+      <button class="btn-sm">+ Subir factura</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="stats">
+      <div class="stat-card"><div class="label">Procesadas hoy</div><div class="value">147</div><div class="sub">de 180 programadas</div></div>
+      <div class="stat-card"><div class="label">Tasa de éxito</div><div class="value green">98.6%</div><div class="sub">sin intervención humana</div></div>
+      <div class="stat-card"><div class="label">Pendientes</div><div class="value amber">33</div><div class="sub">requieren revisión</div></div>
+      <div class="stat-card"><div class="label">Tiempo promedio</div><div class="value">2.1s</div><div class="sub">por factura capturada</div></div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>Facturas recientes</h3>
+        <div class="tabs"><span class="active">Todas</span><span>Validadas</span><span>Pendientes</span><span>Errores</span></div>
+      </div>
+      <table>
+        <thead><tr><th>Folio</th><th>RFC emisor</th><th>Razón social</th><th>Monto</th><th>Fecha</th><th>Estado</th><th>Avance</th></tr></thead>
+        <tbody>
+          <tr><td style="color:#fff;font-weight:500">A1F-8923</td><td class="rfc">XAXX010101000</td><td>Servicios Profesionales MX</td><td class="monto">$45,200.00</td><td>31 jul 2026</td><td><span class="badge valid">✓ Validado</span></td><td><div class="progress-cell"><div class="progress-bar"><div class="fill" style="width:100%"></div></div>100%</div></td></tr>
+          <tr><td style="color:#fff;font-weight:500">B2G-4417</td><td class="rfc">TCM850101AB3</td><td>Transportes Castilla</td><td class="monto">$12,850.50</td><td>31 jul 2026</td><td><span class="badge valid">✓ Validado</span></td><td><div class="progress-cell"><div class="progress-bar"><div class="fill" style="width:100%"></div></div>100%</div></td></tr>
+          <tr><td style="color:#fff;font-weight:500">C3H-6601</td><td class="rfc">DIM091203QP8</td><td>Distribuidora Industrial</td><td class="monto">$89,400.00</td><td>31 jul 2026</td><td><span class="badge pending">◷ Pendiente</span></td><td><div class="progress-cell"><div class="progress-bar"><div class="fill" style="width:65%"></div></div>65%</div></td></tr>
+          <tr><td style="color:#fff;font-weight:500">D4K-2289</td><td class="rfc">EKU9003173R9</td><td>Empresa Kuattro</td><td class="monto">$5,670.00</td><td>30 jul 2026</td><td><span class="badge valid">✓ Validado</span></td><td><div class="progress-cell"><div class="progress-bar"><div class="fill" style="width:100%"></div></div>100%</div></td></tr>
+          <tr><td style="color:#fff;font-weight:500">E5L-9934</td><td class="rfc">AAA010101AAA</td><td>A&A Consultores</td><td class="monto">$33,100.00</td><td>30 jul 2026</td><td><span class="badge error">✕ Error fiscal</span></td><td><div class="progress-cell"><div class="progress-bar"><div class="fill" style="width:40%;background:#ef4444"></div></div>40%</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200,initial-scale=1">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#fff;width:1200px;height:700px;overflow:hidden;display:flex}
+.sidebar{width:240px;background:#111;border-right:1px solid #1e1e1e;padding:24px 20px;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar .logo{display:flex;align-items:center;gap:10px;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid #1e1e1e}
+.sidebar .logo .mark{width:32px;height:32px;border-radius:8px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#666}
+.sidebar .logo span{font-weight:700;font-size:14px;color:#999}
+.sidebar nav{display:flex;flex-direction:column;gap:4px}
+.sidebar nav a{color:#666;font-size:13px;padding:10px 12px;border-radius:8px;text-decoration:none;transition:all .15s}
+.sidebar nav a.active{background:#1a1a1a;color:#fff}
+.sidebar nav a:hover{color:#999}
+.sidebar .bottom{margin-top:auto;padding-top:20px;border-top:1px solid #1e1e1e}
+.sidebar .bottom a{color:#555;font-size:12px;text-decoration:none;display:block;padding:6px 0}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:56px;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;justify-content:space-between;padding:0 28px;flex-shrink:0}
+.topbar h2{font-size:16px;font-weight:600;color:#ccc}
+.topbar .actions{display:flex;gap:12px;align-items:center}
+.topbar .btn-sm{background:#fff;color:#000;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+
+.content{flex:1;padding:24px 28px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+.panel{background:#111;border:1px solid #1e1e1e;border-radius:12px;padding:22px;display:flex;flex-direction:column}
+.panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.panel-header h3{font-size:14px;font-weight:600;color:#ccc}
+.panel-header .step{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.06em}
+
+.cfdi-detail{display:grid;grid-template-columns:120px 1fr;gap:10px 16px;font-size:13px}
+.cfdi-detail dt{color:#555;font-weight:500}
+.cfdi-detail dd{color:#ccc}
+.cfdi-detail .highlight{color:#fff;font-weight:600}
+.cfdi-detail .monospace{font-family:'SF Mono',monospace;font-size:12px;color:#888}
+
+.validation-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.v-item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#0a0a0a;border-radius:8px;border:1px solid #1a1a1a}
+.v-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.v-icon.ok{background:rgba(52,211,153,.1);color:#34d399}
+.v-icon.warn{background:rgba(251,191,36,.1);color:#fbbf24}
+.v-icon.err{background:rgba(239,68,68,.1);color:#ef4444}
+.v-text{flex:1}
+.v-text .title{font-size:13px;color:#ccc;font-weight:500}
+.v-text .desc{font-size:11px;color:#555;margin-top:2px}
+
+.flow-steps{display:flex;flex-direction:column;gap:0;margin-top:14px}
+.flow-step{display:flex;align-items:flex-start;gap:14px;padding:12px 0;position:relative}
+.flow-step::before{content:'';position:absolute;left:13px;top:36px;bottom:-12px;width:1px;background:#1e1e1e}
+.flow-step:last-child::before{display:none}
+.flow-num{width:28px;height:28px;border-radius:50%;background:#1a1a1a;border:1px solid #222;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#666;flex-shrink:0}
+.flow-num.done{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.3);color:#34d399}
+.flow-num.current{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:#fbbf24}
+.flow-body h4{font-size:13px;color:#ccc;font-weight:600}
+.flow-body p{font-size:11px;color:#555;margin-top:2px}
+.flow-body .time{font-size:10px;color:#444;margin-top:4px}
+
+.tax-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.tax-item{text-align:center;padding:14px;background:#0a0a0a;border-radius:8px;border:1px solid #1a1a1a}
+.tax-item .val{font-size:18px;font-weight:700;color:#fff}
+.tax-item .lbl{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.04em;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="logo"><div class="mark">L</div><span>Likida AI</span></div>
+  <nav>
+    <a href="#">Dashboard</a>
+    <a href="#">Captura CFDI</a>
+    <a href="#" class="active">Validación fiscal</a>
+    <a href="#">Clasificación</a>
+    <a href="#">Pólizas</a>
+    <a href="#">Reportes</a>
+    <a href="#">Configuración</a>
+  </nav>
+  <div class="bottom">
+    <a>Despacho: García & Asociados</a>
+    <a>Plan: Pro · 423/900 CFDI</a>
+  </div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <h2>Validación fiscal CFDI 4.0</h2>
+    <div class="actions"><button class="btn-sm">Exportar reporte</button></div>
+  </div>
+  <div class="content">
+    <!-- Panel izquierdo: detalle del CFDI -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Detalle del comprobante</h3>
+        <span class="step">Folio A1F-8923</span>
+      </div>
+      <dl class="cfdi-detail">
+        <dt>Serie / Folio</dt><dd class="highlight">A1F-8923</dd>
+        <dt>RFC emisor</dt><dd class="monospace">XAXX010101000</dd>
+        <dt>Razón social</dt><dd>Servicios Profesionales MX SA de CV</dd>
+        <dt>RFC receptor</dt><dd class="monospace">EKU9003173R9</dd>
+        <dt>Fecha emisión</dt><dd>31 julio 2026, 14:32</dd>
+        <dt>Subtotal</dt><dd class="highlight">$38,965.52</dd>
+        <dt>IVA (16%)</dt><dd class="highlight">$6,234.48</dd>
+        <dt>Total</dt><dd class="highlight" style="font-size:15px">$45,200.00</dd>
+        <dt>Método pago</dt><dd>Pago en una sola exhibición</dd>
+        <dt>Forma pago</dt><dd>Transferencia electrónica</dd>
+        <dt>Régimen fiscal</dt><dd>601 - General de Ley Personas Morales</dd>
+        <dt>Uso CFDI</dt><dd>G03 - Gastos en general</dd>
+      </dl>
+    </div>
+
+    <!-- Panel superior derecho: validaciones -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Validación automática</h3>
+        <span class="step">8/8 checks</span>
+      </div>
+      <div class="validation-list">
+        <div class="v-item"><div class="v-icon ok">✓</div><div class="v-text"><div class="title">Aritmética</div><div class="desc">Subtotal + IVA = Total ✓</div></div></div>
+        <div class="v-item"><div class="v-icon ok">✓</div><div class="v-text"><div class="title">Catálogos SAT</div><div class="desc">CFDI40, FormaPago, RegimenFiscal ✓</div></div></div>
+        <div class="v-item"><div class="v-icon ok">✓</div><div class="v-text"><div class="title">RFC receptor</dt><div class="desc">Ekuko SA de CV — existe en padrón ✓</div></div></div>
+        <div class="v-item"><div class="v-icon ok">✓</div><div class="v-text"><div class="title">IVA desglosado</div><div class="desc">16% correcto, base = $38,965.52 ✓</div></div></div>
+        <div class="v-item"><div class="v-icon ok">✓</div><div class="v-text"><div class="title">Timbrado SAT</div><div class="desc">UUID verificado con el PAC ✓</div></div></div>
+        <div class="v-item"><div class="v-icon ok">✓</div><div class="v-text"><div class="title">Fecha límite</div><div class="desc">Dentro de 72h de emisión ✓</div></div></div>
+        <div class="v-item"><div class="v-icon warn">!</div><div class="v-text"><div class="title">DIOT</div><div class="desc">Requiere clasificación para DIOT mensual</div></div></div>
+        <div class="v-item"><div class="v-icon ok">✓</div><div class="v-text"><div class="title">Retenciones</div><div class="desc">No aplica retención en este comprobante ✓</div></div></div>
+      </div>
+    </div>
+
+    <!-- Panel inferior izquierdo: flujo de proceso -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Flujo de procesamiento</h3>
+        <span class="step">Automático</span>
+      </div>
+      <div class="flow-steps">
+        <div class="flow-step"><div class="flow-num done">01</div><div class="flow-body"><h4>Descarga del XML</h4><p>CFDI obtenido del portal del SAT vía PAC</p><span class="time">0.3s</span></div></div>
+        <div class="flow-step"><div class="flow-num done">02</div><div class="flow-body"><h4>Parsing XML 4.0</h4><p>Extracción de 47 campos del comprobante</p><span class="time">0.1s</span></div></div>
+        <div class="flow-step"><div class="flow-num done">03</div><div class="flow-body"><h4>Validación fiscal</h4><p>Aritmética, catálogos, RFC, timbrado</p><span class="time">0.4s</span></div></div>
+        <div class="flow-step"><div class="flow-num done">04</div><div class="flow-body"><h4>Clasificación contable</h4><p>Gasto: Operativo · Cuenta: 601.01</p><span class="time">0.2s</span></div></div>
+        <div class="flow-step"><div class="flow-num current">05</div><div class="flow-body"><h4>Generación de póliza</h4><p>Poliza contable lista para revisión</p><span class="time">0.1s</span></div></div>
+        <div class="flow-step"><div class="flow-num">06</div><div class="flow-body"><h4>Registro en ERP</h4><p>Pendiente: publicación a CONTPAQi</p><span class="time">—</span></div></div>
+      </div>
+    </div>
+
+    <!-- Panel inferior derecho: impuestos -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Resumen fiscal</h3>
+        <span class="step">Clasificación contable</span>
+      </div>
+      <div class="tax-bar">
+        <div class="tax-item"><div class="val">$38,965</div><div class="lbl">Base gravable</div></div>
+        <div class="tax-item"><div class="val">$6,234</div><div class="lbl">IVA trasladado</div></div>
+        <div class="tax-item"><div class="val">$0</div><div class="lbl">Retenciones</div></div>
+        <div class="tax-item"><div class="val" style="color:#34d399">$45,200</div><div class="lbl">Total factura</div></div>
+      </div>
+      <div style="margin-top:18px;padding:16px;background:#0a0a0a;border-radius:8px;border:1px solid #1a1a1a">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:12px;color:#888">Clasificación automática</span>
+          <span style="font-size:11px;color:#34d399;font-weight:600">Confianza 97%</span>
+        </div>
+        <div style="font-size:13px;color:#ccc;font-weight:600;margin-bottom:6px">Gasto operativo → Cuenta 601.01 Servicios profesionales</div>
+        <div style="font-size:11px;color:#555;line-height:1.5">Razón: Servicios de consultoría con RFC régimen 601. IVA desglosado 16%. Sin retenciones aplicables. Apto para DIOT mensual.</div>
+      </div>
+      <div style="margin-top:14px;padding:14px;background:rgba(52,211,153,.06);border-radius:8px;border:1px solid rgba(52,211,153,.15);display:flex;align-items:center;gap:10px">
+        <span style="color:#34d399;font-size:16px">✓</span>
+        <div>
+          <div style="font-size:12px;color:#34d399;font-weight:600">Listo para póliza</div>
+          <div style="font-size:11px;color:#555;margin-top:2px">Póliza #4521 generada. Esperando aprobación del contador para registro en ERP.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
