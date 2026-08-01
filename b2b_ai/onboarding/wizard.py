@@ -2,18 +2,16 @@
 """
 wizard.py — OnboardingWizard: asistente de alta de un nuevo cliente (tenant).
 
-Orquesta el flujo de onboarding en 7 pasos y persiste el progreso en la tabla
+Orquesta el flujo de onboarding en 5 pasos y persiste el progreso en la tabla
 `tenant_config` (claves `onboarding:step:N` y `onboarding:state`), de modo que
 el progreso sobrevive entre requests y es por-tenant.
 
 Pasos:
-    1. company_info      — nombre, RFC, industria.
-    2. erp_selection     — CONTPAQi | Aspel | Other.
-    3. erp_connection    — credenciales ERP o subida de CSV.
-    4. account_catalog   — catálogo de cuentas.
-    5. first_invoice     — primera factura procesada.
-    6. team_invites      — invitaciones de equipo (crea usuarios).
-    7. subscription_plan — plan de facturación.
+    1. company_profile   — RFC, nombre, dirección, contacto.
+    2. sat_credentials   — CIEC y e.firma del SAT.
+    3. erp_connection    — selección y conexión del ERP (ContPAQi / Aspel / CSV).
+    4. billing_plan      — plan de facturación (Básico / Profesional / Enterprise).
+    5. first_cfdi        — prueba de subida de primer CFDI.
 
 Cada paso valida su `data` antes de persistir. El wizard NO autoevalúa el
 cierre: la verificación y el score los calcula OnboardingChecklist (checklist.py).
@@ -25,49 +23,77 @@ from typing import Any, Dict, List, Optional
 
 from b2b_ai.db.tenants import TenantManager, TenantNotFoundError
 
-# Orden canónico de los pasos (1..7).
-STEP_ORDER: List[int] = [1, 2, 3, 4, 5, 6, 7]
+# Orden canónico de los pasos (1..5).
+STEP_ORDER: List[int] = [1, 2, 3, 4, 5]
 
 # Claves legibles de cada paso (para la API / UI).
 STEP_NAMES: Dict[int, str] = {
-    1: "company_info",
-    2: "erp_selection",
+    1: "company_profile",
+    2: "sat_credentials",
     3: "erp_connection",
-    4: "account_catalog",
-    5: "first_invoice",
-    6: "team_invites",
-    7: "subscription_plan",
+    4: "billing_plan",
+    5: "first_cfdi",
 }
 
 STEP_TITLES: Dict[int, str] = {
-    1: "Información de la empresa",
-    2: "Selección de ERP",
+    1: "Perfil de la empresa",
+    2: "Credenciales SAT",
     3: "Conexión del ERP",
-    4: "Catálogo de cuentas",
-    5: "Primera factura",
-    6: "Invitaciones de equipo",
-    7: "Plan de suscripción",
+    4: "Plan de facturación",
+    5: "Prueba de CFDI",
 }
 
-# ERP soportados en el paso 2 (case-insensitive; se normalizan a mayúscula).
-ERP_OPTIONS: List[str] = ["CONTPAQi", "ASPEL", "OTHER"]
+# Descripción de cada paso (para UI / CLI).
+STEP_DESCRIPTIONS: Dict[int, str] = {
+    1: "Datos fiscales y de contacto de la empresa: RFC, nombre legal, dirección y contacto.",
+    2: "Configuración de credenciales ante el SAT: CIEC y e.firma (certificado + llave privada).",
+    3: "Selecciona y conecta tu sistema ERP: ContPAQi, Aspel, o importación CSV.",
+    4: "Elige el plan de facturación mensual que mejor se adapte a tu despacho.",
+    5: "Sube un CFDI de prueba para validar que el sistema procesa correctamente.",
+}
 
-# Planes válidos en el paso 7 (coinciden con billing.pricing.PLANS).
-PLAN_OPTIONS: List[str] = ["starter", "growth", "enterprise"]
+# ERP soportados en el paso 3 (case-insensitive; se normalizan a grafía canónica).
+ERP_OPTIONS: List[str] = ["ContPAQi", "Aspel", "CSV"]
+
+# Planes válidos en el paso 4 — coinciden con billing.pricing.PLANS.
+PLAN_OPTIONS: List[str] = ["basico", "profesional", "enterprise"]
+
+# Detalle de planes (precios MXN/mes).
+PLAN_DETAILS: Dict[str, Dict[str, Any]] = {
+    "basico": {
+        "key": "basico",
+        "name": "Básico",
+        "price_mxn": 4900.0,
+        "cfdi_limit": 500,
+        "description": "Hasta 500 CFDI/mes — para despachos pequeños",
+    },
+    "profesional": {
+        "key": "profesional",
+        "name": "Profesional",
+        "price_mxn": 12000.0,
+        "cfdi_limit": 2000,
+        "description": "Hasta 2,000 CFDI/mes — para despachos medianos",
+    },
+    "enterprise": {
+        "key": "enterprise",
+        "name": "Enterprise",
+        "price_mxn": 48000.0,
+        "cfdi_limit": None,
+        "description": "Sin límite de CFDI — para grandes despachos",
+    },
+}
 
 # Claves de tenant_config donde se guarda el estado.
 _CFG_STATE = "onboarding:state"      # JSON: {current_step, complete}
 _CFG_STEP = "onboarding:step:{}"     # JSON: data del paso N
 
-# Datos mínimos obligatorios por paso (para validación).
+# Datos mínimos obligatorios por paso (para validación rápida).
 _STEP_REQUIRED: Dict[int, List[str]] = {
-    1: ["name", "rfc", "industry"],
-    2: ["erp"],
-    3: [],  # depende de modo (credentials | csv) — se valida en _validate_step3
-    4: [],  # se acepta catálogo o plantilla; se valida en _validate_step4
-    5: ["invoice_id"],
-    6: ["invites"],
-    7: ["plan"],
+    1: ["name", "rfc", "address", "contact_name", "contact_email"],
+    2: ["ciec"],
+    3: ["erp"],
+    4: ["plan"],
+    5: ["cfdi_xml"],  # contenido XML o ruta del archivo
 }
 
 
@@ -132,68 +158,121 @@ class OnboardingWizard:
                 raise OnboardingError(f"Falta el campo obligatorio: {f}")
 
     def _validate_step1(self, data: Dict[str, Any]) -> None:
-        self._require(data, ["name", "rfc", "industry"])
+        """Company profile: RFC, nombre, dirección, contacto."""
+        self._require(data, ["name", "rfc", "address", "contact_name", "contact_email"])
+        from b2b_ai.common.rfc import is_valid_rfc
         rfc = str(data["rfc"]).strip()
-        if len(rfc) < 12:
-            raise OnboardingError("RFC inválido: debe tener al menos 12 caracteres.")
+        if not is_valid_rfc(rfc):
+            raise OnboardingError(
+                f"RFC inválido: {rfc!r}. Debe ser un RFC válido de persona física "
+                "(13 chars) o moral (12 chars) del SAT.")
+        # Normalizar RFC a mayúsculas
+        data["rfc"] = rfc.upper()
+        # Validar email de contacto
+        contact_email = str(data["contact_email"]).strip()
+        if "@" not in contact_email or "." not in contact_email:
+            raise OnboardingError(
+                f"Email de contacto inválido: {contact_email!r}.")
+        data["contact_email"] = contact_email.lower()
 
     def _validate_step2(self, data: Dict[str, Any]) -> None:
+        """SAT credentials: CIEC obligatorio, e.firma opcional."""
+        self._require(data, ["ciec"])
+        ciec = str(data["ciec"]).strip()
+        # CIEC del SAT: 6 caracteres alfanuméricos
+        if len(ciec) < 6:
+            raise OnboardingError(
+                "CIEC inválido: debe tener al menos 6 caracteres alfanuméricos.")
+        data["ciec"] = ciec
+        # e.firma es opcional pero si se prove, validar campos mínimos.
+        # Soporta tanto formato anidado {"efirma": {"certificado": ...}}
+        # como formato plano {"efirma_certificado": ..., "efirma_llave": ...}.
+        efirma = data.get("efirma")
+        if isinstance(efirma, dict):
+            missing = [k for k in ("certificado", "llave_privada")
+                       if not efirma.get(k)]
+            if missing:
+                raise OnboardingError(
+                    "e.firma incompleta. Faltan: " + ", ".join(missing))
+        else:
+            # Formato plano: e.firma_certificado / e.firma_llave
+            cert = data.get("efirma_certificado") or data.get("efirma_cert")
+            key_ = data.get("efirma_llave") or data.get("efirma_llave")
+            if cert and not key_:
+                raise OnboardingError(
+                    "e.firma incompleta. Se requiere tanto certificado "
+                    "como llave privada.")
+            if key_ and not cert:
+                raise OnboardingError(
+                    "e.firma incompleta. Se requiere tanto certificado "
+                    "como llave privada.")
+
+    def _validate_step3(self, data: Dict[str, Any]) -> None:
+        """ERP connection: selección + credenciales.
+
+        Soporta tanto formato anidado {"credentials": {"host": ...}}
+        como formato plano {"credentials_host": ..., "credentials_user": ...}.
+        """
+        self._require(data, ["erp"])
         erp_in = str(data.get("erp", "")).strip()
-        # Comparación case-insensitive; CONTPAQi se guarda con su grafía
-        # canónica (la "i" final es minúscula en la marca).
         by_key = {opt.upper(): opt for opt in ERP_OPTIONS}
         if erp_in.upper() not in by_key:
             raise OnboardingError(
                 f"ERP inválido: {erp_in!r}. Opciones: "
                 + ", ".join(ERP_OPTIONS) + ".")
-        data["erp"] = by_key[erp_in.upper()]  # normaliza
+        data["erp"] = by_key[erp_in.upper()]  # normaliza grafía
 
-    def _validate_step3(self, data: Dict[str, Any]) -> None:
-        mode = data.get("mode", "")
-        if mode == "credentials":
-            creds = data.get("credentials") or {}
-            missing = [k for k in ("host", "user", "password") if not creds.get(k)]
-            if missing:
-                raise OnboardingError(
-                    "Credenciales incompletas. Faltan: " + ", ".join(missing))
-        elif mode == "csv":
+        erp_type = data["erp"].lower()
+        if erp_type == "csv":
+            # Para CSV, se requiere al menos una referencia al archivo
             if not (data.get("csv_file") or data.get("csv_path")):
                 raise OnboardingError(
-                    "Modo CSV requiere csv_file (o csv_path).")
-        else:
-            raise OnboardingError(
-                "Conexión ERP requiere mode='credentials' o 'csv'.")
+                    "Conexión CSV requiere 'csv_file' o 'csv_path'.")
+        elif erp_type in ("contpaqi", "aspel"):
+            # Credenciales del ERP: soporta formato anidado y plano
+            creds = data.get("credentials") or {}
+            # Normalizar a formato anidado si viene plano
+            if not creds:
+                host = data.get("credentials_host") or data.get("host")
+                user = data.get("credentials_user") or data.get("user")
+                pwd = data.get("credentials_password") or data.get("password")
+                if host or user or pwd:
+                    creds = {"host": host, "user": user, "password": pwd}
+                    data["credentials"] = creds
+            missing = [k for k in ("host", "user", "password")
+                       if not creds.get(k)]
+            if missing:
+                raise OnboardingError(
+                    f"Conexión {data['erp']} requiere credenciales. "
+                    f"Faltan: {', '.join(missing)}")
 
     def _validate_step4(self, data: Dict[str, Any]) -> None:
-        catalog = data.get("catalog")
-        template = data.get("template")
-        if not catalog and not template:
-            raise OnboardingError(
-                "Catálogo de cuentas requiere 'catalog' (lista) o 'template'.")
-        if catalog is not None and not isinstance(catalog, list):
-            raise OnboardingError("'catalog' debe ser una lista de cuentas.")
-
-    def _validate_step5(self, data: Dict[str, Any]) -> None:
-        self._require(data, ["invoice_id"])
-
-    def _validate_step6(self, data: Dict[str, Any]) -> None:
-        invites = data.get("invites")
-        if not isinstance(invites, list) or not invites:
-            raise OnboardingError(
-                "Equipo requiere 'invites' (lista de {name, email}).")
-
-    def _validate_step7(self, data: Dict[str, Any]) -> None:
+        """Billing plan selection."""
+        self._require(data, ["plan"])
         plan = str(data.get("plan", "")).strip().lower()
         if plan not in PLAN_OPTIONS:
             raise OnboardingError(
                 f"Plan inválido: {data.get('plan')!r}. Opciones: "
                 + ", ".join(PLAN_OPTIONS) + ".")
         data["plan"] = plan  # normaliza
+        data["plan_detail"] = PLAN_DETAILS[plan]
+
+    def _validate_step5(self, data: Dict[str, Any]) -> None:
+        """First CFDI upload test."""
+        self._require(data, ["cfdi_xml"])
+        cfdi_xml = str(data["cfdi_xml"]).strip()
+        if len(cfdi_xml) < 50:
+            raise OnboardingError(
+                "El contenido del CFDI parece demasiado corto para ser un XML válido.")
+        # Verificar que parece un XML de CFDI
+        if not ("<cfdi:" in cfdi_xml or "<CFDI" in cfdi_xml.upper()):
+            raise OnboardingError(
+                "El contenido no parece ser un CFDI válido. "
+                "Debe contener elementos del namespace CFDI.")
 
     _VALIDATORS = {
         1: _validate_step1, 2: _validate_step2, 3: _validate_step3,
-        4: _validate_step4, 5: _validate_step5, 6: _validate_step6,
-        7: _validate_step7,
+        4: _validate_step4, 5: _validate_step5,
     }
 
     # ------------------------------------------------------------------ #
@@ -211,7 +290,13 @@ class OnboardingWizard:
             "tenant_id": self.tenant_id,
             "current_step": state["current_step"],
             "complete": state["complete"],
-            "steps": {STEP_NAMES[s]: STEP_TITLES[s] for s in STEP_ORDER},
+            "steps": {
+                STEP_NAMES[s]: {
+                    "title": STEP_TITLES[s],
+                    "description": STEP_DESCRIPTIONS[s],
+                }
+                for s in STEP_ORDER
+            },
             "completed_steps": [STEP_NAMES[s] for s in completed],
             "next_step": STEP_NAMES.get(state["current_step"]),
         }
@@ -220,13 +305,15 @@ class OnboardingWizard:
         """Devuelve el data de un paso (vacío si no está completado)."""
         self._ensure_tenant()
         if step not in STEP_ORDER:
-            raise OnboardingError(f"Paso inválido: {step} (usa 1..7).")
+            raise OnboardingError(f"Paso inválido: {step} (usa 1..5).")
+        step_data = self._load_step(step)
         return {
             "step": step,
             "name": STEP_NAMES[step],
             "title": STEP_TITLES[step],
-            "complete": self._load_step(step) is not None,
-            "data": self._load_step(step) or {},
+            "description": STEP_DESCRIPTIONS[step],
+            "complete": step_data is not None,
+            "data": step_data or {},
         }
 
     def set_step(self, step: int, data: Dict[str, Any],
@@ -235,11 +322,11 @@ class OnboardingWizard:
 
         Si el paso ya se había completado, se reemplaza su data. El paso en
         curso avanza al siguiente únicamente si `step == current_step` (o si
-        es un repaso de un paso anterior). El paso 7 marca complete=True.
+        es un repaso de un paso anterior). El paso 5 marca complete=True.
         """
         self._ensure_tenant()
         if step not in STEP_ORDER:
-            raise OnboardingError(f"Paso inválido: {step} (usa 1..7).")
+            raise OnboardingError(f"Paso inválido: {step} (usa 1..5).")
         if not isinstance(data, dict):
             raise OnboardingError("El data del paso debe ser un objeto JSON.")
         data = dict(data)
@@ -274,29 +361,22 @@ class OnboardingWizard:
         self._save_state(STEP_ORDER[-1], complete=True)
         return self.status()
 
-    def create_team_users(self) -> int:
-        """Crea los usuarios del paso 6 (team_invites) en el tenant.
+    def get_step_definitions(self) -> List[Dict[str, Any]]:
+        """Lista definiciones de todos los pasos (para UI / CLI)."""
+        return [
+            {
+                "step": s,
+                "name": STEP_NAMES[s],
+                "title": STEP_TITLES[s],
+                "description": STEP_DESCRIPTIONS[s],
+            }
+            for s in STEP_ORDER
+        ]
 
-        Idempotente por (email): los emails ya existentes no se duplican.
-        Devuelve el número de usuarios creados.
-        """
-        self._ensure_tenant()
-        invites = self._load_step(6) or {}
-        created = 0
-        existing = {u["email"] for u in self._list_users()}
-        for inv in invites.get("invites", []):
-            email = (inv.get("email") or "").strip()
-            if not email or email in existing:
-                continue
-            self.db.create_user(self.tenant_id, inv.get("name") or email,
-                                email, inv.get("role") or "contador")
-            existing.add(email)
-            created += 1
-        return created
+    def get_plan_options(self) -> List[Dict[str, Any]]:
+        """Lista de planes disponibles con precios (para UI)."""
+        return list(PLAN_DETAILS.values())
 
-    def _list_users(self) -> List[Dict[str, Any]]:
-        """Usuarios del tenant (consulta directa, no expuesta por db.py)."""
-        rows = self.db.conn.execute(
-            "SELECT id, name, email, role FROM users WHERE tenant_id=?",
-            (self.tenant_id,)).fetchall()
-        return [dict(r) for r in rows]
+    def get_erp_options(self) -> List[str]:
+        """Lista de ERPs disponibles."""
+        return list(ERP_OPTIONS)
