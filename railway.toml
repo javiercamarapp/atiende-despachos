@@ -1,0 +1,29 @@
+# =============================================================================
+# railway.toml — Configuración de Railway para B&B AI
+# =============================================================================
+# Docs: https://docs.railway.com/reference/configuration
+#
+# Railway auto-detecta este archivo en la raíz del repo.
+# Railway CLI: railway up | railway variables set | railway logs
+# =============================================================================
+
+[build]
+# Usar Dockerfile multi-stage (más optimizado que Nixpacks para Python)
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Puerto dinámico (Railway asigna un PORT aleatorio)
+startCommand = "uvicorn b2b_ai.api.app:app --host 0.0.0.0 --port $PORT --workers ${B2B_WORKERS:-1} --proxy-headers"
+
+# Health check endpoint (Railway lo llama para verificar que el servicio está vivo)
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+healthcheckInterval = 15
+
+# Política de reinicio en caso de fallo
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+# Auto-deploy al push a main (configurable desde Railway dashboard)
+numReplicas = 1
