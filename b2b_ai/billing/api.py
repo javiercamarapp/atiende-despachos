@@ -60,24 +60,40 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
                                    secret: str, provider_name: str) -> bool:
         """Verifica la firma HMAC de un webhook (Stripe o Conekta).
 
-        - Stripe: firma en header `Stripe-Signature` (formato v1=sha256=...)
-        - Conekta: firma en header `Conekta-Signature`
-        - Genérico: HMAC-SHA256
+        - Stripe: firma HMAC-SHA256 de ``{timestamp}.{raw_body}`` con formato
+          ``t=<timestamp>,v1=<hex>`` en el header ``Stripe-Signature``.
+        - Conekta: firma HMAC-SHA256 del raw body directo.
+        - Genérico: HMAC-SHA256 del raw body.
 
-        Retorna True si la firma es válida o si no hay secret configurado
-        (modo demo — en producción el secret DEBE estar configurado).
+        Retorna False si no hay secret configurado (nunca bypass silencioso).
         """
         if not secret:
-            # Sin secret: en producción rechazar; en dev/test permitir (demo mode).
-            import os as _os
-            env = _os.environ.get("B2B_ENV", "development").lower()
-            if env in ("production", "staging"):
+            # Sin secret configurado → siempre rechazar.
+            return False
+        provider_lower = provider_name.lower()
+
+        if provider_lower == "stripe":
+            # Stripe signature header: t=<ts>,v1=<sig>[,v1=<sig>...]
+            parts: dict[str, str] = {}
+            for segment in signature.split(","):
+                if "=" in segment:
+                    k, v = segment.split("=", 1)
+                    parts[k.strip()] = v.strip()
+            timestamp = parts.get("t", "")
+            v1_sig = parts.get("v1", "")
+            if not timestamp or not v1_sig:
                 return False
-            return True
+            # Stripe firma "{timestamp}.{raw_body}"
+            signed_payload = f"{timestamp}.".encode("utf-8") + payload_body
+            expected = hmac.new(
+                secret.encode("utf-8"), signed_payload, hashlib.sha256
+            ).hexdigest()
+            return hmac.compare_digest(v1_sig, expected)
+
+        # Conekta / genérico: HMAC-SHA256 del raw body.
         expected = hmac.new(
             secret.encode("utf-8"), payload_body, hashlib.sha256
         ).hexdigest()
-        # Normalizar: comparar sin prefijos de formato.
         clean_sig = signature.split("=")[-1] if "=" in signature else signature
         return hmac.compare_digest(clean_sig, expected)
 
@@ -178,15 +194,28 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
         return {"plans": list_plans()}
 
     @router.post("/webhook", summary="Recibe eventos del proveedor de pagos.")
-    def webhook(payload: WebhookPayload, request: Request,
-                auth_info: dict = Depends(require_api_key)):
+    async def webhook(request: Request,
+                      auth_info: dict = Depends(require_api_key)):
         """Procesa un evento de webhook del proveedor.
 
-        Verifica la firma HMAC del webhook antes de procesar. La firma se
-        extrae del header correspondiente al proveedor (Stripe-Signature,
-        Conekta-Signature). Si no hay secret configurado (modo demo), se
-        permite sin verificación.
+        Verifica la firma HMAC del webhook contra el body crudo antes de
+        procesar. La firma se extrae del header correspondiente al proveedor
+        configurado (Stripe-Signature, Conekta-Signature).
         """
+        # Leer body crudo ANTES de que FastAPI lo descarte.
+        raw_body = await request.body()
+        if not raw_body:
+            raise HTTPException(status_code=400, detail="Body vacío.")
+
+        # Parsear payload desde el body crudo.
+        import json as _json
+        try:
+            payload_data = _json.loads(raw_body)
+            payload = WebhookPayload.model_validate(payload_data)
+        except Exception as exc:
+            raise HTTPException(status_code=400,
+                                detail=f"Payload inválido: {exc}")
+
         # Verificar firma del webhook.
         # Use the configured provider, NOT payload.provider (attacker-controlled).
         configured_name = provider.provider.value if provider.provider else ""
@@ -201,11 +230,9 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
                 sig_header = request.headers.get("conekta-signature", "")
             else:
                 sig_header = request.headers.get("x-webhook-signature", "")
-            # Leer el body raw para verificar la firma.
-            # FastAPI ya parseó el body, pero necesitamos el raw bytes.
-            # Re-serializamos para la verificación HMAC.
-            import json as _json
-            raw_body = _json.dumps(payload.model_dump(), default=str).encode("utf-8")
+            if not sig_header:
+                raise HTTPException(status_code=401,
+                                    detail="Firma de webhook ausente.")
             if not _verify_webhook_signature(raw_body, sig_header, secret,
                                               provider_name):
                 raise HTTPException(status_code=401,
