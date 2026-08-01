@@ -39,10 +39,7 @@ class OpenAIAdapter(AIAdapter):
         self._client = None
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
-        """Connect to OpenAI API.
-
-        Uses OPENAI_API_KEY from environment or config.
-        """
+        """Connect to OpenAI API. Uses OPENAI_API_KEY from environment or config."""
         api_key = (
             (credentials or {}).get("api_key")
             or self.config.api_key
@@ -58,7 +55,6 @@ class OpenAIAdapter(AIAdapter):
         try:
             import openai
             self._client = openai.OpenAI(api_key=api_key)
-            # Validate with a simple call
             self._client.models.list()
             self._connected = True
             logger.info("OpenAIAdapter: connected to OpenAI API")
@@ -70,7 +66,7 @@ class OpenAIAdapter(AIAdapter):
             return True
         except Exception as e:
             logger.error(f"OpenAIAdapter: connection failed: {e}")
-            self._connected = True  # Allow mock fallback
+            self._connected = True
             self._client = None
             return True
 
@@ -79,7 +75,6 @@ class OpenAIAdapter(AIAdapter):
         self._ensure_connected()
         model = request.model or self.config.model
 
-        # Real API call
         if self._client:
             try:
                 messages = [{"role": m.role.value, "content": m.content} for m in request.messages]
@@ -109,7 +104,6 @@ class OpenAIAdapter(AIAdapter):
                 logger.error(f"OpenAIAdapter: generate failed: {e}")
                 raise
 
-        # Mock fallback
         return AIResponse(
             id=f"openai_{_uuid.uuid4().hex[:12]}",
             content="Respuesta mock de OpenAI GPT-4 para Likida AI.",
@@ -125,16 +119,9 @@ class OpenAIAdapter(AIAdapter):
 
         if self._client:
             try:
-                response = self._client.embeddings.create(
-                    model=model,
-                    input=request.input_text,
-                )
+                response = self._client.embeddings.create(model=model, input=request.input_text)
                 embedding = response.data[0].embedding
-                return EmbeddingResponse(
-                    embedding=embedding,
-                    model=model,
-                    dimensions=len(embedding),
-                )
+                return EmbeddingResponse(embedding=embedding, model=model, dimensions=len(embedding))
             except Exception as e:
                 logger.error(f"OpenAIAdapter: embed failed: {e}")
                 raise

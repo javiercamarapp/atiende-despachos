@@ -1,4 +1,3 @@
-import os
 # -*- coding: utf-8 -*-
 """
 ecodex.py — Adaptador mock para el PAC Ecodex.
@@ -27,6 +26,7 @@ from b2b_ai.integrations.sat.models import (
 logger = logging.getLogger(__name__)
 
 
+import os
 class EcodexAdapter(SATAdapter):
     """Adaptador mock para el PAC Ecodex.
 
@@ -41,7 +41,8 @@ class EcodexAdapter(SATAdapter):
         config.setdefault("empresa_id", "MOCK-EMPRESA-ID")
         config.setdefault("usuario", "usuario@ecodex.com")
         config.setdefault("password", "********")
-        config.setdefault("api_key", os.environ.get("ECODEX_API_KEY", ""))        super().__init__(name="ecodex", config=config)
+        config.setdefault("api_key", os.environ.get("ECODEX_API_KEY", ""))
+        super().__init__(name="ecodex", config=config)
         self._cfdis: Dict[str, CFDI] = {}
 
     def connect(self) -> bool:

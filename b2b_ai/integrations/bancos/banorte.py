@@ -1,4 +1,3 @@
-import os
 # -*- coding: utf-8 -*-
 """
 banorte.py — Adaptador mock para Banorte.
@@ -25,6 +24,7 @@ from b2b_ai.integrations.bancos.models import (
 logger = logging.getLogger(__name__)
 
 
+import os
 class BanorteAdapter(BankAdapter):
     """Adaptador mock para Banorte México.
 
@@ -33,8 +33,9 @@ class BanorteAdapter(BankAdapter):
     """
 
     def __init__(self, config: Optional[BankConfig] = None):
-        config = config or BankConfig(bank=Banco.BANORTE, account_number="0723456789")
-            api_key=os.environ.get("BANORTE_API_KEY", ""),        super().__init__(config=config)
+        config = config or BankConfig(bank=Banco.BANORTE, account_number="0723456789",
+            api_key=os.environ.get("BANORTE_API_KEY", ""))
+        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         logger.info("BanorteAdapter: conectando a Banorte (mock)...")

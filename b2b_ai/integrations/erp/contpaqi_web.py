@@ -1,4 +1,3 @@
-import os
 # -*- coding: utf-8 -*-
 """
 contpaqi_web.py — Adaptador mock para CONTPAQi versión web (API REST).
@@ -30,6 +29,7 @@ from b2b_ai.integrations.erp.models import (
 logger = logging.getLogger(__name__)
 
 
+import os
 class CONTPAQiWebAdapter(ERPAdapter):
     """Adaptador mock para CONTPAQi versión web (API REST).
 

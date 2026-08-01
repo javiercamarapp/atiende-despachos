@@ -7,7 +7,6 @@ Falls back to mock if SENDGRID_API_KEY is not set.
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import uuid as _uuid
@@ -46,10 +45,7 @@ class SendGridAdapter(CommunicationAdapter):
         self._client = None
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
-        """Connect to SendGrid API.
-
-        Uses SENDGRID_API_KEY from environment or config.
-        """
+        """Connect to SendGrid API. Uses SENDGRID_API_KEY from environment."""
         api_key = (
             (credentials or {}).get("api_key")
             or self.config.api_key
@@ -87,8 +83,7 @@ class SendGridAdapter(CommunicationAdapter):
 
         if self._client:
             try:
-                from sendgrid.helpers.mail import Mail, To
-
+                from sendgrid.helpers.mail import Mail
                 mail = Mail(
                     from_email=from_email,
                     to_emails=request.to,
@@ -98,53 +93,36 @@ class SendGridAdapter(CommunicationAdapter):
                 )
                 response = self._client.send(mail)
                 status_code = response.status_code
-
                 return Message(
                     id=f"sg_msg_{_uuid.uuid4().hex[:16]}",
-                    to=request.to,
-                    from_addr=from_email,
-                    subject=request.subject,
-                    body=request.body,
-                    channel=MessageChannel.EMAIL,
+                    to=request.to, from_addr=from_email, subject=request.subject,
+                    body=request.body, channel=MessageChannel.EMAIL,
                     status=MessageStatus.SENT if 200 <= status_code < 300 else MessageStatus.FAILED,
                     metadata={**request.metadata, "status_code": status_code},
-                    created_at=now,
-                    sent_at=now,
+                    created_at=now, sent_at=now,
                 )
             except Exception as e:
                 logger.error(f"SendGridAdapter: send_email failed: {e}")
                 return Message(
                     id=f"sg_msg_{_uuid.uuid4().hex[:16]}",
-                    to=request.to,
-                    from_addr=from_email,
-                    subject=request.subject,
-                    body=request.body,
-                    channel=MessageChannel.EMAIL,
+                    to=request.to, from_addr=from_email, subject=request.subject,
+                    body=request.body, channel=MessageChannel.EMAIL,
                     status=MessageStatus.FAILED,
-                    metadata={**request.metadata, "error": str(e)},
-                    created_at=now,
+                    metadata={**request.metadata, "error": str(e)}, created_at=now,
                 )
 
-        # Mock fallback
         return Message(
             id=f"sg_msg_{_uuid.uuid4().hex[:16]}",
-            to=request.to,
-            from_addr=from_email,
-            subject=request.subject,
-            body=request.body,
-            channel=MessageChannel.EMAIL,
-            status=MessageStatus.SENT,
-            metadata=request.metadata,
-            created_at=now,
-            sent_at=now,
+            to=request.to, from_addr=from_email, subject=request.subject,
+            body=request.body, channel=MessageChannel.EMAIL,
+            status=MessageStatus.SENT, metadata=request.metadata,
+            created_at=now, sent_at=now,
         )
 
     def send_sms(self, request: SMSRequest) -> Message:
-        """SendGrid does not support SMS directly."""
         raise NotImplementedError("SendGridAdapter no soporta SMS. Use TwilioAdapter.")
 
     def send_whatsapp(self, request: WhatsAppRequest) -> Message:
-        """SendGrid does not support WhatsApp."""
         raise NotImplementedError("SendGridAdapter no soporta WhatsApp. Use WhatsAppBusinessAdapter.")
 
     def send_notification(self, request: NotificationRequest) -> Message:
@@ -156,41 +134,26 @@ class SendGridAdapter(CommunicationAdapter):
         if self._client:
             try:
                 from sendgrid.helpers.mail import Mail
-
                 body = f"{request.title}\n\n{request.body}"
-                mail = Mail(
-                    from_email=from_email,
-                    to_emails=request.user_id,
-                    subject=request.title,
-                    plain_text_content=body,
-                )
+                mail = Mail(from_email=from_email, to_emails=request.user_id,
+                            subject=request.title, plain_text_content=body)
                 response = self._client.send(mail)
                 status_code = response.status_code
-
                 return Message(
                     id=f"sg_notif_{_uuid.uuid4().hex[:16]}",
-                    to=request.user_id,
-                    from_addr=from_email,
-                    subject=request.title,
-                    body=body,
-                    channel=MessageChannel.EMAIL,
+                    to=request.user_id, from_addr=from_email, subject=request.title,
+                    body=body, channel=MessageChannel.EMAIL,
                     status=MessageStatus.SENT if 200 <= status_code < 300 else MessageStatus.FAILED,
                     metadata={**request.metadata, "status_code": status_code},
-                    created_at=now,
-                    sent_at=now,
+                    created_at=now, sent_at=now,
                 )
             except Exception as e:
                 logger.error(f"SendGridAdapter: send_notification failed: {e}")
 
         return Message(
             id=f"sg_notif_{_uuid.uuid4().hex[:16]}",
-            to=request.user_id,
-            from_addr=from_email,
-            subject=request.title,
-            body=f"{request.title}: {request.body}",
-            channel=MessageChannel.EMAIL,
-            status=MessageStatus.SENT,
-            metadata=request.metadata,
-            created_at=now,
-            sent_at=now,
+            to=request.user_id, from_addr=from_email, subject=request.title,
+            body=f"{request.title}: {request.body}", channel=MessageChannel.EMAIL,
+            status=MessageStatus.SENT, metadata=request.metadata,
+            created_at=now, sent_at=now,
         )

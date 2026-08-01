@@ -3,8 +3,7 @@
 hub.py — IntegrationHub: Registro central de todos los adaptadores de integración.
 
 Permite registrar, obtener, listar y probar la conexión de todos los
-adaptadores del sistema (SAT, ERP, Bancos, Nómina, Pagos, Comunicación,
-Almacenamiento, Firmas, CRM, Monitoreo).
+adaptadores del sistema (SAT, ERP, Bancos, Nómina).
 """
 from __future__ import annotations
 
@@ -12,19 +11,9 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 
 from b2b_ai.integrations.sat.adapter import SATAdapter
-from b2b_ai.integrations.sat_direct.adapter import SATDirectAdapter
 from b2b_ai.integrations.erp.adapter import ERPAdapter
 from b2b_ai.integrations.bancos.adapter import BankAdapter
 from b2b_ai.integrations.nomina.adapter import NominaAdapter
-from b2b_ai.integrations.pagos.adapter import PaymentAdapter
-from b2b_ai.integrations.comunicacion.adapter import CommunicationAdapter
-from b2b_ai.integrations.storage.adapter import StorageAdapter
-from b2b_ai.integrations.firmas.adapter import SignatureAdapter
-from b2b_ai.integrations.crm.adapter import CRMAdapter
-from b2b_ai.integrations.monitoreo.adapter import MonitoringAdapter
-from b2b_ai.integrations.ai.adapter import AIAdapter
-from b2b_ai.integrations.documentos.adapter import DocumentProcessor
-from b2b_ai.integrations.analytics.adapter import AnalyticsAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -39,37 +28,22 @@ class IntegrationHubError(Exception):
 
 
 # Type alias for any adapter
-AnyAdapter = Union[
-    SATAdapter, SATDirectAdapter, ERPAdapter, BankAdapter, NominaAdapter,
-    PaymentAdapter, CommunicationAdapter, StorageAdapter,
-    SignatureAdapter, CRMAdapter, MonitoringAdapter,
-    AIAdapter, DocumentProcessor, AnalyticsAdapter,
-]
+AnyAdapter = Union[SATAdapter, ERPAdapter, BankAdapter, NominaAdapter]
 
 
 class IntegrationHub:
     """Hub central de integraciones.
 
     Registra y gestiona todos los adaptadores del sistema:
-    - SAT (Ecodex, Finkok, SAT Portal, SAT Direct)
-    - ERP (CONTPAQi, Aspel, QuickBooks, Xero, Peak, Multileg, Euroweb, Absis, Factor D, Taxko, FacturaDirecta)
-    - Bancos (BBVA, Banorte, Santander, HSBC, Banamex, Scotiabank, Inbursa, Afirme)
+    - SAT (Ecodex, Finkok, SAT Portal)
+    - ERP (CONTPAQi, Aspel, QuickBooks, Xero)
+    - Bancos (BBVA, Banorte, Santander, OFX, CSV)
     - Nómina (NominaService)
-    - Pagos (Stripe, Conekta, PayPal, Kushki, MercadoPago, PayPal México)
-    - Comunicación (SendGrid, Twilio, WhatsApp Business, Mailgun, AWS SES, Vonage, MessageBird)
-    - Almacenamiento (Google Drive, OneDrive, S3, Dropbox, Box, GCS)
-    - Firmas (DocuSign, FIEL/SAT, Adobe Sign)
-    - CRM (HubSpot, Pipedrive, Salesforce, Zoho CRM)
-    - Monitoreo (Sentry, Console, Datadog, New Relic, LogRocket)
-    - AI/ML (OpenAI, Anthropic, Vertex AI)
-    - Documentos (PDF, XML, OCR, Excel)
-    - Analytics (Google Analytics, Mixpanel, Amplitude)
 
     Uso:
         hub = IntegrationHub()
         hub.register_adapter("sat_ecodex", EcodexAdapter())
         hub.register_adapter("erp_quickbooks", QuickBooksOnlineAdapter(config))
-        hub.register_adapter("pago_stripe", StripeAdapter())
         hub.get_adapter("sat_ecodex")
         hub.get_status()
     """
@@ -157,32 +131,12 @@ class IntegrationHub:
         """Determina la categoría de un adaptador."""
         if isinstance(adapter, SATAdapter):
             return "sat"
-        if isinstance(adapter, SATDirectAdapter):
-            return "sat_direct"
         if isinstance(adapter, ERPAdapter):
             return "erp"
         if isinstance(adapter, BankAdapter):
             return "banco"
         if isinstance(adapter, NominaAdapter):
             return "nomina"
-        if isinstance(adapter, PaymentAdapter):
-            return "pago"
-        if isinstance(adapter, CommunicationAdapter):
-            return "comunicacion"
-        if isinstance(adapter, StorageAdapter):
-            return "almacenamiento"
-        if isinstance(adapter, SignatureAdapter):
-            return "firma"
-        if isinstance(adapter, CRMAdapter):
-            return "crm"
-        if isinstance(adapter, MonitoringAdapter):
-            return "monitoreo"
-        if isinstance(adapter, AIAdapter):
-            return "ai_ml"
-        if isinstance(adapter, DocumentProcessor):
-            return "documentos"
-        if isinstance(adapter, AnalyticsAdapter):
-            return "analytics"
         return "desconocido"
 
     def test_connection(self, name: str) -> Dict[str, Any]:
@@ -268,8 +222,7 @@ class IntegrationHub:
         """Obtiene adaptadores filtrados por categoría.
 
         Args:
-            category: "sat", "erp", "banco", "nomina", "pago",
-                      "comunicacion", "almacenamiento", "firma", "crm", "monitoreo"
+            category: "sat", "erp", "banco", "nomina"
 
         Returns:
             Dict de adaptadores de la categoría.

@@ -47,20 +47,9 @@ class TwilioAdapter(CommunicationAdapter):
         self._client = None
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
-        """Connect to Twilio API.
-
-        Uses TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN from environment.
-        """
-        account_sid = (
-            (credentials or {}).get("account_sid")
-            or self.config.api_key
-            or os.environ.get("TWILIO_ACCOUNT_SID", "")
-        )
-        auth_token = (
-            (credentials or {}).get("auth_token")
-            or self.config.api_secret
-            or os.environ.get("TWILIO_AUTH_TOKEN", "")
-        )
+        """Connect to Twilio API. Uses TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN."""
+        account_sid = (credentials or {}).get("account_sid") or self.config.api_key or os.environ.get("TWILIO_ACCOUNT_SID", "")
+        auth_token = (credentials or {}).get("auth_token") or self.config.api_secret or os.environ.get("TWILIO_AUTH_TOKEN", "")
 
         if not account_sid or not auth_token:
             logger.warning("TwilioAdapter: no credentials — running in MOCK mode")
@@ -71,8 +60,6 @@ class TwilioAdapter(CommunicationAdapter):
         try:
             from twilio.rest import Client
             self._client = Client(account_sid, auth_token)
-            # Validate with account lookup
-            self._client.api.accounts(account_sid).fetch()
             self._connected = True
             logger.info("TwilioAdapter: connected to Twilio API")
             return True
@@ -88,7 +75,6 @@ class TwilioAdapter(CommunicationAdapter):
             return True
 
     def send_email(self, request: EmailRequest) -> Message:
-        """Twilio SendGrid (separate product) — not directly supported."""
         raise NotImplementedError("TwilioAdapter no soporta email directamente. Use SendGridAdapter.")
 
     def send_sms(self, request: SMSRequest) -> Message:
@@ -99,46 +85,27 @@ class TwilioAdapter(CommunicationAdapter):
 
         if self._client:
             try:
-                message = self._client.messages.create(
-                    body=request.message,
-                    from_=from_phone,
-                    to=request.to,
-                )
+                message = self._client.messages.create(body=request.message, from_=from_phone, to=request.to)
                 return Message(
-                    id=message.sid,
-                    to=request.to,
-                    from_addr=from_phone,
-                    body=request.message,
+                    id=message.sid, to=request.to, from_addr=from_phone, body=request.message,
                     channel=MessageChannel.SMS,
                     status=MessageStatus.SENT if message.status in ("queued", "sent", "delivered") else MessageStatus.FAILED,
                     metadata={**request.metadata, "twilio_status": message.status},
-                    created_at=now,
-                    sent_at=now,
+                    created_at=now, sent_at=now,
                 )
             except Exception as e:
                 logger.error(f"TwilioAdapter: send_sms failed: {e}")
                 return Message(
-                    id=f"SM{_uuid.uuid4().hex[:32].upper()}",
-                    to=request.to,
-                    from_addr=from_phone,
-                    body=request.message,
-                    channel=MessageChannel.SMS,
-                    status=MessageStatus.FAILED,
-                    metadata={**request.metadata, "error": str(e)},
-                    created_at=now,
+                    id=f"SM{_uuid.uuid4().hex[:32].upper()}", to=request.to, from_addr=from_phone,
+                    body=request.message, channel=MessageChannel.SMS, status=MessageStatus.FAILED,
+                    metadata={**request.metadata, "error": str(e)}, created_at=now,
                 )
 
-        # Mock fallback
         return Message(
-            id=f"SM{_uuid.uuid4().hex[:32].upper()}",
-            to=request.to,
-            from_addr=from_phone or "+525****5678",
-            body=request.message,
-            channel=MessageChannel.SMS,
-            status=MessageStatus.SENT,
-            metadata=request.metadata,
-            created_at=now,
-            sent_at=now,
+            id=f"SM{_uuid.uuid4().hex[:32].upper()}", to=request.to,
+            from_addr=from_phone or "+525****5678", body=request.message,
+            channel=MessageChannel.SMS, status=MessageStatus.SENT,
+            metadata=request.metadata, created_at=now, sent_at=now,
         )
 
     def send_whatsapp(self, request: WhatsAppRequest) -> Message:
@@ -151,36 +118,21 @@ class TwilioAdapter(CommunicationAdapter):
 
         if self._client:
             try:
-                message = self._client.messages.create(
-                    body=body,
-                    from_=from_number,
-                    to=to_number,
-                )
+                message = self._client.messages.create(body=body, from_=from_number, to=to_number)
                 return Message(
-                    id=message.sid,
-                    to=to_number,
-                    from_addr=from_number,
-                    body=body,
+                    id=message.sid, to=to_number, from_addr=from_number, body=body,
                     channel=MessageChannel.WHATSAPP,
                     status=MessageStatus.SENT if message.status in ("queued", "sent", "delivered") else MessageStatus.FAILED,
                     metadata={**request.metadata, "twilio_status": message.status},
-                    created_at=now,
-                    sent_at=now,
+                    created_at=now, sent_at=now,
                 )
             except Exception as e:
                 logger.error(f"TwilioAdapter: send_whatsapp failed: {e}")
 
-        # Mock fallback
         return Message(
-            id=f"WA{_uuid.uuid4().hex[:32].upper()}",
-            to=to_number,
-            from_addr=from_number,
-            body=body,
-            channel=MessageChannel.WHATSAPP,
-            status=MessageStatus.SENT,
-            metadata=request.metadata,
-            created_at=now,
-            sent_at=now,
+            id=f"WA{_uuid.uuid4().hex[:32].upper()}", to=to_number, from_addr=from_number,
+            body=body, channel=MessageChannel.WHATSAPP, status=MessageStatus.SENT,
+            metadata=request.metadata, created_at=now, sent_at=now,
         )
 
     def send_notification(self, request: NotificationRequest) -> Message:
@@ -192,33 +144,20 @@ class TwilioAdapter(CommunicationAdapter):
 
         if self._client:
             try:
-                message = self._client.messages.create(
-                    body=body,
-                    from_=from_phone,
-                    to=request.user_id,
-                )
+                message = self._client.messages.create(body=body, from_=from_phone, to=request.user_id)
                 return Message(
-                    id=message.sid,
-                    to=request.user_id,
-                    from_addr=from_phone,
-                    body=body,
+                    id=message.sid, to=request.user_id, from_addr=from_phone, body=body,
                     channel=MessageChannel.SMS,
                     status=MessageStatus.SENT if message.status in ("queued", "sent", "delivered") else MessageStatus.FAILED,
                     metadata={**request.metadata, "twilio_status": message.status},
-                    created_at=now,
-                    sent_at=now,
+                    created_at=now, sent_at=now,
                 )
             except Exception as e:
                 logger.error(f"TwilioAdapter: send_notification failed: {e}")
 
         return Message(
-            id=f"tw_notif_{_uuid.uuid4().hex[:16]}",
-            to=request.user_id,
-            from_addr=from_phone or "+525****5678",
-            body=body,
-            channel=MessageChannel.SMS,
-            status=MessageStatus.SENT,
-            metadata=request.metadata,
-            created_at=now,
-            sent_at=now,
+            id=f"tw_notif_{_uuid.uuid4().hex[:16]}", to=request.user_id,
+            from_addr=from_phone or "+525****5678", body=body,
+            channel=MessageChannel.SMS, status=MessageStatus.SENT,
+            metadata=request.metadata, created_at=now, sent_at=now,
         )

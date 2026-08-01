@@ -1,4 +1,3 @@
-import os
 # -*- coding: utf-8 -*-
 """
 xero.py — Adaptador mock para Xero Accounting (API REST).
@@ -30,6 +29,7 @@ from b2b_ai.integrations.erp.models import (
 logger = logging.getLogger(__name__)
 
 
+import os
 class XeroAdapter(ERPAdapter):
     """Adaptador mock para Xero Accounting.
 

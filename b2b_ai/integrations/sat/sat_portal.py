@@ -1,4 +1,3 @@
-import os
 # -*- coding: utf-8 -*-
 """
 sat_portal.py — Adaptador para consulta directa al Portal del SAT.
@@ -28,6 +27,7 @@ from b2b_ai.integrations.sat.models import (
 logger = logging.getLogger(__name__)
 
 
+import os
 class SATPortalAdapter(SATAdapter):
     """Adaptador para consultas directas al Portal del SAT.
 

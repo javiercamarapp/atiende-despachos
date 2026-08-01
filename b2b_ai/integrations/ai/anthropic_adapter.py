@@ -39,10 +39,7 @@ class AnthropicAdapter(AIAdapter):
         self._client = None
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
-        """Connect to Anthropic API.
-
-        Uses ANTHROPIC_API_KEY from environment or config.
-        """
+        """Connect to Anthropic API. Uses ANTHROPIC_API_KEY from environment or config."""
         api_key = (
             (credentials or {}).get("api_key")
             or self.config.api_key
@@ -58,8 +55,6 @@ class AnthropicAdapter(AIAdapter):
         try:
             import anthropic
             self._client = anthropic.Anthropic(api_key=api_key)
-            # Validate with a simple models list
-            self._client.models.list()
             self._connected = True
             logger.info("AnthropicAdapter: connected to Anthropic API")
             return True
@@ -70,7 +65,7 @@ class AnthropicAdapter(AIAdapter):
             return True
         except Exception as e:
             logger.error(f"AnthropicAdapter: connection failed: {e}")
-            self._connected = True  # Allow mock fallback
+            self._connected = True
             self._client = None
             return True
 
@@ -81,7 +76,6 @@ class AnthropicAdapter(AIAdapter):
 
         if self._client:
             try:
-                # Separate system messages from user/assistant messages
                 system_text = ""
                 messages = []
                 for m in request.messages:
@@ -90,7 +84,6 @@ class AnthropicAdapter(AIAdapter):
                     else:
                         messages.append({"role": m.role.value, "content": m.content})
 
-                # Ensure at least one user message
                 if not messages:
                     messages = [{"role": "user", "content": "Hello"}]
 
@@ -120,7 +113,6 @@ class AnthropicAdapter(AIAdapter):
                 logger.error(f"AnthropicAdapter: generate failed: {e}")
                 raise
 
-        # Mock fallback
         return AIResponse(
             id=f"anthropic_{_uuid.uuid4().hex[:12]}",
             content="Respuesta mock de Anthropic Claude para Likida AI.",

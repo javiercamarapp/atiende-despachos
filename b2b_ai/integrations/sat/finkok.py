@@ -1,4 +1,3 @@
-import os
 # -*- coding: utf-8 -*-
 """
 finkok.py — Adaptador mock para el PAC Finkok.
@@ -27,6 +26,7 @@ from b2b_ai.integrations.sat.models import (
 logger = logging.getLogger(__name__)
 
 
+import os
 class FinkokAdapter(SATAdapter):
     """Adaptador mock para el PAC Finkok.
 
@@ -40,7 +40,7 @@ class FinkokAdapter(SATAdapter):
         config.setdefault("api_url", "https://portalcfdi.finkok.com/servicios/soap/")
         config.setdefault("username", "usuario@finkok.com")
         config.setdefault("password", "********")
-        config.setdefault("api_key", os.environ.get("FINKOK_API_KEY", ""))        config.setdefault("production", False)
+        config.setdefault("production", False)
         super().__init__(name="finkok", config=config)
         self._cfdis: Dict[str, CFDI] = {}
 

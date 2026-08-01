@@ -1,4 +1,3 @@
-import os
 # -*- coding: utf-8 -*-
 """
 aspel_cloud.py — Adaptador mock para Aspel Cloud (API REST).
@@ -30,6 +29,7 @@ from b2b_ai.integrations.erp.models import (
 logger = logging.getLogger(__name__)
 
 
+import os
 class AspelCloudAdapter(ERPAdapter):
     """Adaptador mock para Aspel Cloud.
 

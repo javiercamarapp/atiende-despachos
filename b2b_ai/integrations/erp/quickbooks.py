@@ -1,4 +1,3 @@
-import os
 # -*- coding: utf-8 -*-
 """
 quickbooks.py — Adaptador mock para QuickBooks Online (API REST).
@@ -30,6 +29,7 @@ from b2b_ai.integrations.erp.models import (
 logger = logging.getLogger(__name__)
 
 
+import os
 class QuickBooksOnlineAdapter(ERPAdapter):
     """Adaptador mock para QuickBooks Online.
 
