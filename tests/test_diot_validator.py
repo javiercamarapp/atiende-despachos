@@ -36,7 +36,7 @@ from b2b_ai.services.diot_validator import (
 def _make_operation_xml(
     rfc: str = "ABC123456789",
     razon_social: str = "Proveedor SA",
-    tipo_operacion: str = "01",
+    tipo_operacion: str = "85",
     monto: str = "10000.00",
     iva_trasladado: str = "1600.00",
     iva_acreditable: str = "1600.00",
@@ -142,16 +142,34 @@ class TestValidateRfcFormat:
 # ===========================================================================
 
 class TestValidateTipoOperacion:
-    """Tests for TipoOperacion validation."""
+    """Tests for TipoOperacion validation.
 
-    def test_valid_01_iva(self):
-        assert validate_tipo_operacion("01") is None
+    Catálogo SAT DIOT (Regla 3.10.7 RMF):
+    03 — Prestación de servicios profesionales
+    06 — Arrendamiento de inmuebles
+    85 — Otros
+    """
 
-    def test_valid_02_ieps(self):
-        assert validate_tipo_operacion("02") is None
-
-    def test_valid_03_exento(self):
+    def test_valid_03_servicios_profesionales(self):
         assert validate_tipo_operacion("03") is None
+
+    def test_valid_06_arrendamiento(self):
+        assert validate_tipo_operacion("06") is None
+
+    def test_valid_85_otros(self):
+        assert validate_tipo_operacion("85") is None
+
+    def test_invalid_01(self):
+        """01 no es un código válido del catálogo DIOT SAT."""
+        err = validate_tipo_operacion("01")
+        assert err is not None
+        assert "inválido" in err
+
+    def test_invalid_02(self):
+        """02 no es un código válido del catálogo DIOT SAT."""
+        err = validate_tipo_operacion("02")
+        assert err is not None
+        assert "inválido" in err
 
     def test_invalid_04(self):
         err = validate_tipo_operacion("04")
@@ -454,7 +472,8 @@ class TestValidateDiotXmlFull:
 
     def test_warnings_separated_from_errors(self):
         # Non-standard IVA rate produces a warning, not an error
-        node = _make_operation_xml(monto="10000", iva_trasladado="1000")  # 10% rate
+        node = _make_operation_xml(monto="10000", iva_trasladado="1000",
+                                   iva_acreditable="1000")  # 10% rate, matching acreditable
         xml_str = _make_diot_xml(operations=[node])
         result = validate_diot_xml(xml_str)
         assert result.warning_count >= 1

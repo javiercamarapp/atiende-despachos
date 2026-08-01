@@ -94,6 +94,12 @@ def validate_cfdi(datos):
     total = _dec(datos.get("total"))
     descuento = _dec(datos.get("descuento")) or Decimal("0")
     iva = _dec(datos.get("iva"))
+    # Preferir TotalImpuestosTrasladados como dato autoritativo (Anexo 20):
+    # si el parser ya sumó todos los traslados 002, usar ese valor como
+    # respaldo cuando iva sea None (facturas de tasa mixta).
+    total_imp_trasladados = _dec(datos.get("total_impuestos_trasladados"))
+    if iva is None and total_imp_trasladados is not None:
+        iva = total_imp_trasladados
     conceptos = datos.get("conceptos", [])
     ret_isr = _dec(datos.get("retenciones_isr"))
     ret_iva = _dec(datos.get("retenciones_iva"))
@@ -163,18 +169,28 @@ def validate_cfdi(datos):
             _ok("Total coherente")
 
     # ---- 5. Catálogos SAT ----
+    # CFF art. 29-A: los siguientes campos son OBLIGATORIOS en un CFDI.
+    # Si están ausentes, es un error, no un "ok".
     uso = datos.get("uso_cfdi", "")
-    if uso and not catalogs.is_valid_uso_cfdi(uso):
-        _fail("uso_cfdi_invalido", f"UsoCFDI '{uso}' no está en el catálogo c_UsoCFDI.",
-              "c_UsoCFDI")
+    if uso:
+        if not catalogs.is_valid_uso_cfdi(uso):
+            _fail("uso_cfdi_invalido", f"UsoCFDI '{uso}' no está en el catálogo c_UsoCFDI.",
+                  "c_UsoCFDI")
+        else:
+            _ok("UsoCFDI en catálogo")
     else:
-        _ok("UsoCFDI en catálogo" if uso else "Sin UsoCFDI (no aplica)")
+        _fail("uso_cfdi_faltante", "UsoCFDI es obligatorio (CFF art. 29-A fracc. V).",
+              "CFF art. 29-A")
     fp = datos.get("forma_pago", "")
-    if fp and not catalogs.is_valid_forma_pago(fp):
-        _fail("forma_pago_invalida", f"FormaPago '{fp}' no está en el catálogo c_FormaPago.",
-              "c_FormaPago")
+    if fp:
+        if not catalogs.is_valid_forma_pago(fp):
+            _fail("forma_pago_invalida", f"FormaPago '{fp}' no está en el catálogo c_FormaPago.",
+                  "c_FormaPago")
+        else:
+            _ok("FormaPago en catálogo")
     else:
-        _ok("FormaPago en catálogo" if fp else "Sin FormaPago")
+        _fail("forma_pago_faltante", "FormaPago es obligatorio (CFF art. 29-A fracc. I).",
+              "CFF art. 29-A")
     mp = datos.get("metodo_pago", "")
     if not mp:
         _fail("metodo_pago_ausente", "MetodoPago es obligatorio (PUE o PPD).", "CFF art. 29-A")
@@ -191,13 +207,39 @@ def validate_cfdi(datos):
         _ok("TipoDeComprobante valido")
     regimen = datos.get("emisor", {}).get("regimen_fiscal", "")
     if not regimen:
-        _fail("regimen_fiscal_ausente", "RegimenFiscal del emisor es obligatorio.", "CFF art. 29-A")
+        _fail("regimen_fiscal_ausente", "RegimenFiscal del emisor es obligatorio (CFF art. 29-A).", "CFF art. 29-A")
     elif not catalogs.is_valid_regimen(regimen):
         _fail("regimen_fiscal_invalido", f"RegimenFiscal '{regimen}' no esta en el catalogo.", "c_RegimenFiscal")
     else:
         _ok("RegimenFiscal del emisor en catalogo")
+
+    # CFF art. 29-A: Sello, NoCertificado y TimbreFiscalDigital son obligatorios
+    sello = datos.get("tiene_sello", False)
+    if not sello:
+        _fail("sello_faltante",
+              "El Sello digital del CFDI es obligatorio (CFF art. 29-A fracc. VIII). "
+              "El comprobante no está timbrado.",
+              "CFF art. 29-A")
     else:
-        _ok("RegimenFiscal del emisor en catálogo")
+        _ok("Sello digital presente")
+
+    no_certificado = datos.get("no_certificado", "")
+    if not no_certificado:
+        _fail("no_certificado_faltante",
+              "NoCertificado del emisor es obligatorio (CFF art. 29-A fracc. II).",
+              "CFF art. 29-A")
+    else:
+        _ok("NoCertificado presente")
+
+    folio_fiscal = datos.get("folio_fiscal", "")
+    if not folio_fiscal:
+        _fail("folio_fiscal_faltante",
+              "El TimbreFiscalDigital (folio fiscal/UUID) es obligatorio. "
+              "Sin él, el comprobante no produce efecto fiscal "
+              "(CFF art. 29-A último párrafo).",
+              "CFF art. 29-A")
+    else:
+        _ok("Folio fiscal (UUID) presente")
 
     # ---- 6. RFCs ----
     if not _es_rfc_valido(datos.get("emisor_rfc", "")):

@@ -49,6 +49,11 @@ class CSVErp(ERPInterface):
         if not folio:
             return {"ok": False, "poliza": None, "status": "error",
                     "message": "Sin folio fiscal para registrar."}
+        existing = self.get_invoice(folio)
+        if existing:
+            return {"ok": True, "poliza": existing.get("poliza"),
+                    "status": "registrada", "duplicate": True,
+                    "message": f"Factura {folio} ya registrada (idempotente)."}
         poliza_id = "CSV-" + uuid.uuid4().hex[:8].upper()
         categoria = invoice.get("categoria", "desconocido")
         from b2b_ai.erp.contpaqi import _cuentas_para_categoria

@@ -317,6 +317,7 @@ def parse_cfdi(xml_path):
         "total_impuestos_trasladados": _dec(root.get("TotalImpuestosTrasladados")),
         "total_impuestos_retenidos": _dec(root.get("TotalImpuestosRetenidos")),
         # Complementos
+        "no_certificado": no_certificado,
         "folio_fiscal": folio_fiscal,
         "fecha_timbrado": fecha_timbrado,
         "fecha_timbrado_dt": _iso_to_date(fecha_timbrado).isoformat()

@@ -9,6 +9,7 @@
                   Fecha="2026-07-20T14:00:00"
                   FormaPago="99" MetodoPago="PPD" Moneda="MXN"
                   TipoDeComprobante="P" Exportacion="01"
+                  Sello="AABBCCDD11223344" NoCertificado="00001000000000000000"
                   LugarExpedicion="06600" SubTotal="0.00" Total="0.00">
   <cfdi:Emisor Rfc="DESP820101AB1" Nombre="DESPACHO CONTABLE JAVIER C. S.C." RegimenFiscal="601"/>
   <cfdi:Receptor Rfc="CON950820K12" Nombre="CONSULTORIA ESTRATEGICA DEL NORTE S.A. DE C.V." DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="601" UsoCFDI="CP01"/>

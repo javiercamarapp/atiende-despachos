@@ -94,19 +94,26 @@ class SATValidator:
     # Validación de RFC
     # ------------------------------------------------------------------ #
     def verify_rfc(self, rfc: str) -> Dict[str, Any]:
-        """Valida el formato de un RFC y su existencia (mock)."""
+        """Valida el formato de un RFC y su existencia (mock).
+
+        NOTA: En modo mock, NO se puede verificar la existencia real del RFC.
+        Solo se valida el formato. El campo 'registrado' NO es confiable
+        en modo mock — usar SAT real para determinación definitiva.
+        """
         rfc_n = (rfc or "").strip().upper()
         if not _es_rfc_valido(rfc_n):
             return {"ok": False, "rfc": rfc_n, "valido": False,
                     "detalle": "El RFC no cumple el formato oficial.",
                     "backend": self.backend}
-        # Mock: RFCs que empiezan con XAXX (genéricos) se marcan como no
-        # registrados; el resto existen.
-        registrado = not rfc_n.startswith("XAXX")
+        # Mock: solo valida formato, NO puede determinar existencia real.
+        # RFCs genéricos (XAXX, XEXX) se marcan como no registrados.
+        es_generico = rfc_n.startswith("XAXX") or rfc_n.startswith("XEXX")
         return {"ok": True, "rfc": rfc_n, "valido": True,
-                "registrado": registrado,
-                "detalle": "RFC con formato válido." if registrado
-                else "RFC genérico (no corresponde a un contribuyente único).",
+                "registrado": None if not es_generico else False,
+                "detalle": ("RFC con formato válido. Existencia NO verificada "
+                            "(modo mock). Usar servicio SAT real para confirmar."
+                            if not es_generico
+                            else "RFC genérico (no corresponde a un contribuyente único)."),
                 "backend": self.backend}
 
     # ------------------------------------------------------------------ #

@@ -35,11 +35,15 @@ from typing import Any, Dict, List, Optional, Tuple
 
 RFC_REGEX = re.compile(r"^[A-Z&]{3,4}\d{6}[A-Z\d]{3}$")
 
-VALID_TIPO_OPERACION = {"01", "02", "03"}  # IVA, IEPS, Exento
+# DIOT Tipo de Operación (Regla 3.10.7 RMF vigente, catálogo SAT)
+# Valores válidos: 03 (servicios profesionales), 06 (arrendamiento), 85 (otros)
+# NOTA: El catálogo anterior ("01"=IVA, "02"=IEPS, "03"=Exento) NO es el
+# catálogo SAT real. Los códigos correctos son 03, 06, 85.
+VALID_TIPO_OPERACION = {"03", "06", "85"}
 TIPO_OPERACION_LABELS = {
-    "01": "IVA",
-    "02": "IEPS",
-    "03": "Exento",
+    "03": "Prestacion de servicios profesionales",
+    "06": "Arrendamiento de inmuebles",
+    "85": "Otros",
 }
 
 REQUIRED_FIELDS = (
@@ -260,11 +264,24 @@ def validate_operation_xml(node: ET.Element, index: int) -> List[ValidationError
                     field=fld,
                     message=f"{prefix}: {err}",
                 ))
+    ivt_el = node.find("IVATrasladado")
+    iva_el = node.find("IVAAcreditable")
+    ivt_val = _safe_float(ivt_el.text if ivt_el is not None else None)
+    iva_val = _safe_float(iva_el.text if iva_el is not None else None)
+    if ivt_val is not None and iva_val is not None and iva_val > ivt_val:
+        errors.append(ValidationError(
+            operacion_index=index,
+            field="IVAAcreditable",
+            message=f"{prefix}: IVAAcreditable ({iva_val}) excede IVATrasladado ({ivt_val})."
+                    " El IVA acreditado no puede ser mayor al trasladado.",
+        ))
 
     # --- IVA consistency warning ---
     monto_val = _safe_float(monto_el.text if monto_el is not None else None)
     iva_t_el = node.find("IVATrasladado")
     iva_t_val = _safe_float(iva_t_el.text if iva_t_el is not None else None)
+    iva_a_el = node.find("IVAAcreditable")
+    iva_a_val = _safe_float(iva_a_el.text if iva_a_el is not None else None)
     if monto_val and monto_val > 0 and iva_t_val and iva_t_val > 0:
         effective_rate = iva_t_val / monto_val
         valid_rates = (0.0, 0.08, 0.16)
@@ -278,6 +295,34 @@ def validate_operation_xml(node: ET.Element, index: int) -> List[ValidationError
                     f"no coincide con tasas estándar (0%, 8%, 16%)."
                 ),
                 severity="warning",
+            ))
+
+    # --- IVA acreditable <= trasladado (LIVA art. 5, Regla 3.10.7 RMF) ---
+    # El IVA acreditable no puede exceder el IVA trasladado en una misma
+    # operación. Si excede, probablemente es un error de captura.
+    if iva_a_val is not None and iva_a_val > 0:
+        if iva_t_val is not None and iva_a_val > iva_t_val * 1.01:
+            errors.append(ValidationError(
+                operacion_index=index,
+                field="IVAAcreditable",
+                message=(
+                    f"{prefix}: IVA acreditable ({iva_a_val:.2f}) excede al "
+                    f"IVA trasladado ({iva_t_val:.2f}). El acreditable no puede "
+                    f"superar al trasladado (LIVA art. 5, Regla 3.10.7 RMF)."
+                ),
+                severity="error",
+            ))
+        elif iva_t_val is None or iva_t_val == 0:
+            # Hay acreditable pero no trasladado
+            errors.append(ValidationError(
+                operacion_index=index,
+                field="IVAAcreditable",
+                message=(
+                    f"{prefix}: IVA acreditable ({iva_a_val:.2f}) declarado "
+                    f"sin IVA trasladado. No es posible acreditar IVA que no "
+                    f"fue trasladado (LIVA art. 5)."
+                ),
+                severity="error",
             ))
 
     return errors

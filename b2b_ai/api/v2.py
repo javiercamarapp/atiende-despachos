@@ -179,7 +179,21 @@ def _deliver_events(db, tenant_id, event, payload, post=None):
 # Router
 # ==========================================================================
 def build_v2_router(db: Database, require_api_key, auth=None):
-    pool = ConnectionPool(db.path, size=4)
+    # Use the main Database connection for queries (supports both SQLite and PG).
+    # The old ConnectionPool was SQLite-only and broke on PostgreSQL.
+    class _DBPool:
+        """Thin adapter that delegates to Database.conn for raw queries."""
+        def run(self, sql, params=None):
+            try:
+                if params:
+                    cur = db.conn.execute(sql, params)
+                else:
+                    cur = db.conn.execute(sql)
+                cols = [d[0] for d in cur.description] if cur.description else []
+                return [dict(zip(cols, row)) for row in cur.fetchall()]
+            except Exception:
+                return []
+    pool = _DBPool()
     cache = TTLCache(ttl_seconds=float(
         _get_env("B2B_V2_CACHE_TTL", "30")))
     rl = TenantRateLimiter()

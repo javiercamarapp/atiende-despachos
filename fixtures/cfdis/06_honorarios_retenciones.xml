@@ -7,6 +7,7 @@
                   Fecha="2026-07-08T10:00:00"
                   FormaPago="03" MetodoPago="PUE" Moneda="MXN"
                   TipoDeComprobante="I" Exportacion="01"
+                  Sello="AABBCCDD11223344" NoCertificado="00001000000000000000"
                   LugarExpedicion="06600" SubTotal="20000.00" Total="19066.66">
   <cfdi:Emisor Rfc="ABAC8001011T1" Nombre="ASESORIA CONTABLE Y FISCAL ABC S.C." RegimenFiscal="601"/>
   <cfdi:Receptor Rfc="JCCP840101HDA" Nombre="DESPACHO CONTABLE JAVIER C. S.C." DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="G03"/>

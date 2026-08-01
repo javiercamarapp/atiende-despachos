@@ -26,9 +26,11 @@ def _db_status(db) -> dict:
         start = time.perf_counter()
         db.conn.execute("SELECT 1")
         latency = (time.perf_counter() - start) * 1000
+        # Detect actual backend: PostgreSQL vs SQLite
+        backend = "postgresql" if getattr(db, "_is_pg", False) else "sqlite"
         info = {
             "status": "ok",
-            "backend": "sqlite",
+            "backend": backend,
             "path": getattr(db, "path", None),
             "schema_version": db.schema_version(),
             "latency_ms": round(latency, 2),

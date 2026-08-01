@@ -70,6 +70,40 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
     from b2b_ai.api.security import detect_pii
     pii = detect_pii(datos)
 
+    # 2c. Verificación 69-B EFOS (CFF art. 69-B)
+    from b2b_ai.sat.efos_69b import EFOSChecker
+    efos = EFOSChecker().validate_cfdi_emisor(datos)
+    if efos.get("en_lista_69b"):
+        # El emisor está en la lista 69-B: registrar como issue crítico
+        # pero NO bloquear (requiere revisión humana para acreditar materialidad)
+        validacion["issues"].extend(efos.get("issues", []))
+        validacion["warnings"].append(
+            "ALERTA 69-B: Emisor en lista definitiva del art. 69-B CFF. "
+            "Requiere acreditamiento de materialidad o la operación no "
+            "produce efecto fiscal (CFF art. 69-B tercer párrafo)."
+        )
+
+    # 2d. Verificación de estatus CFDI ante SAT (vigente/cancelado)
+    from b2b_ai.sat.validator import SATValidator
+    sat_validator = SATValidator(db=db, tenant_id=tenant_id)
+    folio_fiscal = datos.get("folio_fiscal", "")
+    sat_status = {"checked": False}
+    if folio_fiscal:
+        sat_status = sat_validator.check_status(folio_fiscal)
+        sat_status["checked"] = True
+        if sat_status.get("estado") == "cancelado":
+            validacion["ok"] = False
+            validacion["issues"].append({
+                "code": "cfdi_cancelado",
+                "mensaje": (
+                    f"El CFDI con folio fiscal {folio_fiscal} fue CANCELADO "
+                    "según el SAT. Un comprobante cancelado no produce efecto "
+                    "fiscal (deducción ni acreditamiento de IVA)."
+                ),
+                "ref": "CFF art. 29-A, Regla 2.7.1.39 RMF",
+                "severidad": "error",
+            })
+
     # 3. Classify
     clasif = _tool("classify_expense", logger_, tenant_id, datos=datos)
 
@@ -85,7 +119,9 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
     # 3c. Approval flow (FASE 2) — gate humano ANTES de registrar en ERP
     aprobacion = _tool("evaluate_approval", logger_, tenant_id,
                        invoice=invoice)
-    if aprobacion["decision"] in ("auto_approved", "approved"):
+    if not validacion.get("ok"):
+        erp_res = {"ok": False, "poliza": None, "status": "rejected_invalid_cfdi"}
+    elif aprobacion["decision"] in ("auto_approved", "approved"):
         erp_res = _tool("register_erp", logger_, tenant_id,
                         invoice=invoice, erp=erp)
     else:
@@ -144,6 +180,8 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
         "tenant_id": tenant_id,
         "notificacion": notif,
         "pii": pii,
+        "efos_69b": efos,
+        "sat_status": sat_status,
     }
 
 

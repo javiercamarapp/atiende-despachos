@@ -606,7 +606,7 @@ def create_app(db=None):
         Público y exento de rate-limit. `status` es "ok" o "degraded"; los
         componentes en falla se listan en `degraded_components`."""
         prom_metrics.set_tenant_usage(db.get_all_usage())
-        return build_health_detailed(db)
+        return build_health_detailed(db, actual_backend="postgresql" if db._is_pg else "sqlite")
 
     # ------------------------------------------------------------------ #
     # API v1 — protegida por API key
@@ -1298,6 +1298,29 @@ def create_app(db=None):
         def robots():
             return PlainTextResponse("User-agent: *\nAllow: /\n\n"
                                      "Sitemap: https://www.b2b-ai.local/sitemap.xml\n")
+
+        # Privacy policy (LFPDPPP compliance)
+        _legal_dir = LANDING_DIR.parent / "docs" / "legal"
+        if not _legal_dir.is_dir():
+            _legal_dir = Path(__file__).resolve().parent.parent.parent / "docs" / "legal"
+        if _legal_dir.is_dir():
+            @app.get("/legal/privacy", include_in_schema=False)
+            def privacy_policy():
+                pp = _legal_dir / "PRIVACY-POLICY.md"
+                if pp.is_file():
+                    from fastapi.responses import MarkdownResponse
+                    return MarkdownResponse(pp.read_text(encoding="utf-8"),
+                                           media_type="text/markdown")
+                raise HTTPException(404, "Politica de privacidad no encontrada.")
+
+            @app.get("/legal/terms", include_in_schema=False)
+            def terms_of_service():
+                ts = _legal_dir / "TERMS-OF-SERVICE.md"
+                if ts.is_file():
+                    from fastapi.responses import MarkdownResponse
+                    return MarkdownResponse(ts.read_text(encoding="utf-8"),
+                                           media_type="text/markdown")
+                raise HTTPException(404, "Terminos de servicio no encontrados.")
 
         @app.get("/sitemap.xml", include_in_schema=False)
         def sitemap():

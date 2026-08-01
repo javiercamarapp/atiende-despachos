@@ -92,8 +92,12 @@ def classify_cfdi(datos: Dict[str, Any]) -> Dict[str, Any]:
         return {"categoria": "desconocido", "confianza": 0.0,
                 "razon": "No se encontraron palabras clave", "requires_human_review": True}
 
-    n_matches = sum(len(m) for m in matched.values())
-    confianza = min(0.98, 0.55 + 0.20 * n_matches)
+    # Count only BEST category matches, not all categories.
+    best_matches = matched.get(best_cat, []) if best_cat else []
+    n_matches = len(best_matches)
+    tied_categories = sum(1 for m in matched.values() if len(m) > 0)
+    tie_penalty = 0.05 * max(0, tied_categories - 1)
+    confianza = min(0.98, max(0.30, 0.55 + 0.20 * n_matches - tie_penalty))
     palabras = ", ".join(sorted(set(matched[best_cat])))
     requires = confianza < 0.70 or best_cat == "desconocido"
 

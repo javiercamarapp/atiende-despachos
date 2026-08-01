@@ -14,6 +14,9 @@ class TestValidateCFDI:
             "tipo": "I", "emisor": {"regimen_fiscal": "601"},
             "fecha": "2026-07-03T10:00:00",
             "fecha_timbrado": "2026-07-03T10:01:00",
+            "tiene_sello": True,
+            "no_certificado": "12345678",
+            "folio_fiscal": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
             "conceptos": [{"cantidad": "1", "valor_unitario": "1000.00",
                            "importe": "1000.00", "traslados": []}],
         }

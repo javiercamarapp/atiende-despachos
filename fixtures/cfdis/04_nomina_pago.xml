@@ -9,6 +9,7 @@
                   Fecha="2026-07-15T18:00:00"
                   FormaPago="99" MetodoPago="PUE" Moneda="MXN"
                   TipoDeComprobante="N" Exportacion="01"
+                  Sello="AABBCCDD11223344" NoCertificado="00001000000000000000"
                   LugarExpedicion="06600" SubTotal="15000.00" Total="15000.00">
   <cfdi:Emisor Rfc="DESP820101AB1" Nombre="DESPACHO CONTABLE JAVIER C. S.C." RegimenFiscal="601"/>
   <cfdi:Receptor Rfc="JCCP840101HDA" Nombre="JUAN CARLOS CONTRERAS PEREZ" DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="605" UsoCFDI="CN01"/>

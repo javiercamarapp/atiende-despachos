@@ -485,10 +485,8 @@ def calculate_payroll(empleado, sueldo_bruto, dias_pagados=None,
     isr_antes = _dec(isr["impuesto"])
     subsidio_info = calc_subsidio_empleo(gravado, periodicidad=periodicidad)
     subsidio = _dec(subsidio_info["subsidio"])
+    subsidio_efectivo = _dec(subsidio_info["subsidio_efectivo"])
 
-    isr = calc_isr(gravado)
-    imss = calc_imss(sbc_d, rates=r)
-    infonavit = calc_infonavit(sbc_d, rates=r)
     # INFONAVIT 5% SBC es APORTACION PATRONAL (Ley INFONAVIT art. 29-II),
     # NO deduccion al trabajador. Solo amortizacion de credito (art. 29-III)
     # se descuenta del trabajador, y su monto lo fija el instituto.
