@@ -9,7 +9,7 @@
 
 ## 1. Aviso de Privacidad conforme a la LFPDPPP
 
-El presente Aviso de Privacidad se emite en cumplimiento de la **Ley Federal de Protección de Datos Personales en Posesión de los Particulares** (LFPDPPP), su **Reglamento** y las **Líneas Directrices de la Secretaría de la Función Pública (PROFEPA)** para la protección de datos personales.
+El presente Aviso de Privacidad se emite en cumplimiento de la **Ley Federal de Protección de Datos Personales en Posesión de los Particulares** (LFPDPPP), su **Reglamento** y las disposiciones de la **Secretaría Anticorrupción y Buen Gobierno (SABG)** para la protección de datos personales.
 
 Likida AI Enterprise, S.A. de C.V. es responsable del tratamiento de los datos personales que usted nos proporcione, conforme a los siguientes términos:
 
@@ -113,7 +113,7 @@ En cumplimiento de los artículos 28 a 35 de la LFPDPPP, el Cliente (titular de 
 
 4. **Acceso gratuito:** El ejercicio de los derechos ARCO es gratuito. No obstante, el Proveedor podrá cobrar los costos efectivos de reproducción, envío o entrega de la información solicitada.
 
-5. **Negativa fundada:** En caso de que la solicitud no sea procedente, el Proveedor notificará al Cliente los motivos de la negativa, pudiendo el Cliente interponer un recurso de revisión ante la **PROFEPA (Procuraduría Federal del Consumidor)**.
+5. **Negativa fundada:** En caso de que la solicitud no sea procedente, el Proveedor notificará al Cliente los motivos de la negativa, pudiendo el Cliente interponer un recurso de revisión ante la **Secretaría Anticorrupción y Buen Gobierno (SABG)**.
 
 ---
 
@@ -202,10 +202,10 @@ Para cualquier consulta, aclaración o ejercicio de derechos relacionados con es
 
 En caso de que el Cliente considere que sus derechos no han sido adecuadamente atendidos, podrá presentar una queja o recurso ante:
 
-**Procuraduría Federal del Consumidor (PROFEPA)**  
-Dirección General de Prácticas Comerciales y Protección al Consumidor  
-Línea directa: **800-468-8722**  
-Sitio web: www.profeco.gob.mx
+**Secretaría Anticorrupción y Buen Gobierno (SABG)**  
+Dirección de Protección de Datos Personales  
+Línea directa: **800-835-4324**  
+Sitio web: https://www.gob.mx/sabg
 
 ---
 

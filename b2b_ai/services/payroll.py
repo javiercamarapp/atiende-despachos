@@ -23,39 +23,36 @@ from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 # Configuración fiscal (versionada)
 # ---------------------------------------------------------------------------
 
-# Tarifa mensual ISR — LISR art. 96 (año fiscal 2025).
+# Tarifa mensual ISR — LISR art. 96 (año fiscal 2024, DOF diciembre 2023).
+# Estandarizada con compliance.py y declaraciones/service.py.
 # (limite_inferior, limite_superior, cuota_fija, porcentaje_excedente)
-TARIFA_ISR_2025_MENSUAL = [
-    ("0.01", "746.04", "0.00", "0.0192"),
-    ("746.05", "6332.05", "14.32", "0.0640"),
-    ("6332.06", "11128.01", "371.83", "0.1088"),
-    ("11128.02", "12935.82", "893.63", "0.1600"),
-    ("12935.83", "15487.71", "1182.88", "0.1792"),
-    ("15487.72", "31236.49", "1640.18", "0.2136"),
-    ("31236.50", "49233.00", "5004.12", "0.2352"),
-    ("49233.01", "93993.90", "9236.89", "0.3000"),
-    ("93993.91", "125325.20", "22665.17", "0.3200"),
-    ("125325.21", "375975.61", "32691.18", "0.3400"),
-    ("375975.62", None, "117912.32", "0.3500"),
+TARIFA_ISR_2024_MENSUAL = [
+    ("0.00", "312.41", "0.00", "0.0192"),
+    ("312.42", "2636.28", "5.99", "0.0640"),
+    ("2636.29", "4623.01", "154.29", "0.1088"),
+    ("4623.02", "5409.82", "370.32", "0.1600"),
+    ("5409.83", "6447.11", "496.04", "0.2136"),
+    ("6447.12", "12904.06", "717.37", "0.2352"),
+    ("12904.07", "25808.11", "2235.28", "0.3000"),
+    ("25808.12", "34410.81", "6106.49", "0.3200"),
+    ("34410.82", "68821.62", "8857.35", "0.3400"),
+    ("68821.63", None, "20557.10", "0.3500"),
 ]
 
-# Tarifa quincenal ISR — se deriva de la tabla mensual por el procedimiento
-# de la LISR art. 96: se calcula el ISR mensual equivalente y se divide entre
-# dos. Alternativamente, el SAT publica tabla quincenal; esta implementación
-# usa el equivalente mensual para máxima precisión.
+# Tarifa quincenal ISR — tabla oficial 2024 derivada de la mensual.
+# Se calcula el ISR mensual equivalente y se divide entre 2 (LISR art. 96).
 # (limite_inferior, limite_superior, cuota_fija, porcentaje_excedente)
-TARIFA_ISR_2025_QUINCENAL = [
-    ("0.01", "373.02", "0.00", "0.0192"),
-    ("373.03", "3166.03", "7.16", "0.0640"),
-    ("3166.04", "5564.01", "185.92", "0.1088"),
-    ("5564.02", "6467.91", "446.82", "0.1600"),
-    ("6467.92", "7743.86", "591.44", "0.1792"),
-    ("7743.87", "15618.25", "820.09", "0.2136"),
-    ("15618.26", "24616.50", "2502.06", "0.2352"),
-    ("24616.51", "46996.95", "4618.45", "0.3000"),
-    ("46996.96", "62662.60", "11332.59", "0.3200"),
-    ("62662.61", "187987.81", "16345.59", "0.3400"),
-    ("187987.82", None, "58956.16", "0.3500"),
+TARIFA_ISR_2024_QUINCENAL = [
+    ("0.00", "156.21", "0.00", "0.0192"),
+    ("156.22", "1318.14", "3.00", "0.0640"),
+    ("1318.15", "2311.51", "77.15", "0.1088"),
+    ("2311.52", "2704.91", "185.16", "0.1600"),
+    ("2704.92", "3223.56", "248.02", "0.2136"),
+    ("3223.57", "6452.03", "358.69", "0.2352"),
+    ("6452.04", "12904.06", "1117.64", "0.3000"),
+    ("12904.07", "17205.41", "3053.25", "0.3200"),
+    ("17205.42", "34410.81", "4428.68", "0.3400"),
+    ("34410.82", None, "10278.55", "0.3500"),
 ]
 
 # Tarifa quincenal ISR — tabla oficial simplificada (LISR art. 96, Decreto DOF
@@ -138,7 +135,7 @@ RATES = {
     "aguinaldo_dias_ley": 15,                    # 15 días (LFT art. 87)
 }
 
-AÑO_FISCAL = 2025
+AÑO_FISCAL = 2024
 
 
 def _dec(v, default=Decimal("0")):
@@ -172,10 +169,10 @@ def calc_isr(ingreso_gravado, tarifa=None, periodicidad="mensual"):
     """
     per = periodicidad.lower() if periodicidad else "mensual"
     if per == "quincenal":
-        tabla = tarifa or TARIFA_ISR_2025_QUINCENAL
+        tabla = tarifa or TARIFA_ISR_2024_QUINCENAL
         ref_label = "quincenal"
     else:
-        tabla = tarifa or TARIFA_ISR_2025_MENSUAL
+        tabla = tarifa or TARIFA_ISR_2024_MENSUAL
         ref_label = "mensual"
     ing = _dec(ingreso_gravado)
     if ing <= 0:
