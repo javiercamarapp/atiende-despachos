@@ -236,6 +236,13 @@ def evaluate_rules(
     now = _now_iso()
 
     for rule in rules:
+        # Auto-convert dict to AlertRule if needed
+        if isinstance(rule, dict):
+            try:
+                rule = AlertRule(**rule)
+            except Exception:
+                continue
+
         if not rule.enabled:
             continue
 

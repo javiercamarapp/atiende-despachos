@@ -16,6 +16,10 @@ Endpoints:
 
 The router is built with `build_alertas_router(db, require_api_key)`
 following the project pattern.
+
+IMPORTANT: Static routes (/rules, /stats, /evaluate) are registered
+BEFORE dynamic routes (/{alert_id}) to prevent FastAPI from matching
+"rules" or "stats" as an {alert_id}.
 """
 from __future__ import annotations
 
@@ -105,6 +109,10 @@ def build_alertas_router(
     def _scope(auth_info) -> Optional[int]:
         return auth_info.get("tenant_id") if auth_info else None
 
+    # =====================================================================
+    # STATIC routes FIRST (before /{alert_id} to avoid capture)
+    # =====================================================================
+
     # -- List alerts --------------------------------------------------------
     @router.get(
         "",
@@ -136,6 +144,101 @@ def build_alertas_router(
             "tenant_id": tenant,
             "alerts": [a.model_dump() for a in alerts],
         }
+
+    # -- List rules ---------------------------------------------------------
+    @router.get(
+        "/rules",
+        summary="List alert rules.",
+        response_model=None,
+    )
+    def list_rules(
+        auth_info: dict = Depends(auth_dep),
+        enabled_only: bool = Query(default=False, description="Only enabled rules"),
+    ) -> dict:
+        tenant = _scope(auth_info)
+        rules = shared_store.list_rules(tenant_id=tenant, enabled_only=enabled_only)
+        return {"count": len(rules), "rules": rules}
+
+    # -- Stats --------------------------------------------------------------
+    @router.get(
+        "/stats",
+        summary="Alert statistics by severity and type.",
+        response_model=None,
+    )
+    def alert_stats(
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        tenant = _scope(auth_info)
+        return shared_store.stats(tenant_id=tenant)
+
+    # -- Create rule --------------------------------------------------------
+    @router.post(
+        "/rules",
+        summary="Create an alert rule.",
+        response_model=None,
+    )
+    def create_rule(
+        req: CreateRuleRequest,
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        import uuid
+        rule_id = str(uuid.uuid4())[:8]
+        now = datetime.utcnow().isoformat() + "Z"
+        rule_data = {
+            "id": rule_id,
+            "name": req.name,
+            "type": req.type,
+            "enabled": req.enabled,
+            "condition": req.condition,
+            "threshold_value": req.threshold_value,
+            "threshold_value_max": req.threshold_value_max,
+            "multiplier": req.multiplier,
+            "days_before_due": req.days_before_due,
+            "volume_limit": req.volume_limit,
+            "field_path": req.field_path,
+            "severity": req.severity,
+            "message_template": req.message_template,
+            "tenant_id": req.tenant_id,
+            "metadata": req.metadata,
+            "created_at": now,
+        }
+        shared_store.save_rule(rule_id, rule_data)
+        return {"ok": True, "rule": rule_data}
+
+    # -- Evaluate data against rules ----------------------------------------
+    @router.post(
+        "/evaluate",
+        summary="Evaluate data against rules and return new alerts.",
+        response_model=None,
+    )
+    def evaluate_data(
+        req: EvaluateRequest,
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        # Convert rule dicts to AlertRule objects
+        alert_rules: List[AlertRule] = []
+        for r in req.rules:
+            try:
+                ar = AlertRule(**r)
+                alert_rules.append(ar)
+            except Exception:
+                continue
+
+        new_alerts = engine.evaluate(
+            data=req.data,
+            rules=alert_rules,
+            historical_values=req.historical_values,
+            reference_date=req.reference_date,
+            tenant_id=req.tenant_id or _scope(auth_info),
+        )
+        return {
+            "count": len(new_alerts),
+            "alerts": [a.model_dump() for a in new_alerts],
+        }
+
+    # =====================================================================
+    # DYNAMIC routes AFTER static (/{alert_id})
+    # =====================================================================
 
     # -- Get alert detail ---------------------------------------------------
     @router.get(
@@ -217,97 +320,6 @@ def build_alertas_router(
             "alert_id": alert_id,
             "count": len(history),
             "history": [h.model_dump() for h in history],
-        }
-
-    # -- List rules ---------------------------------------------------------
-    @router.get(
-        "/rules",
-        summary="List alert rules.",
-        response_model=None,
-    )
-    def list_rules(
-        auth_info: dict = Depends(auth_dep),
-        enabled_only: bool = Query(default=False, description="Only enabled rules"),
-    ) -> dict:
-        tenant = _scope(auth_info)
-        rules = shared_store.list_rules(tenant_id=tenant, enabled_only=enabled_only)
-        return {"count": len(rules), "rules": rules}
-
-    # -- Create rule --------------------------------------------------------
-    @router.post(
-        "/rules",
-        summary="Create an alert rule.",
-        response_model=None,
-    )
-    def create_rule(
-        req: CreateRuleRequest,
-        auth_info: dict = Depends(auth_dep),
-    ) -> dict:
-        import uuid
-        rule_id = str(uuid.uuid4())[:8]
-        now = datetime.utcnow().isoformat() + "Z"
-        rule_data = {
-            "id": rule_id,
-            "name": req.name,
-            "type": req.type,
-            "enabled": req.enabled,
-            "condition": req.condition,
-            "threshold_value": req.threshold_value,
-            "threshold_value_max": req.threshold_value_max,
-            "multiplier": req.multiplier,
-            "days_before_due": req.days_before_due,
-            "volume_limit": req.volume_limit,
-            "field_path": req.field_path,
-            "severity": req.severity,
-            "message_template": req.message_template,
-            "tenant_id": req.tenant_id,
-            "metadata": req.metadata,
-            "created_at": now,
-        }
-        shared_store.save_rule(rule_id, rule_data)
-        return {"ok": True, "rule": rule_data}
-
-    # -- Stats --------------------------------------------------------------
-    @router.get(
-        "/stats",
-        summary="Alert statistics by severity and type.",
-        response_model=None,
-    )
-    def alert_stats(
-        auth_info: dict = Depends(auth_dep),
-    ) -> dict:
-        tenant = _scope(auth_info)
-        return shared_store.stats(tenant_id=tenant)
-
-    # -- Evaluate data against rules ----------------------------------------
-    @router.post(
-        "/evaluate",
-        summary="Evaluate data against rules and return new alerts.",
-        response_model=None,
-    )
-    def evaluate_data(
-        req: EvaluateRequest,
-        auth_info: dict = Depends(auth_dep),
-    ) -> dict:
-        # Convert rule dicts to AlertRule objects
-        alert_rules: List[AlertRule] = []
-        for r in req.rules:
-            try:
-                ar = AlertRule(**r)
-                alert_rules.append(ar)
-            except Exception:
-                continue
-
-        new_alerts = engine.evaluate(
-            data=req.data,
-            rules=alert_rules,
-            historical_values=req.historical_values,
-            reference_date=req.reference_date,
-            tenant_id=req.tenant_id or _scope(auth_info),
-        )
-        return {
-            "count": len(new_alerts),
-            "alerts": [a.model_dump() for a in new_alerts],
         }
 
     return router
