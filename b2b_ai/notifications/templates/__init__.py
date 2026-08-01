@@ -53,6 +53,18 @@ TEMPLATES = {
             "El agente propone; usted decide. La decisión fiscal es humana."
         ),
     },
+    # [33] Factura pendiente de aprobación humana — no se registró en ERP.
+    "invoice_pending_approval": {
+        "subject": "⏳ Factura {folio} pendiente de aprobación",
+        "body": (
+            "Hola {nombre},\n\n"
+            "La factura {folio} del proveedor {emisor} por ${monto} NO se "
+            "registró en el ERP porque requiere aprobación humana.\n"
+            "  - Decisión: {decision}\n"
+            "  - Folio fiscal: {uuid}\n\n"
+            "No se registró ninguna póliza. Revise y apruebe antes de continuar."
+        ),
+    },
     "exception": {
         "subject": "⚠ Excepción en factura {folio}",
         "body": (
