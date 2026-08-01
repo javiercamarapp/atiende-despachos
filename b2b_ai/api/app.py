@@ -91,6 +91,7 @@ from b2b_ai.features.reportes.routes import build_reportes_router
 from b2b_ai.features.dashboard.routes import build_dashboard_admin_router
 from b2b_ai.features.alertas.routes import build_alertas_router
 from b2b_ai.features.conciliacion.routes import build_conciliacion_router
+from b2b_ai.features.contabilidad_electronica.routes import build_contabilidad_electronica_router
 from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
@@ -1143,6 +1144,9 @@ def create_app(db=None):
 
     # Conciliación bancaria: matching, reportes y exportación CSV.
     app.include_router(build_conciliacion_router(db, require_api_key))
+
+    # Contabilidad Electrónica SAT: Balanza, Catálogo de Cuentas, validación y obligaciones.
+    app.include_router(build_contabilidad_electronica_router())
 
     # Reportes PDF (FASE reportes): generación + descarga de PDFs.
     app.include_router(build_reports_router(db, require_api_key),
