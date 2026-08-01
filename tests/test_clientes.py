@@ -30,7 +30,7 @@ def svc():
 @pytest.fixture
 def app():
     app = FastAPI()
-    app.include_router(build_clientes_router())
+    app.include_router(build_clientes_router(db=None, require_api_key=lambda: {"tenant_id": "test", "key": "test"}))
     return app
 
 

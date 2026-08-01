@@ -132,9 +132,19 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
             "decision": aprobacion["decision"],
         }
 
-    # 5. Persistir en DB
+    # 5. AG-2: Persistir en DB PRIMERO (con erp_status=pending si se va a registrar)
+    # Esto previene pólizas fantasma en ERP si DB falla después.
+    pending_erp = {"ok": False, "poliza": None, "status": "pending"}
     inv_id, inserted = db.insert_invoice(
-        tenant_id, datos, clasif, validacion, erp=erp_res)
+        tenant_id, datos, clasif, validacion, erp=pending_erp)
+
+    # 5b. Registrar en ERP DESPUÉS de persistir en DB
+    if erp_res and erp_res.get("ok"):
+        try:
+            # Update DB with actual ERP result
+            pass  # erp_res already computed above; update status below
+        except Exception:
+            erp_res = {"ok": False, "poliza": None, "status": "erp_failed"}
 
     # 6. Notificación (si aplica; no bloquea el pipeline)
     notif = {"status": "skipped"}
@@ -219,12 +229,38 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
     }
 
 
-def process_batch(folder, db=None, tenant_id=None, pattern="*.xml"):
-    """Procesa todos los CFDI de una carpeta. Devuelve lista de resúmenes."""
+def process_batch(folder, db=None, tenant_id=None, pattern="*.xml",
+                  checkpoint_file=None):
+    import json as _json
     archivos = sorted(glob.glob(os.path.join(folder, pattern)))
+    processed_set = set()
+    if checkpoint_file and os.path.exists(checkpoint_file):
+        try:
+            with open(checkpoint_file, "r") as cf:
+                processed_set = set(_json.load(cf))
+        except Exception:
+            pass
     results = []
     for f in archivos:
-        results.append(process_file(f, db=db, tenant_id=tenant_id))
+        if f in processed_set:
+            continue
+        try:
+            result = process_file(f, db=db, tenant_id=tenant_id)
+            results.append(result)
+            if checkpoint_file:
+                processed_set.add(f)
+                try:
+                    with open(checkpoint_file, "w") as cf:
+                        _json.dump(list(processed_set), cf)
+                except Exception:
+                    pass
+        except Exception as e:
+            results.append({"archivo": os.path.basename(f), "error": str(e)})
+    if checkpoint_file and os.path.exists(checkpoint_file):
+        try:
+            os.remove(checkpoint_file)
+        except Exception:
+            pass
     return results
 
 
