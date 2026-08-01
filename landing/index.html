@@ -891,7 +891,7 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
       <div class="feature reveal reveal-delay-1">
         <div class="ico">📋</div>
         <h3>LFPDPPP</h3>
-        <p>Cumplimiento total de la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. Aviso de privacidad incluido.</p>
+        <p>Cumplimiento total de la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. <a href="/legal/privacy" target="_blank" rel="noopener">Consulta nuestro aviso de privacidad</a>.</p>
       </div>
       <div class="feature reveal reveal-delay-2">
         <div class="ico">🏛️</div>
@@ -1024,6 +1024,13 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
       <div class="field">
         <label for="mensaje">¿Qué ERP usas? (opcional)</label>
         <textarea id="mensaje" name="mensaje" placeholder="CONTPAQi, SAP, Odoo, otro..."></textarea>
+      </div>
+      <div class="field" style="margin-top:8px">
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:.92rem;line-height:1.4">
+          <input type="checkbox" id="privacyConsent" name="privacyConsent" required style="margin-top:3px;flex-shrink:0" aria-describedby="privacy-err" />
+          <span>He leído y acepto el <a href="/legal/privacy" target="_blank" rel="noopener">aviso de privacidad</a> (LFPDPPP).</span>
+        </label>
+        <p class="err" id="privacy-err">Debes aceptar el aviso de privacidad.</p>
       </div>
       <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">Enviar solicitud</button>
       <div class="form-msg" id="formMsg" role="status" aria-live="polite"></div>
@@ -1213,6 +1220,12 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
       setError(f.el, !valid);
       if(!valid) ok = false;
     });
+    // LFPDPPP: privacy consent checkbox is mandatory
+    var consent = document.getElementById('privacyConsent');
+    if(consent && !consent.checked){
+      setError(consent, true);
+      ok = false;
+    }
     return ok;
   }
 
