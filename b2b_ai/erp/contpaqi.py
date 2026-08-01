@@ -33,6 +33,17 @@ class MockCONTPAQi(ERPInterface):
             return {"ok": False, "poliza": None, "status": "error",
                     "message": "Sin folio fiscal para registrar."}
 
+        # [34][39] Idempotente: si ya existe, devolver la póliza existente.
+        existing = self._polizas.get(folio)
+        if existing:
+            return {
+                "ok": True, "poliza": existing["poliza"],
+                "cuenta_cargo": existing["cuenta_cargo"],
+                "cuenta_abono": existing["cuenta_abono"],
+                "status": "registrada", "duplicate": True,
+                "message": f"Factura {folio} ya registrada (idempotente).",
+            }
+
         poliza_id = "POL-" + uuid.uuid4().hex[:10].upper()
         categoria = invoice.get("categoria", "desconocido")
         cuenta_cargo, cuenta_abono = _cuentas_para_categoria(categoria)
