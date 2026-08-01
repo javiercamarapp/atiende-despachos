@@ -194,6 +194,16 @@ class Database:
         except subprocess.CalledProcessError as e:
             raise RuntimeError(
                 f"Fallo la migración Alembic a PostgreSQL: {e.stderr[-800:]}")
+        # Defensive: ensure the unique constraint needed by
+        # upsert_outstanding_invoice() exists even if Alembic head
+        # hasn't applied it yet (DB drift / partial migration).
+        try:
+            self.conn.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_outstanding_unique
+                ON outstanding_invoices(tenant_id, factura_id)
+            """)
+        except Exception:  # noqa: BLE001
+            pass  # table or index doesn't exist yet — fine
 
     def schema_version(self):
         if self._is_pg:
@@ -368,7 +378,7 @@ class Database:
     # ---- Audit log ----
     def log_call(self, tool_name, action, entity="", entity_id="",
                  payload=None, status="ok", tenant_id=None):
-        payload_txt = json.dumps(payload, default=str, ensure_ascii=False) if payload is not None else None
+        payload_txt = json.dumps(payload, default=str, ensure_ascii=False) if payload is not None else '{}'
         cur = self.conn.execute("""
             INSERT INTO audit_log(tenant_id, tool_name, action, entity,
                 entity_id, payload, status) VALUES (?,?,?,?,?,?,?)
