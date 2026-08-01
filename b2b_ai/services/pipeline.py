@@ -24,7 +24,7 @@ from b2b_ai.notifications.sender import EmailSender
 from b2b_ai.services.classify import CATEGORIA_NOMBRE
 
 
-def ensure_tenant(db, tenant_id=None, name="Despacho Demo", rfc=""):
+def ensure_tenant(db: "Database", tenant_id: int | None = None, name: str = "Despacho Demo", rfc: str = "") -> int:
     """Devuelve un tenant_id existente (o crea el default)."""
     if tenant_id is not None:
         return tenant_id
@@ -34,7 +34,7 @@ def ensure_tenant(db, tenant_id=None, name="Despacho Demo", rfc=""):
     return db.create_tenant(name, rfc)
 
 
-def _tool(name, logger_, tenant_id, **kwargs):
+def _tool(name: str, logger_: "ToolCallLogger", tenant_id: int, **kwargs) -> dict:
     """Invoca una tool y la registra SIEMPRE en el audit_log."""
     try:
         result = call_tool(name, **kwargs)
@@ -47,8 +47,8 @@ def _tool(name, logger_, tenant_id, **kwargs):
         raise
 
 
-def process_file(xml_path, db=None, tenant_id=None, erp=None, email=None,
-                 logger_=None):
+def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | None = None, erp: "MockCONTPAQi | None" = None, email: "EmailSender | None" = None,
+                 logger_: "ToolCallLogger | None" = None) -> dict:
     """Procesa un solo CFDI por el pipeline de tools. Devuelve dict-resumen."""
     db = db or Database()
     erp = erp or MockCONTPAQi()
