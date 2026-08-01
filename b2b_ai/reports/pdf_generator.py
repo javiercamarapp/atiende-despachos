@@ -162,11 +162,25 @@ def _pd(text, style="body"):
 def _styled_table(headers: List[str], rows: List[List[Any]],
                   col_widths: Optional[List[float]] = None,
                   align: Optional[Dict[int, str]] = None) -> Table:
-    """Tabla profesional con cabecera azul y filas zebra."""
+    """Tabla profesional con cabecera azul y filas zebra.
+
+    La alineación por columna se aplica con estilos de párrafo dedicados
+    (reportlab rechaza la directiva ALIGN sobre celdas tipo Paragraph).
+    """
+    # Mapa de estilo de celda según columna (para alineación).
+    cell_styles: Dict[int, str] = {}
+    if align:
+        for col, a in align.items():
+            if a == "right":
+                cell_styles[col] = "tablecell_right"
+            elif a == "center":
+                cell_styles[col] = "tablecell_center"
     head_cells = [_pd(h, "tablehead") for h in headers]
     data = [head_cells]
     for r in rows:
-        data.append([_pd("" if c is None else str(c), "tablecell") for c in r])
+        data.append([_pd("" if c is None else str(c),
+                         cell_styles.get(ci, "tablecell"))
+                     for ci, c in enumerate(r)])
     t = Table(data, colWidths=col_widths, repeatRows=1)
     style = [
         ("BACKGROUND", (0, 0), (-1, 0), BRAND),
@@ -179,10 +193,6 @@ def _styled_table(headers: List[str], rows: List[List[Any]],
         ("LEFTPADDING", (0, 0), (-1, -1), 7),
         ("RIGHTPADDING", (0, 0), (-1, -1), 7),
     ]
-    if align:
-        for col, a in align.items():
-            ha = TA_RIGHT if a == "right" else (TA_CENTER if a == "center" else 0)
-            style.append(("ALIGN", (col, 0), (col, -1), ha))
     t.setStyle(TableStyle(style))
     return t
 
@@ -800,8 +810,20 @@ class PDFGenerator:
         import json
         data_json = json.dumps(data, ensure_ascii=False, default=str) \
             .replace("<", "\\u003c").replace(">", "\\u003e")
+        # Logo: imagen embebida (base64) o iniciales del tenant.
+        logo_html = _html_escape(ten.get("initials", "B&B"))
+        lp = ten.get("logo_path")
+        if lp and Path(lp).is_file():
+            try:
+                import base64, mimetypes
+                mime = mimetypes.guess_type(lp)[0] or "image/png"
+                b64 = base64.b64encode(Path(lp).read_bytes()).decode()
+                logo_html = f'<img src="data:{mime};base64,{b64}" alt="logo">'
+            except Exception:  # noqa: BLE001
+                logo_html = _html_escape(ten.get("initials", "B&B"))
         html = tpl.read_text(encoding="utf-8")
         return (html
+                .replace("{{LOGO_HTML}}", logo_html)
                 .replace("{{DATA}}", data_json)
                 .replace("{{TITLE}}", _html_escape(data.get("title", "Reporte")))
                 .replace("{{TENANT_NAME}}", _html_escape(ten.get("name", "")))

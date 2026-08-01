@@ -427,7 +427,7 @@ class BankReconciliation:
                 conf = self._ai_confidence(t, inv_desc)
                 if conf > best_conf:
                     best, best_conf = t, conf
-            if best is not None and best_conf >= 55:   # umbral AI
+            if best is not None and best_conf >= 50:   # umbral AI
                 used_tx.add(best["id"])
                 out.append(_build_match(
                     inv, best, "ai", int(best_conf),
@@ -440,16 +440,17 @@ class BankReconciliation:
         text = f"{tx['descripcion']} {tx['ref']}".strip()
         if not text:
             return 0.0
+        llm_conf = 0.0
         try:
             res = self.llm.classify_invoice(
                 {"descripcion": text, "emisor_nombre": inv_desc[:500]})
-            conf = float(res.get("confianza", 0.0))   # 0-1
-            if res.get("source") == "llm":
-                return max(0.0, min(100.0, conf * 100))
+            llm_conf = float(res.get("confianza", 0.0))   # 0-1
         except Exception:  # noqa: BLE001 — el fallback de tokens manda
             self.last_error = "ai_fallback_tokens"
-        # Fallback determinístico: overlap de tokens en la descripción.
-        return _token_overlap(tx["descripcion"], inv_desc) * 100
+        # Combina la señal del LLM (si la dio) con el overlap determinístico
+        # de tokens; el fallback nunca deja sin señal a un texto claro.
+        tok_conf = _token_overlap(tx["descripcion"], inv_desc) * 100
+        return max(0.0, min(100.0, max(llm_conf * 100, tok_conf)))
 
     def _apply_manual(self, matches) -> list:
         """Sobrescribe cruces según confirmaciones manuales."""

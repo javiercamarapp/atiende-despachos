@@ -205,6 +205,18 @@ def test_generate_reconciliation_report():
 # --------------------------------------------------------------------------
 # API endpoints
 # --------------------------------------------------------------------------
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _clear_sessions():
+    """Limpia la sesión global de reconciliación entre tests (evita orden)."""
+    import b2b_ai.api.reconciliation as rec
+    rec._SESSIONS.clear()
+    yield
+    rec._SESSIONS.clear()
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("B2B_API_KEY", SERVICE_KEY)

@@ -112,14 +112,16 @@ class EmailProvider:
     # ------------------------------------------------------------------ #
     def send(self, to: str, subject: str, body: str,
              html: Optional[str] = None,
-             attachments: Optional[Sequence[Attachment]] = None):
+             attachments: Optional[Sequence[Attachment]] = None,
+             template: Optional[str] = None):
         """Envía un email. Devuelve dict {to, subject, status, message}.
 
         Si no hay SMTP configurado, simula (status='simulado') y devuelve.
         """
         if not to:
             return self._record(to, subject, "error",
-                                "Destinatario vacío.", attachments)
+                                "Destinatario vacío.", attachments,
+                                template=template)
         msg = self._build_message(to, subject, body, html=html,
                                   attachments=attachments)
         if not self.configured:
@@ -127,7 +129,7 @@ class EmailProvider:
                 to, subject, "simulado",
                 "SMTP no configurado; email simulado. Configurar "
                 "SMTP_HOST/SMTP_USER/SMTP_PASSWORD para envío real.",
-                attachments)
+                attachments, html=html, template=template)
         try:
             if self.use_ssl:
                 server = smtplib.SMTP_SSL(
@@ -140,11 +142,12 @@ class EmailProvider:
             server.sendmail(self.from_addr, [to], msg.as_string())
             server.quit()
             return self._record(to, subject, "sent",
-                                "Email enviado por SMTP.", attachments)
+                                "Email enviado por SMTP.", attachments,
+                                html=html, template=template)
         except Exception as e:  # noqa: BLE001
             return self._record(to, subject, "error",
                                 f"Fallo SMTP: {type(e).__name__}: {e}",
-                                attachments)
+                                attachments, html=html, template=template)
 
     # ------------------------------------------------------------------ #
     def send_template(self, to: str, template_name: str, context: dict,
@@ -164,7 +167,7 @@ class EmailProvider:
         subject, html = render_html(template_name, context)
         text = body_fallback or _strip_html(html)
         return self.send(recipient, subject, text, html=html,
-                         attachments=attachments)
+                         attachments=attachments, template=template_name)
 
     # ------------------------------------------------------------------ #
     def send_bulk(self, recipients: Sequence[str], subject: str, body: str,

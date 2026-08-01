@@ -395,8 +395,7 @@ def build_portal_pages_router(db):
                                 detail="Factura no encontrada.")
         return templates.TemplateResponse(
             request, "invoice_detail.html",
-            {"request": request, "user": user, "inv": inv,
-             "money": _money, "estado": _estado(inv)})
+            {"request": request, "user": user, "inv": inv})
 
     # ---- Reportes ---------------------------------------------------------
     @router.get("/reports", response_class=HTMLResponse, include_in_schema=False)

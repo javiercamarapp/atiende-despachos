@@ -110,9 +110,9 @@ class AuditTrail:
         (recomendado en operación multi-tenant).
         """
         like = f"%{query}%"
-        q = ("SELECT * FROM audit_entries WHERE "
+        q = ("SELECT * FROM audit_entries WHERE ("
              "action LIKE ? OR resource LIKE ? OR resource_id LIKE ? "
-             "OR details LIKE ? OR user_id LIKE ? OR ip LIKE ?")
+             "OR details LIKE ? OR user_id LIKE ? OR ip LIKE ?)")
         params: List[Any] = [like] * 6
         if tenant_id is not None:
             q += " AND tenant_id=?"

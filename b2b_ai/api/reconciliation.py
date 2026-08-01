@@ -164,6 +164,10 @@ def build_reconciliation_router(db, require_api_key):
         if not svc.transactions:
             return {"aviso": "No hay movimientos cargados. Sube un estado "
                              "de cuenta primero.", "ok": False}
+        # Recalcula los cruces contra las facturas del tenant antes de reportar
+        # (idempotente; conserva confirmaciones manuales previas).
+        svc.load_invoices(_tenant_invoices(tenant))
+        svc.auto_match()
         rep = svc.generate_reconciliation_report()
         rep["ok"] = True
         return rep
