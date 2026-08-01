@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 scotiabank.py — Adaptador mock para Scotiabank México (API).
@@ -22,7 +23,7 @@ class ScotiabankAdapter(BankAdapter):
 
     def __init__(self, config: Optional[BankConfig] = None):
         config = config or BankConfig(bank=Banco.SCOTIABANK, account_number="1122334455")
-        super().__init__(config=config)
+            api_key=os.environ.get("SCOTIABANK_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

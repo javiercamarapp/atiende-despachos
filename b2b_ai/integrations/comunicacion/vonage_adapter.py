@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 vonage_adapter.py — Adaptador mock para Vonage (SMS).
@@ -23,7 +24,7 @@ class VonageAdapter(CommunicationAdapter):
 
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(provider="vonage", api_key="mock_vonage_key")
-        super().__init__(config=config)
+            api_key=os.environ.get("VONAGE_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

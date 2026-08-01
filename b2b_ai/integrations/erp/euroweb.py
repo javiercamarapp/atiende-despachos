@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 euroweb.py — Adaptador mock para ERP Euroweb (desktop).

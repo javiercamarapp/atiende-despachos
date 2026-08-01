@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 zoho_crm_adapter.py — Adaptador mock para Zoho CRM (Pyme CRM).
@@ -22,7 +23,7 @@ class ZohoCRMAdapter(CRMAdapter):
 
     def __init__(self, config: Optional[CRMConfig] = None):
         config = config or CRMConfig(provider=CRMProvider.ZOHO_CRM, api_key="mock_zoho_key")
-        super().__init__(config=config)
+            api_key=os.environ.get("ZOHO_CRM_CLIENT_ID", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

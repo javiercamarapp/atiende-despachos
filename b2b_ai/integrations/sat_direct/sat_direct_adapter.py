@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 sat_direct_adapter.py — Adaptador mock para integración directa con SAT.

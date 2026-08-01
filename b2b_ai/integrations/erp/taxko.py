@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 taxko.py — Adaptador mock para ERP Taxko (cloud).

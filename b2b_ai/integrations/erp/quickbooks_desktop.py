@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 quickbooks_desktop.py — Adaptador mock para QuickBooks Desktop (SDK).

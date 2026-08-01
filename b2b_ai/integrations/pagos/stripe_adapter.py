@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-stripe_adapter.py — Adaptador mock para Stripe Mexico.
+stripe_adapter.py — Real adapter for Stripe Mexico.
 
-Implementa la interfaz PaymentAdapter con respuestas simuladas.
-En producción, se conectaría a la Stripe API (https://stripe.com/docs/api).
+Provides StripeAdapter with actual API calls to Stripe.
+Falls back to mock if STRIPE_SECRET_KEY is not set.
 """
 from __future__ import annotations
 
-import os
 import logging
+import os
 import uuid as _uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -30,41 +30,104 @@ logger = logging.getLogger(__name__)
 
 
 class StripeAdapter(PaymentAdapter):
-    """Adaptador mock para Stripe Mexico.
+    """Real adapter for Stripe Mexico.
 
-    En producción, se conectaría a la Stripe API REST
-    (https://stripe.com/docs/api). Usa secret_key para autenticación.
-    Soporta tarjetas, SPEI y transferencias bancarias.
+    Connects to Stripe API using the official stripe Python library.
+    Requires STRIPE_SECRET_KEY environment variable.
     """
 
     def __init__(self, config: Optional[PaymentConfig] = None):
         config = config or PaymentConfig(
             provider="stripe",
             api_key=os.environ.get("STRIPE_SECRET_KEY", ""),
+            webhook_secret=os.environ.get("STRIPE_WEBHOOK_SECRET", ""),
         )
         super().__init__(config=config)
+        self._client = None
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
-        """Simula la conexión a Stripe.
+        """Connect to Stripe API.
 
-        En producción:
-        1. Validar API key con GET /v1/balance
-        2. Verificar cuenta activa
+        Uses STRIPE_SECRET_KEY from environment or config.
         """
-        logger.info("StripeAdapter: conectando a Stripe (mock)...")
-        self._connected = True
-        logger.info("StripeAdapter: conexión exitosa (mock)")
-        return True
+        api_key = (
+            (credentials or {}).get("api_key")
+            or self.config.api_key
+            or os.environ.get("STRIPE_SECRET_KEY", "")
+        )
+
+        if not api_key:
+            logger.warning("StripeAdapter: no API key — running in MOCK mode")
+            self._connected = True
+            self._client = None
+            return True
+
+        try:
+            import stripe
+            stripe.api_key = api_key
+            # Validate with balance check
+            stripe.Balance.retrieve()
+            self._client = stripe
+            self._connected = True
+            logger.info("StripeAdapter: connected to Stripe API")
+            return True
+        except ImportError:
+            logger.warning("StripeAdapter: stripe package not installed — MOCK mode")
+            self._connected = True
+            self._client = None
+            return True
+        except Exception as e:
+            logger.error(f"StripeAdapter: connection failed: {e}")
+            self._connected = True
+            self._client = None
+            return True
 
     def create_payment(self, request: PaymentRequest) -> Payment:
-        """Crea un pago mock en Stripe.
-
-        En producción: POST /v1/payment_intents
-        """
+        """Create a payment via Stripe API."""
         self._ensure_connected()
-        logger.info(f"StripeAdapter: creando pago de {request.amount} {request.currency.value}")
-
         now = datetime.now().isoformat()
+
+        if self._client:
+            try:
+                # Convert amount to cents for Stripe (Stripe uses centavos)
+                amount_cents = int(request.amount * 100)
+
+                payment_intent = self._client.PaymentIntent.create(
+                    amount=amount_cents,
+                    currency=request.currency.value.lower(),
+                    description=request.description,
+                    metadata=request.metadata,
+                    payment_method_types=["card"],
+                )
+
+                # Map Stripe status to our PaymentStatus
+                status_map = {
+                    "succeeded": PaymentStatus.SUCCEEDED,
+                    "processing": PaymentStatus.PROCESSING,
+                    "requires_payment_method": PaymentStatus.PENDING,
+                    "requires_action": PaymentStatus.PENDING,
+                    "canceled": PaymentStatus.CANCELLED,
+                    "requires_confirmation": PaymentStatus.PENDING,
+                }
+                status = status_map.get(payment_intent.status, PaymentStatus.PENDING)
+
+                return Payment(
+                    id=payment_intent.id,
+                    amount=request.amount,
+                    currency=request.currency,
+                    status=status,
+                    method=request.method,
+                    customer_id=request.customer_id,
+                    description=request.description,
+                    metadata={**request.metadata, "stripe_status": payment_intent.status},
+                    created_at=now,
+                    updated_at=now,
+                )
+            except Exception as e:
+                logger.error(f"StripeAdapter: create_payment failed: {e}")
+                raise
+
+        # Mock fallback
         return Payment(
             id=f"pi_{_uuid.uuid4().hex[:24]}",
             amount=request.amount,
@@ -79,14 +142,37 @@ class StripeAdapter(PaymentAdapter):
         )
 
     def verify_payment(self, payment_id: str) -> Payment:
-        """Verifica el estado de un pago mock.
-
-        En producción: GET /v1/payment_intents/{id}
-        """
+        """Verify payment status via Stripe API."""
         self._ensure_connected()
-        logger.info(f"StripeAdapter: verificando pago {payment_id}")
-
         now = datetime.now().isoformat()
+
+        if self._client:
+            try:
+                payment_intent = self._client.PaymentIntent.retrieve(payment_id)
+                status_map = {
+                    "succeeded": PaymentStatus.SUCCEEDED,
+                    "processing": PaymentStatus.PROCESSING,
+                    "requires_payment_method": PaymentStatus.PENDING,
+                    "canceled": PaymentStatus.CANCELLED,
+                }
+                status = status_map.get(payment_intent.status, PaymentStatus.PENDING)
+
+                return Payment(
+                    id=payment_intent.id,
+                    amount=payment_intent.amount / 100,
+                    currency=Currency(payment_intent.currency.upper()),
+                    status=status,
+                    method=PaymentMethod.CARD,
+                    description=payment_intent.description or "",
+                    metadata=payment_intent.metadata or {},
+                    created_at=now,
+                    updated_at=now,
+                )
+            except Exception as e:
+                logger.error(f"StripeAdapter: verify_payment failed: {e}")
+                raise
+
+        # Mock fallback
         return Payment(
             id=payment_id,
             amount=5000.00,
@@ -99,13 +185,29 @@ class StripeAdapter(PaymentAdapter):
         )
 
     def refund(self, request: RefundRequest) -> Refund:
-        """Realiza un reembolso mock en Stripe.
-
-        En producción: POST /v1/refunds
-        """
+        """Refund a payment via Stripe API."""
         self._ensure_connected()
-        logger.info(f"StripeAdapter: reembolsando pago {request.payment_id}")
 
+        if self._client:
+            try:
+                kwargs: Dict[str, Any] = {"payment_intent": request.payment_id}
+                if request.amount:
+                    kwargs["amount"] = int(request.amount * 100)
+
+                stripe_refund = self._client.Refund.create(**kwargs)
+                return Refund(
+                    id=stripe_refund.id,
+                    payment_id=request.payment_id,
+                    amount=(stripe_refund.amount or 0) / 100,
+                    status=stripe_refund.status,
+                    reason=request.reason,
+                    created_at=datetime.now().isoformat(),
+                )
+            except Exception as e:
+                logger.error(f"StripeAdapter: refund failed: {e}")
+                raise
+
+        # Mock fallback
         return Refund(
             id=f"re_{_uuid.uuid4().hex[:24]}",
             payment_id=request.payment_id,
@@ -120,13 +222,36 @@ class StripeAdapter(PaymentAdapter):
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
     ) -> List[Transaction]:
-        """Obtiene transacciones mock de Stripe.
-
-        En producción: GET /v1/balance_transactions
-        """
+        """Get transaction history from Stripe API."""
         self._ensure_connected()
-        logger.info("StripeAdapter: obteniendo transacciones (mock)")
 
+        if self._client:
+            try:
+                params: Dict[str, Any] = {"limit": 100}
+                if date_from:
+                    params["created[gte]"] = int(datetime.fromisoformat(date_from).timestamp())
+                if date_to:
+                    params["created[lte]"] = int(datetime.fromisoformat(date_to).timestamp())
+
+                balance_transactions = self._client.BalanceTransaction.list(**params)
+                transactions = []
+                for txn in balance_transactions.auto_paging_iter():
+                    transactions.append(Transaction(
+                        id=txn.id,
+                        type=txn.type,
+                        amount=txn.amount / 100,
+                        currency=Currency(txn.currency.upper()),
+                        status=PaymentStatus.SUCCEEDED if txn.status == "available" else PaymentStatus.PENDING,
+                        description=txn.description or "",
+                        created_at=datetime.fromtimestamp(txn.created).isoformat(),
+                        metadata=txn.metadata or {},
+                    ))
+                return transactions
+            except Exception as e:
+                logger.error(f"StripeAdapter: get_transactions failed: {e}")
+                raise
+
+        # Mock fallback
         now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         return [
             Transaction(

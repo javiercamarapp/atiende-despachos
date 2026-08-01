@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 facturadirecta.py — Adaptador mock para FacturaDirecta (cloud).

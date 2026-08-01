@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 bbva.py — Adaptador mock para BBVA México.
@@ -33,7 +34,7 @@ class BBVAAdapter(BankAdapter):
 
     def __init__(self, config: Optional[BankConfig] = None):
         config = config or BankConfig(bank=Banco.BBVA, account_number="0123456789")
-        super().__init__(config=config)
+            api_key=os.environ.get("BBVA_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         """Simula la conexión a BBVA México."""

@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 messagebird_adapter.py — Adaptador mock para MessageBird (WhatsApp).
@@ -23,7 +24,7 @@ class MessageBirdAdapter(CommunicationAdapter):
 
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(provider="messagebird", api_key="mock_mb_key")
-        super().__init__(config=config)
+            api_key=os.environ.get("MESSAGEBIRD_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

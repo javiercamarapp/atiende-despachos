@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 absis.py — Adaptador mock para ERP Absis (desktop).

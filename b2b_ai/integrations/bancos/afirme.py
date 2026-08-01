@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 afirme.py — Adaptador mock para Banco Afirme (API).
@@ -22,7 +23,7 @@ class AfirmeAdapter(BankAdapter):
 
     def __init__(self, config: Optional[BankConfig] = None):
         config = config or BankConfig(bank=Banco.AFIRME, account_number="9988776655")
-        super().__init__(config=config)
+            api_key=os.environ.get("AFIRME_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

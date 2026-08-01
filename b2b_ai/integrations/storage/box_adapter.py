@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 box_adapter.py — Adaptador mock para Box.
@@ -22,7 +23,7 @@ class BoxAdapter(StorageAdapter):
 
     def __init__(self, config: Optional[StorageConfig] = None):
         config = config or StorageConfig(provider=StorageProvider.BOX, api_key="mock_box_key")
-        super().__init__(config=config)
+            api_key=os.environ.get("BOX_ACCESS_TOKEN", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

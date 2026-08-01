@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 docusign_adapter.py — Adaptador mock para DocuSign.
@@ -39,7 +40,7 @@ class DocuSignAdapter(SignatureAdapter):
         config = config or SignatureConfig(
             provider=SignatureProvider.DOCUSIGN,
             api_key="MockDocuSignIntegrationKey",
-            api_secret="MockDocuSignSecret",
+            api_key=os.environ.get("DOCUSIGN_API_KEY", ""),            api_secret="MockDocuSignSecret",
             account_id="MockDocuSignAccount123",
             base_url="https://demo.docusign.net",
         )

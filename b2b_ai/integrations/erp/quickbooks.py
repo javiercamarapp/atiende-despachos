@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 quickbooks.py — Adaptador mock para QuickBooks Online (API REST).

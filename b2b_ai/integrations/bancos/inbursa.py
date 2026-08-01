@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 inbursa.py — Adaptador mock para Inbursa (API).
@@ -22,7 +23,7 @@ class InbursaAdapter(BankAdapter):
 
     def __init__(self, config: Optional[BankConfig] = None):
         config = config or BankConfig(bank=Banco.INBURSA, account_number="5566778899")
-        super().__init__(config=config)
+            api_key=os.environ.get("INBURSA_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

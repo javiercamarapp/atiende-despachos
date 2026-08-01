@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 contpaqi_desktop.py — Adaptador mock para CONTPAQi versión de escritorio.

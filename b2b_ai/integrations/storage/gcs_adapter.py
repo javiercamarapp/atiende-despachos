@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 gcs_adapter.py — Adaptador mock para Google Cloud Storage.
@@ -22,7 +23,7 @@ class GCSAdapter(StorageAdapter):
 
     def __init__(self, config: Optional[StorageConfig] = None):
         config = config or StorageConfig(provider=StorageProvider.GCS, api_key="mock_gcs_key",
-                                         bucket="mock-gcs-bucket")
+            api_key=os.environ.get("GCS_PROJECT_ID", ""),                                         bucket="mock-gcs-bucket")
         super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:

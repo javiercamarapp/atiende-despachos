@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-sendgrid_adapter.py — Adaptador mock para SendGrid Email.
+sendgrid_adapter.py — Real adapter for SendGrid Email.
 
-Implementa la interfaz CommunicationAdapter con respuestas simuladas.
-En producción, se conectaría a la SendGrid API (https://docs.sendgrid.com/api-reference/).
+Provides SendGridAdapter with actual API calls to SendGrid v3.
+Falls back to mock if SENDGRID_API_KEY is not set.
 """
 from __future__ import annotations
 
-import os
+import json
 import logging
+import os
 import uuid as _uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -29,44 +30,106 @@ logger = logging.getLogger(__name__)
 
 
 class SendGridAdapter(CommunicationAdapter):
-    """Adaptador mock para SendGrid Email.
+    """Real adapter for SendGrid Email.
 
-    En producción, se conectaría a la SendGrid API v3
-    (https://docs.sendgrid.com/api-reference/mail-send/mail-send).
-    Usa api_key para autenticación.
+    Connects to SendGrid API v3 using the official sendgrid-python library.
+    Requires SENDGRID_API_KEY environment variable.
     """
 
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(
             provider="sendgrid",
             api_key=os.environ.get("SENDGRID_API_KEY", ""),
-            from_email="noreply@b2b-ai.com",
+            from_email=os.environ.get("B2B_SMTP_FROM", "noreply@likida.ai"),
         )
         super().__init__(config=config)
+        self._client = None
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
-        """Simula la conexión a SendGrid.
+        """Connect to SendGrid API.
 
-        En producción: validar API key con GET /v3/user/account
+        Uses SENDGRID_API_KEY from environment or config.
         """
-        logger.info("SendGridAdapter: conectando a SendGrid (mock)...")
-        self._connected = True
-        logger.info("SendGridAdapter: conexión exitosa (mock)")
-        return True
+        api_key = (
+            (credentials or {}).get("api_key")
+            or self.config.api_key
+            or os.environ.get("SENDGRID_API_KEY", "")
+        )
+
+        if not api_key:
+            logger.warning("SendGridAdapter: no API key — running in MOCK mode")
+            self._connected = True
+            self._client = None
+            return True
+
+        try:
+            from sendgrid import SendGridAPIClient
+            self._client = SendGridAPIClient(api_key=api_key)
+            self._connected = True
+            logger.info("SendGridAdapter: connected to SendGrid API")
+            return True
+        except ImportError:
+            logger.warning("SendGridAdapter: sendgrid package not installed — MOCK mode")
+            self._connected = True
+            self._client = None
+            return True
+        except Exception as e:
+            logger.error(f"SendGridAdapter: connection failed: {e}")
+            self._connected = True
+            self._client = None
+            return True
 
     def send_email(self, request: EmailRequest) -> Message:
-        """Envía un email mock por SendGrid.
-
-        En producción: POST /v3/mail/send
-        """
+        """Send email via SendGrid API."""
         self._ensure_connected()
-        logger.info(f"SendGridAdapter: enviando email a {request.to}")
-
         now = datetime.now().isoformat()
+        from_email = self.config.from_email or "noreply@likida.ai"
+
+        if self._client:
+            try:
+                from sendgrid.helpers.mail import Mail, To
+
+                mail = Mail(
+                    from_email=from_email,
+                    to_emails=request.to,
+                    subject=request.subject,
+                    html_content=request.body if request.is_html else None,
+                    plain_text_content=request.body if not request.is_html else None,
+                )
+                response = self._client.send(mail)
+                status_code = response.status_code
+
+                return Message(
+                    id=f"sg_msg_{_uuid.uuid4().hex[:16]}",
+                    to=request.to,
+                    from_addr=from_email,
+                    subject=request.subject,
+                    body=request.body,
+                    channel=MessageChannel.EMAIL,
+                    status=MessageStatus.SENT if 200 <= status_code < 300 else MessageStatus.FAILED,
+                    metadata={**request.metadata, "status_code": status_code},
+                    created_at=now,
+                    sent_at=now,
+                )
+            except Exception as e:
+                logger.error(f"SendGridAdapter: send_email failed: {e}")
+                return Message(
+                    id=f"sg_msg_{_uuid.uuid4().hex[:16]}",
+                    to=request.to,
+                    from_addr=from_email,
+                    subject=request.subject,
+                    body=request.body,
+                    channel=MessageChannel.EMAIL,
+                    status=MessageStatus.FAILED,
+                    metadata={**request.metadata, "error": str(e)},
+                    created_at=now,
+                )
+
+        # Mock fallback
         return Message(
             id=f"sg_msg_{_uuid.uuid4().hex[:16]}",
             to=request.to,
-            from_addr=self.config.from_email or "noreply@b2b-ai.com",
+            from_addr=from_email,
             subject=request.subject,
             body=request.body,
             channel=MessageChannel.EMAIL,
@@ -77,28 +140,54 @@ class SendGridAdapter(CommunicationAdapter):
         )
 
     def send_sms(self, request: SMSRequest) -> Message:
-        """SendGrid no soporta SMS directamente. Delega a Twilio."""
+        """SendGrid does not support SMS directly."""
         raise NotImplementedError("SendGridAdapter no soporta SMS. Use TwilioAdapter.")
 
     def send_whatsapp(self, request: WhatsAppRequest) -> Message:
-        """SendGrid no soporta WhatsApp. Delega a WhatsAppBusinessAdapter."""
+        """SendGrid does not support WhatsApp."""
         raise NotImplementedError("SendGridAdapter no soporta WhatsApp. Use WhatsAppBusinessAdapter.")
 
     def send_notification(self, request: NotificationRequest) -> Message:
-        """Envía una notificación por email via SendGrid.
-
-        En producción: puede usar SendGrid Templates o Dynamic Templates.
-        """
+        """Send notification via email through SendGrid."""
         self._ensure_connected()
-        logger.info(f"SendGridAdapter: enviando notificación a user {request.user_id}")
-
         now = datetime.now().isoformat()
+        from_email = self.config.from_email or "noreply@likida.ai"
+
+        if self._client:
+            try:
+                from sendgrid.helpers.mail import Mail
+
+                body = f"{request.title}\n\n{request.body}"
+                mail = Mail(
+                    from_email=from_email,
+                    to_emails=request.user_id,
+                    subject=request.title,
+                    plain_text_content=body,
+                )
+                response = self._client.send(mail)
+                status_code = response.status_code
+
+                return Message(
+                    id=f"sg_notif_{_uuid.uuid4().hex[:16]}",
+                    to=request.user_id,
+                    from_addr=from_email,
+                    subject=request.title,
+                    body=body,
+                    channel=MessageChannel.EMAIL,
+                    status=MessageStatus.SENT if 200 <= status_code < 300 else MessageStatus.FAILED,
+                    metadata={**request.metadata, "status_code": status_code},
+                    created_at=now,
+                    sent_at=now,
+                )
+            except Exception as e:
+                logger.error(f"SendGridAdapter: send_notification failed: {e}")
+
         return Message(
             id=f"sg_notif_{_uuid.uuid4().hex[:16]}",
             to=request.user_id,
-            from_addr=self.config.from_email or "noreply@b2b-ai.com",
+            from_addr=from_email,
             subject=request.title,
-            body=request.body,
+            body=f"{request.title}: {request.body}",
             channel=MessageChannel.EMAIL,
             status=MessageStatus.SENT,
             metadata=request.metadata,

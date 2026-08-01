@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 contpaqi_web.py — Adaptador mock para CONTPAQi versión web (API REST).

@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 banorte.py — Adaptador mock para Banorte.
@@ -33,7 +34,7 @@ class BanorteAdapter(BankAdapter):
 
     def __init__(self, config: Optional[BankConfig] = None):
         config = config or BankConfig(bank=Banco.BANORTE, account_number="0723456789")
-        super().__init__(config=config)
+            api_key=os.environ.get("BANORTE_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         logger.info("BanorteAdapter: conectando a Banorte (mock)...")

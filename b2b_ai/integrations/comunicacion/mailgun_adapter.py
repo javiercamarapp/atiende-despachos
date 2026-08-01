@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 mailgun_adapter.py — Adaptador mock para Mailgun (email).
@@ -23,7 +24,7 @@ class MailgunAdapter(CommunicationAdapter):
 
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(provider="mailgun", api_key="mock_mailgun_key")
-        super().__init__(config=config)
+            api_key=os.environ.get("MAILGUN_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

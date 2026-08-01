@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 datadog_adapter.py — Adaptador mock para Datadog (infrastructure monitoring).

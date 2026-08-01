@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 dropbox_adapter.py — Adaptador mock para Dropbox.
@@ -22,7 +23,7 @@ class DropboxAdapter(StorageAdapter):
 
     def __init__(self, config: Optional[StorageConfig] = None):
         config = config or StorageConfig(provider=StorageProvider.DROPBOX, api_key="mock_dropbox_key")
-        super().__init__(config=config)
+            api_key=os.environ.get("DROPBOX_ACCESS_TOKEN", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

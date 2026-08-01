@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 banamex.py — Adaptador mock para Citibanamex (API).
@@ -22,7 +23,7 @@ class BanamexAdapter(BankAdapter):
 
     def __init__(self, config: Optional[BankConfig] = None):
         config = config or BankConfig(bank=Banco.CITIBANAMEX, account_number="0987654321")
-        super().__init__(config=config)
+            api_key=os.environ.get("BANAMEX_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

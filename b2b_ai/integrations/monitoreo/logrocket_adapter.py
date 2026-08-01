@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 logrocket_adapter.py — Adaptador mock para LogRocket (frontend monitoring).

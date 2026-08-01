@@ -42,3 +42,6 @@ reportlab==5.0.0              # generación de PDFs (b2b_ai/reports)
 #   psutil>=5
 # Para importar catálogos SAT desde Excel (catalogo_cuentas):
 #   openpyxl>=3.1
+
+# --- Computer Use (Playwright) ---
+playwright>=1.40

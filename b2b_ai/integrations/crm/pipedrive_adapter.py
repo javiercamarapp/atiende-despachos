@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 pipedrive_adapter.py — Adaptador mock para Pipedrive CRM.
@@ -39,7 +40,7 @@ class PipedriveAdapter(CRMAdapter):
         config = config or CRMConfig(
             provider=CRMProvider.PIPEDRIVE,
             api_key="MockPipedriveToken1234567890",
-            base_url="https://api.pipedrive.com/v1",
+            api_key=os.environ.get("PIPEDRIVE_API_KEY", ""),            base_url="https://api.pipedrive.com/v1",
         )
         super().__init__(config=config)
 

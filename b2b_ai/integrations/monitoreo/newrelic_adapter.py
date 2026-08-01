@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 newrelic_adapter.py — Adaptador mock para New Relic (APM).

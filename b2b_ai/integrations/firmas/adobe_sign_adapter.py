@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 adobe_sign_adapter.py — Adaptador mock para Adobe Sign (firma electrónica).
@@ -24,7 +25,7 @@ class AdobeSignAdapter(SignatureAdapter):
     def __init__(self, config: Optional[SignatureConfig] = None):
         config = config or SignatureConfig(provider=SignatureProvider.ADOBE_SIGN,
                                            api_key="mock_adobe_sign_key", account_id="mock_account")
-        super().__init__(config=config)
+            api_key=os.environ.get("ADOBE_SIGN_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

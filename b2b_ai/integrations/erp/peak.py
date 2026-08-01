@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 peak.py — Adaptador mock para ERP Peak (desktop mexicano).

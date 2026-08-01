@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 hsbc.py — Adaptador mock para HSBC México (API).
@@ -23,7 +24,7 @@ class HSBCAdapter(BankAdapter):
 
     def __init__(self, config: Optional[BankConfig] = None):
         config = config or BankConfig(bank=Banco.HSBC, account_number="0123456789")
-        super().__init__(config=config)
+            api_key=os.environ.get("HSBC_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

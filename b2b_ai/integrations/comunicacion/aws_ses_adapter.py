@@ -23,7 +23,7 @@ class AWSSesAdapter(CommunicationAdapter):
 
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(provider="aws_ses", api_key="mock_aws_key")
-        super().__init__(config=config)
+            api_key=os.environ.get("AWS_SES_ACCESS_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 salesforce_adapter.py — Adaptador mock para Salesforce (Enterprise CRM).
@@ -22,7 +23,7 @@ class SalesforceAdapter(CRMAdapter):
 
     def __init__(self, config: Optional[CRMConfig] = None):
         config = config or CRMConfig(provider=CRMProvider.SALESFORCE, api_key="mock_sf_key")
-        super().__init__(config=config)
+            api_key=os.environ.get("SALESFORCE_CLIENT_ID", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         self._connected = True

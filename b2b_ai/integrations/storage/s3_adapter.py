@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 s3_adapter.py — Adaptador mock para AWS S3.
@@ -37,7 +38,7 @@ class S3Adapter(StorageAdapter):
         config = config or StorageConfig(
             provider=StorageProvider.S3,
             api_key="AKIA_MockAWSAccessKey1234",
-            api_secret="MockAWSSecretKey5678901234567890",
+            api_key=os.environ.get("AWS_S3_ACCESS_KEY", ""),            api_secret="MockAWSSecretKey5678901234567890",
             bucket="b2b-ai-documents",
             region="us-east-1",
         )

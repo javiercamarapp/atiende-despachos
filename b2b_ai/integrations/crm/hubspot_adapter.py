@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 hubspot_adapter.py — Adaptador mock para HubSpot CRM.
@@ -39,7 +40,7 @@ class HubSpotAdapter(CRMAdapter):
         config = config or CRMConfig(
             provider=CRMProvider.HUBSPOT,
             api_key="MockHubSpotToken1234567890",
-            base_url="https://api.hubapi.com",
+            api_key=os.environ.get("HUBSPOT_API_KEY", ""),            base_url="https://api.hubapi.com",
         )
         super().__init__(config=config)
 

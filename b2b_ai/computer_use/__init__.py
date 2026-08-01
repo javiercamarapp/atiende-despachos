@@ -34,6 +34,10 @@ from b2b_ai.computer_use.aspel_driver import (
     aspel_login,
     aspel_register,
 )
+# Real Playwright-based drivers
+from b2b_ai.computer_use.playwright_desktop import PlaywrightDesktop
+from b2b_ai.computer_use.contpaqi_real_driver import CONTPAQiRealDriver
+from b2b_ai.computer_use.aspel_real_driver import AspelRealDriver
 
 __all__ = [
     # web ERPs
@@ -60,4 +64,8 @@ __all__ = [
     "set_default_aspel",
     "aspel_login",
     "aspel_register",
+    # Real drivers (Playwright)
+    "PlaywrightDesktop",
+    "CONTPAQiRealDriver",
+    "AspelRealDriver",
 ]

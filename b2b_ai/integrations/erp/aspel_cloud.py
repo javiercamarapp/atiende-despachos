@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 aspel_cloud.py — Adaptador mock para Aspel Cloud (API REST).

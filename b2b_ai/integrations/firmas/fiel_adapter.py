@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 fiel_adapter.py — Adaptador mock para FIEL/e.firma del SAT.

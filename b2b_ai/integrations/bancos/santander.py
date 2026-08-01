@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 santander.py — Adaptador mock para Santander México.
@@ -33,7 +34,7 @@ class SantanderAdapter(BankAdapter):
 
     def __init__(self, config: Optional[BankConfig] = None):
         config = config or BankConfig(bank=Banco.SANTANDER, account_number="0143456789")
-        super().__init__(config=config)
+            api_key=os.environ.get("SANTANDER_API_KEY", ""),        super().__init__(config=config)
 
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         logger.info("SantanderAdapter: conectando a Santander (mock)...")

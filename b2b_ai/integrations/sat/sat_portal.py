@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 sat_portal.py — Adaptador para consulta directa al Portal del SAT.

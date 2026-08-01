@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 onedrive_adapter.py — Adaptador mock para Microsoft OneDrive.
@@ -37,7 +38,7 @@ class OneDriveAdapter(StorageAdapter):
         config = config or StorageConfig(
             provider=StorageProvider.ONEDRIVE,
             api_key="MockOneDriveAccessToken",
-            folder_id="root",
+            api_key=os.environ.get("ONEDRIVE_CLIENT_ID", ""),            folder_id="root",
         )
         super().__init__(config=config)
 

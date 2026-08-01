@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """
 factor_d.py — Adaptador mock para ERP Factor D (cloud).
