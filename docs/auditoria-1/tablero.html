@@ -1,0 +1,136 @@
+<title>Likida AI Enterprise · Auditoría 1</title>
+<style>
+  :root {
+    --bg: #fbfaf9; --card: #ffffff; --ink: #1c1a17; --ink2: #55504a; --ink3: #8a837a;
+    --linea: #e6e2dc; --rejilla: #efece8;
+    --sube: #2f6f4e; --baja: #a13d2d; --igual: #8a837a;
+    --sev-crit: #a13d2d; --sev-alto: #b8763a; --sev-medio: #7a6a4f; --sev-bajo: #8a837a;
+    --acento: #2f5d7c; --apagado: #cfc9c1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16151a; --card: #1e1d23; --ink: #f0eee9; --ink2: #b8b2a8; --ink3: #857f75;
+      --linea: #302e36; --rejilla: #272630;
+      --sube: #6fbf90; --baja: #e2836e; --igual: #857f75;
+      --sev-crit: #e2836e; --sev-alto: #e0a765; --sev-medio: #c4b28a; --sev-bajo: #857f75;
+      --acento: #7fb4d8; --apagado: #494650;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16151a; --card: #1e1d23; --ink: #f0eee9; --ink2: #b8b2a8; --ink3: #857f75;
+    --linea: #302e36; --rejilla: #272630;
+    --sube: #6fbf90; --baja: #e2836e; --igual: #857f75;
+    --sev-crit: #e2836e; --sev-alto: #e0a765; --sev-medio: #c4b28a; --sev-bajo: #857f75;
+    --acento: #7fb4d8; --apagado: #494650;
+  }
+  :root[data-theme="light"] {
+    --bg: #fbfaf9; --card: #ffffff; --ink: #1c1a17; --ink2: #55504a; --ink3: #8a837a;
+    --linea: #e6e2dc; --rejilla: #efece8;
+    --sube: #2f6f4e; --baja: #a13d2d; --igual: #8a837a;
+    --sev-crit: #a13d2d; --sev-alto: #b8763a; --sev-medio: #7a6a4f; --sev-bajo: #8a837a;
+    --acento: #2f5d7c; --apagado: #cfc9c1;
+  }
+  body { background: var(--bg); color: var(--ink); margin: 0; font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .hoja { max-width: 1080px; margin: 0 auto; padding: 40px 24px 72px; }
+  h1 { font-size: 26px; font-weight: 620; letter-spacing: -0.015em; margin: 0 0 4px; }
+  .sub { color: var(--ink3); font-size: 13.5px; margin: 0 0 34px; }
+  h2 { font-size: 12px; font-weight: 640; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); margin: 44px 0 14px; }
+  .tarjeta { background: var(--card); border: 1px solid var(--linea); border-radius: 12px; padding: 22px 24px; }
+  .cabecera { display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start; }
+  .heroe { flex: 0 0 auto; }
+  .heroe .n { font-size: 62px; font-weight: 300; letter-spacing: -0.03em; line-height: 1; color: var(--sev-crit); }
+  .heroe .pie { color: var(--ink3); font-size: 13px; margin-top: 6px; }
+  .lectura { flex: 1 1 340px; color: var(--ink2); font-size: 14.5px; }
+  .lectura strong { color: var(--ink); font-weight: 600; }
+  .rubros { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 10px; }
+  .rubro { background: var(--card); border: 1px solid var(--linea); border-radius: 10px; padding: 13px 15px; display: flex; flex-direction: column; gap: 7px; }
+  .rubro .fila1 { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .rubro .nom { font-size: 13.5px; font-weight: 560; }
+  .rubro .act { font-size: 21px; font-weight: 500; letter-spacing: -0.02em; }
+  .barra { height: 5px; border-radius: 3px; background: var(--rejilla); overflow: hidden; }
+  .barra > i { display: block; height: 100%; border-radius: 3px; background: var(--sev-crit); }
+  .porque { color: var(--ink3); font-size: 11.5px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 620px; }
+  th { text-align: left; font-weight: 600; color: var(--ink3); font-size: 11.5px; letter-spacing: 0.055em; text-transform: uppercase; padding: 0 12px 9px 0; border-bottom: 1px solid var(--linea); }
+  td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rejilla); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  code { font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--rejilla); padding: 1.5px 5px; border-radius: 4px; }
+  .sha { color: var(--ink3); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .etq { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .crit { color: var(--sev-crit); border: 1px solid var(--sev-crit); }
+  .pend { color: var(--sev-alto); font-weight: 600; }
+  .nota { border-left: 2px solid var(--sev-crit); padding: 2px 0 2px 15px; margin: 16px 0; color: var(--ink2); font-size: 14px; }
+  .nota strong { color: var(--ink); }
+  .pie-doc { color: var(--ink3); font-size: 12.5px; margin-top: 44px; border-top: 1px solid var(--linea); padding-top: 16px; }
+  .compuerta { display: flex; flex-wrap: wrap; gap: 22px; }
+  .compuerta div { font-size: 13.5px; }
+  .compuerta .k { color: var(--ink3); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.055em; display: block; margin-bottom: 3px; }
+</style>
+
+<div class="hoja">
+
+  <h1>Auditoría 1 · Likida AI Enterprise</h1>
+  <p class="sub">1 de agosto de 2026 · <strong>primera ronda</strong>, sin precedente · base <span class="sha">f4944ab</span> · construido en ~14h por agente (Hermes + MiniMax 2.5), ~$6 USD</p>
+
+  <div class="tarjeta cabecera">
+    <div class="heroe">
+      <div class="n">2.8</div>
+      <div class="pie">nota global · primera auditoría</div>
+    </div>
+    <div class="lectura">
+      <strong>42 críticos, ninguno falso, casi todos verificados ejecutando el código real</strong>
+      (TestClient, Postgres en Docker, mutación de funciones de producción). Los más graves:
+      un desconocido se vuelve <strong>admin de cualquier despacho sin token</strong>; la
+      nómina calcula el IMSS con un error de <strong>~34×</strong>; y el camino de despliegue
+      a Railway+Postgres <strong>nunca toca Postgres</strong>, confirmado por 5 auditores
+      distintos. Hacia el final, el auditor fiscal encontró que existe una <strong>segunda
+      implementación completa</strong> de nómina/DIOT/contabilidad, conectada a producción en
+      un commit de esta misma tarde — es posible que buena parte de lo auditado no sea el
+      camino que corre hoy.
+    </div>
+  </div>
+
+  <h2>Los doce rubros — primera nota</h2>
+  <div class="rubros">
+    <div class="rubro"><div class="fila1"><span class="nom">Tool calling</span><span class="act">4</span></div><div class="barra"><i style="width:40%"></i></div><div class="porque">1 crítico · duplica el asiento contable en cada reproceso</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Backend y API</span><span class="act">3</span></div><div class="barra"><i style="width:30%"></i></div><div class="porque">4 críticos · IDOR confirmado entre tenants</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Sistema agéntico</span><span class="act">3</span></div><div class="barra"><i style="width:30%"></i></div><div class="porque">4 críticos · registra póliza de un CFDI que falló la validación</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Seguridad</span><span class="act">3</span></div><div class="barra"><i style="width:30%"></i></div><div class="porque">4 críticos · admin sin token, lectura arbitraria de disco</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Pruebas</span><span class="act">3</span></div><div class="barra"><i style="width:30%"></i></div><div class="porque">3 críticos · IMSS mal por 4× y 441 pruebas siguen verdes</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Operabilidad y DX</span><span class="act">3</span></div><div class="barra"><i style="width:30%"></i></div><div class="porque">3 críticos · /health miente sobre la base de datos</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Rendimiento y costo</span><span class="act">3</span></div><div class="barra"><i style="width:30%"></i></div><div class="porque">2 críticos · pool SQLite-only con DSN de Postgres</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Modelo de datos</span><span class="act">3</span></div><div class="barra"><i style="width:30%"></i></div><div class="porque">3 críticos · Alembic con dos heads, no migra</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Frontend</span><span class="act">3</span></div><div class="barra"><i style="width:30%"></i></div><div class="porque">2 críticos · vende "computer use" real siendo mock</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Legal</span><span class="act">2</span></div><div class="barra"><i style="width:20%"></i></div><div class="porque">2 críticos · datos de nómina de terceros a un LLM externo</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Arquitectura</span><span class="act">2</span></div><div class="barra"><i style="width:20%"></i></div><div class="porque">3 críticos · dos calculadoras de ISR, resultados distintos</div></div>
+    <div class="rubro"><div class="fila1"><span class="nom">Cumplimiento fiscal</span><span class="act">2</span></div><div class="barra"><i style="width:20%"></i></div><div class="porque">10 críticos · INFONAVIT al revés, catálogos SAT inventados</div></div>
+  </div>
+
+  <h2>Compuerta sobre el árbol al momento de auditar</h2>
+  <div class="tarjeta compuerta">
+    <div><span class="k">pytest</span><span style="color:var(--sube);font-weight:600">4900 pasan</span> · 16 saltadas · 0 fallan</div>
+    <div><span class="k">ruff check</span>6,365 hallazgos <span class="sha">(sin config propia)</span></div>
+    <div><span class="k">contra Postgres real</span><span style="color:var(--sev-crit);font-weight:600">no arranca</span> — Alembic, 2 heads</div>
+    <div><span class="k">árbol</span><span class="sha">cambiando durante la auditoría</span></div>
+  </div>
+
+  <h2>Los cuatro hallazgos que importan más</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>#</th><th>Qué</th><th>Confirmado por</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Huecos de seguridad explotables ahora</strong> — admin sin token, lectura arbitraria de disco, nómina sin credenciales, webhook de pago sin firma real, IDOR entre tenants</td><td>5 críticos independientes, seguridad + backend</td></tr>
+        <tr><td>2</td><td><strong>Nómina e IVA calculan cifras equivocadas</strong> — INFONAVIT al revés, IMSS ~34× mal, ISR con tarifa equivocada, catálogos SAT inventados, sin verificar 69-B</td><td>10 críticos, fiscal + arquitectura (2 calculadoras de ISR distintas)</td></tr>
+        <tr><td>3</td><td><strong>Railway + Postgres no conecta con nada</strong> — Alembic no migra, pool SQLite-only, variable de entorno equivocada en la guía, /health miente</td><td>5 auditores distintos, independientemente</td></tr>
+        <tr><td>4</td><td><strong>Puede que nada de esto sea el camino real</strong> — existe una segunda implementación completa de nómina/DIOT/contabilidad, conectada a producción hoy mismo</td><td>fiscal, hallazgo de cierre de ronda</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="nota"><strong>No se arregló nada esta ronda, a propósito.</strong> El árbol
+  seguía cambiando bajo esta auditoría y es la primera ronda sin precedente — las dos
+  condiciones que apagan el autofix. Es diagnóstico puro.</div>
+
+  <p class="pie-doc">Reportes completos por rubro en <code>docs/auditoria-1/&lt;rubro&gt;.md</code>. Síntesis en <code>00-SINTESIS.md</code>.</p>
+</div>
