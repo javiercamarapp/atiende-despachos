@@ -27,6 +27,9 @@ class MonitoringProvider(str, Enum):
     """Proveedores de monitoreo."""
     SENTRY = "sentry"
     CONSOLE = "console"
+    DATADOG = "datadog"
+    NEW_RELIC = "new_relic"
+    LOGROCKET = "logrocket"
 
 
 # ---------------------------------------------------------------------------

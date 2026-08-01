@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 
 from b2b_ai.integrations.sat.adapter import SATAdapter
+from b2b_ai.integrations.sat_direct.adapter import SATDirectAdapter
 from b2b_ai.integrations.erp.adapter import ERPAdapter
 from b2b_ai.integrations.bancos.adapter import BankAdapter
 from b2b_ai.integrations.nomina.adapter import NominaAdapter
@@ -21,6 +22,9 @@ from b2b_ai.integrations.storage.adapter import StorageAdapter
 from b2b_ai.integrations.firmas.adapter import SignatureAdapter
 from b2b_ai.integrations.crm.adapter import CRMAdapter
 from b2b_ai.integrations.monitoreo.adapter import MonitoringAdapter
+from b2b_ai.integrations.ai.adapter import AIAdapter
+from b2b_ai.integrations.documentos.adapter import DocumentProcessor
+from b2b_ai.integrations.analytics.adapter import AnalyticsAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +40,10 @@ class IntegrationHubError(Exception):
 
 # Type alias for any adapter
 AnyAdapter = Union[
-    SATAdapter, ERPAdapter, BankAdapter, NominaAdapter,
+    SATAdapter, SATDirectAdapter, ERPAdapter, BankAdapter, NominaAdapter,
     PaymentAdapter, CommunicationAdapter, StorageAdapter,
     SignatureAdapter, CRMAdapter, MonitoringAdapter,
+    AIAdapter, DocumentProcessor, AnalyticsAdapter,
 ]
 
 
@@ -46,16 +51,19 @@ class IntegrationHub:
     """Hub central de integraciones.
 
     Registra y gestiona todos los adaptadores del sistema:
-    - SAT (Ecodex, Finkok, SAT Portal)
-    - ERP (CONTPAQi, Aspel, QuickBooks, Xero)
-    - Bancos (BBVA, Banorte, Santander, OFX, CSV)
+    - SAT (Ecodex, Finkok, SAT Portal, SAT Direct)
+    - ERP (CONTPAQi, Aspel, QuickBooks, Xero, Peak, Multileg, Euroweb, Absis, Factor D, Taxko, FacturaDirecta)
+    - Bancos (BBVA, Banorte, Santander, HSBC, Banamex, Scotiabank, Inbursa, Afirme)
     - Nómina (NominaService)
-    - Pagos (Stripe, Conekta, PayPal)
-    - Comunicación (SendGrid, Twilio, WhatsApp Business)
-    - Almacenamiento (Google Drive, OneDrive, S3)
-    - Firmas (DocuSign, FIEL/SAT)
-    - CRM (HubSpot, Pipedrive)
-    - Monitoreo (Sentry, Console)
+    - Pagos (Stripe, Conekta, PayPal, Kushki, MercadoPago, PayPal México)
+    - Comunicación (SendGrid, Twilio, WhatsApp Business, Mailgun, AWS SES, Vonage, MessageBird)
+    - Almacenamiento (Google Drive, OneDrive, S3, Dropbox, Box, GCS)
+    - Firmas (DocuSign, FIEL/SAT, Adobe Sign)
+    - CRM (HubSpot, Pipedrive, Salesforce, Zoho CRM)
+    - Monitoreo (Sentry, Console, Datadog, New Relic, LogRocket)
+    - AI/ML (OpenAI, Anthropic, Vertex AI)
+    - Documentos (PDF, XML, OCR, Excel)
+    - Analytics (Google Analytics, Mixpanel, Amplitude)
 
     Uso:
         hub = IntegrationHub()
@@ -149,6 +157,8 @@ class IntegrationHub:
         """Determina la categoría de un adaptador."""
         if isinstance(adapter, SATAdapter):
             return "sat"
+        if isinstance(adapter, SATDirectAdapter):
+            return "sat_direct"
         if isinstance(adapter, ERPAdapter):
             return "erp"
         if isinstance(adapter, BankAdapter):
@@ -167,6 +177,12 @@ class IntegrationHub:
             return "crm"
         if isinstance(adapter, MonitoringAdapter):
             return "monitoreo"
+        if isinstance(adapter, AIAdapter):
+            return "ai_ml"
+        if isinstance(adapter, DocumentProcessor):
+            return "documentos"
+        if isinstance(adapter, AnalyticsAdapter):
+            return "analytics"
         return "desconocido"
 
     def test_connection(self, name: str) -> Dict[str, Any]:

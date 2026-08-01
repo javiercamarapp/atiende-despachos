@@ -45,6 +45,7 @@ class Banco(str, Enum):
     BAJIO = "bajio"
     SCOTIABANK = "scotiabank"
     INBURSA = "inbursa"
+    AFIRME = "afirme"
     AZTECA = "azteca"
     GENERIC = "generic"
 

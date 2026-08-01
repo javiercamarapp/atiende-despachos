@@ -4,6 +4,8 @@
 from b2b_ai.integrations.crm.adapter import CRMAdapter, CRMAdapterError
 from b2b_ai.integrations.crm.hubspot_adapter import HubSpotAdapter
 from b2b_ai.integrations.crm.pipedrive_adapter import PipedriveAdapter
+from b2b_ai.integrations.crm.salesforce_adapter import SalesforceAdapter
+from b2b_ai.integrations.crm.zoho_crm_adapter import ZohoCRMAdapter
 from b2b_ai.integrations.crm.models import (
     Contact,
     ContactCreateRequest,
@@ -20,6 +22,8 @@ __all__ = [
     "CRMAdapterError",
     "HubSpotAdapter",
     "PipedriveAdapter",
+    "SalesforceAdapter",
+    "ZohoCRMAdapter",
     "Contact",
     "ContactCreateRequest",
     "CRMConfig",

@@ -5,6 +5,9 @@ from b2b_ai.integrations.pagos.adapter import PaymentAdapter, PaymentAdapterErro
 from b2b_ai.integrations.pagos.stripe_adapter import StripeAdapter
 from b2b_ai.integrations.pagos.conekta_adapter import ConektaAdapter
 from b2b_ai.integrations.pagos.paypal_adapter import PayPalAdapter
+from b2b_ai.integrations.pagos.kushki_adapter import KushkiAdapter
+from b2b_ai.integrations.pagos.mercadopago_adapter import MercadoPagoAdapter
+from b2b_ai.integrations.pagos.paypal_mexico_adapter import PayPalMexicoAdapter
 from b2b_ai.integrations.pagos.models import (
     Currency,
     Payment,
@@ -23,6 +26,9 @@ __all__ = [
     "StripeAdapter",
     "ConektaAdapter",
     "PayPalAdapter",
+    "KushkiAdapter",
+    "MercadoPagoAdapter",
+    "PayPalMexicoAdapter",
     "Currency",
     "Payment",
     "PaymentConfig",

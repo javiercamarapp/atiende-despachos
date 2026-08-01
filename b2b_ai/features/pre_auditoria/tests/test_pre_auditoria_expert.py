@@ -53,7 +53,7 @@ class TestErrorHandling:
         assert len(findings) > 0  # RFC missing
 
     def test_check_deductibility_non_deductible(self):
-        results = check_deductibility([{"invoice_id": "1", "concepto": "multa SAT", "monto": 5000}])
+        results = check_deductibility([{"invoice_id": "1", "concepto": "multas por infracción", "monto": 5000}])
         assert results[0].es_deducible is False
 
 

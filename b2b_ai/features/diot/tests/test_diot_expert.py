@@ -42,7 +42,7 @@ class TestInputSanitization:
         assert err is None
 
     def test_validate_rfc_valid_physical(self):
-        err = validate_rfc("CACJ850101MQR123")
+        err = validate_rfc("CACJ850101AB1")
         assert err is None
 
     def test_validate_rfc_too_short(self):
@@ -132,7 +132,7 @@ class TestDataValidation:
         assert err is None
 
     def test_validate_rfc_persona_fisica(self):
-        err = validate_rfc("CACJ850101MQR123")
+        err = validate_rfc("CACJ850101AB1")
         assert err is None
 
     def test_validate_iva_rate_boundary(self):

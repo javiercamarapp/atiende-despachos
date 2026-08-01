@@ -18,6 +18,8 @@ class CRMProvider(str, Enum):
     """Proveedores de CRM."""
     HUBSPOT = "hubspot"
     PIPEDRIVE = "pipedrive"
+    SALESFORCE = "salesforce"
+    ZOHO_CRM = "zoho_crm"
 
 
 class DealStage(str, Enum):

@@ -36,6 +36,7 @@ class SignatureProvider(str, Enum):
     """Proveedores de firma."""
     DOCUSIGN = "docusign"
     FIEL = "fiel"
+    ADOBE_SIGN = "adobe_sign"
 
 
 # ---------------------------------------------------------------------------

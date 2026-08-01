@@ -19,6 +19,9 @@ class StorageProvider(str, Enum):
     GOOGLE_DRIVE = "google_drive"
     ONEDRIVE = "onedrive"
     S3 = "s3"
+    DROPBOX = "dropbox"
+    BOX = "box"
+    GCS = "gcs"
 
 
 class PermissionRole(str, Enum):

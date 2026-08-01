@@ -1712,3 +1712,578 @@ class TestIntegrationHub:
 
         # Empty category
         assert len(hub.get_adapters_by_category("nonexistent")) == 0
+
+
+# ---------------------------------------------------------------------------
+# SAT Direct Integration Tests
+# ---------------------------------------------------------------------------
+
+class TestSATDirect:
+    """Tests para integración SAT Direct."""
+
+    def test_sat_direct_connect(self):
+        from b2b_ai.integrations.sat_direct import SATDirectConnection
+
+        adapter = SATDirectConnection()
+        assert not adapter.is_connected
+        result = adapter.connect()
+        assert result is True
+        assert adapter.is_connected
+
+    def test_sat_direct_timbrar(self):
+        from b2b_ai.integrations.sat_direct import SATDirectConnection
+
+        adapter = SATDirectConnection()
+        adapter.connect()
+        response = adapter.timbrar_cfdi({"rfc_emisor": "XAXX010101000", "rfc_receptor": "AAA010101AAA", "total": 11600})
+        assert response.exito is True
+        assert response.uuid != ""
+
+    def test_sat_direct_cancelar(self):
+        from b2b_ai.integrations.sat_direct import SATDirectConnection
+
+        adapter = SATDirectConnection()
+        adapter.connect()
+        result = adapter.cancelar_cfdi("test-uuid", "02", "XAXX010101000")
+        assert result["exito"] is True
+
+    def test_sat_direct_consultar_rfc(self):
+        from b2b_ai.integrations.sat_direct import SATDirectConnection
+
+        adapter = SATDirectConnection()
+        adapter.connect()
+        result = adapter.consultar_rfc("AAA010101AAA")
+        assert result["rfc"] == "AAA010101AAA"
+
+    def test_sat_direct_contabilidad(self):
+        from b2b_ai.integrations.sat_direct import SATDirectConnection, ContabilidadElectronicaDirect
+
+        adapter = SATDirectConnection()
+        adapter.connect()
+        datos = ContabilidadElectronicaDirect(ejercicio=2026, mes=1, rfc="AAA010101AAA")
+        result = adapter.contabilidad_electronica(datos)
+        assert result["exito"] is True
+
+    def test_sat_direct_diot(self):
+        from b2b_ai.integrations.sat_direct import SATDirectConnection, DIOTSubmission, DIOTRecord
+
+        adapter = SATDirectConnection()
+        adapter.connect()
+        diot = DIOTSubmission(ejercicio=2026, mes=1, rfc="AAA010101AAA",
+                             registros=[DIOTRecord(rfc_tercero="BBB020202BBB", valor_acumulado=50000, mes=1, ejercicio=2026)])
+        result = adapter.enviar_diot(diot)
+        assert result["exito"] is True
+
+    def test_sat_direct_not_connected(self):
+        from b2b_ai.integrations.sat_direct import SATDirectConnection, SATDirectAdapterError
+
+        adapter = SATDirectConnection()
+        with pytest.raises(SATDirectAdapterError, match="no está conectado"):
+            adapter.timbrar_cfdi({})
+
+
+# ---------------------------------------------------------------------------
+# Additional ERP Tests
+# ---------------------------------------------------------------------------
+
+class TestAdditionalERP:
+    """Tests para adaptadores ERP adicionales."""
+
+    def test_contpaqi_one(self):
+        from b2b_ai.integrations.erp import CONTPAQiOneAdapter
+
+        adapter = CONTPAQiOneAdapter()
+        result = adapter.connect()
+        assert result is True
+        invoices = adapter.get_invoices()
+        assert len(invoices) > 0
+
+    def test_quickbooks_desktop(self):
+        from b2b_ai.integrations.erp import QuickBooksDesktopAdapter
+
+        adapter = QuickBooksDesktopAdapter()
+        result = adapter.connect()
+        assert result is True
+        invoices = adapter.get_invoices()
+        assert len(invoices) > 0
+
+    def test_peak(self):
+        from b2b_ai.integrations.erp import PeakAdapter
+
+        adapter = PeakAdapter()
+        result = adapter.connect()
+        assert result is True
+        invoices = adapter.get_invoices()
+        assert len(invoices) > 0
+
+    def test_multileg(self):
+        from b2b_ai.integrations.erp import MultilegAdapter
+
+        adapter = MultilegAdapter()
+        result = adapter.connect()
+        assert result is True
+
+    def test_euroweb(self):
+        from b2b_ai.integrations.erp import EurowebAdapter
+
+        adapter = EurowebAdapter()
+        result = adapter.connect()
+        assert result is True
+
+    def test_absis(self):
+        from b2b_ai.integrations.erp import AbsisAdapter
+
+        adapter = AbsisAdapter()
+        result = adapter.connect()
+        assert result is True
+
+    def test_factor_d(self):
+        from b2b_ai.integrations.erp import FactorDAdapter
+
+        adapter = FactorDAdapter()
+        result = adapter.connect()
+        assert result is True
+
+    def test_taxko(self):
+        from b2b_ai.integrations.erp import TaxkoAdapter
+
+        adapter = TaxkoAdapter()
+        result = adapter.connect()
+        assert result is True
+
+    def test_facturadirecta(self):
+        from b2b_ai.integrations.erp import FacturaDirectaAdapter
+
+        adapter = FacturaDirectaAdapter()
+        result = adapter.connect()
+        assert result is True
+
+
+# ---------------------------------------------------------------------------
+# Additional Bank Tests
+# ---------------------------------------------------------------------------
+
+class TestAdditionalBanks:
+    """Tests para adaptadores bancarios adicionales."""
+
+    def test_hsbc(self):
+        from b2b_ai.integrations.bancos import HSBCAdapter
+
+        adapter = HSBCAdapter()
+        result = adapter.connect()
+        assert result is True
+        statement = adapter.get_statement()
+        assert len(statement.transactions) > 0
+
+    def test_banamex(self):
+        from b2b_ai.integrations.bancos import BanamexAdapter
+
+        adapter = BanamexAdapter()
+        result = adapter.connect()
+        assert result is True
+        statement = adapter.get_statement()
+        assert len(statement.transactions) > 0
+
+    def test_scotiabank(self):
+        from b2b_ai.integrations.bancos import ScotiabankAdapter
+
+        adapter = ScotiabankAdapter()
+        result = adapter.connect()
+        assert result is True
+        statement = adapter.get_statement()
+        assert len(statement.transactions) > 0
+
+    def test_inbursa(self):
+        from b2b_ai.integrations.bancos import InbursaAdapter
+
+        adapter = InbursaAdapter()
+        result = adapter.connect()
+        assert result is True
+        statement = adapter.get_statement()
+        assert len(statement.transactions) > 0
+
+    def test_afirme(self):
+        from b2b_ai.integrations.bancos import AfirmeAdapter
+
+        adapter = AfirmeAdapter()
+        result = adapter.connect()
+        assert result is True
+        statement = adapter.get_statement()
+        assert len(statement.transactions) > 0
+
+
+# ---------------------------------------------------------------------------
+# Additional Payment Tests
+# ---------------------------------------------------------------------------
+
+class TestAdditionalPayments:
+    """Tests para adaptadores de pago adicionales."""
+
+    def test_kushki(self):
+        from b2b_ai.integrations.pagos import KushkiAdapter, PaymentRequest, Currency
+
+        adapter = KushkiAdapter()
+        result = adapter.connect()
+        assert result is True
+        payment = adapter.create_payment(PaymentRequest(amount=5000, currency=Currency.MXN))
+        assert payment.status.value == "succeeded"
+
+    def test_mercadopago(self):
+        from b2b_ai.integrations.pagos import MercadoPagoAdapter, PaymentRequest, Currency
+
+        adapter = MercadoPagoAdapter()
+        result = adapter.connect()
+        assert result is True
+        payment = adapter.create_payment(PaymentRequest(amount=8000, currency=Currency.MXN))
+        assert payment.status.value == "succeeded"
+
+    def test_paypal_mexico(self):
+        from b2b_ai.integrations.pagos import PayPalMexicoAdapter, PaymentRequest, Currency
+
+        adapter = PayPalMexicoAdapter()
+        result = adapter.connect()
+        assert result is True
+        payment = adapter.create_payment(PaymentRequest(amount=6000, currency=Currency.MXN))
+        assert payment.status.value == "succeeded"
+
+
+# ---------------------------------------------------------------------------
+# Additional Communication Tests
+# ---------------------------------------------------------------------------
+
+class TestAdditionalCommunication:
+    """Tests para adaptadores de comunicación adicionales."""
+
+    def test_mailgun(self):
+        from b2b_ai.integrations.comunicacion import MailgunAdapter, EmailRequest
+
+        adapter = MailgunAdapter()
+        result = adapter.connect()
+        assert result is True
+        msg = adapter.send_email(EmailRequest(to="test@likida.ai", subject="Test", body="Hello"))
+        assert msg.status.value == "sent"
+
+    def test_aws_ses(self):
+        from b2b_ai.integrations.comunicacion import AWSSesAdapter, EmailRequest
+
+        adapter = AWSSesAdapter()
+        result = adapter.connect()
+        assert result is True
+        msg = adapter.send_email(EmailRequest(to="test@likida.ai", subject="SES Test", body="SES Hello"))
+        assert msg.status.value == "sent"
+
+    def test_vonage(self):
+        from b2b_ai.integrations.comunicacion import VonageAdapter, SMSRequest
+
+        adapter = VonageAdapter()
+        result = adapter.connect()
+        assert result is True
+        msg = adapter.send_sms(SMSRequest(to="+525512345678", message="Test SMS"))
+        assert msg.status.value == "sent"
+
+    def test_messagebird(self):
+        from b2b_ai.integrations.comunicacion import MessageBirdAdapter, WhatsAppRequest
+
+        adapter = MessageBirdAdapter()
+        result = adapter.connect()
+        assert result is True
+        msg = adapter.send_whatsapp(WhatsAppRequest(to="+525512345678", message="Test WA"))
+        assert msg.status.value == "sent"
+
+
+# ---------------------------------------------------------------------------
+# Additional Storage Tests
+# ---------------------------------------------------------------------------
+
+class TestAdditionalStorage:
+    """Tests para adaptadores de almacenamiento adicionales."""
+
+    def test_dropbox(self):
+        from b2b_ai.integrations.storage import DropboxAdapter
+
+        adapter = DropboxAdapter()
+        result = adapter.connect()
+        assert result is True
+        upload = adapter.upload("/tmp/test.pdf", "/docs")
+        assert upload.success is True
+        files = adapter.list_files()
+        assert len(files) > 0
+
+    def test_box(self):
+        from b2b_ai.integrations.storage import BoxAdapter
+
+        adapter = BoxAdapter()
+        result = adapter.connect()
+        assert result is True
+        upload = adapter.upload("/tmp/test.xlsx", "/reports")
+        assert upload.success is True
+
+    def test_gcs(self):
+        from b2b_ai.integrations.storage import GCSAdapter
+
+        adapter = GCSAdapter()
+        result = adapter.connect()
+        assert result is True
+        upload = adapter.upload("/tmp/data.parquet", "/data")
+        assert upload.success is True
+
+
+# ---------------------------------------------------------------------------
+# Additional Signature Tests
+# ---------------------------------------------------------------------------
+
+class TestAdditionalSignatures:
+    """Tests para adaptadores de firma adicionales."""
+
+    def test_adobe_sign(self):
+        from b2b_ai.integrations.firmas import AdobeSignAdapter, SigningRequest, Signer
+
+        adapter = AdobeSignAdapter()
+        result = adapter.connect()
+        assert result is True
+        envelope = adapter.create_envelope(SigningRequest(
+            document_id="doc_001", signers=[Signer(name="Test", email="test@likida.ai")]
+        ))
+        assert envelope.status.value == "sent"
+
+
+# ---------------------------------------------------------------------------
+# Additional CRM Tests
+# ---------------------------------------------------------------------------
+
+class TestAdditionalCRM:
+    """Tests para adaptadores CRM adicionales."""
+
+    def test_salesforce(self):
+        from b2b_ai.integrations.crm import SalesforceAdapter, ContactCreateRequest
+
+        adapter = SalesforceAdapter()
+        result = adapter.connect()
+        assert result is True
+        contact = adapter.create_contact(ContactCreateRequest(name="SF Contact", email="sf@likida.ai"))
+        assert contact.id != ""
+
+    def test_zoho_crm(self):
+        from b2b_ai.integrations.crm import ZohoCRMAdapter, ContactCreateRequest
+
+        adapter = ZohoCRMAdapter()
+        result = adapter.connect()
+        assert result is True
+        contact = adapter.create_contact(ContactCreateRequest(name="Zoho Contact", email="zoho@likida.ai"))
+        assert contact.id != ""
+
+
+# ---------------------------------------------------------------------------
+# Additional Monitoring Tests
+# ---------------------------------------------------------------------------
+
+class TestAdditionalMonitoring:
+    """Tests para adaptadores de monitoreo adicionales."""
+
+    def test_datadog(self):
+        from b2b_ai.integrations.monitoreo import DatadogAdapter, ErrorLevel
+
+        adapter = DatadogAdapter()
+        result = adapter.connect()
+        assert result is True
+        report = adapter.capture_exception(Exception("Test error"), level=ErrorLevel.ERROR)
+        assert report.id != ""
+
+    def test_new_relic(self):
+        from b2b_ai.integrations.monitoreo import NewRelicAdapter, ErrorLevel
+
+        adapter = NewRelicAdapter()
+        result = adapter.connect()
+        assert result is True
+        report = adapter.capture_message("Test message", level=ErrorLevel.INFO)
+        assert report.id != ""
+
+    def test_logrocket(self):
+        from b2b_ai.integrations.monitoreo import LogRocketAdapter, ErrorLevel
+
+        adapter = LogRocketAdapter()
+        result = adapter.connect()
+        assert result is True
+        report = adapter.capture_message("Frontend error", level=ErrorLevel.WARNING)
+        assert report.id != ""
+
+
+# ---------------------------------------------------------------------------
+# AI/ML Integration Tests
+# ---------------------------------------------------------------------------
+
+class TestAIIntegration:
+    """Tests para adaptadores AI/ML."""
+
+    def test_openai(self):
+        from b2b_ai.integrations.ai import OpenAIAdapter, AIRequest, AIMessage, AIMessageRole
+
+        adapter = OpenAIAdapter()
+        result = adapter.connect()
+        assert result is True
+        response = adapter.generate(AIRequest(messages=[AIMessage(role=AIMessageRole.USER, content="Hola")]))
+        assert response.content != ""
+
+    def test_anthropic(self):
+        from b2b_ai.integrations.ai import AnthropicAdapter, AIRequest, AIMessage, AIMessageRole
+
+        adapter = AnthropicAdapter()
+        result = adapter.connect()
+        assert result is True
+        response = adapter.generate(AIRequest(messages=[AIMessage(role=AIMessageRole.USER, content="Hola")]))
+        assert response.content != ""
+
+    def test_vertex_ai(self):
+        from b2b_ai.integrations.ai import VertexAIAdapter, AIRequest, AIMessage, AIMessageRole
+
+        adapter = VertexAIAdapter()
+        result = adapter.connect()
+        assert result is True
+        response = adapter.generate(AIRequest(messages=[AIMessage(role=AIMessageRole.USER, content="Hola")]))
+        assert response.content != ""
+
+    def test_openai_embed(self):
+        from b2b_ai.integrations.ai import OpenAIAdapter, EmbeddingRequest
+
+        adapter = OpenAIAdapter()
+        adapter.connect()
+        result = adapter.embed(EmbeddingRequest(input_text="Texto de prueba"))
+        assert len(result.embedding) > 0
+
+    def test_ai_not_connected(self):
+        from b2b_ai.integrations.ai import OpenAIAdapter, AIRequest, AIMessage, AIMessageRole, AIAdapterError
+
+        adapter = OpenAIAdapter()
+        with pytest.raises(AIAdapterError, match="no está conectado"):
+            adapter.generate(AIRequest(messages=[AIMessage(role=AIMessageRole.USER, content="Test")]))
+
+
+# ---------------------------------------------------------------------------
+# Document Processing Tests
+# ---------------------------------------------------------------------------
+
+class TestDocumentProcessing:
+    """Tests para procesamiento de documentos."""
+
+    def test_reportlab(self):
+        from b2b_ai.integrations.documentos import ReportLabProcessor, PDFRequest
+
+        proc = ReportLabProcessor()
+        result = proc.generate_pdf(PDFRequest(template_name="factura", data={"total": 11600}))
+        assert result.success is True
+        assert result.content is not None
+
+    def test_lxml(self):
+        from b2b_ai.integrations.documentos import LXMLProcessor, XMLParseRequest
+
+        proc = LXMLProcessor()
+        result = proc.parse_xml(XMLParseRequest(xml_content="<root><data>test</data></root>"))
+        assert result.success is True
+        assert result.is_valid is True
+
+    def test_tesseract(self):
+        from b2b_ai.integrations.documentos import TesseractProcessor, OCRRequest
+
+        proc = TesseractProcessor()
+        result = proc.extract_text_ocr(OCRRequest(language="spa"))
+        assert result.success is True
+        assert result.text != ""
+
+    def test_openpyxl(self):
+        from b2b_ai.integrations.documentos import OpenPyxlProcessor, ExcelExportRequest
+
+        proc = OpenPyxlProcessor()
+        result = proc.export_excel(ExcelExportRequest(
+            data=[{"name": "Test", "value": 100}, {"name": "Test2", "value": 200}]
+        ))
+        assert result.success is True
+        assert result.num_rows == 2
+
+
+# ---------------------------------------------------------------------------
+# Analytics Integration Tests
+# ---------------------------------------------------------------------------
+
+class TestAnalyticsIntegration:
+    """Tests para adaptadores de analytics."""
+
+    def test_google_analytics(self):
+        from b2b_ai.integrations.analytics import GoogleAnalyticsAdapter, AnalyticsEvent
+
+        adapter = GoogleAnalyticsAdapter()
+        result = adapter.connect()
+        assert result is True
+        event_result = adapter.track_event(AnalyticsEvent(event_name="page_view"))
+        assert event_result.success is True
+
+    def test_mixpanel(self):
+        from b2b_ai.integrations.analytics import MixpanelAdapter, AnalyticsEvent
+
+        adapter = MixpanelAdapter()
+        result = adapter.connect()
+        assert result is True
+        event_result = adapter.track_event(AnalyticsEvent(event_name="button_click"))
+        assert event_result.success is True
+
+    def test_amplitude(self):
+        from b2b_ai.integrations.analytics import AmplitudeAdapter, AnalyticsEvent
+
+        adapter = AmplitudeAdapter()
+        result = adapter.connect()
+        assert result is True
+        event_result = adapter.track_event(AnalyticsEvent(event_name="purchase"))
+        assert event_result.success is True
+
+    def test_analytics_query(self):
+        from b2b_ai.integrations.analytics import GoogleAnalyticsAdapter, AnalyticsQuery
+
+        adapter = GoogleAnalyticsAdapter()
+        adapter.connect()
+        result = adapter.query(AnalyticsQuery(metric="sessions", date_range={"start": "2026-01-01", "end": "2026-01-31"}))
+        assert result.success is True
+        assert len(result.data) > 0
+
+
+# ---------------------------------------------------------------------------
+# IntegrationHub with New Adapters Tests
+# ---------------------------------------------------------------------------
+
+class TestHubNewAdapters:
+    """Tests para IntegrationHub con adaptadores nuevos."""
+
+    def test_hub_sat_direct(self):
+        from b2b_ai.integrations.hub import IntegrationHub
+        from b2b_ai.integrations.sat_direct import SATDirectConnection
+
+        hub = IntegrationHub()
+        hub.register_adapter("sat_direct", SATDirectConnection())
+        assert hub.count == 1
+        assert "sat_direct" in hub.get_adapters_by_category("sat_direct")
+
+    def test_hub_ai(self):
+        from b2b_ai.integrations.hub import IntegrationHub
+        from b2b_ai.integrations.ai import OpenAIAdapter
+
+        hub = IntegrationHub()
+        hub.register_adapter("ai_openai", OpenAIAdapter())
+        assert hub.count == 1
+        assert "ai_openai" in hub.get_adapters_by_category("ai_ml")
+
+    def test_hub_documentos(self):
+        from b2b_ai.integrations.hub import IntegrationHub
+        from b2b_ai.integrations.documentos import ReportLabProcessor
+
+        hub = IntegrationHub()
+        hub.register_adapter("doc_pdf", ReportLabProcessor())
+        assert hub.count == 1
+        assert "doc_pdf" in hub.get_adapters_by_category("documentos")
+
+    def test_hub_analytics(self):
+        from b2b_ai.integrations.hub import IntegrationHub
+        from b2b_ai.integrations.analytics import GoogleAnalyticsAdapter
+
+        hub = IntegrationHub()
+        hub.register_adapter("ga", GoogleAnalyticsAdapter())
+        assert hub.count == 1
+        assert "ga" in hub.get_adapters_by_category("analytics")
+
