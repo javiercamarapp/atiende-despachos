@@ -113,7 +113,7 @@ class TwilioAdapter(CommunicationAdapter):
         self._ensure_connected()
         now = datetime.now().isoformat()
         to_number = request.to if request.to.startswith("whatsapp:") else f"whatsapp:{request.to}"
-        from_number = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
+        from_number = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+141****8886")
         body = request.message
 
         if self._client:
@@ -130,7 +130,7 @@ class TwilioAdapter(CommunicationAdapter):
                 logger.error(f"TwilioAdapter: send_whatsapp failed: {e}")
 
         return Message(
-            id=f"WA{_uuid.uuid4().hex[:32].upper()}", to=to_number, from_addr=from_number,
+            id=f"WA{_uuid.uuid4().hex[:32].upper()}", to=request.to, from_addr=from_number,
             body=body, channel=MessageChannel.WHATSAPP, status=MessageStatus.SENT,
             metadata=request.metadata, created_at=now, sent_at=now,
         )

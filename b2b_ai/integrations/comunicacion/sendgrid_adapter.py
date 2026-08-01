@@ -39,7 +39,7 @@ class SendGridAdapter(CommunicationAdapter):
         config = config or CommunicationConfig(
             provider="sendgrid",
             api_key=os.environ.get("SENDGRID_API_KEY", ""),
-            from_email=os.environ.get("B2B_SMTP_FROM", "noreply@likida.ai"),
+            from_email=os.environ.get("B2B_SMTP_FROM", "noreply@b2b-ai.com"),
         )
         super().__init__(config=config)
         self._client = None
@@ -153,7 +153,7 @@ class SendGridAdapter(CommunicationAdapter):
         return Message(
             id=f"sg_notif_{_uuid.uuid4().hex[:16]}",
             to=request.user_id, from_addr=from_email, subject=request.title,
-            body=f"{request.title}: {request.body}", channel=MessageChannel.EMAIL,
+            body=request.body, channel=MessageChannel.EMAIL,
             status=MessageStatus.SENT, metadata=request.metadata,
             created_at=now, sent_at=now,
         )
