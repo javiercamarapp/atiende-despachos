@@ -88,16 +88,16 @@ class TestDIOTOperation:
         assert op.monto == 10000
 
     def test_tipo_operacion_label_01(self):
-        op = DIOTOperation(rfc="A", razon_social="X", tipo_operacion="01", monto=0, iva_trasladado=0, iva_acreditable=0)
-        assert op.tipo_operacion_label == "IVA"
+        op = DIOTOperation(rfc="A", razon_social="X", tipo_operacion="03", monto=0, iva_trasladado=0, iva_acreditable=0)
+        assert op.tipo_operacion_label == "Prestacion de servicios profesionales"
 
     def test_tipo_operacion_label_02(self):
-        op = DIOTOperation(rfc="A", razon_social="X", tipo_operacion="02", monto=0, iva_trasladado=0, iva_acreditable=0)
-        assert op.tipo_operacion_label == "IEPS"
+        op = DIOTOperation(rfc="A", razon_social="X", tipo_operacion="06", monto=0, iva_trasladado=0, iva_acreditable=0)
+        assert op.tipo_operacion_label == "Arrendamiento de inmuebles"
 
     def test_tipo_operacion_label_03(self):
-        op = DIOTOperation(rfc="A", razon_social="X", tipo_operacion="03", monto=0, iva_trasladado=0, iva_acreditable=0)
-        assert op.tipo_operacion_label == "Exento"
+        op = DIOTOperation(rfc="A", razon_social="X", tipo_operacion="85", monto=0, iva_trasladado=0, iva_acreditable=0)
+        assert op.tipo_operacion_label == "Otros"
 
     def test_tipo_operacion_label_unknown(self):
         op = DIOTOperation(rfc="A", razon_social="X", tipo_operacion="99", monto=0, iva_trasladado=0, iva_acreditable=0)
@@ -235,15 +235,15 @@ class TestCalculateTotalsByRfc:
 
     def test_operation_types_aggregated(self):
         ops = [
-            DIOTOperation(rfc="ABC123456789", razon_social="A", tipo_operacion="01",
-                          monto=5000, iva_trasladado=800, iva_acreditable=800),
             DIOTOperation(rfc="ABC123456789", razon_social="A", tipo_operacion="03",
+                          monto=5000, iva_trasladado=800, iva_acreditable=800),
+            DIOTOperation(rfc="ABC123456789", razon_social="A", tipo_operacion="85",
                           monto=2000, iva_trasladado=0, iva_acreditable=0),
         ]
         by_rfc = calculate_totals_by_rfc(ops)
         types = by_rfc["ABC123456789"].operation_types
-        assert "IVA" in types
-        assert "Exento" in types
+        assert "Prestacion de servicios profesionales" in types
+        assert "Otros" in types
 
     def test_empty_operations(self):
         by_rfc = calculate_totals_by_rfc([])
@@ -396,7 +396,7 @@ class TestGenerateReport:
         xml_str = _make_diot_xml()
         report = process_diot(xml_str)
         rpt = generate_report(report)
-        assert "IVA" in rpt["by_tipo_operacion"]
+        assert "Prestacion de servicios profesionales" in rpt["by_tipo_operacion"]
 
     def test_report_empty_operations(self):
         report = DIOTReport()

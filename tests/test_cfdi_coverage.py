@@ -396,6 +396,9 @@ class TestValidator:
             "emisor": {"regimen_fiscal": "601"},
             "receptor_rfc": "XYZ010101AAA", "receptor_nombre": "Cliente SA",
             "fecha": "2026-07-01T10:00:00", "fecha_timbrado": "2026-07-01T10:01:00",
+            "tiene_sello": True,
+            "no_certificado": "12345678",
+            "folio_fiscal": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
             "conceptos": [{
                 "cantidad": "1", "valor_unitario": "1000.00", "importe": "1000.00",
                 "traslados": [{"impuesto": "002", "tipo_factor": "Tasa",

@@ -518,8 +518,8 @@ class TestCalculatePayroll:
     def test_provisiones(self):
         emp = {"salario_diario": 500}
         r = calculate_payroll(emp, sueldo_bruto=15000)
-        assert float(r["provisiones"]["aguinaldo"]) > 0
-        assert float(r["provisiones"]["prima_vacacional"]) > 0
+        assert float(r["provisiones_patron"]["aguinaldo"]) > 0
+        assert float(r["provisiones_patron"]["prima_vacacional"]) > 0
 
 
 class TestGeneratePayrollCFDI:
