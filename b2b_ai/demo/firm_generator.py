@@ -79,6 +79,8 @@ _CLIENT_SEEDS: List[Dict[str, Any]] = [
     {"nombre": "Carnicería La Tradición SC", "rfc": "CLT050101HV2", "regimen": "601", "ciudad": "Puebla", "giro": "alimentos", "tamano": "pequena", "facturas_mes": 7, "ticket_prom": 4000},
     {"nombre": "Despacho de Arquitectura Habitat SC", "rfc": "DAH120101MN1", "regimen": "603", "ciudad": "CDMX", "giro": "arquitectura", "tamano": "pequena", "facturas_mes": 4, "ticket_prom": 55000},
     {"nombre": "Escuela de Música Armonía SC", "rfc": "EMA090101AB8", "regimen": "601", "ciudad": "Guadalajara", "giro": "educacion", "tamano": "pequena", "facturas_mes": 5, "ticket_prom": 3500},
+    {"nombre": "Refaccionaria AutoPartes del Centro SC", "rfc": "RAC110101QR7", "regimen": "601", "ciudad": "CDMX", "giro": "comercio", "tamano": "mediana", "facturas_mes": 14, "ticket_prom": 9200},
+    {"nombre": "Consultora de Recursos Humanos Talento SC", "rfc": "CRH140101HV3", "regimen": "603", "ciudad": "Monterrey", "giro": "consultoria", "tamano": "mediana", "facturas_mes": 8, "ticket_prom": 22000},
 ]
 
 # ---------------------------------------------------------------------------
