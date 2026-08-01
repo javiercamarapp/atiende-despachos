@@ -47,7 +47,7 @@ def valid_nomina_data() -> NominaData:
     return NominaData(
         tipo_nomina="O",
         version="1.2",
-        fecha_pago="2026-07-15",
+        fecha_pago="2026-07-14",  # Dentro del rango [06-15, 07-14]
         fecha_inicial_pago="2026-06-15",
         fecha_final_pago="2026-07-14",
         num_dias_pagados=Decimal("30"),
@@ -542,14 +542,17 @@ class TestNominaRoutes:
         assert r.status_code == 422
         assert "parsear" in r.json()["detail"]
 
-    def test_validate_valid_xml(self, client):
-        """POST /nomina/validate con XML válido -> ok=True, errors vacío."""
+    def test_validate_demo_xml(self, client):
+        """POST /nomina/validate con XML demo -> detecta error de fecha."""
         with open(DEMO_XML_1, "rb") as f:
             r = client.post("/nomina/validate", files={"file": ("nomina.xml", f, "application/xml")})
         assert r.status_code == 200
         body = r.json()
-        assert body["ok"] is True
-        assert body["errors"] == []
+        # El demo XML tiene FechaPago (07-15) fuera de [06-15, 07-14]
+        assert body["ok"] is False
+        assert any("FechaPago" in e for e in body["errors"])
+        # Pero sí parsea correctamente
+        assert body["nomina"]["num_empleado"] == "001"
 
     def test_validate_empty_file(self, client):
         """POST /nomina/validate con archivo vacío -> 400."""
@@ -642,7 +645,7 @@ class TestEdgeCases:
         """Periodicidad bimestral (04) -> válido."""
         data = NominaData(
             tipo_nomina="O",
-            fecha_pago="2026-07-15",
+            fecha_pago="2026-07-14",  # Dentro del rango
             fecha_inicial_pago="2026-06-15",
             fecha_final_pago="2026-07-14",
             num_dias_pagados=Decimal("30"),
@@ -669,11 +672,10 @@ class TestEdgeCases:
         assert errors == []
 
     def test_whitespace_in_rfc(self, valid_nomina_data):
-        """RFC con espacios -> match exacto requiere strip."""
+        """RFC con espacios extra -> el validador aplica strip() y matchea."""
         valid_nomina_data.rfc_patron_origen = "  JCCP840101HDA  "
-        # The parser strips, but if set manually it doesn't match
         errors = validate_rfc_patron(valid_nomina_data)
-        assert len(errors) == 1  # No match because of spaces
+        assert errors == []  # strip() tolera espacios extra
 
     def test_total_percepciones_zero(self, tmp_path):
         """TotalPercepciones = 0 en XML -> parsea sin error."""

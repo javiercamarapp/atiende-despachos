@@ -88,10 +88,13 @@ def _days_in_period(fecha_inicio: Optional[date], fecha_fin: Optional[date]) -> 
 # ---------------------------------------------------------------------------
 
 def validate_rfc_patron(data: NominaData) -> List[str]:
-    """Val. 1: RfcPatronOrigen debe coincidir con el RFC del Emisor del CFDI."""
+    """Val. 1: RfcPatronOrigen debe coincidir con el RFC del Emisor del CFDI.
+
+    Se aplica strip() a ambos valores antes de comparar para tolerar espacios.
+    """
     errors: List[str] = []
-    rfc_patron = data.rfc_patron_origen
-    rfc_emisor = data.cfdi_emisor_rfc
+    rfc_patron = (data.rfc_patron_origen or "").strip()
+    rfc_emisor = (data.cfdi_emisor_rfc or "").strip()
 
     if not rfc_patron:
         errors.append("RfcPatronOrigen está vacío o ausente.")
@@ -99,10 +102,10 @@ def validate_rfc_patron(data: NominaData) -> List[str]:
     if not rfc_emisor:
         # Si no hay RFC del emisor CFDI, no podemos cruzar; solo advertimos.
         return errors
-    if rfc_patron.strip() != rfc_emisor.strip():
+    if rfc_patron != rfc_emisor:
         errors.append(
-            f"RfcPatronOrigen '{rfc_patron}' no coincide con el RFC del "
-            f"Emisor del CFDI '{rfc_emisor}'."
+            f"RfcPatronOrigen '{data.rfc_patron_origen}' no coincide con el RFC del "
+            f"Emisor del CFDI '{data.cfdi_emisor_rfc}'."
         )
     return errors
 
