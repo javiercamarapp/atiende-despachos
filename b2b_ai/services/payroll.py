@@ -347,16 +347,16 @@ def generate_payroll_cfdi(empleado, emisor, periodo, resultados=None,
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                  xmlns:nomina="http://www.sat.gob.mx/nomina"
+                  xmlns:nomina="http://www.sat.gob.mx/nomina12"
                   xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
                   xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd
-                                      http://www.sat.gob.mx/nomina http://www.sat.gob.mx/sitio_internet/cfd/nomina/nomina12.xsd"
+                                      http://www.sat.gob.mx/nomina12 http://www.sat.gob.mx/sitio_internet/cfd/nomina/nomina12.xsd"
                   Version="4.0" Serie="{sx.escape(serie)}" Folio="{sx.escape(str(folio))}"
                   Fecha="{fechas['fecha_pago']}"
                   FormaPago="99" MetodoPago="PUE" Moneda="MXN"
                   TipoDeComprobante="N" Exportacion="01"
                   LugarExpedicion="{sx.escape(emisor.get('lugar_expedicion', '06600'))}"
-                  SubTotal="{_fmt(total)}" Total="{_fmt(total)}">
+                  SubTotal="{_fmt(total)}" Total="{_fmt(_round2(total - total_ded))}">
   <cfdi:Emisor Rfc="{em['rfc']}" Nombre="{em['nombre']}" RegimenFiscal="{em['regimen']}"/>
   <cfdi:Receptor Rfc="{emp['rfc']}" Nombre="{emp['nombre']}"
                  DomicilioFiscalReceptor="{sx.escape(empleado.get('domicilio_fiscal', '06600'))}"

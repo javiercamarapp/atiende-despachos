@@ -30,12 +30,14 @@ TIPOS_CFDI = ("emitidas", "recibidas")
 
 
 def _rfc_normalize(rfc: str) -> str:
-    return (rfc or "").strip().upper()
-
+    """Normaliza RFC usando la función canónica centralizada."""
+    from b2b_ai.common.rfc import normalize_rfc
+    return normalize_rfc(rfc)
 
 def _es_rfc_valido(rfc: str) -> bool:
-    import re
-    return bool(re.match(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$", _rfc_normalize(rfc)))
+    """Valida RFC usando la función canónica centralizada."""
+    from b2b_ai.common.rfc import is_valid_rfc
+    return is_valid_rfc(rfc)
 
 
 def _iso(d: date) -> str:

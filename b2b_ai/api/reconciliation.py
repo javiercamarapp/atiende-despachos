@@ -186,9 +186,11 @@ def build_reconciliation_router(db, require_api_key):
         if not svc.transactions:
             return {"aviso": "No hay movimientos cargados. Sube un estado "
                              "de cuenta primero.", "ok": False}
-        # El reporte se calcula solo. Antes dependía de que alguien hubiera
-        # llamado a /matches primero sobre la MISMA sesión en memoria: pedir
-        # /report directamente devolvía un reporte con 0 conciliados.
+        # El reporte se calcula solo: recalcula los cruces contra las facturas
+        # del tenant antes de reportar (idempotente, conserva las confirmaciones
+        # manuales). Antes dependía de que alguien hubiera llamado a /matches
+        # primero sobre la MISMA sesión en memoria, así que pedir /report
+        # directamente devolvía un reporte con 0 conciliados.
         svc.load_invoices(_tenant_invoices(tenant))
         svc.auto_match()
         rep = svc.generate_reconciliation_report()

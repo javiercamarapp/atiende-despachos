@@ -1,9 +1,23 @@
 # -*- coding: utf-8 -*-
 import os
+import resource
 import sys
 import tempfile
 
 import pytest
+
+# macOS: raise file-descriptor limit so 800+ SQLite connections don't exhaust
+# the default ulimit (256).  Safe to call on Linux too (no-op if already ≥ 10240).
+try:
+    resource.setrlimit(resource.RLIMIT_NOFILE, (10240, 10240))
+except (ValueError, OSError):
+    pass  # already higher or unprivileged container — ignore
+
+# Ensure a JWT secret is available for tests that exercise auth middleware.
+# The production code reads B2B_JWT_SECRET from the environment; in tests we
+# supply a deterministic value so nothing falls through to the (now removed)
+# hardcoded dev secret.
+os.environ.setdefault("B2B_JWT_SECRET", "test-jwt-secret-safe-for-ci-only")
 
 # Asegurar que el paquete b2b_ai sea importable (root = directorio con el paquete)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -35,6 +49,10 @@ def _ingesta_local_habilitada(monkeypatch, tmp_path_factory):
                              str(tmp_path_factory.getbasetemp()),
                              tempfile.gettempdir()])
     monkeypatch.setenv("B2B_LOCAL_XML_DIRS", roots)
+    # `B2B_ENV` sin definir cuenta como PRODUCCIÓN (ver auth/middleware.py), y
+    # en producción la ausencia de B2B_JWT_SECRET aborta el arranque. La suite
+    # se declara entorno de test para tomar el secreto efímero por proceso.
+    monkeypatch.setenv("B2B_ENV", "test")
 
 
 @pytest.fixture

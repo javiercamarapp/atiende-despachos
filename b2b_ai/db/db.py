@@ -368,7 +368,7 @@ class Database:
     # ---- Audit log ----
     def log_call(self, tool_name, action, entity="", entity_id="",
                  payload=None, status="ok", tenant_id=None):
-        payload_txt = json.dumps(payload, default=str, ensure_ascii=False) if payload else ""
+        payload_txt = json.dumps(payload, default=str, ensure_ascii=False) if payload is not None else None
         cur = self.conn.execute("""
             INSERT INTO audit_log(tenant_id, tool_name, action, entity,
                 entity_id, payload, status) VALUES (?,?,?,?,?,?,?)

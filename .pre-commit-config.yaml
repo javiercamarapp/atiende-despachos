@@ -1,0 +1,49 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-symlinks
+
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        language_version: python3
+        args: ['--line-length=100']
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile=black']
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ['--max-line-length=120', '--ignore=E501,W503,E203']
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.8
+    hooks:
+      - id: bandit
+        args: ['-ll', '--skip', 'B101,B311']
+        exclude: '^tests/'
+
+  - repo: local
+    hooks:
+      - id: check-no-hardcoded-secrets
+        name: Check for hardcoded secrets
+        entry: bash -c 'grep -rn "password\s*=\s*[\"'\'']" b2b_ai/ --include="*.py" | grep -v "password_hash" | grep -v "password_reset" | grep -v "password:" | grep -v "# " && exit 1 || exit 0'
+        language: system
+        files: '\.py$'
+        pass_filenames: false

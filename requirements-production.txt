@@ -30,6 +30,9 @@ python-dotenv==1.2.2          # fix PYSEC-2026-2270
 jinja2==3.1.6                 # templates HTML del portal
 openpyxl==3.1.5               # exportación a Excel
 
+# --- Reportes PDF ---
+reportlab==5.0.0              # generación de PDFs (b2b_ai/reports)
+
 # --- Opcionales (solo si se activan) ---
 # Para usar PostgreSQL (B2B_DB=postgres):
 #   psycopg[binary]>=3.1

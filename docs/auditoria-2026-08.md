@@ -4,7 +4,9 @@
 **Revisión auditada:** `8fb951b` (rama `claude/repository-audit-j6mhgp`)
 **Alcance:** código de aplicación, pruebas, infraestructura de despliegue, seguridad e higiene del repositorio.
 
-> **Estado de las correcciones (2026-08-01).** Los hallazgos 1, 2, 3, 4, 5, 6, 7 y 8 están corregidos en esta misma rama. La suite quedó en **825 pasan, 23 saltadas, 1 xfail documentado**, y las correcciones están ancladas en `tests/test_hallazgos_auditoria.py` para que no puedan deshacerse en silencio. Cada sección de abajo lleva su estado. Los hallazgos 9 a 12 siguen abiertos.
+> **Estado de las correcciones (2026-08-01).** Los hallazgos 1 a 8 están corregidos en esta rama, ya fusionada con `main`. La suite quedó en **935 pasan, 23 saltadas, 0 fallan**, y las correcciones están ancladas en `tests/test_hallazgos_auditoria.py` para que no puedan deshacerse en silencio. Cada sección de abajo lleva su estado. Los hallazgos 9 a 12 siguen abiertos.
+>
+> **Nota sobre la fusión.** `main` avanzó 7 commits durante la auditoría y corrigió por su cuenta el hallazgo 3 (los paréntesis) y *parcialmente* el 2: su `validate_xml_path` solo cubría la rama JSON de `/api/v1` —el `/process` legacy y el parámetro `folder` seguían aceptando rutas arbitrarias—, lanzaba un `ValueError` que nadie capturaba y su mensaje de error repetía la ruta pedida junto con la lista de directorios permitidos. La versión de esta rama cubre los tres puntos de entrada. También se corrigieron dos pruebas que ya fallaban en `main` (`test_update_me`, `test_update_user`), donde la política de contraseñas nueva no se había aplicado a las rutas de actualización.
 
 ---
 

@@ -46,6 +46,16 @@ jobs:
       - name: Pruebas
         run: pytest -q
 
+      # Bandit, heredado del workflow anterior. Se conserva como informativo
+      # (`|| true`) a propósito: hoy marca falsos positivos —los f-string de
+      # `LIMIT {int(limit)}` y el `UPDATE ... SET {sets}` con allowlist fija—,
+      # así que bloquear con él solo enseñaría a ignorarlo. Convertirlo en
+      # puerta exige antes anotar esos casos con `# nosec` y su porqué.
+      - name: Lint de seguridad (bandit, informativo)
+        run: |
+          pip install bandit
+          bandit -r b2b_ai/ -ll --skip B101 || true
+
   # ── Landing → Vercel ──
   deploy-landing:
     needs: test

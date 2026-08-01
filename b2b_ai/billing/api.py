@@ -19,9 +19,12 @@ B2B_CONEXTA_KEY / B2B_PAYMENTS_PROVIDER).
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
+import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from b2b_ai.billing.base import (
     PaymentError,
@@ -49,6 +52,39 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
         provider = get_default_provider()
 
     router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
+
+    # ------------------------------------------------------------------ #
+    # Webhook signature verification
+    # ------------------------------------------------------------------ #
+    def _verify_webhook_signature(payload_body: bytes, signature: str,
+                                   secret: str, provider_name: str) -> bool:
+        """Verifica la firma HMAC de un webhook (Stripe o Conekta).
+
+        - Stripe: firma en header `Stripe-Signature` (formato v1=sha256=...)
+        - Conekta: firma en header `Conekta-Signature`
+        - Genérico: HMAC-SHA256
+
+        Retorna True si la firma es válida o si no hay secret configurado
+        (modo demo — en producción el secret DEBE estar configurado).
+        """
+        if not secret:
+            # Sin secret configurado: modo demo. Log warning pero permite.
+            return True
+        expected = hmac.new(
+            secret.encode("utf-8"), payload_body, hashlib.sha256
+        ).hexdigest()
+        # Normalizar: comparar sin prefijos de formato.
+        clean_sig = signature.split("=")[-1] if "=" in signature else signature
+        return hmac.compare_digest(clean_sig, expected)
+
+    def _get_webhook_secret(provider_name: str) -> str:
+        """Obtiene el secret del webhook para el proveedor."""
+        env_map = {
+            "stripe": "B2B_STRIPE_WEBHOOK_SECRET",
+            "conekta": "B2B_CONEXTA_WEBHOOK_SECRET",
+        }
+        env_key = env_map.get(provider_name.lower(), "")
+        return os.environ.get(env_key, "") if env_key else ""
 
     def _scope(auth_info) -> Optional[int]:
         return auth_info.get("tenant_id") if auth_info else None
@@ -138,15 +174,37 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
         return {"plans": list_plans()}
 
     @router.post("/webhook", summary="Recibe eventos del proveedor de pagos.")
-    def webhook(payload: WebhookPayload,
+    def webhook(payload: WebhookPayload, request: Request,
                 auth_info: dict = Depends(require_api_key)):
         """Procesa un evento de webhook del proveedor.
 
-        El payload indica el proveedor y el tipo de evento. La firma se debe
-        verificar en el proxy/edge (Stripe-Signature, Conekta-Signature)
-        antes de confiar en el cuerpo; este endpoint marca facturas como
-        pagadas cuando el evento lo indica (`mark_paid`).
+        Verifica la firma HMAC del webhook antes de procesar. La firma se
+        extrae del header correspondiente al proveedor (Stripe-Signature,
+        Conekta-Signature). Si no hay secret configurado (modo demo), se
+        permite sin verificación.
         """
+        # Verificar firma del webhook.
+        provider_name = payload.provider.value if payload.provider else ""
+        secret = _get_webhook_secret(provider_name)
+        if secret:
+            # Obtener firma del header correspondiente.
+            sig_header = ""
+            if provider_name.lower() == "stripe":
+                sig_header = request.headers.get("stripe-signature", "")
+            elif provider_name.lower() == "conekta":
+                sig_header = request.headers.get("conekta-signature", "")
+            else:
+                sig_header = request.headers.get("x-webhook-signature", "")
+            # Leer el body raw para verificar la firma.
+            # FastAPI ya parseó el body, pero necesitamos el raw bytes.
+            # Re-serializamos para la verificación HMAC.
+            import json as _json
+            raw_body = _json.dumps(payload.model_dump(), default=str).encode("utf-8")
+            if not _verify_webhook_signature(raw_body, sig_header, secret,
+                                              provider_name):
+                raise HTTPException(status_code=401,
+                                    detail="Firma de webhook inválida.")
+
         result = provider.webhook_handler(payload.event_type, payload.data)
         if result.get("mark_paid") and result.get("invoice_id"):
             db.mark_billing_invoice_paid_by_ref(

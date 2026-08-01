@@ -8,8 +8,9 @@ la librería estándar (hmac / base64 / hashlib), consistente con el estilo del
 resto del auth de B&B AI (comparaciones en tiempo constante con hmac).
 
 Secret: se lee de `B2B_JWT_SECRET` y debe medir al menos 32 caracteres. Si
-falta, el arranque FALLA salvo en entornos de desarrollo (`B2B_ENV` ausente o
-dev/development/test/local), donde se genera uno aleatorio por proceso. No hay
+falta, el arranque FALLA salvo si `B2B_ENV` dice explícitamente que es un
+entorno de desarrollo (dev/development/test/testing/local), donde se genera uno
+aleatorio por proceso. `B2B_ENV` sin definir cuenta como producción. No hay
 ningún secreto literal en el código: ver el bloque de `jwt_secret()`.
 
 Dependencias FastAPI expuestas por `JWTAuth`:
@@ -55,12 +56,19 @@ MIN_SECRET_LEN = 32
 # incompleto— dejaba la autenticación entera abierta.
 #
 # Ahora, sin la env definida:
-#   · en desarrollo (B2B_ENV ausente o dev/development/test/local) se genera un
+#   · con B2B_ENV en dev/development/test/testing/local se genera un
 #     secreto ALEATORIO por proceso. Los tokens siguen funcionando dentro de una
 #     misma corrida y dejan de servir al reiniciar, que es justo lo que se
 #     quiere de un entorno de desarrollo.
-#   · en cualquier otro valor de B2B_ENV se lanza y el arranque falla ruidoso.
-_DEV_ENVS = ("", "dev", "development", "test", "testing", "local")
+#   · en cualquier otro caso —incluido B2B_ENV SIN DEFINIR— se lanza y el
+#     arranque falla ruidoso.
+# `B2B_ENV` SIN DEFINIR NO CUENTA COMO DESARROLLO. El default tiene que ser el
+# lado seguro: en Railway, Docker o cualquier PaaS lo normal es no definir esa
+# variable, y si "vacío" significara desarrollo, ese despliegue arrancaría en
+# silencio con secretos efímeros —sesiones que mueren en cada reinicio y en cada
+# worker— sin que nada avise. Hay que pedir el entorno de desarrollo de forma
+# explícita.
+_DEV_ENVS = ("dev", "development", "test", "testing", "local")
 
 _ephemeral_secret: Optional[str] = None
 

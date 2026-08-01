@@ -78,6 +78,7 @@ from b2b_ai.api import portal as portal_mod
 from b2b_ai.portal.routes import build_portal_pages_router
 from b2b_ai.notifications.api import build_notifications_router
 from b2b_ai.billing.api import build_billing_router
+from b2b_ai.reports.router import build_reports_router
 from b2b_ai.api.reconciliation import build_reconciliation_router
 from b2b_ai.onboarding.api import build_onboarding_router
 from b2b_ai.sat.api import build_sat_router
@@ -334,7 +335,12 @@ def _client_ip(request: Request) -> str:
 # válida podía pasar una ruta arbitraria: leía cualquier XML del disco —los CFDI
 # almacenados de OTROS despachos, entre ellos— e importarlo a su propio tenant
 # para consultarlo después por `GET /api/v1/invoices`. `folder` servía además
-# para sondear el sistema de archivos (404 frente a 200 delata qué existe).
+# para sondear el sistema de archivos.
+#
+# `api/security.py::validate_xml_path` fue un primer intento, pero solo cubría
+# la rama JSON de /api/v1 (dejaba fuera el /process legacy y `folder`), lanzaba
+# un ValueError que nadie capturaba —500 en vez de un código de cliente—, y su
+# mensaje repetía la ruta pedida y la lista de directorios permitidos.
 #
 # Ahora la ingesta local es OPT-IN y está confinada: `B2B_LOCAL_XML_DIRS` lista
 # los directorios base permitidos, separados por `:`. Sin esa variable la
@@ -1065,14 +1071,16 @@ def create_app(db=None):
     # API v2 enterprise (multi-tenant robusto).
     app.include_router(api_v2.build_v2_router(db, require_api_key, auth))
 
+    # Portal del cliente (server-rendered): páginas HTML de consulta.
+    # Se registra ANTES de la API JSON para que /portal/invoices (HTML) y
+    # /portal/invoices/export.* (auth por cookie del portal) ganen en
+    # conflicto. La API JSON (auth/login, upload, status, auth/me, SPA) sigue
+    # servida por api/portal.py en /portal/auth/*, /portal/invoices/upload,
+    # /portal/invoices/{job}/status, /portal/invoices.json y /portal/.
+    app.include_router(build_portal_pages_router(db))
+
     # Portal del cliente (FASE 5): subida de facturas desde el navegador.
     app.include_router(portal_mod.build_portal_router(db))
-
-    # Portal del cliente (server-rendered): páginas HTML de consulta.
-    # Se registra DESPUÉS de la API JSON para que las rutas estáticas/JSON de
-    # api/portal.py (export.csv, upload, status, auth) ganen en conflicto y el
-    # resto (/invoices HTML, /invoices/{id}) quede servido por estas páginas.
-    app.include_router(build_portal_pages_router(db))
 
     # Auth enterprise (JWT + RBAC multi-tenant): /api/v1/auth/* y
     # /api/v1/tenants/{id}/users/*.
@@ -1095,6 +1103,14 @@ def create_app(db=None):
     # Integración SAT (FASE): descarga masiva de CFDI + verificación de
     # estatus + programación automática. Mock-first (sin e.firma real).
     app.include_router(build_sat_router(db, require_api_key))
+
+    # Reportes PDF (FASE reportes): generación + descarga de PDFs.
+    app.include_router(build_reports_router(db, require_api_key),
+                       prefix="/api/v1")
+
+    # Outreach (FASE outreach): campañas automatizadas de outbound email.
+    from b2b_ai.api.outreach import build_outreach_router
+    app.include_router(build_outreach_router(require_api_key))
 
     # ------------------------------------------------------------------ #
     # Endpoints legacy (compatibilidad) — AHORA PROTEGIDOS por API key.

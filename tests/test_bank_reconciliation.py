@@ -137,19 +137,6 @@ def test_match_parcial_por_referencia():
     assert m["confidence"] > 0
 
 
-@pytest.mark.xfail(
-    reason="DECISIÓN DE PRODUCTO PENDIENTE, no un fallo de entorno. El caso da "
-           "overlap 0.5 → confianza 50, y el umbral del paso IA es 55, así que "
-           "no cruza. La causa es que `_token_overlap` divide entre "
-           "max(len(a), len(b)): la descripción del banco es verbosa ('Pago "
-           "factura proveedor A') y la referencia de la factura es corta "
-           "('X1 Proveedor A'), así que los tokens de más del banco castigan un "
-           "cruce que un humano daría por bueno. Las tres salidas —medir "
-           "contención en vez de Jaccard, bajar el umbral de 55, o aceptar que "
-           "este caso no cruce— cambian la precisión de la conciliación "
-           "bancaria, que tiene consecuencias en dinero. No se toca desde un PR "
-           "de seguridad.",
-    strict=False)
 def test_match_ai_fallback_tokens():
     svc = BankReconciliation()
     # Sin LLM configurado -> LLMService mock -> fallback a tokens.
@@ -218,6 +205,29 @@ def test_generate_reconciliation_report():
 # --------------------------------------------------------------------------
 # API endpoints
 # --------------------------------------------------------------------------
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _sin_estado_global_de_reconciliacion():
+    """Ya no hay nada que limpiar entre pruebas, y eso es la corrección.
+
+    Aquí había un `_clear_sessions` que vaciaba `rec._SESSIONS` antes y después
+    de cada prueba. Era un parche sobre el síntoma: el estado de conciliación
+    vivía en un diccionario a nivel de módulo y se filtraba entre pruebas. Lo
+    que se arregló es la causa —el estado se persiste por tenant en la base—,
+    así que cada prueba queda aislada por su propia `Database` sin ayuda.
+
+    La fixture se conserva vacía a propósito, como guardia: si alguien devuelve
+    el global, esto falla y explica por qué.
+    """
+    import b2b_ai.api.reconciliation as rec
+    assert not hasattr(rec, "_SESSIONS"), (
+        "volvió el estado global de conciliación: es lo que rompía el "
+        "despliegue multi-worker (ver docs/auditoria-2026-08.md, hallazgo 4)")
+    yield
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("B2B_API_KEY", SERVICE_KEY)
