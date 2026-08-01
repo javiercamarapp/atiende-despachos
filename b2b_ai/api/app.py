@@ -42,6 +42,7 @@ import tempfile
 import threading
 import time
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -80,6 +81,7 @@ from b2b_ai.portal.routes import build_portal_pages_router
 from b2b_ai.notifications.api import build_notifications_router
 from b2b_ai.billing.api import build_billing_router
 from b2b_ai.reports.router import build_reports_router
+from b2b_ai.api.middleware import install_request_size_limit
 from b2b_ai.api.reconciliation import build_reconciliation_router
 from b2b_ai.onboarding.api import build_onboarding_router
 from b2b_ai.sat.api import build_sat_router
@@ -371,11 +373,6 @@ def _client_ip(request: Request) -> str:
 # para consultarlo después por `GET /api/v1/invoices`. `folder` servía además
 # para sondear el sistema de archivos.
 #
-# `api/security.py::validate_xml_path` fue un primer intento, pero solo cubría
-# la rama JSON de /api/v1 (dejaba fuera el /process legacy y `folder`), lanzaba
-# un ValueError que nadie capturaba —500 en vez de un código de cliente—, y su
-# mensaje repetía la ruta pedida y la lista de directorios permitidos.
-#
 # Ahora la ingesta local es OPT-IN y está confinada: `B2B_LOCAL_XML_DIRS` lista
 # los directorios base permitidos, separados por `:`. Sin esa variable la
 # funcionalidad queda desactivada y responde 400 — el flujo real de la API es la
@@ -451,28 +448,33 @@ def create_app(db=None):
     # demasiado corto) en un entorno que no es de desarrollo, el arranque muere
     # aquí con un mensaje claro en vez de servir tráfico con tokens forjables.
     check_jwt_config()
-    app = FastAPI(title="Likida AI Enterprise — API", version=__version__,
-                  description="Agente contable IA enterprise para despachos "
-                              "contables. Endpoints /api/v1/* requieren API "
-                              "key en el header X-API-Key.",
-                  contact={"name": "Likida AI Enterprise", "email": "ventas@b2b-ai.local"})
 
-    # Cabeceras de seguridad (HSTS, CSP, X-Frame-Options, nosniff, etc.)
-    install_security_headers(app)
+    # Fail-fast: B2B_ENCRYPTION_KEY must be set for data-at-rest encryption.
+    # Without it, encrypt_field() degrades to plaintext — acceptable in dev
+    # but a serious risk in production where PII / secrets are stored.
+    _enc_key = os.environ.get("B2B_ENCRYPTION_KEY", "").strip()
+    if not _enc_key or len(_enc_key) < 16:
+        raise RuntimeError(
+            "B2B_ENCRYPTION_KEY is not set or too short (< 16 chars). "
+            "AES-GCM encryption at rest requires this key. "
+            "Generate one with: openssl rand -hex 24"
+        )
 
-    # Re-instala el handler JSON del logging estructurado al arrancar. Uvicorn
-    # reconfigura el root logger con su dictConfig, lo que descarta el handler
-    # instalado al importar el módulo; un startup event corre DESPUÉS de esa
-    # reconfiguración y garantiza que el JSON log quede activo en producción.
-    @app.on_event("startup")
-    def _install_json_logging():
+    # ------------------------------------------------------------------ #
+    # Lifespan: startup + shutdown en un solo context manager.
+    # ------------------------------------------------------------------ #
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # --- startup ---
+        # Re-instala el handler JSON del logging estructurado al arrancar.
+        # Uvicorn reconfigura el root logger con su dictConfig, lo que descarta
+        # el handler instalado al importar el módulo; este punto corre DESPUÉS
+        # de esa reconfiguración y garantiza que el JSON log quede activo.
         get_structured_logger("api")
 
-    # ------------------------------------------------------------------ #
-    # Shutdown: libiar pools de conexiones y recursos para evitar fd leaks.
-    # ------------------------------------------------------------------ #
-    @app.on_event("shutdown")
-    def _shutdown_cleanup():
+        yield
+
+        # --- shutdown: liberar pools de conexiones y recursos ---
         _structured_log.info("shutdown_cleanup", extra={
             "detail": "Cerrando pools de conexiones y recursos..."})
         # Cerrar el pool PostgreSQL compartido (si existe).
@@ -491,6 +493,16 @@ def create_app(db=None):
             db.close()
         except Exception:  # noqa: BLE001
             pass
+
+    app = FastAPI(title="Likida AI Enterprise — API", version=__version__,
+                  description="Agente contable IA enterprise para despachos "
+                              "contables. Endpoints /api/v1/* requieren API "
+                              "key en el header X-API-Key.",
+                  contact={"name": "Likida AI Enterprise", "email": "ventas@b2b-ai.local"},
+                  lifespan=lifespan)
+
+    # Cabeceras de seguridad (HSTS, CSP, X-Frame-Options, nosniff, etc.)
+    install_security_headers(app)
 
     # ------------------------------------------------------------------ #
     # CORS para producción. La landing se sirve same-origin (no requiere
@@ -513,7 +525,7 @@ def create_app(db=None):
         app.add_middleware(
             CORSMiddleware,
             allow_origins=_cors_origins,
-            allow_methods=["*"],
+            allow_methods=["GET", "POST", "PUT", "DELETE"],
             allow_headers=["*"],
             allow_credentials=_allow_creds,
             max_age=600,
@@ -582,6 +594,11 @@ def create_app(db=None):
     # nunca rompe ni ralentiza el request.
     install_audit_middleware(app, db, auth, client_ip_fn=_client_ip)
 
+    # Request size limit: blocks payloads > 10 MB (configurable via
+    # B2B_MAX_REQUEST_SIZE_MB) to prevent OOM from oversized uploads.
+    # Registered after all other middleware so it is the outermost layer.
+    install_request_size_limit(app)
+
     def _scope(info):
         """Devuelve el tenant_id efectivo a usar según la key."""
         return info.get("tenant_id")
@@ -625,10 +642,9 @@ def create_app(db=None):
         }
 
     @app.get("/metrics")
-    def metrics_endpoint():
+    def metrics_endpoint(auth_info: dict = Depends(require_api_key)):
         """Métricas operativas básicas (request count, latencia por ruta,
-        códigos de estado). Público y exento de rate-limit para monitoreo.
-        Cada worker uvicorn reporta sus métricas de proceso."""
+        códigos de estado). Requiere API key. Exento de rate-limit."""
         return metrics.snapshot()
 
     @app.get("/metrics/prometheus")
