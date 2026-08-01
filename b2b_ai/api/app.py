@@ -82,6 +82,7 @@ from b2b_ai.reports.router import build_reports_router
 from b2b_ai.api.reconciliation import build_reconciliation_router
 from b2b_ai.onboarding.api import build_onboarding_router
 from b2b_ai.sat.api import build_sat_router
+from b2b_ai.features.nomina.routes import build_nomina_router
 from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
@@ -1103,6 +1104,9 @@ def create_app(db=None):
     # Integración SAT (FASE): descarga masiva de CFDI + verificación de
     # estatus + programación automática. Mock-first (sin e.firma real).
     app.include_router(build_sat_router(db, require_api_key))
+
+    # Nómina: parser y validador de complementos Nomina 1.2 del SAT.
+    app.include_router(build_nomina_router())
 
     # Reportes PDF (FASE reportes): generación + descarga de PDFs.
     app.include_router(build_reports_router(db, require_api_key),
