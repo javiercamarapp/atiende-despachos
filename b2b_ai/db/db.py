@@ -1427,6 +1427,18 @@ class Database:
         q += " ORDER BY id"
         return [dict(r) for r in self.conn.execute(q, params).fetchall()]
 
+    def has_tenant_users(self, tenant_id: int) -> bool:
+        """Check if a tenant has any users (in either users or client_users)."""
+        row = self.conn.execute(
+            "SELECT COUNT(*) FROM users WHERE tenant_id=?", (tenant_id,)
+        ).fetchone()
+        if row and row[0] > 0:
+            return True
+        row = self.conn.execute(
+            "SELECT COUNT(*) FROM client_users WHERE tenant_id=?", (tenant_id,)
+        ).fetchone()
+        return bool(row and row[0] > 0)
+
     def create_portal_session(self, user_id, token, expires_at):
         """Guarda una sesión del portal (token guardado HASHADO, sha256)."""
         import hashlib

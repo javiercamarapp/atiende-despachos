@@ -107,7 +107,7 @@ def build_auth_router(db) -> APIRouter:
     def register(body: RegisterBody,
                  authorization: Optional[str] = Header(default=None)):
         tenant_id = body.tenant_id
-        existing = db.list_client_users(tenant_id)
+        existing = db.has_tenant_users(tenant_id)
         role = body.role
         if existing:
             # Requiere admin autenticado del mismo tenant.
