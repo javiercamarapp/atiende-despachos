@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # ── Tests (must pass before deploy) ──
   test:
     runs-on: ubuntu-latest
     steps:
@@ -21,28 +20,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt 2>/dev/null || pip install -e . 2>/dev/null || true
-          pip install pytest pytest-cov bandit
+          pip install pytest bandit
 
       - name: Run tests
-        run: |
-          python -m pytest tests/ -v --tb=short -q 2>&1 | tail -20
+        run: python -m pytest tests/ -v --tb=short -q 2>&1 | tail -20
 
-      - name: Security lint (bandit)
-        run: |
-          bandit -r b2b_ai/ -ll --skip B101 2>/dev/null || true
-
-  # ── Landing → Vercel ──
-  deploy-landing:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy landing to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: ./landing-b
+      - name: Security lint
+        run: bandit -r b2b_ai/ -ll --skip B101 2>/dev/null || true
