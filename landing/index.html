@@ -12,7 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="B&B AI" />
+<meta name="apple-mobile-web-app-title" content="Likida AI" />
 
 <!-- ============ SEO ============ -->
 <meta name="description" content="Automatiza la captura, validación y registro de facturas CFDI con IA. El agente contable de Likida AI prepara, valida y clasifica; tú determinas y firmas. 56% menos tiempo en captura." />
@@ -332,6 +332,8 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
 </style>
 </head>
 <body>
+<a href="#contenido-principal" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0">Saltar al contenido principal</a>
+<style>.sr-only:focus{position:static;width:auto;height:auto;padding:inherit;margin:inherit;overflow:visible;clip:auto;border:inherit}</style>
 
 <!-- NAV -->
 <nav class="nav" id="nav">
@@ -794,36 +796,36 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
       <p class="form-sub">Respuesta en menos de 24 horas.</p>
       <div class="field">
         <label for="nombre">Nombre *</label>
-        <input type="text" id="nombre" name="nombre" autocomplete="name" placeholder="Tu nombre completo" required />
-        <p class="err">Escribe tu nombre.</p>
+        <input type="text" id="nombre" name="nombre" autocomplete="name" placeholder="Tu nombre completo" required aria-describedby="nombre-err" />
+        <p class="err" id="nombre-err">Escribe tu nombre.</p>
       </div>
       <div class="field">
         <label for="despacho">Despacho / Empresa *</label>
-        <input type="text" id="despacho" name="despacho" autocomplete="organization" placeholder="Nombre de tu despacho" required />
-        <p class="err">Escribe el nombre del despacho.</p>
+        <input type="text" id="despacho" name="despacho" autocomplete="organization" placeholder="Nombre de tu despacho" required aria-describedby="despacho-err" />
+        <p class="err" id="despacho-err">Escribe el nombre del despacho.</p>
       </div>
       <div class="field">
         <label for="email">Email laboral *</label>
-        <input type="email" id="email" name="email" autocomplete="email" placeholder="tu@despacho.com" required />
-        <p class="err">Email inválido.</p>
+        <input type="email" id="email" name="email" autocomplete="email" placeholder="tu@despacho.com" required aria-describedby="email-err" />
+        <p class="err" id="email-err">Email inválido.</p>
       </div>
       <div class="field">
         <label for="facturas">Facturas al mes *</label>
-        <select id="facturas" name="facturas" required>
+        <select id="facturas" name="facturas" required aria-describedby="facturas-err">
           <option value="">Selecciona un rango</option>
           <option>Menos de 100</option>
           <option>100 – 500</option>
           <option>500 – 1,000</option>
           <option>Más de 1,000</option>
         </select>
-        <p class="err">Selecciona un rango.</p>
+        <p class="err" id="facturas-err">Selecciona un rango.</p>
       </div>
       <div class="field">
         <label for="mensaje">¿Qué ERP usas? (opcional)</label>
         <textarea id="mensaje" name="mensaje" placeholder="CONTPAQi, SAP, Odoo, otro..."></textarea>
       </div>
       <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">Enviar solicitud</button>
-      <div class="form-msg" id="formMsg"></div>
+      <div class="form-msg" id="formMsg" role="status" aria-live="polite"></div>
     </form>
     <noscript>
       <p style="color:#dc2626;text-align:center;padding:12px">
