@@ -51,7 +51,7 @@ class PDFResult(BaseModel):
 class XMLParseRequest(BaseModel):
     """Solicitud de parsing XML."""
     xml_content: str = Field(..., description="Contenido XML")
-    schema: Optional[str] = Field(default=None, description="Schema XSD para validación")
+    xsd_schema: Optional[str] = Field(default=None, description="Schema XSD para validación")
     namespace: Optional[str] = Field(default=None, description="Namespace XML")
     extract_tags: Optional[List[str]] = Field(default=None, description="Tags específicos a extraer")
 

@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 from b2b_ai.integrations.monitoreo.adapter import MonitoringAdapter
 from b2b_ai.integrations.monitoreo.models import (
-    ErrorLevel, ErrorReport, MonitoringConfig,
+    ErrorLevel, ErrorReport, MonitoringConfig, MonitoringProvider,
 )
 
 logger = logging.getLogger(__name__)
