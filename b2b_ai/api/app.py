@@ -86,6 +86,7 @@ from b2b_ai.sat.api import build_sat_router
 from b2b_ai.features.nomina.routes import build_nomina_router
 from b2b_ai.features.pagos.routes import build_pagos_router
 from b2b_ai.features.contabilidad.routes import build_contabilidad_router
+from b2b_ai.features.contabilidad.electronica_routes import build_electronica_router
 from b2b_ai.features.reportes.routes import build_reportes_router
 from b2b_ai.features.dashboard.routes import build_dashboard_admin_router
 from b2b_ai.features.alertas.routes import build_alertas_router
@@ -1124,6 +1125,10 @@ def create_app(db=None):
     # Contabilidad Electrónica: parser, validador y endpoints para Balanza,
     # Catálogo de Cuentas y Estado de Resultados del SAT.
     app.include_router(build_contabilidad_router())
+
+    # Contabilidad Electrónica workflow: generate package, hash, status,
+    # transition, summary.
+    app.include_router(build_electronica_router())
 
     # Reportes contables: Balance General, Estado de Resultados,
     # Conciliación Bancaria y Reporte de Nómina.

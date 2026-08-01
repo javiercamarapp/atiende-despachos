@@ -151,8 +151,8 @@ class BalanzaComprobacion:
 
     # ---- Resumen -----------------------------------------------------------
     def resumen(self) -> dict:
-        total_debe = sum(_dec(l["debe"]) for l in self.lineas)
-        total_haber = sum(_dec(l["haber"]) for l in self.lineas)
+        total_debe = sum((_dec(l["debe"]) for l in self.lineas), Decimal("0"))
+        total_haber = sum((_dec(l["haber"]) for l in self.lineas), Decimal("0"))
         return {
             "periodo": self.periodo,
             "cuentas": len(self.lineas),
