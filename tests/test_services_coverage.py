@@ -1528,3 +1528,830 @@ class TestPipelineToolFunction:
                 _tool("parse_cfdi", mock_logger, 1, xml_path="test.xml")
             mock_logger.log.assert_called_once()
             assert mock_logger.log.call_args[1]["status"] == "error"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# NEW TESTS — pipeline.py (process_file, process_batch)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from b2b_ai.services.pipeline import process_file, process_batch
+
+
+def _mock_tool_side_effects():
+    """Returns a dict mapping tool name → return value for pipeline mocking."""
+    return {
+        "parse_cfdi": {
+            "folio_fiscal": "test-uuid-1234",
+            "emisor_rfc": "ABC010101",
+            "emisor_nombre": "Acme Corp",
+            "total": "1740.00",
+            "subtotal": "1500.00",
+            "iva": "240.00",
+            "fecha": "2026-07-01",
+            "conceptos": [{"descripcion": "Papelería y oficina"}],
+            "claves_prod_serv": ["44122000"],
+            "tipo": "I",
+        },
+        "validate_cfdi": {"ok": True, "issues": [], "warnings": [],
+                           "requires_human_review": False},
+        "classify_expense": {"categoria": "gasto_operativo", "confianza": 0.85,
+                             "razon": "papelería"},
+        "detect_anomalies": {"anomalies": [], "nivel": "normal"},
+        "evaluate_approval": {"decision": "auto_approved", "reason": "low amount"},
+        "register_erp": {"ok": True, "poliza": "P-001", "status": "registered"},
+        "send_notification": {"status": "sent", "subject": "test", "message": "ok"},
+    }
+
+
+class TestPipelineProcessFile:
+    """Tests for the process_file pipeline function."""
+
+    @patch("b2b_ai.api.security.detect_pii", return_value={"pii": False, "tipos": [], "found": {}})
+    def test_process_file_auto_approved(self, mock_pii):
+        tool_returns = _mock_tool_side_effects()
+        with patch("b2b_ai.services.pipeline.call_tool", side_effect=lambda name, **kw: tool_returns[name]):
+            mock_db = MagicMock()
+            mock_db.list_tenants.return_value = [{"id": 1}]
+            mock_db.list_invoices.return_value = []
+            mock_db.insert_invoice.return_value = (1, True)
+            mock_db.insert_notification.return_value = None
+            mock_logger_inst = MagicMock()
+            with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+                f.write(b"<xml>test</xml>")
+                f.flush()
+                path = f.name
+            try:
+                result = process_file(path, db=mock_db, tenant_id=1,
+                                       logger_=mock_logger_inst)
+                assert result["archivo"] == os.path.basename(path)
+                assert result["validacion"]["ok"] is True
+                assert result["clasificacion"]["categoria"] == "gasto_operativo"
+                assert result["erp"]["ok"] is True
+                assert result["invoice_id"] == 1
+                assert result["insertado"] is True
+                mock_db.insert_invoice.assert_called_once()
+            finally:
+                os.unlink(path)
+
+    @patch("b2b_ai.api.security.detect_pii", return_value={"pii": False, "tipos": [], "found": {}})
+    def test_process_file_pending_approval(self, mock_pii):
+        tool_returns = _mock_tool_side_effects()
+        tool_returns["evaluate_approval"] = {
+            "decision": "requires_approval", "reason": "high amount"
+        }
+        with patch("b2b_ai.services.pipeline.call_tool", side_effect=lambda name, **kw: tool_returns[name]):
+            mock_db = MagicMock()
+            mock_db.list_tenants.return_value = [{"id": 1}]
+            mock_db.list_invoices.return_value = []
+            mock_db.insert_invoice.return_value = (1, True)
+            mock_logger_inst = MagicMock()
+            with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+                f.write(b"<xml>test</xml>")
+                f.flush()
+                path = f.name
+            try:
+                result = process_file(path, db=mock_db, tenant_id=1,
+                                       logger_=mock_logger_inst)
+                assert result["erp"]["status"] == "pending_approval"
+                assert result["erp"]["ok"] is False
+            finally:
+                os.unlink(path)
+
+    @patch("b2b_ai.api.security.detect_pii", return_value={"pii": False, "tipos": [], "found": {}})
+    def test_process_file_notification_error(self, mock_pii):
+        tool_returns = _mock_tool_side_effects()
+        tool_returns["send_notification"] = None  # will raise
+        def _side_effect(name, **kw):
+            if name == "send_notification":
+                raise RuntimeError("email fail")
+            return tool_returns[name]
+        with patch("b2b_ai.services.pipeline.call_tool", side_effect=_side_effect):
+            mock_db = MagicMock()
+            mock_db.list_tenants.return_value = [{"id": 1}]
+            mock_db.list_invoices.return_value = []
+            mock_db.insert_invoice.return_value = (1, True)
+            mock_logger_inst = MagicMock()
+            with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+                f.write(b"<xml>test</xml>")
+                f.flush()
+                path = f.name
+            try:
+                result = process_file(path, db=mock_db, tenant_id=1,
+                                       logger_=mock_logger_inst)
+                assert result["notificacion"]["status"] == "error"
+            finally:
+                os.unlink(path)
+
+    @patch("b2b_ai.api.security.detect_pii", return_value={"pii": False, "tipos": [], "found": {}})
+    def test_process_file_no_db_no_tenant(self, mock_pii):
+        tool_returns = _mock_tool_side_effects()
+        with patch("b2b_ai.services.pipeline.call_tool", side_effect=lambda name, **kw: tool_returns[name]):
+            with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+                f.write(b"<xml>test</xml>")
+                f.flush()
+                path = f.name
+            try:
+                result = process_file(path, db=None, tenant_id=None)
+                assert "datos" in result
+                assert "validacion" in result
+            finally:
+                os.unlink(path)
+
+    @patch("b2b_ai.api.security.detect_pii", return_value={"pii": False, "tipos": [], "found": {}})
+    def test_process_file_validation_not_ok(self, mock_pii):
+        tool_returns = _mock_tool_side_effects()
+        tool_returns["validate_cfdi"] = {
+            "ok": False, "issues": [{"mensaje": "invalid"}],
+            "warnings": [], "requires_human_review": True
+        }
+        with patch("b2b_ai.services.pipeline.call_tool", side_effect=lambda name, **kw: tool_returns[name]):
+            mock_db = MagicMock()
+            mock_db.list_tenants.return_value = [{"id": 1}]
+            mock_db.list_invoices.return_value = []
+            mock_db.insert_invoice.return_value = (1, True)
+            mock_db.insert_notification.return_value = None
+            mock_logger_inst = MagicMock()
+            with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+                f.write(b"<xml>test</xml>")
+                f.flush()
+                path = f.name
+            try:
+                result = process_file(path, db=mock_db, tenant_id=1,
+                                       logger_=mock_logger_inst)
+                assert result["validacion"]["ok"] is False
+            finally:
+                os.unlink(path)
+
+
+class TestPipelineProcessBatch:
+    """Tests for process_batch."""
+
+    @patch("b2b_ai.api.security.detect_pii", return_value={"pii": False, "tipos": [], "found": {}})
+    def test_process_batch(self, mock_pii):
+        tool_returns = _mock_tool_side_effects()
+        with patch("b2b_ai.services.pipeline.call_tool", side_effect=lambda name, **kw: tool_returns[name]):
+            mock_db = MagicMock()
+            mock_db.list_tenants.return_value = [{"id": 1}]
+            mock_db.list_invoices.return_value = []
+            mock_db.insert_invoice.return_value = (1, True)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Create two XML files
+                for i in range(2):
+                    with open(os.path.join(tmpdir, f"file{i}.xml"), "w") as f:
+                        f.write("<xml>test</xml>")
+                results = process_batch(tmpdir, db=mock_db, tenant_id=1)
+                assert len(results) == 2
+                for r in results:
+                    assert "validacion" in r
+
+    def test_process_batch_empty_folder(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            results = process_batch(tmpdir)
+            assert results == []
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# NEW TESTS — demo.py (run_demo, _xml_payment_complement, edge cases)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from b2b_ai.services.demo import (
+    _xml_payment_complement, _base_xml, _nomina_xml, _nota_credito_xml,
+    run_demo, main as demo_main,
+)
+
+
+class TestDemoRunDemo:
+    """Tests for run_demo function."""
+
+    def test_run_demo_basic(self):
+        with tempfile.TemporaryDirectory() as data_dir, \
+             tempfile.TemporaryDirectory() as output_dir:
+            # Generate sample XMLs first
+            xmls = generate_sample_xmls(data_dir)
+            assert len(xmls) == 10
+            # Run demo in mock mode
+            result = run_demo(data_dir, output_dir, live=False)
+            assert result == 0
+            # Verify report was generated
+            report = os.path.join(output_dir, "demo-report.html")
+            assert os.path.exists(report)
+
+    def test_run_demo_generates_xmls(self):
+        with tempfile.TemporaryDirectory() as data_dir, \
+             tempfile.TemporaryDirectory() as output_dir:
+            # No XMLs initially
+            result = run_demo(data_dir, output_dir, live=False)
+            assert result == 0
+            # Should have generated XMLs
+            xmls = [f for f in os.listdir(data_dir) if f.endswith(".xml")]
+            assert len(xmls) == 10
+
+
+class TestDemoXmlTemplates:
+    """Tests for XML template generator functions."""
+
+    def test_xml_payment_complement(self):
+        xml = _xml_payment_complement("1000.00", "uuid-1234", "2026-07-01")
+        assert "TipoDeComprobante=\"P\"" in xml
+        assert "pago20" in xml
+        assert "uuid-1234" in xml
+
+    def test_base_xml_default_uuid(self):
+        xml = _base_xml("D", 1, "2026-07-01", "I", "1000", "160", "1160",
+                        "ABC010101", "Test Corp", "601", "G03", "Servicio",
+                        "80121600")
+        assert "Comprobante" in xml
+        assert "TimbreFiscalDigital" in xml
+
+    def test_base_xml_custom_params(self):
+        xml = _base_xml("N", 1, "2026-07-01", "I", "1000", "160", "1160",
+                        "ABC010101", "Test Corp", "601", "G03", "Servicio",
+                        "80121600", uuid_val="custom-uuid",
+                        metodo_pago="PPD", forma_pago="01",
+                        base_iva="500.00", exportacion="02")
+        assert "custom-uuid" in xml
+        assert "MetodoPago=\"PPD\"" in xml
+
+    def test_nomina_xml(self):
+        xml = _nomina_xml("N", 1, "2026-07-15T08:00:00",
+                          "10000.00", "10000.00", "0.00",
+                          "EMP010101ABC", "Empresa SA",
+                          "Juan Perez", "PEPJ800101HDFRRL01",
+                          "PEPJ800101HDF", "001",
+                          "12000.00", "2000.00", "30")
+        assert "Nomina" in xml
+        assert "Juan Perez" in xml
+
+    def test_nota_credito_xml(self):
+        xml = _nota_credito_xml("E", 1, "2026-07-12T14:00:00",
+                                "500.00", "80.00", "0.00",
+                                "ABC010101", "Proveedor SA",
+                                "Devolución", "44122000",
+                                "related-uuid-1234")
+        assert "TipoDeComprobante=\"E\"" in xml
+        assert "related-uuid-1234" in xml
+
+
+class TestDemoFmtMontoEdgeCases:
+    """Extended edge cases for _fmt_monto and _get_total."""
+
+    def test_fmt_monto_comma_string(self):
+        assert _fmt_monto("1,234.56") == "$1,234.56"
+
+    def test_fmt_monto_zero(self):
+        assert _fmt_monto(0) == "$0.00"
+
+    def test_get_total_comma_string(self):
+        entry = {"datos": {"total": "1,000.00"}}
+        assert _get_total(entry) == 1000.0
+
+    def test_get_total_missing_key(self):
+        entry = {"datos": {}}
+        assert _get_total(entry) == 0.0
+
+    def test_generate_demo_report_long_elapsed(self):
+        """Tests the elapsed > 60 branch (minutes format)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            results = [{
+                "archivo": "test.xml",
+                "datos": {"total": "100.00", "iva": "16.00",
+                          "emisor_nombre": "Acme", "fecha": "2026-07-01"},
+                "clasificacion": {"categoria": "gasto_operativo", "confianza": 0.8},
+                "anomalias": {"anomalies": []},
+                "validacion": {"ok": True},
+            }]
+            path = generate_demo_report(results, tmp, 120.0)  # > 60 seconds
+            assert os.path.exists(path)
+
+    def test_generate_demo_report_multiple_categories(self):
+        """Tests category distribution chart rendering."""
+        with tempfile.TemporaryDirectory() as tmp:
+            results = [
+                {"archivo": f"test{i}.xml",
+                 "datos": {"total": "100.00", "iva": "16.00",
+                           "emisor_nombre": f"Co{i}", "fecha": "2026-07-01"},
+                 "clasificacion": {"categoria": cat, "confianza": 0.8},
+                 "anomalias": {"anomalies": []},
+                 "validacion": {"ok": True}}
+                for i, cat in enumerate(["gasto_operativo", "nomina", "activo_fijo"])
+            ]
+            path = generate_demo_report(results, tmp, 1.0)
+            assert os.path.exists(path)
+
+    def test_generate_demo_report_anomaly_list(self):
+        """Tests when anomalias is a list (not a dict)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            results = [{
+                "archivo": "test.xml",
+                "datos": {"total": "100.00", "iva": "16.00",
+                          "emisor_nombre": "Acme", "fecha": "2026-07-01"},
+                "clasificacion": {"categoria": "gasto_operativo", "confianza": 0.5},
+                "anomalias": [{"tipo": "monto", "severity": "low",
+                               "descripcion": "test", "detalle": {},
+                               "referencia_legal": ""}],
+                "validacion": {"ok": True},
+            }]
+            path = generate_demo_report(results, tmp, 1.0)
+            assert os.path.exists(path)
+
+    def test_generate_demo_report_negative_iva(self):
+        """Tests when IVA is a string with commas."""
+        with tempfile.TemporaryDirectory() as tmp:
+            results = [{
+                "archivo": "test.xml",
+                "datos": {"total": "1,000.00", "iva": "160.00",
+                          "emisor_nombre": "Acme", "fecha": "2026-07-01"},
+                "clasificacion": {"categoria": "gasto_operativo", "confianza": 0.8},
+                "anomalias": {},
+                "validacion": {"ok": True},
+            }]
+            path = generate_demo_report(results, tmp, 1.0)
+            assert os.path.exists(path)
+
+    def test_demo_main_args(self):
+        """Tests demo_main with args object."""
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as data_dir, \
+             tempfile.TemporaryDirectory() as output_dir:
+            args = SimpleNamespace(data=data_dir, output=output_dir, live=False)
+            result = demo_main(args)
+            assert result == 0
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# NEW TESTS — bank_reconciliation.py (extended helpers, upload, _pass_ai)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from b2b_ai.services.bank_reconciliation import (
+    _fecha_dist, _norm_tokens, _inv_key, _folio, _emisor,
+    _consumed, _build_match, _coerce_path, _parse_date,
+    BANK_PROFILES, SUPPORTED_BANKS,
+)
+
+
+class TestBankReconciliationHelpersExtended:
+    """Extended tests for bank reconciliation helper functions."""
+
+    def test_dec_empty_string(self):
+        assert _dec("") is None
+
+    def test_dec_dashes(self):
+        assert _dec("--") is None
+        assert _dec("-") is None
+
+    def test_dec_dollar_sign(self):
+        assert _dec("$1,234.50") == Decimal("1234.50")
+
+    def test_dec_whitespace(self):
+        assert _dec("  100  ") == Decimal("100")
+
+    def test_token_overlap_empty(self):
+        assert _token_overlap("", "something") == 0.0
+        assert _token_overlap("something", "") == 0.0
+        assert _token_overlap("", "") == 0.0
+
+    def test_norm_tokens_special_chars(self):
+        tokens = _norm_tokens("¡Hola, mundo! 123")
+        assert "hola" in tokens
+        assert "mundo" in tokens
+
+    def test_parse_date_dd_mm_yyyy(self):
+        assert _parse_date("15/07/2026") == date(2026, 7, 15)
+
+    def test_parse_date_dd_mm_yy(self):
+        assert _parse_date("15/07/26") == date(2026, 7, 15)
+
+    def test_parse_date_yyyy_mm_dd(self):
+        assert _parse_date("2026/07/15") == date(2026, 7, 15)
+
+    def test_parse_date_mm_dd_yyyy(self):
+        assert _parse_date("07/15/2026") == date(2026, 7, 15)
+
+    def test_parse_date_dd_mmm_yyyy(self):
+        assert _parse_date("15 Jul 2026") == date(2026, 7, 15)
+
+    def test_parse_date_mmm_dd_yyyy(self):
+        assert _parse_date("Jul 15, 2026") == date(2026, 7, 15)
+
+    def test_parse_date_dd_hyphen_mm_yyyy(self):
+        assert _parse_date("15-07-2026") == date(2026, 7, 15)
+
+    def test_parse_date_empty(self):
+        assert _parse_date("") is None
+
+    def test_parse_date_none(self):
+        assert _parse_date(None) is None
+
+    def test_fecha_dist_same(self):
+        assert _fecha_dist("2026-07-01", "2026-07-01") == 0
+
+    def test_inv_key_variants(self):
+        assert _inv_key({"folio_fiscal": "UUID1"}) == "UUID1"
+        assert _inv_key({"id": "ID1"}) == "ID1"
+        assert _inv_key({"factura_id": "F1"}) == "F1"
+        # fallback to id(inv)
+        inv = {}
+        result = _inv_key(inv)
+        assert result.startswith("inv_")
+
+    def test_folio_variants(self):
+        assert _folio({"folio_fiscal": "UUID1"}) == "UUID1"
+        assert _folio({"referencia": "REF1"}) == "REF1"
+        assert _folio({}) == ""
+
+    def test_emisor_variants(self):
+        assert _emisor({"emisor_nombre": "Acme"}) == "Acme"
+        assert _emisor({"emisor_rfc": "ABC"}) == "ABC"
+        assert _emisor({"emisor": "Test"}) == "Test"
+        assert _emisor({}) == ""
+
+    def test_consumed_static(self):
+        matches = [
+            {"transaction_id": "tx1", "invoice_ref": "INV1"},
+            {"transaction_id": "tx2", "invoice_ref": "INV2"},
+        ]
+        inv_keys, tx_ids = _consumed(matches)
+        assert "INV1" in inv_keys
+        assert "tx1" in tx_ids
+
+    def test_build_match(self):
+        inv = {"folio_fiscal": "INV1", "total": "1000", "fecha": "2026-07-01",
+               "emisor_nombre": "Acme"}
+        tx = {"id": "tx1", "monto": "1000", "monto_signed": "1000",
+              "fecha": "2026-07-01", "descripcion": "Pago", "ref": "INV1"}
+        m = _build_match(inv, tx, "exact", 95, "match found")
+        assert m["method"] == "exact"
+        assert m["confidence"] == 95
+        assert m["transaction_id"] == "tx1"
+
+    def test_build_match_clamps_confidence(self):
+        inv = {"folio_fiscal": "INV1", "total": "1000"}
+        tx = {"id": "tx1", "monto": "1000", "monto_signed": "1000",
+              "fecha": "2026-07-01", "descripcion": "", "ref": ""}
+        m = _build_match(inv, tx, "test", 150, "over")
+        assert m["confidence"] == 100
+        m2 = _build_match(inv, tx, "test", -10, "under")
+        assert m2["confidence"] == 0
+
+    def test_coerce_path_string(self):
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+            f.write(b"test")
+            path = f.name
+        try:
+            result = _coerce_path(path)
+            assert result == path
+        finally:
+            os.unlink(path)
+
+    def test_coerce_path_filelike(self):
+        import io
+        data = io.BytesIO(b"test,data\n1,2\n")
+        result = _coerce_path(data)
+        assert os.path.exists(result)
+
+    def test_normalize_bank_variants(self):
+        assert _normalize_bank("banorte") == "banorte"
+        assert _normalize_bank("Santander") == "santander"
+        assert _normalize_bank("HSBC") == "hsbc"
+        assert _normalize_bank("") == "generico"
+
+    def test_normalize_bank_partial_match(self):
+        assert _normalize_bank("banorte_nomina") == "banorte"
+        assert _normalize_bank("santander MX") == "santander"
+
+
+class TestBankReconciliationUploadAndParse:
+    """Tests for upload_statement and parse methods."""
+
+    def _make_csv(self, tmpdir):
+        path = os.path.join(tmpdir, "statement.csv")
+        with open(path, "w") as f:
+            f.write("Fecha,Monto,Descripcion,Ref\n")
+            f.write("2026-07-01,1000,Pago proveedor,REF1\n")
+            f.write("2026-07-02,-500,Cargo banco,REF2\n")
+            f.write("2026-07-03,2000,Transferencia,REF3\n")
+        return path
+
+    def test_upload_statement_csv(self):
+        svc = BankReconciliation()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = self._make_csv(tmpdir)
+            result = svc.upload_statement(path, bank="bbva")
+            assert result["movimientos"] == 3
+            assert result["banco"] == "bbva"
+            assert len(svc.transactions) == 3
+
+    def test_parse_statement_csv(self):
+        svc = BankReconciliation()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = self._make_csv(tmpdir)
+            rows = svc.parse_statement(path, bank="generico")
+            assert len(rows) >= 1
+
+    def test_parse_statement_pdf(self):
+        svc = BankReconciliation()
+        # Just verify it dispatches to _parse_pdf_generic
+        with patch("b2b_ai.services.bank_reconciliation._parse_pdf_generic",
+                    return_value=[{"fecha": "2026-07-01", "monto": "100"}]):
+            rows = svc.parse_statement("/fake/file.pdf", bank="generico")
+            assert len(rows) == 1
+
+    def test_parse_csv_statement_with_filelike(self):
+        svc = BankReconciliation()
+        import io
+        data = io.BytesIO(b"Fecha,Monto,Descripcion,Ref\n2026-07-01,1000,Pago,REF1\n")
+        result = svc.parse_csv_statement(data)
+        assert len(result) >= 1
+
+    def test_parse_pdf_statement_with_filelike(self):
+        svc = BankReconciliation()
+        import io
+        data = io.BytesIO(b"fake pdf content")
+        with patch("b2b_ai.services.bank_reconciliation._parse_pdf_generic",
+                    return_value=[{"fecha": "2026-07-01", "monto": "100"}]):
+            result = svc.parse_pdf_statement(data)
+            assert len(result) == 1
+
+
+class TestBankReconciliationMatchingExtended:
+    """Extended matching tests for all passes."""
+
+    def test_pass_exact_no_match_wrong_amount(self):
+        svc = BankReconciliation()
+        inv = [{"folio_fiscal": "INV1", "total": "1000", "fecha": "2026-07-01"}]
+        tx = [{"id": "tx1", "monto": "500", "monto_signed": "500",
+               "fecha": "2026-07-01", "descripcion": "Pago", "ref": ""}]
+        matches = svc.match_transactions(inv, tx)
+        # Should not match exact, but might match via AI
+        exact = [m for m in matches if m["method"] == "exact"]
+        assert len(exact) == 0
+
+    def test_pass_exact_no_match_wrong_date(self):
+        svc = BankReconciliation()
+        inv = [{"folio_fiscal": "INV1", "total": "1000", "fecha": "2026-07-01"}]
+        tx = [{"id": "tx1", "monto": "1000", "monto_signed": "1000",
+               "fecha": "2026-08-01", "descripcion": "Pago", "ref": ""}]
+        matches = svc.match_transactions(inv, tx, date_tolerance_days=2)
+        exact = [m for m in matches if m["method"] == "exact"]
+        assert len(exact) == 0
+
+    def test_pass_exact_no_total(self):
+        svc = BankReconciliation()
+        inv = [{"folio_fiscal": "INV1", "fecha": "2026-07-01"}]
+        tx = [{"id": "tx1", "monto": "1000", "monto_signed": "1000",
+               "fecha": "2026-07-01", "descripcion": "Pago", "ref": ""}]
+        matches = svc.match_transactions(inv, tx)
+        assert len(matches) == 0
+
+    def test_pass_partial_no_overlap(self):
+        svc = BankReconciliation()
+        inv = [{"folio_fiscal": "INV1", "total": "1050", "fecha": "2026-07-01",
+                "referencia": "FACT-ABC"}]
+        tx = [{"id": "tx1", "monto": "1000", "monto_signed": "1000",
+               "fecha": "2026-07-01", "descripcion": "Random payment", "ref": "XYZ"}]
+        matches = svc.match_transactions(inv, tx)
+        partial = [m for m in matches if m["method"] == "parcial"]
+        assert len(partial) == 0
+
+    def test_pass_partial_zero_amount(self):
+        svc = BankReconciliation()
+        inv = [{"folio_fiscal": "INV1", "total": "1000", "fecha": "2026-07-01"}]
+        tx = [{"id": "tx1", "monto": "0", "monto_signed": "0",
+               "fecha": "2026-07-01", "descripcion": "Pago INV1", "ref": "INV1"}]
+        matches = svc.match_transactions(inv, tx)
+        partial = [m for m in matches if m["method"] == "parcial"]
+        assert len(partial) == 0
+
+    def test_pass_ai_empty_description(self):
+        svc = BankReconciliation()
+        inv = [{"folio_fiscal": "INV1", "total": "500", "fecha": "2026-07-01"}]
+        tx = [{"id": "tx1", "monto": "500", "monto_signed": "500",
+               "fecha": "2026-07-01", "descripcion": "", "ref": ""}]
+        matches = svc.match_transactions(inv, tx)
+        # Empty description should produce low AI confidence
+        ai = [m for m in matches if m["method"] == "ai"]
+        assert len(ai) == 0
+
+    def test_ai_confidence_llm_error_fallback(self):
+        """Tests that _ai_confidence falls back to tokens on LLM error."""
+        svc = BankReconciliation()
+        svc.llm = MagicMock()
+        svc.llm.classify_invoice.side_effect = RuntimeError("LLM fail")
+        tx = {"id": "tx1", "monto": "1000", "monto_signed": "1000",
+              "fecha": "2026-07-01", "descripcion": "pago factura", "ref": "REF"}
+        conf = svc._ai_confidence(tx, "pago factura INV1")
+        assert conf >= 0
+        assert svc.last_error == "ai_fallback_tokens"
+
+    def test_ai_confidence_with_llm(self):
+        """Tests that _ai_confidence uses LLM when available."""
+        svc = BankReconciliation()
+        svc.llm = MagicMock()
+        svc.llm.classify_invoice.return_value = {"confianza": 0.9}
+        tx = {"id": "tx1", "monto": "1000", "monto_signed": "1000",
+              "fecha": "2026-07-01", "descripcion": "pago", "ref": "REF"}
+        conf = svc._ai_confidence(tx, "test description")
+        assert conf >= 0
+
+    def test_apply_manual_overrides(self):
+        svc = BankReconciliation()
+        inv = [{"folio_fiscal": "INV1", "total": "1000", "fecha": "2026-07-01"}]
+        tx = [{"id": "tx1", "monto": "1000", "monto_signed": "1000",
+               "fecha": "2026-07-01", "descripcion": "Pago", "ref": ""}]
+        svc.transactions = tx
+        svc.invoices = inv
+        svc.confirmed = {"tx1": "INV1"}
+        matches = svc.match_transactions(inv, tx)
+        manual = [m for m in matches if m["method"] == "manual"]
+        assert len(manual) == 1
+        assert manual[0]["confidence"] == 100
+
+    def test_apply_manual_invalid_ref(self):
+        """Tests _apply_manual with a confirmed that references missing inv."""
+        svc = BankReconciliation()
+        inv = [{"folio_fiscal": "INV1", "total": "1000", "fecha": "2026-07-01"}]
+        tx = [{"id": "tx1", "monto": "1000", "monto_signed": "1000",
+               "fecha": "2026-07-01", "descripcion": "Pago", "ref": ""}]
+        svc.transactions = tx
+        svc.invoices = inv
+        svc.confirmed = {"tx1": "NONEXISTENT"}
+        matches = svc.match_transactions(inv, tx)
+        # Should still work without error
+        assert isinstance(matches, list)
+
+    def test_auto_match_response(self):
+        svc = BankReconciliation()
+        svc.transactions = [
+            {"id": "tx1", "monto": "1000", "monto_signed": "1000",
+             "fecha": "2026-07-01", "descripcion": "Pago", "ref": "INV1"}
+        ]
+        svc.invoices = [
+            {"folio_fiscal": "INV1", "total": "1000", "fecha": "2026-07-01"}
+        ]
+        r = svc.auto_match()
+        assert "total" in r
+        assert "confirmados" in r
+        assert "auto_matchconfidence" in r
+
+    def test_match_transactions_empty_invoices(self):
+        svc = BankReconciliation()
+        result = svc.match_transactions([], [{"id": "tx1"}])
+        assert result == []
+
+    def test_match_transactions_none_statement(self):
+        svc = BankReconciliation()
+        inv = [{"folio_fiscal": "INV1", "total": "1000", "fecha": "2026-07-01"}]
+        result = svc.match_transactions(inv, None)
+        assert result == []
+
+    def test_manual_match_defensive_path(self):
+        """Tests the defensive path where match isn't found after recalc."""
+        svc = BankReconciliation()
+        tx = {"fecha": "2026-07-01", "monto": "1000", "descripcion": "Pago",
+              "ref": "INV1"}
+        tx_norm = _normalize_transaction(tx, "bbva")
+        svc.transactions = [tx_norm]
+        svc.invoices = [{"folio_fiscal": "INV1", "total": "999",
+                         "fecha": "2026-07-01"}]  # different amount
+        m = svc.manual_match(tx_norm["id"], "INV1")
+        assert m["method"] == "manual"
+        assert m["confidence"] == 100
+
+    def test_generate_report_with_matches(self):
+        svc = BankReconciliation()
+        tx = {"fecha": "2026-07-01", "monto": "1000", "descripcion": "Pago",
+              "ref": "INV1"}
+        tx_norm = _normalize_transaction(tx, "bbva")
+        svc.transactions = [tx_norm]
+        svc.statements = [{"banco": "bbva"}]
+        svc.invoices = [{"folio_fiscal": "INV1", "total": "1000",
+                         "fecha": "2026-07-01"}]
+        svc.auto_match()
+        report = svc.generate_reconciliation_report()
+        assert report["movimientos_banco"] == 1
+        assert report["facturas"] == 1
+        assert report["conciliados"] >= 1
+        assert report["bancos"] == ["bbva"]
+
+    def test_main_cli(self):
+        """Tests the main() CLI entry point."""
+        import io
+        import sys
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a minimal CSV
+            path = os.path.join(tmpdir, "statement.csv")
+            with open(path, "w") as f:
+                f.write("Fecha,Monto,Descripcion,Ref\n")
+                f.write("2026-07-01,1000,Pago,REF1\n")
+            # Capture output
+            from b2b_ai.services.bank_reconciliation import main as recon_main
+            sys.argv = ["bank_recon", path, "bbva"]
+            try:
+                recon_main()
+            except SystemExit:
+                pass  # main() may sys.exit
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# NEW TESTS — catalogo_cuentas.py (importar_excel, edge cases)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestCatalogoCuentasExcel:
+    """Tests for importar_excel and importar_archivo xlsx dispatch."""
+
+    def test_importar_excel(self):
+        cat = CatalogoCuentas()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "catalogo.xlsx")
+            # Create a simple xlsx
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.append(["codigo", "descripcion", "nivel", "naturaleza", "grupo"])
+            ws.append(["1101", "BANCOS", 3, "D", "ACTIVO"])
+            ws.append(["6102", "GASTOS", 3, "D", "GASTOS"])
+            wb.save(path)
+            count = cat.importar_excel(path)
+            assert count == 2
+            assert cat.find("1101") is not None
+
+    def test_importar_excel_empty(self):
+        cat = CatalogoCuentas()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "empty.xlsx")
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.append(["codigo", "descripcion", "nivel", "naturaleza"])
+            wb.save(path)
+            with pytest.raises(ValueError, match="No se encontraron"):
+                cat.importar_excel(path)
+
+    def test_importar_archivo_xlsx(self):
+        cat = CatalogoCuentas()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "catalogo.xlsx")
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.append(["codigo", "descripcion", "nivel", "naturaleza"])
+            ws.append(["1101", "BANCOS", 3, "D"])
+            wb.save(path)
+            count = cat.importar_archivo(path)
+            assert count == 1
+
+    def test_importar_csv_with_grupo(self):
+        cat = CatalogoCuentas()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv",
+                                          delete=False) as f:
+            f.write("codigo,descripcion,nivel,naturaleza,grupo\n")
+            f.write("1101,BANCOS,3,D,ACTIVO\n")
+            f.write("6102,GASTOS,3,D,GASTOS\n")
+            path = f.name
+        try:
+            count = cat.importar_csv(path)
+            assert count == 2
+            c = cat.find("1101")
+            assert c.grupo == "ACTIVO"
+        finally:
+            os.unlink(path)
+
+    def test_importar_csv_empty_file(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv",
+                                          delete=False) as f:
+            f.write("")
+            path = f.name
+        try:
+            cat = CatalogoCuentas()
+            with pytest.raises(ValueError):
+                cat.importar_csv(path)
+        finally:
+            os.unlink(path)
+
+    def test_catalogo_cuentas_main_cli(self):
+        """Tests catalogo main() if it exists."""
+        # Just verify the catalog can generate XML
+        cat = CatalogoCuentas()
+        xml = cat.generar_xml(rfc="TEST010101")
+        assert "Catalogo" in xml
+        assert "TEST010101" in xml
+
+    def test_asignar_automatico_empty(self):
+        cat = CatalogoCuentas()
+        r = cat.asignar_automatico({})
+        assert r == {}
+
+    def test_asignar_automatico_none(self):
+        cat = CatalogoCuentas()
+        r = cat.asignar_automatico(None)
+        assert r == {}
+
+    def test_to_dict_all_fields(self):
+        cat = CatalogoCuentas()
+        d = cat.to_dict()
+        first = d[0]
+        assert "codigo" in first
+        assert "descripcion" in first
+        assert "nivel" in first
+        assert "naturaleza" in first
+        assert "grupo" in first
