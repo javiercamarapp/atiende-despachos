@@ -105,6 +105,7 @@ class ComplianceMixin:
     idempotency_key: str = Field(default="", description="Prevents duplicate processing")
     referencia_legal: str = Field(default="", description="Legal reference per CFF Art. 89")
     supuesto: str = Field(default="", description="Tax scenario per CFF Art. 89")
+    escalation_path: str = Field(default="review_by_contador", description="Escalation path")
 
 
 class DiotEntry(BaseModel, ComplianceMixin):

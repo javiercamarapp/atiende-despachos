@@ -233,6 +233,24 @@ a.btn,button.btn,input,select,textarea{font-size:16px}
 .card,.feature,.step{position:relative;overflow:hidden}
 .card:hover::after,.feature:hover::after,.step:hover::after{opacity:1}
 
+/* INTEGRATIONS GRID */
+.integrations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;margin-top:48px}
+.integration-category{background:var(--card);border-radius:var(--radius);padding:28px 24px;box-shadow:var(--shadow-sm);border:1px solid var(--line);transition:transform .25s,box-shadow .25s}
+.integration-category:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+.integration-category h3{font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--brand)}
+.integration-items{display:flex;flex-direction:column;gap:10px}
+.integration-item{display:flex;align-items:center;gap:10px;font-size:.95rem;color:var(--muted)}
+.integration-item .check{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:rgba(22,163,74,.1);color:var(--ok);font-size:.8rem;font-weight:700;flex-shrink:0}
+.integration-item.coming-soon{opacity:.6}
+.integration-item .badge{display:inline-block;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:var(--bg2);color:var(--muted);padding:2px 8px;border-radius:10px;border:1px solid var(--line);flex-shrink:0}
+@media(max-width:768px){
+  .integrations-grid{grid-template-columns:1fr 1fr;gap:16px}
+  .integration-category{padding:20px 16px}
+}
+@media(max-width:480px){
+  .integrations-grid{grid-template-columns:1fr}
+}
+
 /* PRICING — hot card dark accent */
 .pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;align-items:stretch}
 .price{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:34px 30px;display:flex;flex-direction:column;position:relative;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s}
@@ -765,6 +783,62 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
         <div class="int-item"><span class="name">Excel / Google Sheets</span><span class="check">✓</span></div>
         <div class="int-item"><span class="name">Email (Gmail, Outlook)</span><span class="check">✓</span></div>
         <div class="int-item"><span class="name">WhatsApp Business</span><span class="check">✓</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTEGRACIONES -->
+<section class="alt-section" id="integraciones">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag">Integraciones</span>
+      <h2>Se conecta con lo que ya usas</h2>
+      <p>Likida se integra con los ERPs, bancos y sistemas fiscales más usados en México.</p>
+    </div>
+    <div class="integrations-grid">
+      <!-- SAT & Fiscal -->
+      <div class="integration-category reveal">
+        <h3>SAT & Fiscal</h3>
+        <div class="integration-items">
+          <div class="integration-item"><span class="check">✓</span> CFDI 4.0</div>
+          <div class="integration-item"><span class="check">✓</span> Cancelación de CFDI</div>
+          <div class="integration-item"><span class="check">✓</span> DIOT</div>
+          <div class="integration-item"><span class="check">✓</span> Contabilidad Electrónica</div>
+          <div class="integration-item coming-soon"><span class="badge">Próximo</span> Dictamen Fiscal</div>
+        </div>
+      </div>
+      <!-- ERPs -->
+      <div class="integration-category reveal reveal-delay-1">
+        <h3>ERPs</h3>
+        <div class="integration-items">
+          <div class="integration-item"><span class="check">✓</span> CONTPAQi</div>
+          <div class="integration-item"><span class="check">✓</span> Aspel</div>
+          <div class="integration-item"><span class="check">✓</span> QuickBooks</div>
+          <div class="integration-item"><span class="check">✓</span> Xero</div>
+          <div class="integration-item coming-soon"><span class="badge">Próximo</span> Peak</div>
+        </div>
+      </div>
+      <!-- Bancos -->
+      <div class="integration-category reveal reveal-delay-2">
+        <h3>Bancos</h3>
+        <div class="integration-items">
+          <div class="integration-item"><span class="check">✓</span> BBVA</div>
+          <div class="integration-item"><span class="check">✓</span> Banorte</div>
+          <div class="integration-item"><span class="check">✓</span> Santander</div>
+          <div class="integration-item coming-soon"><span class="badge">Próximo</span> HSBC</div>
+        </div>
+      </div>
+      <!-- Nómina & Otros -->
+      <div class="integration-category reveal reveal-delay-3">
+        <h3>Nómina & Otros</h3>
+        <div class="integration-items">
+          <div class="integration-item"><span class="check">✓</span> CFDI Nómina 1.2</div>
+          <div class="integration-item"><span class="check">✓</span> IMSS / INFONAVIT</div>
+          <div class="integration-item"><span class="check">✓</span> Excel / Google Sheets</div>
+          <div class="integration-item"><span class="check">✓</span> Email (Gmail, Outlook)</div>
+          <div class="integration-item"><span class="check">✓</span> WhatsApp Business</div>
+        </div>
       </div>
     </div>
   </div>
