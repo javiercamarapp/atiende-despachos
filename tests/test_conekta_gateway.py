@@ -444,15 +444,14 @@ class TestConektaGatewayWebhooks:
         assert result["customer_id"] is None
 
     def test_verify_webhook_signature_without_secret(self, gateway_mock):
-        """Sin webhook_secret configurado, retorna True (modo dev)."""
-        assert gateway_mock.verify_webhook_signature("payload", "sig") is True
+        """Sin webhook_secret configurado, retorna False (nunca bypass silencioso)."""
+        assert gateway_mock.verify_webhook_signature("payload", "sig") is False
 
     def test_verify_webhook_signature_empty(self):
-        """Sin secret configurado, retorna True (modo dev sin verificación)."""
+        """Sin secret configurado, retorna False (nunca bypass silencioso)."""
         gw = ConektaGateway(mock=True)
         gw.webhook_secret = ""  # force empty
-        # Dev mode: sin secreto, no verificamos
-        assert gw.verify_webhook_signature("payload", "") is True
+        assert gw.verify_webhook_signature("payload", "") is False
 
     def test_verify_webhook_signature_invalid_with_secret(self):
         """Con secret configurado, firma inválida retorna False."""

@@ -698,8 +698,8 @@ class ConektaGateway:
             True si la firma es válida.
         """
         if not self.webhook_secret:
-            # Sin secreto configurado, no verificamos (modo dev)
-            return True
+            # Sin secreto configurado → siempre rechazar (nunca bypass silencioso)
+            return False
 
         if not signature_header:
             return False

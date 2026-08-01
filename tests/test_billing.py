@@ -176,7 +176,9 @@ def test_billing_sin_key_rechaza(client):
     c, _ = client
     assert c.get("/api/v1/billing/invoices").status_code == 401
     assert c.post("/api/v1/billing/checkout", json={}).status_code == 401
-    assert c.post("/api/v1/billing/webhook", json={}).status_code == 401
+    # Webhook ya NO requiere API key (Conekta solo envía conekta-signature),
+    # pero un body vacío sigue retornando 400.
+    assert c.post("/api/v1/billing/webhook", json={}).status_code == 400
 
 
 # ---------------------------------------------------------------------------

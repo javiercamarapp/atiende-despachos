@@ -194,8 +194,7 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
         return {"plans": list_plans()}
 
     @router.post("/webhook", summary="Recibe eventos del proveedor de pagos.")
-    async def webhook(request: Request,
-                      auth_info: dict = Depends(require_api_key)):
+    async def webhook(request: Request):
         """Procesa un evento de webhook del proveedor.
 
         Verifica la firma HMAC del webhook contra el body crudo antes de
@@ -245,7 +244,7 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
         db.log_call("billing", "webhook", entity="event",
                     entity_id=payload.event_type,
                     payload={"provider": payload.provider.value},
-                    status="ok", tenant_id=_scope(auth_info))
+                    status="ok", tenant_id=None)
         return {"received": True, "result": result}
 
     return router
