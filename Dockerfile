@@ -51,7 +51,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     B2B_API_KEY="" \
     B2B_WORKERS=1 \
     B2B_HOST=0.0.0.0 \
-    B2B_PORT=8000
+    B2B_PORT=8000 \
+    # Railway asigna PORT dinámicamente. Si $PORT existe, B2B_PORT se ignora
+    # porque el CMD usa ${PORT} como fallback. Esto permite compatibilidad con
+    # Railway (PORT dinámico) y Docker local (B2B_PORT=8000).
+    PORT=8000
 
 WORKDIR /app
 
@@ -87,4 +91,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 # recomienda B2B_WORKERS=$(nproc). El contenedor con SQLite debe correr con 1
 # worker (concurrencia de escritura); el backend Postgres (en desarrollo) puede
 # escalar a N.
-CMD ["sh", "-c", "uvicorn b2b_ai.api.app:app --host ${B2B_HOST} --port ${B2B_PORT} --workers ${B2B_WORKERS} --proxy-headers"]
+# CMD: usa $PORT si existe (Railway), sino B2B_PORT (Docker local).
+CMD ["sh", "-c", "uvicorn b2b_ai.api.app:app --host ${B2B_HOST} --port ${PORT:-${B2B_PORT}} --workers ${B2B_WORKERS} --proxy-headers"]
