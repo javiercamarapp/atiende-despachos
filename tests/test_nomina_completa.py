@@ -65,9 +65,11 @@ class TestTaxes:
     def test_isr_bajo(self):
         taxes = calculate_taxes(salary=10000)
         # $10,000 falls in LISR Art. 96 bracket (6447.12, 12904.06] at 23.52%
-        # ISR = 717.37 + (10000 - 6447.12) * 0.2352 = 1553.01
+        # ISR before subsidio = 717.37 + (10000 - 6447.12) * 0.2352 = 1553.01
+        # Subsidio for $10,000 = 237.18 (LISR Art. 113)
+        # ISR neto = 1553.01 - 237.18 = 1315.83
         assert taxes.isr > 0, "ISR must be > 0 for $10,000 (LISR Art. 96)"
-        assert abs(taxes.isr - 1553.01) < 1.0
+        assert abs(taxes.isr - 1315.83) < 1.0
 
     def test_isr_medio(self):
         taxes = calculate_taxes(salary=50000)
@@ -97,6 +99,34 @@ class TestTaxes:
     def test_salario_cero(self):
         taxes = calculate_taxes(salary=0)
         assert taxes.total == 0.0
+
+    def test_subsidio_reduces_isr(self):
+        """[11] Subsidio para el empleo reduces ISR for low-income workers."""
+        # $8,000 monthly: subsidio should apply
+        taxes = calculate_taxes(salary=8000)
+        # ISR before subsidio for $8,000 = 1082.81 (LISR Art. 96 bracket 23.52%)
+        # Subsidio for $8,000 = 271.63 (LISR Art. 113)
+        # ISR neto = 1082.81 - 271.63 = 811.18
+        assert taxes.isr > 0, "ISR should be positive after subsidio"
+        # Verify subsidio was applied (ISR neto < ISR before subsidio)
+        isr_before_subsidio = 1082.81
+        assert taxes.isr < isr_before_subsidio, "Subsidio should reduce ISR"
+
+    def test_quincenal_isr(self):
+        """[12] Quincenal ISR uses monthly table divided by 2."""
+        # $15,000 monthly equivalent → $7,500 quincenal
+        taxes_quincenal = calculate_taxes(salary=15000, periodicidad="quincenal")
+        taxes_mensual = calculate_taxes(salary=15000, periodicidad="mensual")
+        # Quincenal ISR should be approximately half of monthly ISR
+        assert taxes_quincenal.isr < taxes_mensual.isr
+
+    def test_imss_uses_dias_pagados(self):
+        """[10] IMSS should scale with dias_pagados."""
+        taxes_15 = calculate_taxes(salary=25000, salary_per_day=833.33, dias_pagados=15)
+        taxes_30 = calculate_taxes(salary=25000, salary_per_day=833.33, dias_pagados=30)
+        # IMSS for 15 days should be less than for 30 days
+        assert taxes_15.imss_obrero < taxes_30.imss_obrero
+        assert taxes_15.imss_patronal < taxes_30.imss_patronal
 
     def test_to_dict(self):
         taxes = calculate_taxes(salary=25000)
