@@ -134,7 +134,7 @@ a.btn,button.btn,input,select,textarea{font-size:16px}
 .hero{padding-top:100px;padding-bottom:60px;position:relative;overflow:hidden;background:#fff;color:var(--ink);isolation:isolate}
 .hero .container{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
 .hero-text{position:relative;z-index:2}
-.hero-text h1{font-size:clamp(2rem,4.5vw,3.2rem);line-height:1.12;font-weight:800;letter-spacing:-.02em;margin:0 0 20px}
+.kicker{font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:20px;display:block}.hero-text h1{font-size:clamp(2rem,4.5vw,3.2rem);line-height:1.12;font-weight:800;letter-spacing:-.02em;margin:0 0 20px}
 .hero-text h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero-text p.sub{font-size:clamp(1rem,1.8vw,1.15rem);color:var(--muted);max-width:520px;margin:0 0 30px}
 .hero-cta{display:flex;gap:14px;flex-wrap:wrap}
@@ -323,7 +323,8 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
 <header class="hero" id="top">
   <div class="container">
     <div class="hero-text">
-      <h1>Tu despacho corriendo <span class="grad">en automático</span></h1>
+      <span class="kicker">Agente contable IA</span>
+      <h1>Tu despacho,<br><em style="font-style:normal;color:var(--muted)">corriendo en automático.</em></h1>
       <p class="sub">Likida AI automatiza la captura de facturas desde tu ERP, valida fiscalmente cada CFDI 4.0 y clasifica contablemente el gasto. Tú determinas y firmas — la máquina prepara todo el trabajo pesado.</p>
       <div class="hero-cta">
         <a href="#contacto" class="btn btn-primary btn-lg" data-ripple>Solicita tu piloto gratis</a>
