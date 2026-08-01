@@ -1,671 +1,718 @@
-# 🧨 AUDITORÍA DE DESTRUCCIÓN — FISCAL + EDGE CASES
+# 🔥 AUDITORÍA DE DESTRUCCIÓN — Fiscal + Edge Cases
 
+> **Objetivo:** Encontrar bugs que causarían datos incorrectos, rechazo del SAT, o pérdida de dinero real.
+> **Método:** Lectura línea-por-línea de `b2b_ai/` (parser, validadores, servicios, API, compliance).
 > **Fecha:** 2026-08-01
-> **Objetivo:** Encontrar bugs que causarían datos incorrectos, rechazo del SAT, o pérdida de dinero real en producción.
-> **Métodología:** Lectura de código fuente completo de `b2b_ai/` — parser, validadores, servicios, API.
-
----
-
-## Índice
-
-1. [CFDI Parsing](#1-cfdi-parsing)
-2. [Nómina](#2-nómina)
-3. [ISR / IMSS / Subsidio](#3-isr--imss--subsidio)
-4. [IVA / IEPS / DIOT](#4-iva--ieps--diot)
-5. [Conciliación Bancaria](#5-conciliación-bancaria)
-6. [Clasificación Contable](#6-clasificación-contable)
-7. [Multi-tenant](#7-multi-tenant)
-8. [Límites y Escalabilidad](#8-límites-y-escalabilidad)
-9. [Fechas y Periodos Fiscales](#9-fechas-y-periodos-fiscales)
-10. [Resumen de Severidad](#10-resumen-de-severidad)
 
 ---
 
 ## 1. CFDI Parsing
 
-### BUG-CFDI-001: XML enorme causa OOM (Memory Exhaustion)
+### BUG #1 — XML enorme causa OOM (sin límite de tamaño)
 
-**Archivo:** `cfdi/parser.py:86` / `features/nomina/parser.py:176`
+**Archivo:** `cfdi/parser.py:80-86`, `features/nomina/parser.py:176,231`
 
-**Escenario:** Un CFDI malicioso o corrupto de 500MB+ se sube al endpoint `/nomina/parse` o `/api/v2/batch`. `etree.parse(xml_path)` y `etree.fromstring(xml_bytes)` cargan el XML completo en memoria.
+**Escenario:** Un adversario sube un XML de 500 MB (o un XML "bomba" con entidades expansibles — XML bomb / billion laughs attack). `etree.parse()` y `etree.fromstring()` cargan todo en memoria de golpe.
 
-**Resultado incorrecto:** El proceso del worker se queda sin memoria (OOM), el contenedor se reinicia, y todos los CFDIs en procesamiento paralelo se pierden sin reportar error al usuario. Si esto se hace en batch de 1000 archivos, un solo XML malicioso tumbaría todo el lote.
+**Resultado incorrecto:** El proceso del worker se queda sin RAM (OOM), se cae el endpoint, y si es un batch async, todo el job muere silenciosamente.
 
 **Fix:**
 ```python
-MAX_XML_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_XML_BYTES = 10 * 1024 * 1024  # 10 MB
 
-def parse_cfdi(xml_path):
-    size = os.path.getsize(xml_path)
-    if size > MAX_XML_SIZE:
-        raise CFDIError(f"XML excede {MAX_XML_SIZE // (1024*1024)}MB: {size}")
-    # ... resto del parseo
+def parse_cfdi_bytes(xml_bytes: bytes):
+    if len(xml_bytes) > MAX_XML_BYTES:
+        raise CFDIError(f"XML excede {MAX_XML_BYTES} bytes")
+    parser = etree.XMLParser(resolve_entities=False, no_network=True)
+    root = etree.fromstring(xml_bytes, parser=parser)
+    ...
 ```
 
-Para bytes: validar `len(xml_bytes) > MAX_XML_SIZE` antes de `etree.fromstring()`.
-
-**Severidad:** 🔴 CRÍTICA — Un adversario puede tumbar el servicio con un solo archivo.
+**Severidad:** 🔴 CRÍTICA — Denegación de servicio, pérdida de datos en batch.
 
 ---
 
-### BUG-CFDI-002: Sin manejo de encoding — XMLs en ISO-8859-1 o Windows-1252 fallan
+### BUG #2 — Sin detección de encoding: ISO-8859-1 y Windows-1252 rompen acentos
 
 **Archivo:** `cfdi/parser.py:86`, `features/nomina/parser.py:231`
 
-**Escenario:** Muchos PACs y ERPs mexicanos generan XMLs con `encoding="ISO-8859-1"` o `encoding="Windows-1252"` (acentos en nombres, descripciones con ñ). `etree.fromstring()` falla silenciosamente o decodifica mal caracteres como Ñ, á, é.
+**Escenario:** Un proveedor genera CFDIs con `encoding="ISO-8859-1"` (válido según Anexo 20 del SAT). lxml intenta decodificar como UTF-8 por defecto y falla o corrompe caracteres: `PEÑA` → `PEï¿½A`.
 
-**Resultado incorrecto:** RFCs y nombres con caracteres especiales se corrompen. El validador de RFC rechaza un RFC válido "PEÑA1234567" porque se parsea como "PEï¿½A1234567". Las descripciones de conceptos se pierden, causando clasificación incorrecta.
+**Resultado incorrecto:** RFCs válidos con Ñ (ej. `ÑAC123456789`) se rechazan por el validador de RFC. Nombres de emisores quedan ilegibles en reportes. Conciliación falla porque el RFC no coincide.
 
-**Fix:**
+**Fix:** Usar el encoding declarado en el XML:
 ```python
 def parse_cfdi_bytes(xml_bytes: bytes):
-    # Detect encoding from XML declaration
+    # Detectar encoding del XML declaration
     head = xml_bytes[:200].decode('ascii', errors='ignore')
-    encoding_match = re.search(r'encoding=["\']([^"\']+)', head)
-    encoding = encoding_match.group(1) if encoding_match else 'utf-8'
-    try:
-        text = xml_bytes.decode(encoding)
-    except (UnicodeDecodeError, LookupError):
-        text = xml_bytes.decode('utf-8', errors='replace')
+    import re
+    m = re.search(r'encoding=["\']([^"\']+)', head)
+    enc = m.group(1) if m else 'utf-8'
+    text = xml_bytes.decode(enc, errors='replace')
     root = etree.fromstring(text.encode('utf-8'))
 ```
 
-**Severidad:** 🔴 CRÍTICA — Silently corrupt data on valid CFDIs.
+**Severidad:** 🟡 ALTA — Silenciosamente corrompe datos fiscales válidos.
 
 ---
 
-### BUG-CFDI-003: Sin soporte para CFDI Globales (TipoDeComprobante con múltiples receptores)
+### BUG #3 — Notas de crédito (TipoDeComprobante="E") ignoradas en validación de total
 
-**Archivo:** `cfdi/parser.py:91-93`
+**Archivo:** `cfdi/validator.py:158-169`
 
-**Escenario:** El parser valida que el root sea `Comprobante`, pero no maneja CFDIs globales donde TipoDeComprobante es "I" pero el Receptor es el público en general (RFC genérico "XAXX010101000"). Tampoco detecta si es un CFDI de exportación (Exportacion="02") que tiene reglas de IVA diferentes.
+**Escenario:** Una nota de crédito tiene `TipoDeComprobante="E"`, subtotal negativo (o positivo con descuento igual al subtotal), y total = 0. El validador calcula:
+```python
+esperado = subtotal + iva - descuento - ret_tot
+```
+Si subtotal=100, iva=16, descuento=116, total=0 → `esperado = 100+16-116-0 = 0`. Esto pasa.
 
-**Resultado incorrecto:** CFDIs de público en general se procesan normalmente, el IVA del 16% se reporta como acreditable cuando NO lo es (Art. 5-B LIVA). CFDIs de exportación (tasa 0%) se rechazan por el validador de IVA que espera 16%.
+Pero si la nota de crédito tiene subtotal=0 y total negativo (CFDI 4.0 lo permite para notas de crédito), el validador rechaza porque `total < 0` no se valida explícitamente — solo se compara aritméticamente.
 
-**Fix:** Detectar RFC genéricos y exportaciones en el validador y marcar IVA como no acreditable.
+**Resultado incorrecto:** Notas de crédito válidas se rechazan con `total_incoherente`. El contador no puede procesar devoluciones.
 
-**Severidad:** 🟡 ALTA — Error fiscal silencioso, puede causar rechazo del SAT en devolución de IVA.
+**Fix:** Validar que para TipoDeComprobante="E", el total puede ser 0 (nunca negativo según SAT, pero el subtotal puede ser 0 con impuestos negativos por retención).
 
----
-
-### BUG-CFDI-004: Notas de Crédito (TipoDeComprobante=E) no se manejan en conciliación
-
-**Archivo:** `cfdi/parser.py:100`, `features/conciliacion/service.py`
-
-**Escenario:** Una nota de crédito (TipoDeComprobante="E") reduce el monto de una factura original. El parser la extrae correctamente, pero la conciliación bancaria no la relaciona con la factura original. El matching algorítmico (EXACT, AMOUNT_DATE) no tiene lógica para emparejar notas de crédito con facturas.
-
-**Resultado incorrecto:** Notas de crédito quedan como "unmatched_bank" o "unmatched_polizas". El contador ve discrepancias fantasma. Si la nota de crédito es grande, el reporte de conciliación sugiere crear pólizas de ajuste innecesarias.
-
-**Fix:** Agregar lógica para vincular CfdiRelacionados.UUID con la factura original, y tratar notas de crédito como ajustes negativos en la conciliación.
-
-**Severidad:** 🟡 ALTA — Conciliación incorrecta genera trabajo manual innecesario.
+**Severidad:** 🟡 ALTA — Bloquea el flujo de notas de crédito.
 
 ---
 
-### BUG-CFDI-005: CfdiRelacionados pierde TipoRelacion
+### BUG #4 — CFDI globales (RFC genérico XAXX010101000) no se detectan como no deducibles
+
+**Archivo:** `cfdi/parser.py`, `services/classify.py`
+
+**Escenario:** Un CFDI emitido "al público en general" usa `Rfc="XAXX010101000"` (RFC genérico del SAT). El parser lo extrae normalmente. El clasificador lo marca como `gasto_operativo`. Pero fiscalmente, un CFDI con RFC genérico NO es deducible de ISR (CFF Art. 27) ni genera IVA acreditable (LIVA Art. 5).
+
+**Resultado incorrecto:** El sistema clasifica la factura como deducible y la incluye en la DIOT como IVA acreditable. Esto infla artificialmente el IVA acreditable, y si se presenta así, el SAT rechaza la DIOT o genera un requerimiento.
+
+**Fix:** Agregar detección de RFC genéricos en el parser/validator:
+```python
+RFCS_GENERICOS = {"XAXX010101000", "XEXX010101000", "XAXX010101001"}
+if datos.get("emisor_rfc") in RFCS_GENERICOS:
+    warnings.append("CFDI al público en general: no deducible, IVA no acreditable")
+```
+
+**Severidad:** 🔴 CRÍTICA — Incluye IVA no acreditable en DIOT = rechazo del SAT.
+
+---
+
+### BUG #5 — CfdiRelacionados solo extrae UUID, pierde TipoRelacion
 
 **Archivo:** `cfdi/parser.py:222-225`
 
-**Escenario:** El parser solo extrae UUID de CfdiRelacionado pero ignora el atributo `TipoRelacion` del nodo padre `CfdiRelacionados`. Este campo es obligatorio para saber si es una sustitución, nota de crédito, factura generada por pagos, etc.
-
-**Resultado incorrecto:** Sin TipoRelacion, no se puede saber si un CFDI sustituye a otro (debe cancelar el anterior). Si el SAT recibe ambos como activos, genera multas por doble deducción.
-
-**Fix:**
-```python
-for node in root.iter():
-    if _localname(node) == "CfdiRelacionados":
-        tipo_rel = node.get("TipoRelacion", "")
-        for child in node:
-            if _localname(child) == "CfdiRelacionado":
-                relacionados.append({
-                    "uuid": child.get("UUID", ""),
-                    "tipo_relacion": tipo_rel,
-                })
+**Escenario:** Un CFDI de nota de crédito referencia la factura original con:
+```xml
+<CfdiRelacionados TipoRelacion="03">
+  <CfdiRelacionado UUID="original-uuid"/>
+</CfdiRelacionados>
 ```
+El parser solo extrae el UUID pero ignora `TipoRelacion` (01=Nota de crédito, 03=Sustitución, etc.).
 
-**Severidad:** 🟡 ALTA — Pérdida de metadatos fiscales obligatorios.
+**Resultado incorrecto:** Sin `TipoRelacion`, el sistema no puede distinguir entre una nota de crédito (ajuste) y una sustitución (reemplazo). Las facturas sustituidas no se marcan como canceladas en el ERP.
+
+**Fix:** Extraer también `TipoRelacion` del nodo padre.
+
+**Severidad:** 🟡 ALTA — Pierde metadatos fiscales obligatorios.
 
 ---
 
 ## 2. Nómina
 
-### BUG-NOM-001: Salario diario = 0 no se rechaza
+### BUG #6 — Salarios en cero pasan validación silenciosamente
 
-**Archivo:** `features/nomina/validators.py`, `services/payroll.py:465`
+**Archivo:** `features/nomina/parser.py:81-88`, `features/nomina/validators.py`
 
-**Escenario:** Un CFDI de nómina llega con `SalarioDiarioIntegrado="0"` o `SalarioDiarioIntegrado=""`. El parser retorna `None` (vía `_dec`), y el validador no tiene ninguna regla que rechace salarios en cero o nulos. `calculate_payroll` con `salario_diario=0` produce todos los cálculos en 0.
+**Escenario:** Un CFDI de nómina con `SalarioDiarioIntegrado="0"` o `TotalPercepciones="0"`. El parser convierte `"0"` a `Decimal("0")`. Los validadores no tienen ninguna regla contra salario=0. Los validadores solo verifican RFC, fechas, NumDiasPagados, PeriodicidadPago y TipoNomina — NUNCA montos.
 
-**Resultado incorrecto:** Una nómina de $0 se acepta como válida. Si el patrón está declarando nóminas en cero para evadir IMSS/INFONAVIT, el sistema no alerta. El SAT rechaza el CFDI porque `NumDiasPagados > 0` con `TotalPercepciones = 0` viola el Anexo 20.
+**Resultado incorrecto:** Una nómina con salario $0 se acepta como válida y pasa al ERP. Esto es fiscalmente imposible — un empleado sin salario no existe ante el IMSS. Si el SAT recibe esto, genera un requerimiento inmediato.
 
 **Fix:** Agregar validación:
 ```python
-def validate_salario(data: NominaData) -> List[str]:
+def validate_montos(data: NominaData) -> List[str]:
     errors = []
+    if data.total_percepciones is not None and data.total_percepciones <= 0:
+        errors.append(f"TotalPercepciones ({data.total_percepciones}) debe ser > 0.")
     if data.salario_diario_integrado is not None and data.salario_diario_integrado <= 0:
-        errors.append("SalarioDiarioIntegrado debe ser mayor a 0.")
+        errors.append(f"SalarioDiarioIntegrado ({data.salario_diario_integrado}) debe ser > 0.")
     return errors
 ```
 
-**Severidad:** 🔴 CRÍTICA — Acepta nóminas inválidas que el SAT rechazará.
+**Severidad:** 🔴 CRÍTICA — Nóminas inválidas pasan al SAT.
 
 ---
 
-### BUG-NOM-002: NumDiasPagados > 31 aceptado sin error
+### BUG #7 — Empleados sin RFC no se rechazan (solo CURP requerida)
 
-**Archivo:** `features/nomina/validators.py:141-162`
+**Archivo:** `features/nomina/parser.py:212-218`
 
-**Escenario:** El validador compara NumDiasPagados contra los días naturales del periodo `(fecha_fin - fecha_inicio).days + 1`. Para un periodo de quincena (15 días), NumDiasPagados=15 es correcto. Pero si alguien pone NumDiasPagados=999 con un periodo de un mes, el validador solo rechaza si > días naturales (max 31). Un periodo de 31 días acepta 31 días pagados.
+**Escenario:** El complemento de nómina requiere CURP pero no tiene campo de RFC del empleado. El RFC del empleado viene del CFDI `Receptor` principal. El parser de nómina no extrae ni valida el RFC del receptor del CFDI — solo extrae CURP, NumEmpleado, etc. del complemento.
 
-**Problema real:** Para nóminas extraordinarias (TipoNomina="E"), NumDiasPagados puede ser 0 o un valor especial que indica "periodo irregular". El validador actual rechaza `NumDiasPagados <= 0` con `"debe ser mayor a 0"`, lo cual es incorrecto para nóminas extraordinarias de aguinaldo o liquidación que pueden tener 0 días de periodo laborado.
+**Resultado incorrecto:** Si el CFDI tiene RFC del receptor vacío o inválido, el parser de nómina no lo detecta. La nómina se procesa sin RFC del empleado, lo cual es inválido ante el SAT (toda nómina debe tener receptor identificado).
 
-**Resultado incorrecto:** Nóminas extraordinarias de aguinaldo (15 días de aguinaldo sin días laborados en el periodo) se rechazan falsamente.
+**Fix:** El parser de nómina ya extrae `cfdi_emisor_rfc` del comprobante. Debe extraer también `cfdi_receptor_rfc` y validarlo.
 
-**Fix:** Permitir NumDiasPagados=0 cuando TipoNomina="E".
-
-**Severidad:** 🟡 ALTA — Rechaza nóminas válidas de aguinaldo y liquidación.
+**Severidad:** 🟡 ALTA — Nóminas sin receptor identificado pasan validación.
 
 ---
 
-### BUG-NOM-003: Aguinaldo proporcional usa 365 días — ignora años bisiestos
+### BUG #8 — Años bisiestos: aguinaldo proporcional usa 365 días siempre
 
 **Archivo:** `services/payroll.py:367`
 
-**Escenario:** Un empleado que trabajó todo 2024 (año bisiesto: 366 días) pide su aguinaldo proporcional. `calc_aguinaldo` calcula: `salario_diario × 15 × (dias_trabajados / 365)`. Si trabajó 366 días, la fracción es `366/365 = 1.0027`, lo que da un aguinaldo MAYOR al de ley (15 días completos).
+**Escenario:** Un empleado que trabajó todo 2024 (366 días, año bisiesto) solicita aguinaldo proporcional. El cálculo:
+```python
+monto = sd * dias_ley * (dt / Decimal("365"))
+```
+Con `dt=366`: `monto = sd * 15 * (366/365) = sd * 15 * 1.00274`. Esto da un aguinaldo MAYOR al de ley (15 días completos).
 
-**Resultado incorrecto:** En un año bisiesto, el aguinaldo proporcional supera el aguinaldo completo. Para un salario de $1,000/día: aguinaldo completo = $15,000, pero proporcional con 366 días = $15,041.10. Diferencia de $41 que se paga de más. Multiplied por miles de empleados, es dinero real.
+**Resultado incorrecto:** Se paga ~0.27% extra de aguinaldo. Para un salario de $500/día, son ~$20 extra por empleado. Con 1000 empleados: $20,000 pagados de más. No es enorme, pero es un error aritmético real.
 
 **Fix:**
 ```python
 from calendar import isleap
-year = datetime.now().year  # o el año del periodo
+year = date.today().year
 dias_año = 366 if isleap(year) else 365
 monto = sd * dias_ley * (dt / Decimal(str(dias_año)))
 ```
 
-**Severidad:** 🟡 MEDIA — Pérdida de dinero real pero pequeña por empleado.
+**Severidad:** 🟡 BAJA — Pérdida de dinero real pero pequeña por empleado.
 
 ---
 
-### BUG-NOM-004: Tabla de subsidio 2025 mezclada con tabla ISR 2024
+### BUG #9 — Nóminas extraordinarias: NumDiasPagados=0 rechazado
 
-**Archivo:** `services/payroll.py:71` (SUBSIDIO 2025) vs `features/declaraciones/service.py:47` (ISR 2024) vs `services/payroll.py:29` (ISR 2024)
+**Archivo:** `features/nomina/validators.py:149-150`
 
-**Escenario:** Las tablas están hardcodeadas y versionadas manualmente. `payroll.py` tiene ISR 2024 + Subsidio 2025. `declaraciones/service.py` tiene ISR 2024. `compliance.py` tiene ISR 2024. Cuando cambie el año fiscal, hay que actualizar 3+ archivos diferentes.
-
-**Resultado incorrecto:** Si se actualiza la tabla ISR a 2025 pero se olvida el subsidio (o vice versa), el cálculo de nómina produce ISR incorrecto + subsidio incorrecto = neto doblemente incorrecto. Para un empleado con salario de $8,000/mes, la diferencia puede ser de $200-500/mes.
-
-**Fix:** Centralizar las tablas fiscales en un solo archivo con versionado por año:
+**Escenario:** Una nómina extraordinaria (`TipoNomina="E"`) de aguinaldo puro puede tener `NumDiasPagados="0"` (no se pagaron días laborados, solo el aguinaldo). El validador rechaza:
 ```python
-# fiscal_tables.py
-TABLES = {
-    2024: {"isr_monthly": [...], "isr_annual": [...], "subsidio": [...]},
-    2025: {"isr_monthly": [...], "isr_annual": [...], "subsidio": [...]},
-}
-def get_tables(year: int) -> dict:
-    return TABLES.get(year) or TABLES[max(TABLES.keys())]
+if data.num_dias_pagados <= 0:
+    errors.append("NumDiasPagados (...) debe ser mayor a 0.")
 ```
 
-**Severidad:** 🔴 CRÍTICA — Error silencioso en cada nómina procesada.
+**Resultado incorrecto:** Toda nómina extraordinaria de aguinaldo se rechaza. El patrón no puede timbrar aguinaldos sin días laborados.
 
----
-
-## 3. ISR / IMSS / Subsidio
-
-### BUG-ISR-001: Inconsistencia en bordes de tabla ISR entre módulos
-
-**Archivo:** `features/declaraciones/service.py:544-582` vs `features/compliance.py:134-155`
-
-**Escenario:** El módulo de declaraciones (`_apply_isr_table`) usa `< next_lower` para determinar el rango:
+**Fix:** Permitir NumDiasPagados=0 para TipoNomina="E":
 ```python
-if lower <= taxable_income < next_lower:  # declaraciones
-```
-Pero `compliance.py` usa `<= upper`:
-```python
-if lower <= taxable_income <= upper:  # compliance
+if data.tipo_nomina == "E" and data.num_dias_pagados == 0:
+    pass  # Válido para nóminas extraordinarias
+elif data.num_dias_pagados <= 0:
+    errors.append(...)
 ```
 
-**Resultado incorrecto:** Para un ingreso de exactamente $312.41 (borde del primer rango):
-- `declaraciones` calcula: `0 + (312.41 - 0) × 0.0192 = $6.00`
-- `compliance` calcula: `0 + (312.41 - 0) × 0.0192 = $6.00` ← mismo resultado porque el límite superior es `312.41`
-
-Pero para $312.42:
-- `declaraciones`: entra al rango `[312.42, 2636.29)` → `5.99 + (312.42 - 312.42) × 0.0640 = $5.99`
-- `compliance`: entra al rango `[312.42, 2636.28]` → `5.99 + 0 = $5.99`
-
-El problema es el gap: un ingreso de $2636.285 (entre 2636.28 y 2636.29) cae en rangos diferentes dependiendo del módulo. `declaraciones` lo pone en el rango 2 (correcto), `compliance` podría no matchear ningún rango (el upper del rango 2 es 2636.28 y el lower del rango 3 es 2636.29).
-
-**Fix:** Estandarizar TODOS los módulos para usar la misma función de tabla ISR (extraer a un módulo común).
-
-**Severidad:** 🟡 ALTA — Diferencias de centavos que se acumulan en miles de cálculos.
+**Severidad:** 🔴 CRÍTICA — Bloquea el timbrado de aguinaldos.
 
 ---
 
-### BUG-ISR-002: Subsidio al empleo no se aplica en declaraciones anuales
+### BUG #10 — Cambio de año fiscal: tabla ISR hardcodeada a 2024, sin mecanismo de actualización
 
-**Archivo:** `features/declaraciones/service.py:498-542`
+**Archivo:** `features/declaraciones/service.py:47-72`, `services/payroll.py:29-56`, `features/compliance.py:99-124`
 
-**Escenario:** `calculate_dual_isr` calcula ISR anual definitivo como `isr_anual - pagos_provisionales_acumulados`. Pero no tiene en cuenta el subsidio al empleo. Si un empleado tuvo subsidio durante el año (porque su ingreso mensual era < $13,340), los pagos provisionales retenidos ya incluyen la reducción por subsidio. Sin embargo, el cálculo anual no desglosa el subsidio.
+**Escenario:** Hay TRES copias independientes de la tabla ISR:
+1. `declaraciones/service.py` — ISR_TABLE_MONTHLY (2024)
+2. `payroll.py` — TARIFA_ISR_2024_MENSUAL (2024)
+3. `compliance.py` — ISR_TABLE_2024_MONTHLY (2024)
 
-**Resultado incorrecto:** El ISR definitivo anual puede resultar en un "saldo a favor" mayor al real, o en un "saldo en contra" si el subsidio acumulado no se contabiliza. Para un empleado con ingreso de $10,000/mes: subsidio mensual ≈ $209 × 12 = $2,508 de diferencia.
+Cuando el SAT publica la nueva tabla para 2025 (o cualquier año), hay que actualizar 3 archivos diferentes. Si se actualiza uno sin los otros, los cálculos son inconsistentes.
 
-**Fix:** Agregar parámetro `subsidio_acumulado` al cálculo dual.
+**Resultado incorrecto:** ISR calculado con tabla de 2024 para el ejercicio fiscal 2025. El SAT rechaza declaraciones que usan tabla incorrecta. Diferencias entre nómina (payroll.py) y declaraciones (service.py) generan inconsistencias en conciliación.
 
-**Severidad:** 🟡 ALTA — Error en declaración anual de miles de empleados.
+**Fix:** Centralizar tablas en un módulo único `fiscal_tables.py` con versionado por año.
+
+**Severidad:** 🔴 CRÍTICA — Afecta TODOS los cálculos fiscales al cambiar de año.
 
 ---
 
-### BUG-ISR-003: ISR negativo no posible pero sí real en casos de subsidio excedente
+## 3. ISR / IMSS
 
-**Archivo:** `services/payroll.py:487`
+### BUG #11 — ISR: tabla mensual vs anual — gap entre rangos
 
-**Escenario:** El código calcula `isr_neto = max(0, isr_antes - subsidio)`. Esto es correcto para nómina, pero el `max(0)` oculta información importante: cuando `subsidio > isr_antes`, el trabajador recibe dinero EXTRA (subsidio en efectivo). El código actual calcula `subsidio_efectivo` pero NO lo resta de las deducciones ni lo suma a las percepciones.
+**Archivo:** `features/declaraciones/service.py:565-582`
 
-**Resultado incorrecto:** El "neto a pagar" en el recibo de nómina es menor al real, porque el subsidio en efectivo no se contabiliza como ingreso adicional. Para un empleado con ISR de $150 y subsidio de $407: debería recibir sueldo - deducciones + $257 extra, pero el sistema solo muestra sueldo - deducciones + $0.
-
-**Fix:** Agregar el subsidio en efectivo como OtroPago en las percepciones:
+**Escenario:** El método `_apply_isr_table` usa:
 ```python
-if subsidio > isr_antes:
-    subsidio_efectivo = subsidio - isr_antes
-    otros_pagos["subsidio_empleo"] = _fmt(subsidio_efectivo)
+if lower <= taxable_income < next_lower:
+```
+Pero los rangos de la tabla tienen gaps de $0.01:
+```python
+(0.00, 312.41, ...), (312.42, 2636.28, ...), ...
+```
+Un ingreso de exactamente $312.415 cae entre rangos (>= 312.41 y < 312.42) → ninguna rama matchea → retorna `0.0` (el fallback al final).
+
+**Resultado incorrecto:** ISR de $312.415 se calcula como $0.00 en vez de ~$6.00. Para ingresos en estos gaps de $0.01, el ISR es $0.
+
+**Fix:** Usar `<=` para el límite superior de cada rango (como hace `compliance.py`):
+```python
+if lower <= taxable_income <= upper:
 ```
 
-**Severidad:** 🔴 CRÍTICA — El empleado recibe menos dinero del que le corresponde legalmente.
+**Severidad:** 🟡 MEDIA — Solo afecta ingresos en gaps de $0.01, pero es un error aritmético.
 
 ---
 
-### BUG-ISR-004: IMSS calcula con 30 días fijos cuando no se especifica dias_pagados
+### BUG #12 — ISR anual vs mensual: tabla mensual × 12 ≠ tabla anual
 
-**Archivo:** `services/payroll.py:226,470`
+**Archivo:** `features/declaraciones/service.py:47-72`
 
-**Escenario:** `calc_imss` y `calculate_payroll` usan `dias_pagados = 30` por defecto. Para nóminas quincenales, debería ser 15. Para nóminas de 28 días (febrero), debería ser 28.
+**Escenario:** La tabla mensual y la tabla anual NO son proporcionales. Ejemplo: el primer rango mensual es $0-$312.41 con tasa 1.92%, pero el anual es $0-$3,748.57 (que es 312.41 × 12 = $3,748.92, no $3,748.57). Hay diferencias de centavos.
 
-**Resultado incorrecto:** En nómina quincenal, el IMSS se calcula sobre 30 días en vez de 15, duplicando la retención al trabajador. Para un SBC de $500/día: IMSS quincenal correcto ≈ $187.50, pero el sistema cobra $375.00. Diferencia de $187.50 por nómina.
+**Resultado incorrecto:** Un empleado que gana exactamente $312.41/mes × 12 = $3,748.92/año cae en el rango 2 de la tabla anual ($3,748.58-$31,635.36) pero en el rango 1 de la tabla mensual. La declaración anual calcula ISR diferente a la suma de provisionales mensuales, generando diferencias artificiales.
 
-**Fix:** Hacer `dias_pagados` obligatorio (no default) y validar contra la periodicidad.
+**Fix:** Usar las tablas oficiales publicadas por el SAT sin derivar una de la otra.
 
-**Severidad:** 🔴 CRÍTICA — Retención doble en cada nómina quincenal.
+**Severidad:** 🟡 BAJA — Diferencias de centavos, pero genera inconsistencias en conciliación.
 
 ---
 
-### BUG-ISR-005: Ingresos muy altos (>$1M/mes) — Decimal precision OK pero float no
+### BUG #13 — IMSS: salario base cotización negativo o cero no se valida
+
+**Archivo:** `services/payroll.py:206-263`
+
+**Escenario:** `calc_imss` recibe `salario_base_cotizacion` como parámetro. Si es 0 o negativo, todos los componentes calculan a 0: `eym=0, rcva=0, iv=0, gmp=0, total=0`. No hay error.
+
+**Resultado incorrecto:** Una nómina con SBC=0 se procesa sin retención de IMSS. El patrón evade sus obligaciones de seguridad social. El IMSS detecta esto en su cruce de datos y genera un crédito fiscal.
+
+**Fix:** Validar SBC > 0 y SBC >= UMA diaria (Art. 107 LSS):
+```python
+if sbc < r["imss_uma_diario"]:
+    raise ValueError(f"SBC ({sbc}) no puede ser menor a UMA diaria ({r['imss_uma_diario']})")
+```
+
+**Severidad:** 🔴 CRÍTICA — Evade retenciones de seguridad social.
+
+---
+
+### BUG #14 — Subsidio al empleo: tabla 2025 pero tabla ISR 2024
+
+**Archivo:** `services/payroll.py:71-83` (subsidio 2025) vs `services/payroll.py:29-56` (ISR 2024)
+
+**Escenario:** Las tablas están desincronizadas:
+- ISR mensual: tabla 2024
+- Subsidio al empleo: tabla 2025
+
+El subsidio se calcula sobre el ingreso gravado usando la tabla 2025, pero el ISR se calcula con la tabla 2024. Si las tablas cambian de un año a otro, la resta `ISR - subsidio` usa valores de años diferentes.
+
+**Resultado incorrecto:** Empleados con ingresos en el límite entre tablas pueden recibir subsidio incorrecto. Ejemplo: si el límite de subsidio sube de $13,340 (2024) a $14,000 (2025), pero el ISR se calcula con tabla 2024, un empleado con ingreso de $13,500 recibe subsidio 2025 pero paga ISR 2024.
+
+**Fix:** Sincronizar ambas tablas al mismo año fiscal.
+
+**Severidad:** 🔴 CRÍTICA — Cálculo fiscal incorrecto para TODOS los empleados.
+
+---
+
+### BUG #15 — Ingresos muy altos (>$1M/mes): Decimal OK en payroll, float en declaraciones
 
 **Archivo:** `features/declaraciones/service.py:229-233`
 
-**Escenario:** `generate_provisional_isr` usa `float()` para ingresos:
+**Escenario:** El servicio de declaraciones usa `float()`:
 ```python
 ingresos = float(data.get("ingresos", 0))
 utilidad = round(ingresos - deducciones, 2)
 ```
-Para ingresos de $10,000,000.00, `float` tiene precisión de ~15 dígitos, así que $10,000,000.00 es exacto. Pero la resta `10000000.00 - 9999999.99 = 0.01000000000095` introduce error de punto flotante.
+Para ingresos de $10,000,000.00, `float` tiene precisión limitada: `10000000.1 - 10000000.0 = 0.0999999999978172` (no 0.1). Con `round(..., 2)` esto da `0.1`, pero para cálculos encadenados el error se propaga.
 
-**Resultado incorrecto:** `round(0.01000000000095, 2) = 0.01` — correcto en este caso. Pero para operaciones encadenadas (ISR mensual acumulado × 12 meses), el error de float se propaga. Para una empresa con ingresos de $50M/mes, la diferencia acumulada puede ser de $50-100 al año.
+**Resultado incorrecto:** Para empresas con ingresos >$1M, el ISR calculado puede diferir en centavos o pesos del valor correcto. El SAT usa Decimal con 6 decimales de precisión — cualquier diferencia genera inconsistencia.
 
-**Fix:** Usar `Decimal` consistentemente en todo el módulo de declaraciones (igual que `payroll.py` ya hace).
+**Fix:** Usar `Decimal` en todo el módulo de declaraciones (como ya hace `payroll.py`).
 
-**Severidad:** 🟢 BAJA — Diferencias centavos, pero incorrecto para auditoría.
-
----
-
-## 4. IVA / IEPS / DIOT
-
-### BUG-IVA-001: DIOT usa float para acumulación — pérdida de centavos
-
-**Archivo:** `features/diot/service.py:49-86`
-
-**Escenario:** `_aggregate_invoices` usa `float` para acumular montos:
-```python
-g["monto_neto"] += neto  # float + float = float impreciso
-```
-Para 10,000 facturas de $999.99 cada una, la suma exacta es $9,999,900.00. Con float, la suma puede dar $9,999,899.999999998 o $9,999,900.000000002. El `round(..., 2)` al final puede dar $9,999,900.00 o $9,999,899.99.
-
-**Resultado incorrecto:** La DIOT reporta un monto que no coincide exactamente con la suma de facturas. El SAT cruza la DIOT contra los CFDIs timbrados y rechaza si hay diferencia, incluso de $0.01.
-
-**Fix:** Usar `Decimal` para toda la acumulación en DIOT.
-
-**Severidad:** 🔴 CRÍTICA — Rechazo del SAT en declaraciones DIOT.
+**Severidad:** 🟡 MEDIA — Diferencias de centavos que escalan con ingresos altos.
 
 ---
 
-### BUG-IVA-002: IVA acreditable > IVA trasladado no genera error
+## 4. IVA
+
+### BUG #16 — IVA acreditable > IVA trasladado no genera ninguna alerta
 
 **Archivo:** `features/declaraciones/service.py:130-138`
 
-**Escenario:** El servicio de declaraciones IVA calcula `saldo_favor = max(0, iva_pagado - iva_cobrado)`. Si `iva_pagado` (acreditable) = $500,000 e `iva_cobrado` (trasladado) = $100,000, se genera un saldo a favor de $400,000. Esto es legalmente posible (empresa en inversión), pero el sistema no genera ninguna alerta.
+**Escenario:** Un mes con muchas compras y pocas ventas: `iva_pagado = $500,000`, `iva_cobrado = $10,000`. El sistema calcula `saldo_favor = max(0, 500000 - 10000) = $490,000` y lo acepta sin cuestionar.
 
-**Resultado incorrecto:** Un saldo a favor de $400,000 en un mes es una señal de alerta (posible esquema de facturación fantasma). El sistema lo acepta sin ninguna validación adicional. El SAT lo marca para auditoría, pero el sistema no lo anticipa.
+**Resultado incorrecto:** Un saldo a favor de $490,000 es inusual y puede indicar: (a) empresa en inversión real, (b) error de captura, o (c) esquema de facturación fantasma. El SAT automáticamente audita devoluciones >$100,000. El sistema no advierte al contador.
 
-**Fix:** Agregar umbral de alerta:
+**Fix:** Agregar umbrales de alerta:
 ```python
-if iva_pagado > iva_cobrado * 3:  # IVA pagado > 3× cobrado
-    iva_data.requires_extra_validation = True
-    iva_data.alert_reason = "IVA acreditable excede 3x IVA trasladado"
+if iva_pagado > iva_cobrado * 3:
+    iva_data.requires_human_review = True
+    iva_data.human_review_reason = "IVA acreditable > 3× IVA trasladado"
 ```
 
-**Severidad:** 🟡 MEDIA — No es un bug per se, pero falta detección de anomalías.
+**Severidad:** 🟡 ALTA — El contador se entera cuando el SAT rechaza, no antes.
 
 ---
 
-### BUG-IVA-003: IEPS se parsea pero nunca se valida ni se reporta en DIOT
+### BUG #17 — Tasa 0% (exportaciones): validador rechaza como inválido
 
-**Archivo:** `cfdi/parser.py:207-208`, `features/diot/`
+**Archivo:** `features/diot/validators.py:374-384`
 
-**Escenario:** El parser extrae IEPS (impuesto="003") de los traslados globales. Pero el DIOT y las declaraciones de IVA no tienen ningún campo para IEPS. Un CFDI con IEPS (bebidas alcohólicas, combustibles, bebidas azucaradas) tiene IVA + IEPS que se suman al total, pero solo el IVA se reporta.
-
-**Resultado incorrecto:** Si una gasolinera factura $100,000 con IVA $16,000 + IEPS $30,000, el DIOT solo reporta $16,000 de IVA trasladado. El IEPS de $30,000 es invisible. Esto es correcto para DIOT (que solo reporta IVA), pero el sistema NO valida que el IEPS esté siendo manejado por otro proceso.
-
-**Fix:** Marcar CFDIs con IEPS para atención especial en el pipeline de clasificación.
-
-**Severidad:** 🟢 BAJA — IEPS tiene su propio régimen, pero el sistema debería ser consciente.
-
----
-
-### BUG-IVA-004: Tasa 0% se maneja como "no tiene IVA"
-
-**Archivo:** `cfdi/validator.py:149-156`
-
-**Escenario:** El validador compara IVA contra 16% del subtotal. Para una exportación (tasa 0%), IVA = $0 y subtotal = $100,000. El cálculo: `esperado = 100000 × 0.16 = $16,000`. `abs(0 - 16000) > 0.02` → WARNING.
-
-**Resultado incorrecto:** Toda exportación genera un warning de "IVA global difiere de 16%". El warning es informativo, pero si el validador se usa como gate para determinar si un CFDI es válido para DIOT/devolución, una exportación podría ser rechazada incorrectamente.
-
-**Fix:** No comparar contra 16% si TipoDeComprobante indica exportación o si alguna línea tiene TasaOCuota=0.
-
-**Severidad:** 🟡 MEDIA — Genera falsos positivos que ruidan la validación.
-
----
-
-## 5. Conciliación Bancaria
-
-### BUG-CONC-001: Comparación exacta de float falla para montos bancarios
-
-**Archivo:** `features/conciliacion/service.py:196,213,338,354`
-
-**Escenario:** El matching EXACT usa `txn.amount == pol.monto`. Si el banco reporta `1000.10` y la póliza tiene `1000.10`, la comparación `1000.10 == 1000.10` funciona. Pero si el banco reporta `1000.1` (un decimal) y la póliza tiene `1000.10` (dos decimales), Python los considera iguales. Sin embargo, si hay redondeo intermedio (banco: `1000.095` redondeado a `1000.10`, póliza: `1000.10`), la comparación float puede fallar.
-
-**Resultado incorrecto:** Facturas que SÍ coinciden se marcan como UNMATCHED, generando "discrepancias" fantasma que el contador debe investigar manualmente.
-
-**Fix:** Usar tolerancia absoluta en vez de igualdad exacta:
+**Escenario:** Una factura de exportación tiene `tasa=0.0` pero `monto_neto > 0`. El cálculo:
 ```python
-if abs(txn.amount - pol.monto) <= 0.01:  # tolerancia de 1 centavo
+effective_rate = round(iva_trasladado / monto_neto, 4)  # = 0.0
+if effective_rate not in {0.0, 0.08, 0.16}:
+    # error
+```
+En este caso `0.0` SÍ está en el set, así que pasa. PERO: si `iva_trasladado` es `None` (no viene en el XML porque es tasa 0), entonces `iva_trasladado = 0` por default y `effective_rate = 0/monto_neto = 0.0`. Esto funciona.
+
+Sin embargo, el `validate_iva_amount` en `diot/validators.py:117-138`:
+```python
+expected_iva = monto_neto * expected_rate  # monto_neto * 0.16 = positivo
+if abs(iva_trasladado - expected_iva) / abs(expected_iva) > tolerance:
+    return False, "IVA trasladado no coincide con esperado..."
+```
+Para tasa 0%, `expected_rate=0.16` (hardcodeado como default) genera un IVA esperado de 16% del neto, pero el real es 0%. Esto falla.
+
+**Resultado incorrecto:** Exportaciones (tasa 0%) se rechazan por "IVA trasladado no coincide con 16% esperado".
+
+**Fix:** Hacer `expected_rate` un parámetro obligatorio, no default a 0.16.
+
+**Severidad:** 🟡 ALTA — Bloquea exportaciones legítimas.
+
+---
+
+### BUG #18 — IEPS (Impuesto Especial) se parsea pero nunca se incluye en DIOT
+
+**Archivo:** `cfdi/parser.py:207-208`, `features/diot/service.py:47-86`
+
+**Escenario:** Un CFDI de gasolina tiene IVA (002) + IEPS (003). El parser extrae `ieps` correctamente. Pero la DIOT solo incluye `iva_trasladado` y `iva_acreditable` — no hay campo para IEPS. El monto_neto de la DIOT no incluye IEPS.
+
+**Resultado incorrecto:** La DIOT no reporta el IEPS correctamente. Para operaciones con IEPS, el monto_neto de la DIOT debe ser la base sin IVA ni IEPS, pero el parser mezcla todo en subtotal.
+
+**Fix:** La DIOT es solo para IVA, así que esto es parcialmente correcto. Pero el sistema debe advertir que el CFDI tiene IEPS para que se reporte en la declaración de IEPS aparte.
+
+**Severidad:** 🟡 MEDIA — IEPS requiere declaración separada que el sistema no maneja.
+
+---
+
+### BUG #19 — IVA rate check: valida contra 0.16% no contra 16% — error de magnitud
+
+**Archivo:** `features/declaraciones/validators.py:170-176`
+
+**Escenario:** El validador de IVA intenta verificar que `iva_cobrado` sea múltiplo de 16%:
+```python
+remainder = round(iva_cobrado % 0.16, 4)
+```
+Esto calcula `iva_cobrado % 0.16` — el residuo de dividir entre 0.16. Para `iva_cobrado = $160.00`: `160 % 0.16 = 0.0`. Correcto.
+
+Pero para `iva_cobrado = $16.00`: `16 % 0.16 = 0.0`. También correcto.
+Para `iva_cobrado = $16.01`: `16.01 % 0.16 ≈ 0.01`. Esto pasa el check (`remainder != 0` pero `remainder <= 0.01`).
+
+**Problema real:** El check es un "soft check" que nunca bloquea. Pero el comment dice "check if cobrado looks like a 16% multiple" — esto no tiene sentido porque IVA cobrado no necesita ser múltiplo de 16% del subtotal. Es el SUBTOTAL × 16% lo que da el IVA, no el IVA mismo.
+
+**Resultado incorrecto:** El check no hace nada útil. Si el usuario pone `iva_cobrado = $999` para un subtotal de $100, el check pasa porque `999 % 0.16 = algo < 0.01`. No detecta IVA incorrecto.
+
+**Fix:** Eliminar este check engañoso o reemplazarlo con: `abs(iva_cobrado - subtotal * 0.16) < tolerance`.
+
+**Severidad:** 🟡 MEDIA — Validación inútil que da falsa confianza.
+
+---
+
+## 5. Conciliación
+
+### BUG #20 — Comparación exacta de float: $1,000.10 ≠ $1,000.1 en Python
+
+**Archivo:** `features/conciliacion/service.py:196`, `features/conciliacion/service.py:338`
+
+**Escenario:** El matching exacto usa:
+```python
+if txn.amount == pol.monto and txn.date == pol.fecha:
+```
+`txn.amount` viene del CSV del banco como string → float. `pol.monto` viene de la DB como float. Si el banco reporta `1000.1` y la póliza tiene `1000.10`, Python los considera iguales (ambos son `1000.1` como float). Pero si hay redondeo intermedio (banco reporta `1000.095` que se redondea a `1000.10` vs póliza `1000.10`), la comparación puede fallar por precisión de punto flotante.
+
+**Resultado incorrecto:** Transacciones que SÍ coinciden se marcan como no conciliadas. El contador pierde tiempo investigando "discrepancias" que no existen.
+
+**Fix:** Usar tolerancia absoluta:
+```python
+if abs(txn.amount - pol.monto) < 0.01 and txn.date == pol.fecha:
 ```
 
-**Severidad:** 🟡 ALTA — Genera trabajo manual innecesario y pérdida de confianza en el sistema.
+**Severidad:** 🟡 ALTA — Genera falsos positivos en conciliación.
 
 ---
 
-### BUG-CONC-002: CSV con comas en montos ($1,000.00) no se parsea
+### BUG #21 — CSV con comas en montos ($1,000.50) rompe parsing
 
-**Archivo:** `features/conciliacion/service.py` — NO hay parser de CSV de banco
+**Archivo:** `features/conciliacion/` — NO hay parser de CSV implementado
 
-**Escenario:** Los bancos mexicanos (BBVA, Banorte, Santander) exportan estados de cuenta en CSV con montos como `"1,000.00"` o `"$1,000.00"`. El servicio de conciliación espera objetos `BankTransaction` ya parseados, pero no hay código que convierta CSV del banco a estos objetos.
+**Escenario:** Los bancos mexicanos (BBVA, Banorte, HSBC) exportan estados de cuenta en CSV con montos formateados: `"$1,000.50"` o `"1,000.50"`. El sistema espera objetos `BankTransaction` pre-parseados, pero no hay código que convierta CSV crudo del banco.
 
-**Resultado incorrecto:** El usuario debe convertir manualmente el CSV del banco al formato JSON que espera el sistema. Si el CSV tiene comas como separador de miles Y como delimitador de columnas, la confusión es total: `"1,000.00"` se parsea como dos campos: `"1"` y `"000.00"`.
+**Resultado incorrecto:** El usuario debe convertir manualmente el CSV a JSON. Si intenta usar CSV directamente, `"$1,000.50"` se parsea como string inválido, no como float 1000.50. Los montos con comas se rompen.
 
-**Fix:** Implementar parser de CSV bancario con auto-detección de formato y manejo de separadores de miles.
+**Fix:** Implementar parser de CSV bancario con auto-detección de formato:
+```python
+def parse_amount(raw: str) -> float:
+    cleaned = raw.replace("$", "").replace(",", "").strip()
+    return float(cleaned)
+```
 
-**Severidad:** 🔴 CRÍTICA — El sistema es inútil sin importación automática de estados de cuenta.
+**Severidad:** 🟡 ALTA — Conciliación inutilizable sin parser de CSV.
 
 ---
 
-### BUG-CONC-003: Detección de duplicados falsos positivos
+### BUG #22 — Detección de duplicados: misma cantidad + mismo día = falso positivo
 
 **Archivo:** `features/conciliacion/service.py:453-470`
 
-**Escenario:** La detección de duplicados usa `(amount, date)` como key. Dos pagos legítimos del mismo monto el mismo día (ej: dos proveedores diferentes cobran $5,000.00 el 15 de enero) se marcan como "transacciones duplicadas".
+**Escenario:** Dos transacciones legítimas del mismo monto el mismo día:
+- Pago proveedor A: $5,000 el 15-ene
+- Pago proveedor B: $5,000 el 15-ene
 
-**Resultado incorrecto:** El sistema propone revertir una de las dos transacciones legítimas. Si el contador acepta la propuesta sin revisar, se pierde un pago real.
+El detector de duplicados usa `(amount, date)` como key y las marca como duplicadas.
 
-**Fix:** Agregar referencia/descripción al key de duplicados:
-```python
-key = (txn.amount, txn.date, txn.reference[:10] if txn.reference else "")
-```
-Y solo marcar como duplicado si TODOS los campos coinciden.
+**Resultado incorrecto:** El sistema propone revertir una de las dos transacciones. Si el contador acepta la recomendación sin revisar, pierde un pago legítimo.
+
+**Fix:** Incluir referencia/descripción en el key de duplicados, y solo marcar como duplicado si TODOS los campos coinciden (no solo monto+fecha).
 
 **Severidad:** 🟡 ALTA — Puede causar reversión de pagos legítimos.
 
 ---
 
-### BUG-CONC-004: PDF corrupto no se maneja
+### BUG #23 — PDF de banco: no hay parser implementado
 
-**Archivo:** Todo el módulo de conciliación — NO hay parser de PDF
+**Archivo:** Todo el módulo `features/conciliacion/`
 
-**Escenario:** Algunos bancos solo ofrecen estados de cuenta en PDF (Banorte, HSBC). El sistema no tiene ningún parser de PDF bancario.
+**Escenario:** Algunos bancos (Banorte, HSBC) solo ofrecen estados de cuenta en PDF. El sistema solo acepta objetos `BankTransaction` ya estructurados.
 
-**Resultado incorrecto:** El usuario no puede usar el sistema para conciliación con estos bancos. No hay error message, simplemente no hay funcionalidad.
+**Resultado incorrecto:** Conciliación inutilizable para clientes de estos bancos. No hay endpoint para subir PDF.
 
-**Fix:** Implementar extracción de PDF bancario (con `pdfplumber` o similar) o al menos un endpoint que acepte PDF y lo rechaze con un mensaje claro.
+**Fix:** Implementar extracción de PDF (pdfplumber/tabula) o al menos rechazar con mensaje claro.
 
-**Severidad:** 🟡 MEDIA — Limita la utilidad del sistema para ciertos bancos.
+**Severidad:** 🟡 MEDIA — Limita la base de clientes potenciales.
 
 ---
 
-## 6. Clasificación Contable
+## 6. Clasificación
 
-### BUG-CLAS-001: Clasificación incorrecta se envía al ERP sin rollback
+### BUG #24 — Clasificación incorrecta se envía al ERP sin rollback posible
 
 **Archivo:** `services/classify.py`, `services/pipeline.py`
 
-**Escenario:** El pipeline procesa un CFDI así: parse → validate → classify → send to ERP. Si la clasificación es incorrecta (ej: un gasto de $500,000 clasificado como "gasto_operativo" cuando debería ser "activo_fijo"), la póliza ya se envió al ERP (CONTPAQi, Aspel, etc.).
+**Escenario:** El pipeline es: parse → validate → classify → send to ERP. Una vez que la póliza se envía a CONTPAQi/Aspel, no hay mecanismo de rollback. Si la clasificación es incorrecta (ej: $500K de maquinaria clasificado como "gasto_operativo" en vez de "activo_fijo"), la póliza queda registrada.
 
-**Resultado incorrecto:** No hay rollback. Una vez enviada al ERP, la póliza incorrecta queda registrada. El contador debe hacer una póliza de corrección manual. Si el sistema procesa 1000 CFDIs en batch y la clasificación tiene 5% de error, son 50 pólizas incorrectas.
+**Resultado incorrecto:** Activo fijo no se depreció. Gasto operativo inflado. Si el SAT audita, el contribuyente no puede justificar la clasificación. Con 5% de error en clasificación y 1000 CFDIs/mes: 50 pólizas incorrectas/mes.
 
-**Fix:** Implementar "borrador" mode donde las pólizas se crean como DRAFT en el ERP y requieren aprobación antes de ser definitivas. O al menos, no enviar al ERP cuando `requires_human_review=True`.
+**Fix:** No enviar al ERP cuando `requires_human_review=True`. Crear borrador primero.
 
-**Severidad:** 🔴 CRÍTICA — Envía datos incorrectos a sistema contable externo sin posibilidad de revertir.
-
----
-
-### BUG-CLAS-002: Keyword "investigacion" matchea "inversion" (substring collision)
-
-**Archivo:** `services/classify.py:68`
-
-**Escenario:** El clasificador usa `if w in texto` (substring match). La palabra "investigación" contiene "inversi" → NO matchea "inversion" (porque "inversi" ≠ "inversion"). Pero "desarrollo de software" matchea "desarrollo" y "software" por separado, lo cual es correcto.
-
-El problema real es: "licencia de software" → matchea "activo_fijo" (por "licencia perpetua" vía substring "licencia") Y "inversion" (por "licencia anual" vía substring "licencia"). Esto crea un empate.
-
-**Resultado incorrecto:** El clasificador retorna `requires_human_review=True` con confianza 0.30 para CFDIs que son claramente gastos operativos de software. El flujo se detiene esperando revisión humana para algo obvio.
-
-**Fix:** Usar word boundaries en vez de substring: `if re.search(r'\b' + re.escape(w) + r'\b', texto)`.
-
-**Severidad:** 🟡 MEDIA — Ruido en clasificación, pero el flag de revisión humana lo mitiga.
+**Severidad:** 🔴 CRÍTICA — Envía datos incorrectos al sistema contable.
 
 ---
 
-### BUG-CLAS-003: Categoría "desconocido" no escala a revisor humano automáticamente
+### BUG #25 — Categoría "desconocido" no escala a revisor humano
 
 **Archivo:** `services/classify.py:91-93`
 
-**Escenario:** Cuando la categoría es "desconocido" (score=0), el sistema retorna `requires_human_review=True`. Pero no hay mecanismo para escalar al revisor: no se envía email, no se crea ticket, no se pone en cola de revisión.
+**Escenario:** El clasificador retorna `"desconocido"` con `requires_human_review=True`. Pero no hay sistema de notificación: no email, no ticket, no cola de revisión. Los CFDIs desconocidos se acumulan silenciosamente.
 
-**Resultado incorrecto:** Los CFDIs "desconocidos" se acumulan sin que nadie los revise. Si un tenant procesa 100 CFDIs/día y 10% son "desconocidos", en un mes hay 300 CFDIs pendientes de clasificación manual. El contador no tiene visibilidad de esta deuda.
+**Resultado incorrecto:** Un tenant que procesa 100 CFDIs/día con 10% desconocidos acumula 300 CFDIs pendientes/mes. Nadie los revisa hasta que el SAT pregunta.
 
-**Fix:** Implementar cola de revisión con notificación al contador cuando hay > N CFDIs pendientes.
+**Fix:** Implementar cola de revisión con notificación al contador.
 
-**Severidad:** 🟡 MEDIA — Acumulación silenciosa de trabajo pendiente.
+**Severidad:** 🟡 ALTA — Acumulación silenciosa de trabajo pendiente.
+
+---
+
+### BUG #26 — Keywords substring: "desarrollo de software" matchea "inversión" Y "activo fijo"
+
+**Archivo:** `services/classify.py:68`
+
+**Escenario:** El clasificador usa `if w in texto` (substring match). Para un CFDI de "Licencia de software anual":
+- "activo_fijo": matchea "licencia perpetua" (por "licencia")
+- "inversion": matchea "licencia anual" (por "licencia")
+
+Ambas categorías suman score → empate → `requires_human_review=True` con confianza 0.30.
+
+**Resultado incorrecto:** CFDIs claros de software se marcan como ambiguos y requieren revisión manual. El 40%+ de CFDIs de tecnología pueden caer en este caso.
+
+**Fix:** Usar word boundaries: `re.search(r'\b' + re.escape(w) + r'\b', texto)`.
+
+**Severidad:** 🟡 MEDIA — Genera ruido pero el flag de revisión mitiga.
 
 ---
 
 ## 7. Multi-tenant
 
-### BUG-MT-001: Contexto de tenant no es thread-safe
+### BUG #27 — Contexto de tenant compartido entre requests (no thread-safe)
 
 **Archivo:** `features/multi_tenant/service.py:92,438`
 
-**Escenario:** `self._current_context` es un atributo de instancia de `MultiTenantService`. En FastAPI con async, múltiples requests comparten la misma instancia del servicio (singleton via `_default_service`). Dos requests simultáneos de tenants diferentes:
+**Escenario:** FastAPI usa async y comparte la instancia de `MultiTenantService` entre requests:
+```python
+# En module level:
+_default_service: Optional[MultiTenantService] = None
+def _get_service() -> MultiTenantService:
+    global _default_service
+    if _default_service is None:
+        _default_service = MultiTenantService()
+    return _default_service
+```
+`self._current_context` es un atributo de instancia. Dos requests simultáneos:
+1. Request A (tenant_A): `switch_tenant_context("tenant_A")`
+2. Request B (tenant_B): `switch_tenant_context("tenant_B")`
+3. Request A: `get_current_context()` → retorna **tenant_B** ❌
 
-1. Request A: `switch_tenant_context("tenant_A")` → `_current_context = TenantA`
-2. Request B: `switch_tenant_context("tenant_B")` → `_current_context = TenantB`
-3. Request A: `get_current_context()` → ¡retorna TenantB!
+**Resultado incorrecto:** Tenant A accede a datos de Tenant B. Violación de aislamiento de datos. En contexto fiscal: un contribuyente ve facturas, RFCs y nóminas de otro. Violación de LFPDPPP.
 
-**Resultado incorrecto:** Tenant A ve los datos de Tenant B. Cross-tenant data leak. En un contexto fiscal, esto significa que un contribuyente ve facturas, RFCs y nóminas de otro contribuyente — violación de LFPDPPP (Ley Federal de Protección de Datos Personales).
-
-**Fix:** Usar `contextvars.ContextVar` en vez de atributo de instancia:
+**Fix:** Usar `contextvars.ContextVar`:
 ```python
 import contextvars
-_current_context_var = contextvars.ContextVar('tenant_context', default=None)
+_tenant_ctx = contextvars.ContextVar('tenant_ctx', default=None)
 ```
 
-**Severidad:** 🔴 CRÍTICA — Violación de aislamiento de datos fiscales entre contribuyentes.
+**Severidad:** 🔴 CRÍTICA — Violación de aislamiento de datos fiscales.
 
 ---
 
-### BUG-MT-002: Stores en memoria se pierden en restart
+### BUG #28 — Stores en memoria: restart del servidor pierde TODO
 
-**Archivo:** `features/multi_tenant/service.py:88-91`, `features/diot/service.py:40`, `features/devolucion_iva/service.py:50-52`, `features/declaraciones/service.py:81-82`
+**Archivo:** `features/multi_tenant/service.py:88-91`, `features/diot/service.py:40`, `features/declaraciones/service.py:81-82`, `features/devolucion_iva/service.py:50-52`
 
-**Escenario:** Todos los servicios usan dicts en memoria como store: `_tenants`, `_declaraciones`, `_deadlines`, `_reports`, `_solicitudes`, `_status`, `_papeles_trabajo`, `_JOBS`.
+**Escenario:** TODOS los servicios usan dicts en memoria:
+```python
+self._declaraciones: Dict[str, Declaracion] = {}
+self._deadlines: Dict[str, Deadline] = {}
+_tenants: Dict[str, Tenant] = {}
+_reports: Dict[str, DiotReport] = {}
+_solicitudes: Dict[str, SolicitudDevolucion] = {}
+```
 
-**Resultado incorrecto:** Si el servidor se reinicia (deploy, crash, OOM), TODOS los datos se pierden: tenants, declaraciones fiscales, solicitudes de devolución, reportes DIOT, jobs de batch. En un contexto fiscal, esto significa que declaraciones presentadas se pierden, deadlines se olvidan, y el historial de conciliación desaparece.
+**Resultado incorrecto:** Cada deploy, restart, o crash pierde: declaraciones fiscales, deadlines, solicitudes de devolución, reportes DIOT, configuración de tenants, y jobs de batch. Un deploy durante la temporada de declaraciones puede perder deadlines críticos.
 
-**Fix:** Persistir en base de datos (PostgreSQL) — el proyecto ya tiene `db/` con soporte PG.
+**Fix:** Persistir en la DB que ya existe en `db/`.
 
-**Severidad:** 🔴 CRÍTICA — Pérdida total de estado en cada reinicio.
-
----
-
-### BUG-MT-003: Dos tenants procesan el mismo CFDI UUID simultáneamente
-
-**Archivo:** `features/multi_tenant/service.py`, `api/v2.py`
-
-**Escenario:** Dos tenants comparten el mismo proveedor (RFC del emisor). El proveedor emite un CFDI con UUID X. Tenant A lo procesa primero y lo guarda en su esquema. Tenant B lo procesa después.
-
-**Resultado incorrecto:** No hay conflicto porque cada tenant tiene su propio store/DB. Pero si ambos tenants reportan el mismo UUID X en su DIOT, el SAT detecta el UUID duplicado y rechaza ambas DIOTs. El sistema no detecta este escenario.
-
-**Fix:** Implementar validación cross-tenant de UUIDs para detectar duplicados antes de presentar DIOT.
-
-**Severidad:** 🟡 MEDIA — Edge case raro pero posible con proveedores compartidos.
+**Severidad:** 🔴 CRÍTICA — Pérdida total de estado fiscal en cada restart.
 
 ---
 
-## 8. Límites y Escalabilidad
+## 8. Límites / Escalabilidad
 
-### BUG-LIM-001: Batch de 1000 CFDIs — sin streaming, carga todo en memoria
+### BUG #29 — Batch de 1000 CFDIs: carga todo en memoria antes de procesar
 
 **Archivo:** `api/v2.py:300-338`
 
-**Escenario:** `_process_batch_items` itera sobre todos los paths y acumula resultados en una lista `raw`. Para 1000 CFDIs de ~1MB cada uno, se cargan ~1GB de XML en memoria simultáneamente (antes de que `process_file` termine y libere).
-
-**Resultado incorrecto:** OOM en el worker. El batch falla a la mitad sin reportar qué archivos se procesaron y cuáles no.
-
-**Fix:** Procesar en chunks de 50-100 archivos, con streaming de resultados:
+**Escenario:** `_process_batch_items` itera secuencialmente y acumula resultados:
 ```python
-for chunk in chunks(validated_paths, 50):
-    for p in chunk:
-        result = _process_one(tenant_id, p, dbx)
-        yield result  # stream results
+raw = []
+for p in paths:
+    raw.append(_process_one(tenant_id, p, dbx))
 ```
+Cada `process_file` carga el XML completo en memoria. Para 1000 XMLs de 1MB = 1GB de RAM mínimo.
 
-**Severidad:** 🔴 CRÍTICA — Batch de producción causa OOM.
+**Resultado incorrecto:** OOM en producción con batches grandes. El job async falla silenciosamente (el except en `_run_job` solo guarda el error, no notifica).
+
+**Fix:** Procesar en chunks de 50 con limpieza de memoria entre chunks.
+
+**Severidad:** 🔴 CRÍTICA — Batch grande causa OOM.
 
 ---
 
-### BUG-LIM-002: Jobs async se acumunan en memoria — memory leak
+### BUG #30 — Jobs async se acumulan en memoria (memory leak)
 
 **Archivo:** `api/v2.py:94-118`
 
-**Escenario:** `_JOBS` es un dict global que nunca se limpia. Cada batch async agrega un job con todos sus resultados. Para 100 batches/día × 1000 resultados × ~1KB cada uno = ~100MB/día de jobs acumulados. En un mes: ~3GB.
+**Escenario:** `_JOBS` es un dict global que nunca se limpia. Cada batch agrega resultados completos. Con 100 batches/día × 1000 resultados × ~1KB = ~100MB/día.
 
-**Resultado incorrecto:** Memory leak gradual. El servidor se queda sin memoria después de semanas de operación.
+**Resultado incorrecto:** Memory leak gradual. En 30 días: ~3GB de jobs acumulados. El servidor se queda sin RAM.
 
-**Fix:** Agregar TTL para jobs completados:
-```python
-def _cleanup_old_jobs(max_age_hours=24):
-    cutoff = datetime.now() - timedelta(hours=max_age_hours)
-    with _JOBS_LOCK:
-        for jid, job in list(_JOBS.items()):
-            if job["status"] in ("completed", "error") and job["created_at"] < cutoff.isoformat():
-                del _JOBS[jid]
-```
+**Fix:** TTL para jobs completados (24h), purgar periódicamente.
 
 **Severidad:** 🟡 ALTA — Memory leak gradual pero inevitable.
 
 ---
 
-### BUG-LIM-003: Thread-per-batch no escala — sin pool de workers
+### BUG #31 — Thread por batch: sin pool de workers, sin backpressure
 
 **Archivo:** `api/v2.py:378-382`
 
-**Escenario:** Cada batch async crea un `threading.Thread` nuevo. Para 10 batches concurrentes, hay 10 threads procesando 10,000 CFDIs simultáneamente.
+**Escenario:** Cada batch crea un `threading.Thread` nuevo. 10 batches concurrentes = 10 threads × ~200MB RAM cada uno = 2GB.
 
-**Resultado incorrecto:** Sin pool de workers, no hay backpressure. El servidor puede crear 100+ threads, cada uno consumiendo ~200MB de memoria para sus XMLs. Total: 20GB de RAM para batch processing.
+**Resultado incorrecto:** Sin límite de concurrencia, el servidor puede crear 100+ threads, cada uno consumiendo RAM para sus XMLs.
 
-**Fix:** Usar `concurrent.futures.ThreadPoolExecutor(max_workers=4)` con queue.
+**Fix:** `ThreadPoolExecutor(max_workers=4)` con queue.
 
-**Severidad:** 🟡 ALTA — Escalabilidad limitada en producción.
+**Severidad:** 🟡 ALTA — Escalabilidad rota.
 
 ---
 
-## 9. Fechas y Periodos Fiscales
+## 9. Fechas
 
-### BUG-FECH-001: Nómina que cruza año fiscal — periodo incorrecto
+### BUG #32 — Nómina quincenal que cruza año: FechaPago fuera de rango
 
 **Archivo:** `features/nomina/validators.py:113-138`
 
-**Escenario:** Una nómina quincenal con FechaInicialPago="2024-12-16" y FechaFinalPago="2024-12-31", pero FechaPago="2025-01-01" (se pagó el 1 de enero). El validador rechaza porque `FechaPago > FechaFinalPago`. Esto es correcto para nóminas ordinarias, pero ¿qué pasa con la declaración fiscal?
+**Escenario:** Nómina quincenal de diciembre:
+- FechaInicialPago: 2024-12-16
+- FechaFinalPago: 2024-12-31
+- FechaPago: 2025-01-01 (se pagó el 1 de enero)
 
-**Problema real:** La nómina se emitió en 2024 pero se pagó en 2025. ¿Se reporta en la DIOT de diciembre 2024 o enero 2025? El CFDI se timbra con fecha de emisión 2024, pero el pago es 2025. El sistema no tiene lógica para asignar el periodo fiscal correcto.
+El validador rechaza: `FechaPago (2025-01-01) está fuera del rango [2024-12-16, 2024-12-31]`.
 
-**Resultado incorrecto:** Si la DIOT se genera por mes de emisión, la nómina va a diciembre 2024. Si se genera por mes de pago, va a enero 2025. El sistema no define cuál es correcto, lo que puede causar inconsistencias DIOT vs declaraciones.
+**Resultado incorrecto:** Nóminas legítimas pagadas el primer día hábil de enero se rechazan. Esto es MUY común en la práctica.
 
-**Fix:** Documentar y aplicar la regla fiscal: la nómina se reporta en el periodo de la FechaPago (LISR art. 96).
+**Fix:** Permitir FechaPago hasta 3 días después de FechaFinalPago (tolerancia bancaria).
 
-**Severidad:** 🟡 MEDIA — Ambigüedad que puede causar inconsistencias.
-
----
-
-### BUG-FECH-002: 31 de diciembre a medianoche — deadline calculation off-by-one
-
-**Archivo:** `features/declaraciones/service.py:141-144`
-
-**Escenario:** El 31 de diciembre de 2024 a las 23:59:59, alguien genera una declaración de IVA de diciembre 2024. El deadline se calcula como:
-```python
-if month == 12:
-    deadline_date = date(year + 1, 1, 17)  # 2025-01-17
-```
-Esto es correcto. Pero `days_remaining = (deadline_date - date.today()).days` usa `date.today()` que depende de la timezone del servidor.
-
-**Resultado incorrecto:** Si el servidor está en UTC y el usuario en CST (UTC-6), a las 23:59 CST el servidor ve 05:59 del 1 de enero. `date.today()` retorna 2025-01-01. `days_remaining = (2025-01-17 - 2025-01-01).days = 16`. Pero debería ser 17 (el usuario aún está en diciembre).
-
-**Fix:** Usar la timezone del contribuyente (México CST/CDT):
-```python
-from zoneinfo import ZoneInfo
-today = datetime.now(ZoneInfo("America/Mexico_City")).date()
-```
-
-**Severidad:** 🟢 BAJA — Off-by-one en días restantes, no afecta el deadline real.
+**Severidad:** 🔴 CRÍTICA — Bloquea nóminas reales de fin de año.
 
 ---
 
-### BUG-FECH-003: Periodo fiscal anual no maneja ISR provisional acumulado de 13 pagos
+### BUG #33 — Diciembre 31 a medianoche: timezone del servidor vs contribuyente
+
+**Archivo:** `features/declaraciones/service.py:159`
+
+**Escenario:** `days_remaining = (deadline_date - date.today()).days` usa `date.today()` que depende de la timezone del servidor. Si el servidor está en UTC:
+- 31-dic 23:59 CST = 01-ene 05:59 UTC
+- `date.today()` en UTC retorna 2025-01-01
+- `days_remaining = (2025-01-17) - (2025-01-01) = 16 días`
+- Pero el contribuyente en México todavía está en 2024 → debería ser 17 días
+
+**Resultado incorrecto:** El deadline muestra un día menos de lo real. Si el sistema envía recordatorios basado en esto, el contador recibe el aviso un día tarde.
+
+**Fix:** Usar timezone de México: `datetime.now(ZoneInfo("America/Mexico_City")).date()`.
+
+**Severidad:** 🟡 BAJA — Off-by-one en días restantes.
+
+---
+
+### BUG #34 — Periodos fiscales cruzados: ISR provisional de diciembre vs anual
 
 **Archivo:** `features/declaraciones/service.py:498-542`
 
-**Escenario:** Algunas empresas pagan nómina 13 veces al año (12 mensuales + un extraordinario). El ISR provisional acumulado debería sumar 13 pagos, pero el sistema solo espera 12 (meses del año). Si se suman 13 provisionales, el ISR definitivo anual puede dar negativo (saldo a favor) inesperadamente.
+**Escenario:** `calculate_dual_isr` calcula ISR anual definitivo:
+```python
+isr_definitivo = max(0, isr_anual - pagos_provisionales_acumulados)
+```
+Pero no valida que `pagos_provisionales_acumulados` corresponda al mismo año. Si el usuario pasa provisionales de 2024 + 2025 mezclados, el definitivo se calcula mal.
 
-**Resultado incorrecto:** El sistema genera un "saldo a favor" de ISR que no es real — simplemente se retuvo más de lo necesario por el pago extra.
+**Resultado incorrecto:** ISR definitivo incorrecto → declaración anual errónea → el SAT rechaza o genera diferencias.
 
-**Fix:** Validar que `pagos_provisionales_acumulados` no exceda el ISR anual por más de un pago provisional (tolerancia para el 13er pago).
+**Fix:** Validar que los provisionales correspondan al año de la declaración.
 
-**Severidad:** 🟢 BAJA — Edge case para empresas con nómina extraordinaria.
-
----
-
-## 10. Resumen de Severidad
-
-| Severidad | Count | Bugs |
-|-----------|-------|------|
-| 🔴 CRÍTICA | 10 | CFDI-001, CFDI-002, NOM-001, NOM-004, ISR-003, ISR-004, IVA-001, CLAS-001, MT-001, MT-002, LIM-001, CONC-002 |
-| 🟡 ALTA | 11 | CFDI-003, CFDI-004, CFDI-005, NOM-002, ISR-001, ISR-002, CONC-001, CONC-003, CLAS-002, LIM-002, LIM-003 |
-| 🟡 MEDIA | 5 | NOM-003, IVA-002, IVA-004, CLAS-003, FECH-001, MT-003 |
-| 🟢 BAJA | 4 | ISR-005, IVA-003, FECH-002, FECH-003 |
-
-### Top 5 bugs más peligrosos (por impacto financiero):
-
-1. **ISR-003/ISR-004:** Empleados reciben menos dinero del legal → demandas laborales
-2. **IVA-001/DIOT float:** SAT rechaza DIOT → multas Art. 81 CFF ($400-$1,100 por no presentar)
-3. **CLAS-001:** Pólizas incorrectas al ERP → errores contables que requieren auditoría completa
-4. **MT-001:** Cross-tenant data leak → violación LFPDPPP → multas de $100M-$320M MXN
-5. **NOM-004:** Tablas fiscales mezcladas → nóminas incorrectas × miles de empleados
+**Severidad:** 🟡 MEDIA — Error de usuario pero el sistema debería prevenirlo.
 
 ---
 
-*Auditoría generada por análisis estático de código. Se recomienda complementar con pruebas de penetración, fuzzing de XML, y pruebas de carga.*
+### BUG #35 — Fecha de timbrado vs fecha de emisión: sin validación de plazo SAT
+
+**Archivo:** `cfdi/validator.py:263-267`
+
+**Escenario:** El validador verifica que `FechaTimbrado >= Fecha` (correcto). Pero no verifica el plazo del SAT: un CFDI debe timbrarse dentro de las 72 horas siguientes a su emisión (Regla 2.7.1.35 RMF). Un CFDI emitido el 1 de enero y timbrado el 1 de marzo es inválido.
+
+**Resultado incorrecto:** CFDIs tardíamente timbrados pasan validación. Si el SAT los rechaza por plazo vencido, el contribuyente pierde la deducción.
+
+**Fix:** Agregar: `if (f_timb - f_emi).days > 3: warning("CFDI timbrado fuera de plazo (72h)")`.
+
+**Severidad:** 🟡 BAJA — Es un warning, no un rechazo automático del SAT.
+
+---
+
+## Resumen de Severidad
+
+| Severidad | Cantidad | Bugs |
+|-----------|----------|------|
+| 🔴 CRÍTICA | 13 | #1, #4, #6, #9, #10, #13, #14, #24, #27, #28, #29, #32 |
+| 🟡 ALTA | 13 | #2, #3, #5, #7, #11, #16, #17, #20, #21, #22, #25, #30, #31 |
+| 🟡 MEDIA | 7 | #8, #15, #18, #19, #23, #26, #34 |
+| 🟡 BAJA | 4 | #12, #33, #35, #8 |
+
+### Top 5 más peligrosos:
+
+1. **#27 — Cross-tenant data leak** — Violación LFPDPPP, multas de $100M-$320M MXN
+2. **#10 — Tablas ISR hardcodeadas × 3** — Afecta TODOS los cálculos al cambiar de año
+3. **#13/#14 — IMSS en cero + subsidio desincronizado** — Nóminas incorrectas para TODOS los empleados
+4. **#32 — Nómina fin de año rechazada** — Bloquea pagos reales de diciembre
+5. **#24 — Clasificación sin rollback al ERP** — Pólizas incorrectas permanentes en contabilidad
