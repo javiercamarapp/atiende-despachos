@@ -28,12 +28,17 @@ from b2b_ai.features.vencimientos.validators import (
     validate_date_range_venc,
     validate_priority,
 )
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
+)
 
 
-class VencimientosService:
+class VencimientosService(ManualProcessMixin):
     """Core service for fiscal deadline management."""
 
     def __init__(self):
+        super().__init__()
         self._deadlines: Dict[str, Deadline] = {}
         self._escalations: List[Escalation] = []
 
@@ -219,6 +224,13 @@ class VencimientosService:
 
         self._escalations.append(escalation)
         deadline.estado = EstadoVencimiento.ESCALADO
+
+        # CFF Art. 89: Escalation requires human review
+        deadline.requires_human_review = True
+        deadline.human_review_reason = f"Escalamiento nivel {level.value} para vencimiento {deadline.tipo}"
+        deadline.escalation_path = "escalate_to_director"
+
+        self.log_audit(user=deadline.tenant_id or "system", action="escalate", module="vencimientos", result="success", tenant_id=deadline.tenant_id or "")
 
         return escalation
 

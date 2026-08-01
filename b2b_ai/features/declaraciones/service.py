@@ -37,6 +37,10 @@ from b2b_ai.features.declaraciones.validators import (
     validate_deadline_date,
     validate_rfc,
 )
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
+)
 
 
 # ISR progressive tax table (2024, monthly basis)
@@ -68,10 +72,11 @@ ISR_TABLE_ANNUAL = [
 ]
 
 
-class DeclaracionesService:
+class DeclaracionesService(ManualProcessMixin):
     """Core service for periodic tax declarations."""
 
     def __init__(self):
+        super().__init__()
         # In-memory stores (would be DB in production)
         self._declaraciones: Dict[str, Declaracion] = {}
         self._deadlines: Dict[str, Deadline] = {}
@@ -163,9 +168,18 @@ class DeclaracionesService:
             declaracion_id=decl_id,
         )
 
+        # CFF Art. 89: Add compliance metadata
+        declaracion.referencia_legal = "CFF Art. 89, LIVA"
+        declaracion.supuesto = "Declaración mensual de IVA"
+        declaracion.requires_human_review = iva_data is not None and iva_data.saldo_contra > 0
+        declaracion.human_review_reason = "IVA a pagar requiere revisión" if declaracion.requires_human_review else ""
+        declaracion.escalation_path = "review_by_contador"
+
         # Store
         self._declaraciones[decl_id] = declaracion
         self._deadlines[deadline_id] = deadline
+
+        self.log_audit(user=tenant_id, action="generate_monthly_iva", module="declaraciones", result="success", tenant_id=tenant_id)
 
         return declaracion
 

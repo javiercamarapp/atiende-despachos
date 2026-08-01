@@ -17,6 +17,10 @@ from b2b_ai.features.pre_auditoria.models import (
     DeductibilityCheck,
     Severity,
 )
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS,
+)
 
 # ---------------------------------------------------------------------------
 # Catálogo de gastos NO deducibles (Art. 28 LISR)
@@ -270,8 +274,17 @@ def run_pre_audit(tenant_id: int,
     if cff_data:
         all_findings.extend(check_cff_compliance(cff_data))
 
-    return generate_audit_report(
+    report = generate_audit_report(
         findings=all_findings,
         period=period,
         tenant_id=tenant_id,
     )
+    # CFF Art. 89: Compliance metadata
+    report.referencia_legal = "CFF Art. 89, Art. 28 LISR"
+    report.supuesto = "Pre-auditoría contable"
+    has_critical = any(f.severity in (Severity.CRITICAL, Severity.HIGH) for f in all_findings)
+    report.requires_human_review = has_critical
+    report.human_review_reason = f"{len(all_findings)} hallazgo(s) con severidad crítica/alta" if has_critical else ""
+    report.escalation_path = "review_by_contador"
+    report.idempotency_key = f"preaudit-{period}-{tenant_id}"
+    return report

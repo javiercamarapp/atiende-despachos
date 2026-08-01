@@ -12,6 +12,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
+from b2b_ai.features.compliance import FiscalOutput, AuditTrailEntry
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +317,18 @@ class Adjustment(BaseModel):
 # Reconciliation Report
 # ---------------------------------------------------------------------------
 
-class ConciliationReport(BaseModel):
+class ComplianceMixin:
+    """CFF Art. 89: Adds fiscal compliance fields."""
+    requires_human_review: bool = Field(default=False, description="Requires human review per CFF Art. 89")
+    human_review_reason: str = Field(default="", description="Reason for human review")
+    audit_trail: list = Field(default_factory=list, description="Audit trail entries")
+    idempotency_key: str = Field(default="", description="Prevents duplicate processing")
+    referencia_legal: str = Field(default="", description="Legal reference per CFF Art. 89")
+    supuesto: str = Field(default="", description="Tax scenario per CFF Art. 89")
+    escalation_path: str = Field(default="review_by_contador", description="Escalation path")
+
+
+class ConciliationReport(BaseModel, ComplianceMixin):
     """Summary report of a reconciliation run."""
     period: str = Field(
         ...,

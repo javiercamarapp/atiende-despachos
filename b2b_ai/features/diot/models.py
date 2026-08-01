@@ -14,6 +14,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
+from b2b_ai.features.compliance import FiscalOutput, AuditTrailEntry
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +97,17 @@ class Inconsistencia(BaseModel):
 # Core schemas — DIOT Entry
 # ---------------------------------------------------------------------------
 
-class DiotEntry(BaseModel):
+class ComplianceMixin:
+    """CFF Art. 85/89: DIOT compliance fields."""
+    requires_human_review: bool = Field(default=False, description="Requires human review per CFF Art. 89")
+    human_review_reason: str = Field(default="", description="Reason for human review")
+    audit_trail: list = Field(default_factory=list, description="Audit trail entries")
+    idempotency_key: str = Field(default="", description="Prevents duplicate processing")
+    referencia_legal: str = Field(default="", description="Legal reference per CFF Art. 89")
+    supuesto: str = Field(default="", description="Tax scenario per CFF Art. 89")
+
+
+class DiotEntry(BaseModel, ComplianceMixin):
     """Una entrada individual de la DIOT (operación con un tercero)."""
     rfc_tercero: str = Field(
         ...,
@@ -204,7 +215,7 @@ class DiotSummary(BaseModel):
 # Report schema
 # ---------------------------------------------------------------------------
 
-class DiotReport(BaseModel):
+class DiotReport(BaseModel, ComplianceMixin):
     """Reporte completo de la DIOT para un período."""
     id: str = Field(
         default_factory=lambda: str(_uuid.uuid4()),

@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
+from b2b_ai.features.compliance import FiscalOutput, AuditTrailEntry
 
 
 class Severity(str, Enum):
@@ -47,6 +48,9 @@ class DeductibilityCheck:
     es_deducible: bool = True
     razon: str = ""
     articulo_cff: str = ""
+    # CFF Art. 89: Compliance
+    requires_human_review: bool = False
+    human_review_reason: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -67,6 +71,13 @@ class AuditReport:
     findings: list[AuditFinding] = field(default_factory=list)
     score: float = 100.0
     summary: str = ""
+    # CFF Art. 89: Compliance fields
+    requires_human_review: bool = True
+    human_review_reason: str = ""
+    referencia_legal: str = ""
+    supuesto: str = ""
+    idempotency_key: str = ""
+    escalation_path: str = "review_by_contador"
 
     def to_dict(self) -> dict:
         return {

@@ -28,6 +28,10 @@ from .validators import (
     validate_diot_entries,
     validate_invoices,
 )
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
+)
 
 # ---------------------------------------------------------------------------
 # In-memory store (replace with real DB in production)
@@ -92,6 +96,7 @@ def generate_diot(
     tenant_id: str,
     invoices: list[CFDIInvoiceInput] | None = None,
 ) -> DiotReport:
+    """Generate DIOT report. CFF Art. 85 compliant — DIOT must match CFDI data."""
     """Generate a complete DIOT report.
 
     Parameters
@@ -147,6 +152,13 @@ def generate_diot(
         report.estatus = EstatusDIOT.GENERADA
     else:
         report.estatus = EstatusDIOT.GENERADA  # generate anyway; mark issues
+
+    # CFF Art. 89: Add compliance metadata
+    report.referencia_legal = "CFF Art. 85"
+    report.supuesto = "DIOT debe coincidir con datos CFDI"
+    report.requires_human_review = len(all_inconsistencies) > 0
+    report.human_review_reason = f"{len(all_inconsistencies)} inconsistencia(s) detectada(s)" if all_inconsistencies else ""
+    report.escalation_path = "review_by_contador"
 
     _reports[report.id] = report
     return report

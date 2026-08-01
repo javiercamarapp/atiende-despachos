@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Optional
+from b2b_ai.features.compliance import FiscalOutput, AuditTrailEntry
 
 
 @dataclass
@@ -99,6 +100,12 @@ class PayrollPeriod:
     total_imss_obrero: float = 0.0
     total_infonavit: float = 0.0
     tenant_id: Optional[int] = None
+    # CFF Art. 89 / Art. 105 LISR: Nómina compliance fields
+    requires_human_review: bool = False
+    human_review_reason: str = ""
+    referencia_legal: str = ""
+    supuesto: str = ""
+    idempotency_key: str = ""
 
     def __post_init__(self):
         self.recalc_totals()

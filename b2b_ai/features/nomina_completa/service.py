@@ -17,6 +17,10 @@ from b2b_ai.features.nomina_completa.models import (
     PayrollPeriod,
     PayrollTaxes,
 )
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS, calculate_isr,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -285,4 +289,19 @@ def process_payroll(period: dict, employees: list[dict],
         tenant_id=tenant_id,
     )
     period_obj.recalc_totals()
+
+    # CFF Art. 105 LISR: Nómina deductions must follow ISR table
+    # CFF Art. 89: Fiscal output metadata
+    total_isr = period_obj.total_isr
+    total_deducciones = period_obj.total_deducciones
+    period_obj.referencia_legal = "CFF Art. 105, LISR Art. 96"
+    period_obj.supuesto = "Procesamiento de nómina con deducciones ISR/IMSS/INFONAVIT"
+    # Require human review if total deductions are unusually high
+    if period_obj.total_bruto > 0 and total_deducciones / period_obj.total_bruto > 0.4:
+        period_obj.requires_human_review = True
+        period_obj.human_review_reason = f"Deducciones representan {total_deducciones/period_obj.total_bruto*100:.1f}% del bruto (>40%)"
+    else:
+        period_obj.requires_human_review = False
+    period_obj.idempotency_key = f"nomina-{year}-{month:02d}-{tenant_id}"
+
     return period_obj

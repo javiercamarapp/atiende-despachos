@@ -25,10 +25,17 @@ from b2b_ai.features.reportes_gerenciales.models import (
 )
 
 
-class ReportesService:
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
+)
+
+
+class ReportesService(ManualProcessMixin):
     """Core service for management reports."""
 
     def __init__(self, tenant_id: str = "default"):
+        super().__init__()
         self.tenant_id = tenant_id
         # In-memory stores
         self._reports: Dict[str, MonthlyReport] = {}
@@ -92,7 +99,14 @@ class ReportesService:
             created_at=datetime.now().isoformat(),
         )
 
+        # CFF Art. 89: Compliance metadata
+        report.referencia_legal = "CFF Art. 89"
+        report.supuesto = "Reporte gerencial mensual"
+        report.requires_human_review = False
+        report.escalation_path = "review_by_contador"
+
         self._reports[period] = report
+        self.log_audit(user=tenant_id, action="generate_monthly_report", module="reportes_gerenciales", result="success", tenant_id=tenant_id)
         return report
 
     def _compute_kpis(

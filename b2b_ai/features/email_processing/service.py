@@ -20,6 +20,10 @@ from b2b_ai.features.email_processing.models import (
     ProcessingResult,
     ProcessingStatus,
 )
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -37,10 +41,11 @@ _CFDI_NS = {
 # EmailProcessingService
 # ---------------------------------------------------------------------------
 
-class EmailProcessingService:
+class EmailProcessingService(ManualProcessMixin):
     """Core service for email-based invoice processing."""
 
     def __init__(self, tenant_id: str = "default"):
+        super().__init__()
         self.tenant_id = tenant_id
         # In-memory stores
         self._emails: Dict[str, EmailMessage] = {}
@@ -75,6 +80,8 @@ class EmailProcessingService:
             scan_period=datetime.now().strftime("%Y-%m"),
             created_at=datetime.now().isoformat(),
         )
+
+        self.log_audit(user=tenant_id, action="monitor_inbox", module="email_processing", result="started", tenant_id=tenant_id)
 
         if not emails:
             emails = []

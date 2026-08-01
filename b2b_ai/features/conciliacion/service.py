@@ -47,9 +47,13 @@ from b2b_ai.features.conciliacion.models import (
     PolizaContable,
     TransactionType,
 )
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
+)
 
 
-class ConciliationService:
+class ConciliationService(ManualProcessMixin):
     """Core service for bank reconciliation."""
 
     def __init__(

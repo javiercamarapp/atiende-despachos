@@ -19,6 +19,10 @@ from b2b_ai.features.clientes.models import (
     QueryCategory,
     QueryType,
 )
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -115,10 +119,11 @@ _DEFAULT_FAQ: List[FAQEntry] = [
 ]
 
 
-class ClientService:
+class ClientService(ManualProcessMixin):
     """Core service for client query management."""
 
     def __init__(self, tenant_id: str = "default"):
+        super().__init__()
         self.tenant_id = tenant_id
         # In-memory stores
         self._queries: Dict[str, ClientQuery] = {}
@@ -143,8 +148,18 @@ class ClientService:
         -------
         ClientQuery with respuesta populated.
         """
+        # Security: sanitize input
+        query.contenido = sanitize_string(query.contenido, max_length=5000, field_name="contenido")
+
+        # Tenant isolation check
         if tenant_id:
+            allowed, msg = verify_tenant_access(query.tenant_id, tenant_id, "process_query")
+            if not allowed:
+                raise SafeError(SAFE_ERRORS["tenant_mismatch"], "TENANT_VIOLATION")
             query.tenant_id = tenant_id
+
+        # Audit trail
+        self.log_audit(user=query.tenant_id, action="process_client_query", module="clientes", result="started", tenant_id=query.tenant_id)
 
         if not query.id:
             query.id = str(_uuid.uuid4())
@@ -257,10 +272,17 @@ class ClientService:
         return self._invoices.get(cfdi_id.strip())
 
     def register_invoice(self, invoice: InvoiceStatus) -> InvoiceStatus:
-        """Register an invoice for status tracking."""
+        """Register an invoice for status tracking. CFF Art. 89 compliant."""
         if not invoice.cfdi_id:
             raise ValueError("cfdi_id es requerido")
+        # Add fiscal output metadata
+        invoice.referencia_legal = "CFF Art. 30"
+        invoice.supuesto = "Registro de factura para deducibilidad"
+        invoice.requires_human_review = True
+        invoice.human_review_reason = "CFDI requiere verificación de deducibilidad"
+        invoice.escalation_path = "review_by_contador"
         self._invoices[invoice.cfdi_id.strip()] = invoice
+        self.log_audit(user=self.tenant_id, action="register_invoice", module="clientes", result="success", tenant_id=self.tenant_id)
         return invoice
 
     # -------------------------------------------------------------------

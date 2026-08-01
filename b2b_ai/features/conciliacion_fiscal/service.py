@@ -28,12 +28,17 @@ from b2b_ai.features.conciliacion_fiscal.validators import (
     validate_fiscal_amounts,
     validate_fiscal_period,
 )
+from b2b_ai.features.compliance import (
+    FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
+    verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
+)
 
 
-class FiscalConciliationService:
+class FiscalConciliationService(ManualProcessMixin):
     """Core service for fiscal conciliation (ERP vs SAT)."""
 
     def __init__(self):
+        super().__init__()
         self._reports: Dict[str, FiscalReport] = {}
         self._comparisons: Dict[str, FiscalComparison] = {}
 
@@ -313,6 +318,10 @@ class FiscalConciliationService:
             recommendations.append("No se encontraron omisiones ni discrepancias. Los registros están conciliados.")
 
         report_id = f"FR-{comparison.periodo}-{str(_uuid.uuid4())[:8]}"
+
+        # CFF Art. 89: Compliance metadata
+        has_issues = bool(comparison.omisiones or comparison.discrepancias)
+
         report = FiscalReport(
             id=report_id,
             comparison=comparison,
@@ -324,7 +333,15 @@ class FiscalConciliationService:
             created_at=datetime.now().isoformat(),
         )
 
+        # Add compliance fields
+        report.referencia_legal = "CFF Art. 89"
+        report.supuesto = "Conciliación fiscal ERP vs SAT"
+        report.requires_human_review = has_issues
+        report.human_review_reason = f"{len(comparison.omisiones)} omision(es), {len(comparison.discrepancias)} discrepancia(s)" if has_issues else ""
+        report.escalation_path = "review_by_contador"
+
         self._reports[report_id] = report
+        self.log_audit(user=comparison.tenant_id or "system", action="generate_fiscal_report", module="conciliacion_fiscal", result="success", tenant_id=comparison.tenant_id or "")
         return report
 
     # -------------------------------------------------------------------
