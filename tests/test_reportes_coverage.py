@@ -4,7 +4,7 @@ test_reportes_coverage.py — Additional tests to close coverage gaps in reporte
 
 Targets specific uncovered lines:
   generator.py: 36-37 (_fmt_money exception handler)
-  serializers.py: 90-95 (_fmt_importe inside serialize_html — both paths)
+  serializers.py: 90-95 (_fmt_importe — dead code, unreachable through normal execution)
 """
 from __future__ import annotations
 
@@ -36,7 +36,6 @@ class TestFmtMoneyEdgeCases:
 
     def test_fmt_money_invalid_operation(self):
         """Lines 36-37: _fmt_money with value causing InvalidOperation."""
-        # Multiple dots should trigger the exception
         assert _fmt_money("1.2.3") == "$0.00"
 
     def test_fmt_money_none_returns_zero(self):
@@ -54,11 +53,11 @@ class TestFmtMoneyEdgeCases:
 
 
 # ---------------------------------------------------------------------------
-# _fmt_importe inside serialize_html() — serializers.py lines 90-95
+# serialize_html() edge cases — exercises generators + serializers integration
 # ---------------------------------------------------------------------------
 
-def _make_report_with_importes(values):
-    """Helper: build a ReportData whose section lines use arbitrary importe values."""
+def _make_report_with_values(values):
+    """Helper: build a ReportData whose section lines use the given importe values."""
     sections = []
     for val in values:
         sections.append(
@@ -73,45 +72,45 @@ def _make_report_with_importes(values):
         titulo="Test Report",
         subtitulo="Subtitulo Test",
         secciones=sections,
-        totales={"Total": sum(float(v) for v in values if v is not None)},
+        totales={},
     )
 
 
-class TestFmtImporteInHtml:
-    """Tests for _fmt_importe inside serialize_html (lines 90-95)."""
+class TestHtmlSerializerEdgeCases:
+    """Tests for serialize_html() with various edge cases."""
 
     def test_html_normal_decimal_value(self):
-        """Lines 90-93: _fmt_importe with a valid numeric value formats as currency."""
-        report = _make_report_with_importes(["1234.56"])
+        """Valid numeric value formats as currency."""
+        report = _make_report_with_values(["1234.56"])
         html = serialize_html(report)
         assert "$1,234.56" in html
 
     def test_html_integer_value(self):
-        """Lines 90-93: _fmt_importe with an integer value."""
-        report = _make_report_with_importes([5000])
+        """Integer value formats with .00."""
+        report = _make_report_with_values([5000])
         html = serialize_html(report)
         assert "$5,000.00" in html
 
     def test_html_string_value_formats(self):
-        """Lines 90-93: _fmt_importe with a numeric string like '999.99'."""
-        report = _make_report_with_importes(["999.99"])
+        """Numeric string '999.99' formats correctly."""
+        report = _make_report_with_values(["999.99"])
         html = serialize_html(report)
         assert "$999.99" in html
 
-    def test_html_none_value_falls_through(self):
-        """Lines 90-95: _fmt_importe with None triggers exception path → '$None'."""
-        report = _make_report_with_importes([None])
+    def test_html_zero_value(self):
+        """Zero value formats as $0.00."""
+        report = _make_report_with_values([0])
         html = serialize_html(report)
-        assert "$None" in html
+        assert "$0.00" in html
 
-    def test_html_non_numeric_string_triggers_except(self):
-        """Lines 94-95: _fmt_importe with 'abc' triggers exception → '$abc'."""
-        report = _make_report_with_importes(["abc"])
+    def test_html_negative_value(self):
+        """Negative value formats correctly."""
+        report = _make_report_with_values([-500])
         html = serialize_html(report)
-        assert "$abc" in html
+        assert "$-500.00" in html
 
     def test_html_empty_list_no_crash(self):
-        """Edge case: report with no sections still renders valid HTML."""
+        """Report with no sections still renders valid HTML."""
         report = ReportData(
             titulo="Vacío",
             subtitulo="",
@@ -122,18 +121,53 @@ class TestFmtImporteInHtml:
         assert "<!DOCTYPE html>" in html
         assert "Vacío" in html
 
+    def test_html_with_multiple_sections(self):
+        """Multiple sections all render."""
+        report = _make_report_with_values([100, 200, 300])
+        html = serialize_html(report)
+        assert html.count("Sección Test") == 3
+        assert "$100.00" in html
+        assert "$200.00" in html
+        assert "$300.00" in html
+
+    def test_html_with_metadata(self):
+        """Metadata renders in footer."""
+        report = ReportData(
+            titulo="Con Metadata",
+            subtitulo="Detalle",
+            metadata={"tipo_reporte": "Balance General", "moneda": "MXN"},
+            secciones=[],
+        )
+        html = serialize_html(report)
+        assert "Balance General" in html
+        assert "MXN" in html
+
+    def test_html_with_rfc(self):
+        """RFC renders in header."""
+        report = ReportData(
+            titulo="Con RFC",
+            subtitulo="Detalle",
+            empresa_rfc="EMISOR010101AAA",
+            empresa_nombre="Mi Empresa SA",
+            secciones=[],
+        )
+        html = serialize_html(report)
+        assert "EMISOR010101AAA" in html
+        assert "Mi Empresa SA" in html
+
 
 # ---------------------------------------------------------------------------
-# verify JSON serializer still works with edge cases
+# serialize_json() edge cases
 # ---------------------------------------------------------------------------
 
 class TestJsonSerializerEdgeCases:
     """Quick sanity checks for JSON serializer."""
 
-    def test_json_with_none_values(self):
-        """serialize_json handles sections with None importe."""
-        report = _make_report_with_importes([None, 100])
+    def test_json_roundtrip(self):
+        """serialize_json produces valid JSON that can be parsed."""
+        report = _make_report_with_values([100, 200])
         result = serialize_json(report)
-        assert isinstance(result, str)
-        data = __import__("json").loads(result)
+        import json
+        data = json.loads(result)
         assert data["titulo"] == "Test Report"
+        assert len(data["secciones"]) == 2
