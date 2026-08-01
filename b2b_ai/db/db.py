@@ -1030,6 +1030,19 @@ class Database:
         self.conn.commit()
         return cur.lastrowid
 
+    def _ensure_outreach_standalone_campaign(self, tenant_id: int) -> int:
+        """Crea/recupera una campaña default para leads sin campaña asignada."""
+        row = self.conn.execute(
+            "SELECT id FROM outreach_campaigns WHERE tenant_id=? AND name='Standalone Leads'",
+            (tenant_id,)).fetchone()
+        if row:
+            return row[0] if isinstance(row, (list, tuple)) else row["id"]
+        cur = self.conn.execute(
+            "INSERT INTO outreach_campaigns(tenant_id, name, status) VALUES (?,?,?)",
+            (tenant_id, "Standalone Leads", "active"))
+        self.conn.commit()
+        return cur.lastrowid or 0
+
     def get_outreach_lead(self, lead_id):
         """Lead de una campaña (o None)."""
         row = self.conn.execute(

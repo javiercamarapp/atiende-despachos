@@ -46,14 +46,21 @@ def build_outreach_router(
         from b2b_ai.db.db import Database
 
         db = Database()
-        lead_id = db.create_outreach_lead(
-            name=lead.name,
+        tenant_id = auth_info.get("tenant_id", 0)
+        # Ensure a default campaign exists for standalone leads
+        campaign_id = db._ensure_outreach_standalone_campaign(tenant_id)
+        # Split name into first/last for the DB schema
+        parts = (lead.name or "").split(" ", 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else ""
+        lead_id = db.add_outreach_lead(
+            campaign_id=campaign_id,
+            tenant_id=tenant_id,
             email=lead.email,
-            company=lead.company,
-            title=lead.title,
-            phone=lead.phone,
-            linkedin=lead.linkedin,
-            notes=lead.notes,
+            first_name=first_name,
+            last_name=last_name,
+            company=lead.company or "",
+            role=lead.title or "",
         )
         return {"id": lead_id, "status": "created"}
 
