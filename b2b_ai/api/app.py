@@ -108,6 +108,7 @@ from b2b_ai.features.reconciliacion_ingresos_egresos.routes import (
     build_reconciliacion_ingresos_egresos_router,
 )
 from b2b_ai.features.vencimientos.routes import build_vencimientos_router
+from b2b_ai.features.close_management.routes import build_close_management_router
 from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
@@ -1256,6 +1257,9 @@ def create_app(db=None):
     # Vencimientos: deadlines, escalaciones y resumen de obligaciones fiscales.
     app.include_router(build_vencimientos_router(db, require_api_key))
 
+    # Close Management (Agente 3): cierre contable mensual autónomo.
+    app.include_router(build_close_management_router(db, require_api_key))
+
     # Reportes PDF (FASE reportes): generación + descarga de PDFs.
     app.include_router(build_reports_router(db, require_api_key),
                        prefix="/api/v1")
@@ -1263,6 +1267,11 @@ def create_app(db=None):
     # Outreach (FASE outreach): campañas automatizadas de outbound email.
     from b2b_ai.api.outreach import build_outreach_router
     app.include_router(build_outreach_router(require_api_key))
+
+    # AP/AR End-to-End (Agente 4): cuentas por pagar/cobrar, aging, SPEI.
+    from b2b_ai.features.ap_ar.routes import build_ap_ar_router
+    app.include_router(build_ap_ar_router(require_api_key),
+                       prefix="/api/v1")
 
     # ------------------------------------------------------------------ #
     # Endpoints legacy (compatibilidad) — AHORA PROTEGIDOS por API key.
