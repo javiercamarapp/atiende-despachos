@@ -222,8 +222,12 @@ def parse_cfdi(xml_path):
             break
 
     # ---- CfdiRelacionados ----
+    # BUG-F5: Also extract TipoRelacion from parent CfdiRelacionados node
     relacionados = []
+    tipo_relacion = ""
     for node in root.iter():
+        if _localname(node) == "CfdiRelacionados":
+            tipo_relacion = node.get("TipoRelacion", "")
         if _localname(node) == "CfdiRelacionado":
             relacionados.append(node.get("UUID", ""))
 

@@ -34,8 +34,23 @@ def safe_parser() -> etree.XMLParser:
     )
 
 
+def _detect_encoding(xml_bytes: bytes) -> str:
+    """BUG-F2: Detect encoding from XML declaration (ISO-8859-1, Windows-1252).
+
+    SAT Anexo 20 allows non-UTF-8 encodings. Without detection, lxml defaults
+    to UTF-8 and corrupts accented characters (PEÑA → PEï¿½A).
+    """
+    import re
+    head = xml_bytes[:200].decode('ascii', errors='ignore')
+    m = re.search(r'encoding=["\']([^"\']+)["\']', head)
+    return m.group(1) if m else 'utf-8'
+
+
 def safe_parse(xml_path: str) -> etree._ElementTree:
     """Parse an XML file safely, with size limit and XXE protection.
+
+    BUG-F2: Detects encoding from XML declaration and re-encodes to UTF-8
+    before parsing, to handle ISO-8859-1 and Windows-1252 CFDIs correctly.
 
     Raises:
         OSError: If file not found.
@@ -50,7 +65,14 @@ def safe_parse(xml_path: str) -> etree._ElementTree:
             f"XML excede el límite de {MAX_XML_BYTES // (1024*1024)} MB "
             f"({size} bytes). Posible XML bomb o archivo demasiado grande."
         )
-    return etree.parse(xml_path, parser=safe_parser())
+    with open(xml_path, 'rb') as f:
+        raw = f.read()
+    enc = _detect_encoding(raw)
+    try:
+        text = raw.decode(enc, errors='replace')
+    except (LookupError, UnicodeDecodeError):
+        text = raw.decode('utf-8', errors='replace')
+    return etree.ElementTree(etree.fromstring(text.encode('utf-8'), parser=safe_parser()))
 
 
 def safe_fromstring(xml_bytes: bytes) -> etree._Element:

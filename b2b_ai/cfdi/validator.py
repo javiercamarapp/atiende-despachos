@@ -156,15 +156,21 @@ def validate_cfdi(datos):
             _ok("IVA global coherente con 16%")
 
     # ---- 4. Coherencia total ----
+    # BUG-F3: Notas de crédito (TipoDeComprobante="E") can have total=0 with
+    # subtotal>0 and descuento=subtotal+iva. SAT allows this.
+    tdc_for_total = datos.get("tipo", "")
     if subtotal is not None and total is not None:
         ret_tot = (ret_isr or Decimal("0")) + (ret_iva or Decimal("0"))
         esperado = (subtotal + (iva or Decimal("0")) - descuento - ret_tot)\
             .quantize(Decimal("0.01"))
         if abs(esperado - total) > TOLERANCIA:
-            _fail("total_incoherente",
-                  f"SubTotal + IVA − Descuento − Retenciones = {esperado} "
-                  f"pero Total={total}",
-                  "Anexo 20 / Guia de llenado")
+            if tdc_for_total == "E" and total == 0:
+                _ok("Total coherente (nota de crédito, total=0)")
+            else:
+                _fail("total_incoherente",
+                      f"SubTotal + IVA − Descuento − Retenciones = {esperado} "
+                      f"pero Total={total}",
+                      "Anexo 20 / Guia de llenado")
         else:
             _ok("Total coherente")
 
