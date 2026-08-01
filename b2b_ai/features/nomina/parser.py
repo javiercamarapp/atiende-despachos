@@ -145,7 +145,6 @@ class NominaData:
             "periodicidad_pago": self.periodicidad_pago,
             "salario_diario_integrado": str(self.salario_diario_integrado) if self.salario_diario_integrado is not None else None,
             "cfdi_emisor_rfc": self.cfdi_emisor_rfc,
-            "cfdi_emisor_rfc": self.cfdi_emisor_rfc,
             "cfdi_receptor_rfc": self.cfdi_receptor_rfc,
         }
 

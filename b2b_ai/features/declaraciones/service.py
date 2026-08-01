@@ -112,6 +112,13 @@ class DeclaracionesService(ManualProcessMixin):
                 saldo_favor=max(0, iva_pagado - iva_cobrado),
                 saldo_contra=max(0, iva_cobrado - iva_pagado),
             )
+            # BUG-F16: Flag IVA acreditable > 3x IVA trasladado (SAT audit risk)
+            if iva_pagado > iva_cobrado * 3 and iva_cobrado > 0:
+                iva_data.requires_human_review = True
+                iva_data.human_review_reason = (
+                    f"IVA acreditable ({iva_pagado}) > 3x IVA trasladado ({iva_cobrado}). "
+                    "SAT puede auditar devoluciones > $100,000 (Art. 22 CFF)."
+                )
 
         # Calculate deadline (17th of following month)
         if month == 12:
