@@ -56,6 +56,40 @@ class AspelRealDriver(DesktopAutomation):
         self.session = None
         self._registered: List[Dict] = []
         self._invoices_open = False
+        # Shared event loop for sync wrappers — avoids creating a new loop
+        # (and its file descriptors) on every synchronous call.
+        import asyncio
+        self._loop = asyncio.new_event_loop()
+
+    def _run_sync(self, coro):
+        """Run an async coroutine synchronously using the shared event loop."""
+        import asyncio
+        # If we're already in an event loop (e.g. async context), use
+        # nest_asyncio or fall back. In practice sync wrappers are called
+        # from threads without an active loop.
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None and loop.is_running():
+            # We're inside an already-running loop (e.g. from a thread
+            # that has one). Use a fresh loop for this call only.
+            fresh = asyncio.new_event_loop()
+            try:
+                return fresh.run_until_complete(coro)
+            finally:
+                fresh.close()
+        return self._loop.run_until_complete(coro)
+
+    def close(self):
+        """Close the shared event loop and clean up resources."""
+        if self._loop is not None and not self._loop.is_closed():
+            self._loop.close()
+            self._loop = None
+
+    def __del__(self):
+        """Ensure event loop is closed on garbage collection."""
+        self.close()
 
     async def connect(self) -> Dict[str, Any]:
         """Launch browser and navigate to Aspel.
@@ -234,33 +268,13 @@ class AspelRealDriver(DesktopAutomation):
         }
 
     def screenshot(self) -> dict:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self.desktop.screenshot())
-        finally:
-            loop.close()
+        return self._run_sync(self.desktop.screenshot())
 
     def click(self, x: int, y: int) -> dict:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self.desktop.click(x, y))
-        finally:
-            loop.close()
+        return self._run_sync(self.desktop.click(x, y))
 
     def type_text(self, text: str) -> dict:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self.desktop.type_text(text))
-        finally:
-            loop.close()
+        return self._run_sync(self.desktop.type_text(text))
 
     def press_key(self, key: str) -> dict:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self.desktop.press_key(key))
-        finally:
-            loop.close()
+        return self._run_sync(self.desktop.press_key(key))

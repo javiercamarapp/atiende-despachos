@@ -60,6 +60,35 @@ class CONTPAQiRealDriver(DesktopAutomation):
         self.desktop = desktop or PlaywrightDesktop(headless=headless)
         self.session = None
         self._registered: List[Dict] = []
+        # Shared event loop for sync wrappers — avoids creating a new loop
+        # (and its file descriptors) on every synchronous call.
+        import asyncio
+        self._loop = asyncio.new_event_loop()
+
+    def _run_sync(self, coro):
+        """Run an async coroutine synchronously using the shared event loop."""
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None and loop.is_running():
+            fresh = asyncio.new_event_loop()
+            try:
+                return fresh.run_until_complete(coro)
+            finally:
+                fresh.close()
+        return self._loop.run_until_complete(coro)
+
+    def close(self):
+        """Close the shared event loop and clean up resources."""
+        if self._loop is not None and not self._loop.is_closed():
+            self._loop.close()
+            self._loop = None
+
+    def __del__(self):
+        """Ensure event loop is closed on garbage collection."""
+        self.close()
 
     async def connect(self) -> Dict[str, Any]:
         """Launch browser and navigate to CONTPAQi.
@@ -242,33 +271,13 @@ class CONTPAQiRealDriver(DesktopAutomation):
 
     # Sync wrappers for DesktopAutomation interface
     def screenshot(self) -> dict:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self.desktop.screenshot())
-        finally:
-            loop.close()
+        return self._run_sync(self.desktop.screenshot())
 
     def click(self, x: int, y: int) -> dict:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self.desktop.click(x, y))
-        finally:
-            loop.close()
+        return self._run_sync(self.desktop.click(x, y))
 
     def type_text(self, text: str) -> dict:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self.desktop.type_text(text))
-        finally:
-            loop.close()
+        return self._run_sync(self.desktop.type_text(text))
 
     def press_key(self, key: str) -> dict:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self.desktop.press_key(key))
-        finally:
-            loop.close()
+        return self._run_sync(self.desktop.press_key(key))

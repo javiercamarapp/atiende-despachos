@@ -469,6 +469,30 @@ def create_app(db=None):
         get_structured_logger("api")
 
     # ------------------------------------------------------------------ #
+    # Shutdown: libiar pools de conexiones y recursos para evitar fd leaks.
+    # ------------------------------------------------------------------ #
+    @app.on_event("shutdown")
+    def _shutdown_cleanup():
+        _structured_log.info("shutdown_cleanup", extra={
+            "detail": "Cerrando pools de conexiones y recursos..."})
+        # Cerrar el pool PostgreSQL compartido (si existe).
+        try:
+            from b2b_ai.db.db import _PG_POOLS
+            for pool in _PG_POOLS.values():
+                try:
+                    pool.close()
+                except Exception:  # noqa: BLE001
+                    pass
+            _PG_POOLS.clear()
+        except Exception:  # noqa: BLE001
+            pass
+        # Cerrar la conexión SQLite del hilo actual (si existe).
+        try:
+            db.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    # ------------------------------------------------------------------ #
     # CORS para producción. La landing se sirve same-origin (no requiere
     # CORS), pero si una integración propia / portal hostea la UI en otro
     # dominio y llama a la API, hay que permitirlo explícitamente.
