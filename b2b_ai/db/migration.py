@@ -193,26 +193,23 @@ class SQLiteToPostgresMigration:
 
     def ensure_pg_schema(self) -> bool:
         """Apply Alembic migrations to PostgreSQL to create the schema."""
-        import subprocess
-        import sys as _sys
+        from alembic.config import Config
+        from alembic import command
 
-        env = dict(os.environ)
-        env["B2B_DB_URL"] = self.pg_dsn
+        os.environ["B2B_DB_URL"] = self.pg_dsn
         root = os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__))))
+        alembic_ini = os.path.join(root, "alembic.ini")
 
         logger.info("Applying Alembic migrations to PostgreSQL...")
         try:
-            result = subprocess.run(
-                [_sys.executable, "-m", "alembic", "upgrade", "head"],
-                cwd=root, env=env, check=True,
-                capture_output=True, text=True, timeout=120
-            )
-            logger.info("Alembic migration complete: %s", result.stdout[-200:] if result.stdout else "ok")
+            alembic_cfg = Config(alembic_ini)
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Alembic migration complete")
             return True
-        except subprocess.CalledProcessError as e:
-            logger.error("Alembic migration failed: %s", e.stderr[-800:])
-            raise RuntimeError(f"Failed to apply Alembic migrations: {e.stderr[-800:]}")
+        except Exception as e:
+            logger.error("Alembic migration failed: %s", e)
+            raise RuntimeError(f"Failed to apply Alembic migrations: {e}")
 
     def export_sqlite_data(self) -> Dict[str, List[Dict[str, Any]]]:
         """Export all data from SQLite tables.
