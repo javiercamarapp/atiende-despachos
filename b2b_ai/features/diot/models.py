@@ -97,18 +97,7 @@ class Inconsistencia(BaseModel):
 # Core schemas — DIOT Entry
 # ---------------------------------------------------------------------------
 
-class ComplianceMixin:
-    """CFF Art. 85/89: DIOT compliance fields."""
-    requires_human_review: bool = Field(default=False, description="Requires human review per CFF Art. 89")
-    human_review_reason: str = Field(default="", description="Reason for human review")
-    audit_trail: list = Field(default_factory=list, description="Audit trail entries")
-    idempotency_key: str = Field(default="", description="Prevents duplicate processing")
-    referencia_legal: str = Field(default="", description="Legal reference per CFF Art. 89")
-    supuesto: str = Field(default="", description="Tax scenario per CFF Art. 89")
-    escalation_path: str = Field(default="review_by_contador", description="Escalation path")
-
-
-class DiotEntry(BaseModel, ComplianceMixin):
+class DiotEntry(BaseModel):
     """Una entrada individual de la DIOT (operación con un tercero)."""
     rfc_tercero: str = Field(
         ...,
@@ -216,11 +205,39 @@ class DiotSummary(BaseModel):
 # Report schema
 # ---------------------------------------------------------------------------
 
-class DiotReport(BaseModel, ComplianceMixin):
+class DiotReport(BaseModel):
     """Reporte completo de la DIOT para un período."""
     id: str = Field(
         default_factory=lambda: str(_uuid.uuid4()),
         description="Identificador único del reporte",
+    )
+    referencia_legal: Optional[str] = Field(
+        default=None,
+        description="Referencia legal CFF Art. 85",
+    )
+    requires_human_review: bool = Field(
+        default=False,
+        description="Requiere revisión humana",
+    )
+    human_review_reason: Optional[str] = Field(
+        default=None,
+        description="Razón de revisión humana",
+    )
+    supuesto: Optional[str] = Field(
+        default=None,
+        description="Supuesto de aplicación",
+    )
+    audit_trail: List[str] = Field(
+        default_factory=list,
+        description="Bitácora de acciones",
+    )
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        description="Clave de idempotencia",
+    )
+    escalation_path: Optional[str] = Field(
+        default=None,
+        description="Ruta de escalación si no se revisa",
     )
     month: int = Field(
         ...,
