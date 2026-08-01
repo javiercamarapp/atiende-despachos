@@ -3,17 +3,13 @@
 hub.py — IntegrationHub: Registro central de todos los adaptadores de integración.
 
 Permite registrar, obtener, listar y probar la conexión de todos los
-adaptadores del sistema (SAT, ERP, Bancos, Nómina).
+adaptadores del sistema (SAT, ERP, Bancos, Nómina, Pagos, Comunicación,
+Almacenamiento, CRM, Firmas, Google, Microsoft, Gobierno, Social, Calendario, Compliance).
 """
 from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional, Union
-
-from b2b_ai.integrations.sat.adapter import SATAdapter
-from b2b_ai.integrations.erp.adapter import ERPAdapter
-from b2b_ai.integrations.bancos.adapter import BankAdapter
-from b2b_ai.integrations.nomina.adapter import NominaAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -27,18 +23,25 @@ class IntegrationHubError(Exception):
         super().__init__(self.message)
 
 
-# Type alias for any adapter
-AnyAdapter = Union[SATAdapter, ERPAdapter, BankAdapter, NominaAdapter]
-
-
 class IntegrationHub:
     """Hub central de integraciones.
 
     Registra y gestiona todos los adaptadores del sistema:
-    - SAT (Ecodex, Finkok, SAT Portal)
-    - ERP (CONTPAQi, Aspel, QuickBooks, Xero)
-    - Bancos (BBVA, Banorte, Santander, OFX, CSV)
+    - SAT (Ecodex, Finkok, PACs: Corefi, Facturapi, PAXFACTURAS, Multifactura)
+    - ERP (CONTPAQi, Aspel, QuickBooks, Xero, Peak, etc.)
+    - Bancos (BBVA, Banorte, Santander, HSBC, Banamex, Scotiabank, Inbursa, Afirme)
     - Nómina (NominaService)
+    - Pagos (Stripe, Conekta, Kushki, MercadoPago, PayPal, OpenPay)
+    - Comunicación (SendGrid, Twilio, Mailgun, AWS SES, Vonage, MessageBird)
+    - Almacenamiento (Google Drive, OneDrive, S3, Dropbox, Box, GCS)
+    - CRM (HubSpot, Pipedrive, Salesforce, Zoho)
+    - Firmas (DocuSign, FIEL, Adobe Sign)
+    - Google (Sheets, Gmail, Calendar)
+    - Microsoft (Excel, Outlook, M365)
+    - Gobierno (IMSS, INFONAVIT, SAR, CONDUSEF)
+    - Social (LinkedIn, Facebook, Instagram)
+    - Calendario (Calendly)
+    - Compliance (CFF, LISR, LIVA, LFT, LFPDPPP, NOM-151)
 
     Uso:
         hub = IntegrationHub()
@@ -49,72 +52,41 @@ class IntegrationHub:
     """
 
     def __init__(self):
-        self._adapters: Dict[str, AnyAdapter] = {}
+        self._adapters: Dict[str, Any] = {}
         logger.info("IntegrationHub inicializado")
 
-    def register_adapter(self, name: str, adapter: AnyAdapter) -> None:
-        """Registra un adaptador en el hub.
-
-        Args:
-            name: Nombre único del adaptador.
-            adapter: Instancia del adaptador.
-
-        Raises:
-            IntegrationHubError: Si el nombre ya está registrado.
-        """
+    def register_adapter(self, name: str, adapter: Any) -> None:
+        """Registra un adaptador en el hub."""
         if name in self._adapters:
             raise IntegrationHubError(
                 f"El adaptador '{name}' ya está registrado. "
                 "Use unregister() primero o un nombre diferente.",
                 code="ADAPTER_ALREADY_REGISTERED",
             )
-
         self._adapters[name] = adapter
         adapter_type = type(adapter).__name__
         logger.info(f"Adaptador '{name}' registrado ({adapter_type})")
 
     def unregister_adapter(self, name: str) -> bool:
-        """Elimina un adaptador del hub.
-
-        Args:
-            name: Nombre del adaptador a eliminar.
-
-        Returns:
-            True si se eliminó, False si no existía.
-        """
+        """Elimina un adaptador del hub."""
         if name in self._adapters:
             del self._adapters[name]
             logger.info(f"Adaptador '{name}' eliminado del hub")
             return True
         return False
 
-    def get_adapter(self, name: str) -> AnyAdapter:
-        """Obtiene un adaptador por nombre.
-
-        Args:
-            name: Nombre del adaptador.
-
-        Returns:
-            Instancia del adaptador.
-
-        Raises:
-            IntegrationHubError: Si el adaptador no existe.
-        """
+    def get_adapter(self, name: str) -> Any:
+        """Obtiene un adaptador por nombre."""
         if name not in self._adapters:
             available = ", ".join(self._adapters.keys()) or "ninguno"
             raise IntegrationHubError(
-                f"Adaptador '{name}' no encontrado. "
-                f"Disponibles: {available}",
+                f"Adaptador '{name}' no encontrado. Disponibles: {available}",
                 code="ADAPTER_NOT_FOUND",
             )
         return self._adapters[name]
 
     def list_adapters(self) -> Dict[str, Dict[str, Any]]:
-        """Lista todos los adaptadores registrados.
-
-        Returns:
-            Dict con información de cada adaptador.
-        """
+        """Lista todos los adaptadores registrados."""
         result = {}
         for name, adapter in self._adapters.items():
             adapter_type = type(adapter).__name__
@@ -127,8 +99,19 @@ class IntegrationHub:
             }
         return result
 
-    def _get_category(self, adapter: AnyAdapter) -> str:
+    def _get_category(self, adapter: Any) -> str:
         """Determina la categoría de un adaptador."""
+        # Import here to avoid circular imports
+        from b2b_ai.integrations.sat.adapter import SATAdapter
+        from b2b_ai.integrations.erp.adapter import ERPAdapter
+        from b2b_ai.integrations.bancos.adapter import BankAdapter
+        from b2b_ai.integrations.nomina.adapter import NominaAdapter
+        from b2b_ai.integrations.pagos.adapter import PaymentAdapter
+        from b2b_ai.integrations.comunicacion.adapter import CommunicationAdapter
+        from b2b_ai.integrations.storage.adapter import StorageAdapter
+        from b2b_ai.integrations.crm.adapter import CRMAdapter
+        from b2b_ai.integrations.firmas.adapter import SignatureAdapter
+
         if isinstance(adapter, SATAdapter):
             return "sat"
         if isinstance(adapter, ERPAdapter):
@@ -137,17 +120,36 @@ class IntegrationHub:
             return "banco"
         if isinstance(adapter, NominaAdapter):
             return "nomina"
+        if isinstance(adapter, PaymentAdapter):
+            return "pagos"
+        if isinstance(adapter, CommunicationAdapter):
+            return "comunicacion"
+        if isinstance(adapter, StorageAdapter):
+            return "almacenamiento"
+        if isinstance(adapter, CRMAdapter):
+            return "crm"
+        if isinstance(adapter, SignatureAdapter):
+            return "firmas"
+
+        # Check by class name for non-ABC adapters
+        cls_name = type(adapter).__name__
+        if any(kw in cls_name for kw in ("Google", "Gmail", "Sheets", "Calendar")):
+            return "google"
+        if any(kw in cls_name for kw in ("Excel", "Outlook", "Microsoft", "M365")):
+            return "microsoft"
+        if any(kw in cls_name for kw in ("IMSS", "INFONAVIT", "SAR", "CONDUSEF")):
+            return "gobierno"
+        if any(kw in cls_name for kw in ("LinkedIn", "Facebook", "Instagram")):
+            return "social"
+        if "Calendly" in cls_name:
+            return "calendario"
+        if any(kw in cls_name for kw in ("CFF", "LISR", "LIVA", "LFT", "LFPDPPP", "NOM151")):
+            return "compliance"
+
         return "desconocido"
 
     def test_connection(self, name: str) -> Dict[str, Any]:
-        """Prueba la conexión de un adaptador específico.
-
-        Args:
-            name: Nombre del adaptador.
-
-        Returns:
-            Dict con el resultado de la prueba.
-        """
+        """Prueba la conexión de un adaptador específico."""
         try:
             adapter = self.get_adapter(name)
             if hasattr(adapter, "test_connection"):
@@ -166,11 +168,7 @@ class IntegrationHub:
             }
 
     def get_status(self) -> Dict[str, Any]:
-        """Obtiene el estado de todos los adaptadores registrados.
-
-        Returns:
-            Dict con el estado de cada adaptador y un resumen general.
-        """
+        """Obtiene el estado de todos los adaptadores registrados."""
         adapters_status = {}
         connected_count = 0
         error_count = 0
@@ -199,11 +197,7 @@ class IntegrationHub:
         }
 
     def connect_all(self) -> Dict[str, bool]:
-        """Intenta conectar todos los adaptadores registrados.
-
-        Returns:
-            Dict con el resultado de cada conexión.
-        """
+        """Intenta conectar todos los adaptadores registrados."""
         results = {}
         for name, adapter in self._adapters.items():
             try:
@@ -218,15 +212,8 @@ class IntegrationHub:
                 logger.error(f"Error conectando '{name}': {e}")
         return results
 
-    def get_adapters_by_category(self, category: str) -> Dict[str, AnyAdapter]:
-        """Obtiene adaptadores filtrados por categoría.
-
-        Args:
-            category: "sat", "erp", "banco", "nomina"
-
-        Returns:
-            Dict de adaptadores de la categoría.
-        """
+    def get_adapters_by_category(self, category: str) -> Dict[str, Any]:
+        """Obtiene adaptadores filtrados por categoría."""
         result = {}
         for name, adapter in self._adapters.items():
             if self._get_category(adapter) == category:

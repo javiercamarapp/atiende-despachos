@@ -63,7 +63,7 @@ class DropboxAdapter(StorageAdapter):
         if self._client:
             try:
                 resp = self._client.post("https://content.dropboxapi.com/2/files/download",
-                    headers={"Dropbox-API-Arg": f'{{"path": "{file_id}}"}}')
+                    headers={"Dropbox-API-Arg": f'{{"path": "{file_id}"}}'})
                 resp.raise_for_status(); return resp.content
             except Exception as e:
                 logger.error(f"DropboxAdapter: download failed: {e}"); raise
