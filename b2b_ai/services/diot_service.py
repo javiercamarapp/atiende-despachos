@@ -144,13 +144,18 @@ def parse_diot_file(xml_source: str | Path) -> List[DIOTOperation]:
     -------
     list of DIOTOperation
     """
-    if isinstance(xml_source, (str, Path)) and (
-        "/" in str(xml_source) or "\\" in str(xml_source) or str(xml_source).endswith(".xml")
-    ):
+    if isinstance(xml_source, Path):
         tree = ET.parse(str(xml_source))
         root = tree.getroot()
+    elif isinstance(xml_source, str):
+        stripped = xml_source.strip()
+        if stripped.startswith("<"):
+            root = ET.fromstring(stripped)
+        else:
+            tree = ET.parse(xml_source)
+            root = tree.getroot()
     else:
-        root = ET.fromstring(str(xml_source))
+        raise TypeError(f"Expected str or Path, got {type(xml_source)}")
 
     # Support both <Operacion> and <Registro> node names
     nodes = root.findall(".//Operacion")
@@ -232,6 +237,8 @@ def generate_summary(
 
     if not operations:
         summary.validation = validation
+        if validation and validation.declared_total_iva_trasladado is not None:
+            summary.declared_total_iva_trasladado = validation.declared_total_iva_trasladado
         return summary
 
     summary.total_operations = len(operations)

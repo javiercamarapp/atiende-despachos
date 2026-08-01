@@ -20,7 +20,6 @@ from b2b_ai.services.diot_validator import (
     ValidationError,
     parse_diot_xml,
     validate_diot_xml,
-    validate_iva_operation,
     validate_non_negative_float,
     validate_operation_xml,
     validate_positive_float,

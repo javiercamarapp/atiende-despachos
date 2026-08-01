@@ -292,13 +292,20 @@ def parse_diot_xml(xml_source: str | Path) -> ET.Element:
 
     Raises ``ET.ParseError`` if the XML is malformed.
     """
-    if isinstance(xml_source, (str, Path)) and (
-        "/" in str(xml_source) or "\\" in str(xml_source) or str(xml_source).endswith(".xml")
-    ):
+    if isinstance(xml_source, Path):
         tree = ET.parse(str(xml_source))
         return tree.getroot()
-    else:
-        return ET.fromstring(str(xml_source))
+
+    if isinstance(xml_source, str):
+        # If it looks like XML content (starts with '<'), parse as string
+        stripped = xml_source.strip()
+        if stripped.startswith("<"):
+            return ET.fromstring(stripped)
+        # Otherwise treat as a file path
+        tree = ET.parse(xml_source)
+        return tree.getroot()
+
+    raise TypeError(f"Expected str or Path, got {type(xml_source)}")
 
 
 def validate_diot_xml(xml_source: str | Path) -> DIOTValidationResult:
