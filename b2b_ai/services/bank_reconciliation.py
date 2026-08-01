@@ -414,15 +414,33 @@ class BankReconciliation:
                     f"coincide ({best_overlap:.0%})"))
         return out
 
+    # Límite superior de pares (factura × movimiento) para evitar N×M LLM
+    # calls en requests síncronos. Con 200 facturas × 150 movimientos serían
+    # 30,000 llamadas.  El token overlap (gratis) actúa como pre-filtro y
+    # solo los pares con señal ≥ 15% llegan al LLM.
+    MAX_AI_PAIRS = 500
+    TOKEN_PRE_FILTER_THRESHOLD = 0.15   # overlap mínimo para invocar LLM
+
     def _pass_ai(self, invoices, stmt) -> list:
         out = []
         used_tx = set()
+        pair_count = 0
         for inv in invoices:
             inv_desc = " ".join([_folio(inv), _emisor(inv),
                                  str(inv.get("descripcion") or "")])
             best, best_conf = None, 0.0
             for t in stmt:
                 if t["id"] in used_tx:
+                    continue
+                pair_count += 1
+                if pair_count > self.MAX_AI_PAIRS:
+                    break
+                # Pre-filtro por token overlap (gratis) — descarta pares sin
+                # relación textual antes de quemar un call al LLM.
+                tok_pre = _token_overlap(
+                    f"{t.get('descripcion', '')} {t.get('ref', '')}".strip(),
+                    inv_desc)
+                if tok_pre < self.TOKEN_PRE_FILTER_THRESHOLD:
                     continue
                 conf = self._ai_confidence(t, inv_desc)
                 if conf > best_conf:
@@ -433,23 +451,30 @@ class BankReconciliation:
                     inv, best, "ai", int(best_conf),
                     f"IA: descripción del banco coincide con la factura "
                     f"(confianza {int(best_conf)}%)"))
+            if pair_count > self.MAX_AI_PAIRS:
+                break
         return out
 
     def _ai_confidence(self, tx, inv_desc) -> float:
-        """Confianza AI de un cruce. Llama al LLM; fallback a tokens."""
+        """Confianza AI de un cruce. Primero intenta LLM; fallback a tokens.
+
+        Solo llama al LLM si el overlap de tokens ya tiene alguna señal;
+        evita quemar el presupuesto de LLM en pares sin relación textual.
+        """
         text = f"{tx['descripcion']} {tx['ref']}".strip()
         if not text:
             return 0.0
-        llm_conf = 0.0
-        try:
-            res = self.llm.classify_invoice(
-                {"descripcion": text, "emisor_nombre": inv_desc[:500]})
-            llm_conf = float(res.get("confianza", 0.0))   # 0-1
-        except Exception:  # noqa: BLE001 — el fallback de tokens manda
-            self.last_error = "ai_fallback_tokens"
-        # Combina la señal del LLM (si la dio) con el overlap determinístico
-        # de tokens; el fallback nunca deja sin señal a un texto claro.
+        # Overlap determinístico primero (gratis, siempre disponible)
         tok_conf = _token_overlap(tx["descripcion"], inv_desc) * 100
+        # Solo invoca LLM si los tokens ya dan algo (> 10%)
+        llm_conf = 0.0
+        if tok_conf > 10:
+            try:
+                res = self.llm.classify_invoice(
+                    {"descripcion": text, "emisor_nombre": inv_desc[:500]})
+                llm_conf = float(res.get("confianza", 0.0))   # 0-1
+            except Exception:  # noqa: BLE001 — el fallback de tokens manda
+                self.last_error = "ai_fallback_tokens"
         return max(0.0, min(100.0, max(llm_conf * 100, tok_conf)))
 
     def _apply_manual(self, matches) -> list:
