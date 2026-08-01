@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B&B AI — API Documentation</title>
+<style>
+/* ====== RESET & VARIABLES ====== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--bg2:#0f1525;--bg3:#141a2e;--bg4:#1a2140;
+  --card:#151c30;--card-hover:#1a2238;--card-border:#1e2a4a;
+  --line:#1e2a4a;--line-light:#2a3655;
+  --txt:#e8ecf4;--txt2:#c0c8dc;--mut:#7a85a0;--mut2:#565f7a;
+  --acc:#6c8cff;--acc2:#4a6bff;--acc-glow:rgba(108,140,255,0.15);
+  --ok:#34d399;--ok-bg:rgba(52,211,153,0.12);
+  --post:#6c8cff;--post-bg:rgba(108,140,255,0.12);
+  --put:#f59e0b;--put-bg:rgba(245,158,11,0.12);
+  --delete:#ef4444;--delete-bg:rgba(239,68,68,0.12);
+  --patch:#a78bfa;--patch-bg:rgba(167,139,250,0.12);
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+  --shadow:0 2px 12px rgba(0,0,0,0.3);
+  --sidebar-w:280px;--header-h:64px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:'SF Mono','Fira Code','Cascadia Code',Consolas,monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);line-height:1.6;overflow-x:hidden}
+
+/* ====== SCROLLBAR ====== */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--line-light);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--mut2)}
+
+/* ====== LAYOUT ====== */
+.layout{display:flex;min-height:100vh}
+
+/* ====== SIDEBAR ====== */
+.sidebar{
+  position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;
+  background:var(--bg2);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;z-index:100;
+  transition:transform .3s ease;
+}
+.sidebar-header{padding:20px 24px;border-bottom:1px solid var(--line)}
+.sidebar-logo{display:flex;align-items:center;gap:12px}
+.sidebar-logo .logo-icon{
+  width:40px;height:40px;border-radius:10px;
+  background:linear-gradient(135deg,var(--acc),#a78bfa);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:800;color:#fff;
+}
+.sidebar-logo h1{font-size:18px;font-weight:700;color:var(--txt)}
+.sidebar-logo .version{font-size:11px;color:var(--mut);font-weight:500;margin-top:2px}
+.sidebar-search{padding:16px 20px}
+.sidebar-search input{
+  width:100%;padding:10px 14px 10px 36px;border:1px solid var(--line);
+  border-radius:var(--radius-sm);background:var(--bg3);color:var(--txt);
+  font-size:13px;outline:none;transition:border-color .2s;
+}
+.sidebar-search input:focus{border-color:var(--acc)}
+.sidebar-search{position:relative}
+.sidebar-search::before{
+  content:'🔍';position:absolute;left:32px;top:50%;transform:translateY(-50%);
+  font-size:13px;pointer-events:none;
+}
+.sidebar-nav{flex:1;overflow-y:auto;padding:8px 12px 20px}
+.nav-group{margin-bottom:4px}
+.nav-group-title{
+  padding:10px 12px 6px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--mut);
+}
+.nav-link{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  border-radius:var(--radius-xs);color:var(--txt2);text-decoration:none;
+  font-size:13px;cursor:pointer;transition:all .15s;margin:1px 0;
+}
+.nav-link:hover,.nav-link.active{background:var(--bg4);color:var(--txt)}
+.nav-link .method-badge{
+  font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;
+  font-family:var(--mono);min-width:38px;text-align:center;
+}
+.nav-link .ep-path{font-family:var(--mono);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ====== MAIN CONTENT ====== */
+.main{margin-left:var(--sidebar-w);flex:1;min-width:0}
+.main-header{
+  position:sticky;top:0;z-index:50;height:var(--header-h);
+  background:rgba(10,14,26,0.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 40px;
+}
+.main-header h2{font-size:20px;font-weight:600}
+.main-header .right{display:flex;gap:12px;align-items:center}
+.btn{
+  padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;
+  font-weight:600;cursor:pointer;border:none;transition:all .2s;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn-primary{background:var(--acc);color:#fff}
+.btn-primary:hover{background:var(--acc2);box-shadow:0 0 20px var(--acc-glow)}
+.btn-outline{background:transparent;border:1px solid var(--line);color:var(--txt2)}
+.btn-outline:hover{border-color:var(--acc);color:var(--txt)}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:var(--radius-xs)}
+.content{padding:32px 40px 80px;max-width:1100px}
+
+/* ====== HERO ====== */
+.hero{
+  background:linear-gradient(135deg,var(--bg3),var(--bg2));
+  border:1px solid var(--line);border-radius:16px;
+  padding:40px;margin-bottom:36px;position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;top:-40%;right:-10%;
+  width:400px;height:400px;border-radius:50%;
+  background:radial-gradient(circle,rgba(108,140,255,0.08),transparent 70%);
+}
+.hero h1{font-size:32px;font-weight:800;margin-bottom:8px;position:relative}
+.hero p{color:var(--txt2);font-size:15px;max-width:600px;position:relative}
+.hero .stats{display:flex;gap:32px;margin-top:24px;position:relative}
+.hero .stat{text-align:center}
+.hero .stat-num{font-size:28px;font-weight:800;color:var(--acc)}
+.hero .stat-label{font-size:12px;color:var(--mut);margin-top:2px}
+
+/* ====== AUTH BOX ====== */
+.auth-box{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:28px;margin-bottom:32px;
+}
+.auth-box h3{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.auth-steps{display:grid;gap:16px}
+.auth-step{
+  display:flex;gap:14px;padding:16px;background:var(--bg3);
+  border-radius:var(--radius-sm);border:1px solid var(--line);
+}
+.auth-step .step-num{
+  width:28px;height:28px;border-radius:50%;background:var(--acc);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;flex-shrink:0;
+}
+.auth-step .step-content h4{font-size:14px;font-weight:600;margin-bottom:4px}
+.auth-step .step-content p{font-size:13px;color:var(--txt2)}
+
+/* ====== CODE BLOCKS ====== */
+.code-block{
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);
+  overflow:hidden;margin:12px 0;
+}
+.code-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 14px;background:var(--bg3);border-bottom:1px solid var(--line);
+}
+.code-header .label{font-size:11px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.code-header .copy-btn{
+  background:transparent;border:1px solid var(--line);color:var(--mut);
+  padding:4px 10px;border-radius:var(--radius-xs);font-size:11px;
+  cursor:pointer;transition:all .2s;
+}
+.code-header .copy-btn:hover{border-color:var(--acc);color:var(--acc)}
+.code-header .copy-btn.copied{border-color:var(--ok);color:var(--ok)}
+.code-body{
+  padding:14px 16px;font-family:var(--mono);font-size:12.5px;
+  line-height:1.7;overflow-x:auto;color:var(--txt2);white-space:pre;
+}
+.code-body .kw{color:#c678dd}
+.code-body .str{color:#98c379}
+.code-body .cmt{color:#5c6370;font-style:italic}
+.code-body .url{color:#61afef}
+.code-body .hdr{color:#e5c07b}
+
+/* ====== TAG SECTION ====== */
+.tag-section{margin-bottom:36px}
+.tag-header{
+  display:flex;align-items:center;gap:12px;padding:12px 0;
+  border-bottom:2px solid var(--line);margin-bottom:20px;cursor:pointer;
+  user-select:none;
+}
+.tag-header h2{font-size:22px;font-weight:700;flex:1}
+.tag-count{
+  background:var(--bg4);color:var(--mut);padding:4px 12px;
+  border-radius:20px;font-size:12px;font-weight:600;
+}
+.tag-toggle{color:var(--mut);font-size:18px;transition:transform .3s}
+.tag-header.collapsed .tag-toggle{transform:rotate(-90deg)}
+.tag-desc{color:var(--txt2);font-size:13px;margin-bottom:16px;padding:0 2px}
+
+/* ====== ENDPOINT CARD ====== */
+.endpoint{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  margin-bottom:16px;overflow:hidden;transition:border-color .2s;
+}
+.endpoint:hover{border-color:var(--line-light)}
+.endpoint-header{
+  display:flex;align-items:center;gap:12px;padding:16px 20px;
+  cursor:pointer;user-select:none;
+}
+.method{
+  font-family:var(--mono);font-size:12px;font-weight:800;
+  padding:4px 10px;border-radius:var(--radius-xs);min-width:64px;text-align:center;
+  text-transform:uppercase;letter-spacing:.02em;
+}
+.method-get{background:var(--ok-bg);color:var(--ok)}
+.method-post{background:var(--post-bg);color:var(--post)}
+.method-put{background:var(--put-bg);color:var(--put)}
+.method-delete{background:var(--delete-bg);color:var(--delete)}
+.method-patch{background:var(--patch-bg);color:var(--patch)}
+.ep-path-main{font-family:var(--mono);font-size:14px;font-weight:600;flex:1}
+.ep-summary{color:var(--txt2);font-size:13px}
+.ep-badge{
+  font-size:10px;padding:3px 8px;border-radius:12px;font-weight:700;
+  white-space:nowrap;
+}
+.ep-badge.auth{background:var(--put-bg);color:var(--put)}
+.ep-badge.public{background:var(--ok-bg);color:var(--ok)}
+.endpoint-arrow{color:var(--mut);font-size:14px;transition:transform .3s}
+.endpoint.open .endpoint-arrow{transform:rotate(90deg)}
+.endpoint-body{display:none;padding:0 20px 20px;border-top:1px solid var(--line)}
+.endpoint.open .endpoint-body{display:block}
+.endpoint-body section{margin-top:16px}
+.endpoint-body section h4{font-size:13px;font-weight:700;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+
+/* ====== PARAMS TABLE ====== */
+.params-table{width:100%;border-collapse:collapse;font-size:13px}
+.params-table th{
+  text-align:left;padding:8px 12px;color:var(--mut);font-weight:600;
+  border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.params-table td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.params-table tr:last-child td{border-bottom:none}
+.params-table .pname{font-family:var(--mono);font-weight:600;color:var(--acc);font-size:12px}
+.params-table .ptype{font-family:var(--mono);font-size:11px;color:var(--mut);margin-left:8px}
+.params-table .prequired{color:var(--delete);font-size:10px;font-weight:700;margin-left:6px}
+
+/* ====== SCHEMA BLOCK ====== */
+.schema-block{
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:14px 16px;font-family:var(--mono);font-size:12px;
+  line-height:1.8;color:var(--txt2);overflow-x:auto;
+}
+
+/* ====== RESPONSE TABLE ====== */
+.resp-table{width:100%;border-collapse:collapse;font-size:13px}
+.resp-table th{
+  text-align:left;padding:8px 12px;color:var(--mut);font-weight:600;
+  border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;
+}
+.resp-table td{padding:8px 12px;border-bottom:1px solid var(--line)}
+.resp-code{font-family:var(--mono);font-weight:700}
+.resp-2xx{color:var(--ok)}
+.resp-4xx{color:var(--put)}
+.resp-5xx{color:var(--delete)}
+
+/* ====== MOBILE HAMBURGER ====== */
+.hamburger{
+  display:none;background:transparent;border:none;color:var(--txt);
+  font-size:24px;cursor:pointer;padding:4px;
+}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99}
+
+/* ====== RESPONSIVE ====== */
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.open{display:block}
+  .main{margin-left:0}
+  .hamburger{display:block}
+  .content{padding:24px 20px 60px}
+  .main-header{padding:0 20px}
+  .hero{padding:28px 20px}
+  .hero h1{font-size:24px}
+  .hero .stats{gap:20px;flex-wrap:wrap}
+  .endpoint-header{flex-wrap:wrap}
+  .ep-summary{width:100%;margin-top:4px}
+}
+
+/* ====== ANIMATIONS ====== */
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.endpoint{animation:fadeIn .3s ease}
+.tag-section.hidden{display:none}
+.endpoint.hidden{display:none}
+.highlight{background:rgba(108,140,255,0.1);border-color:var(--acc) !important}
+
+/* ====== PRINT ====== */
+@media print{
+  .sidebar,.main-header,.hamburger,.copy-btn{display:none !important}
+  .main{margin-left:0 !important}
+  .endpoint-body{display:block !important}
+  body{background:#fff;color:#111}
+  .endpoint{border-color:#ddd;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ====== SIDEBAR ====== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="logo-icon">B&B</div>
+      <div>
+        <h1>B&B AI</h1>
+        <div class="version">Enterprise API v2</div>
+      </div>
+    </div>
+  </div>
+  <div class="sidebar-search">
+    <input type="text" id="search" placeholder="Search endpoints..." autocomplete="off">
+  </div>
+  <nav class="sidebar-nav" id="sidebar-nav"></nav>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- ====== MAIN ====== -->
+<div class="main">
+  <header class="main-header">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="hamburger" onclick="toggleSidebar()">☰</button>
+      <h2>API Documentation</h2>
+    </div>
+    <div class="right">
+      <a href="/openapi.json" class="btn btn-outline btn-sm" target="_blank">{ } OpenAPI</a>
+      <a href="/docs" class="btn btn-outline btn-sm" target="_blank">Swagger UI</a>
+    </div>
+  </header>
+
+  <div class="content">
+    <!-- HERO -->
+    <div class="hero">
+      <h1>B&B AI Enterprise API</h1>
+      <p>Agente contable IA para despachos contables mexicanos. Procesamiento de CFDI, conciliación bancaria, contabilidad electrónica, nómina, cobranza y más.</p>
+      <div class="stats">
+        <div class="stat"><div class="stat-num" id="total-endpoints">0</div><div class="stat-label">Endpoints</div></div>
+        <div class="stat"><div class="stat-num" id="total-tags">0</div><div class="stat-label">Modules</div></div>
+        <div class="stat"><div class="stat-num">v2</div><div class="stat-label">API Version</div></div>
+        <div class="stat"><div class="stat-num">OpenAPI</div><div class="stat-label">Spec</div></div>
+      </div>
+    </div>
+
+    <!-- AUTH -->
+    <div class="auth-box">
+      <h3>🔐 Authentication</h3>
+      <div class="auth-steps">
+        <div class="auth-step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h4>Get your API Key</h4>
+            <p>Contact <strong>ventas@b2b-ai.local</strong> to obtain an API key. Keys are scoped to a tenant for multi-tenant isolation.</p>
+          </div>
+        </div>
+        <div class="auth-step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h4>Include the X-API-Key header</h4>
+            <p>Send your API key in the <code>X-API-Key</code> header with every request to <code>/api/v1/*</code> endpoints.</p>
+          </div>
+        </div>
+        <div class="auth-step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h4>JWT Auth (Enterprise)</h4>
+            <p>For user-level access, use <code>/api/v1/auth/login</code> to get JWT tokens. Send as <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+          </div>
+        </div>
+      </div>
+      <div class="code-block" style="margin-top:16px">
+        <div class="code-header">
+          <span class="label">cURL Example</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code-body"><span class="cmt"># API Key Authentication</span>
+curl -H <span class="str">"X-API-Key: YOUR_API_KEY"</span> \
+     <span class="url">https://api.b2b-ai.local/api/v1/stats</span>
+
+<span class="cmt"># JWT Authentication (after login)</span>
+curl -H <span class="str">"Authorization: Bearer YOUR_JWT_TOKEN"</span> \
+     <span class="url">https://api.b2b-ai.local/api/v1/auth/me</span></div>
+      </div>
+    </div>
+
+    <!-- ENDPOINTS CONTAINER -->
+    <div id="endpoints-container"></div>
+  </div>
+</div>
+</div>
+
+<script>
+// ====== API ENDPOINTS DATA ======
+const API = {
+  "Health & System": {
+    desc: "System health checks, metrics, and monitoring endpoints.",
+    endpoints: [
+      {method:"GET",path:"/health",summary:"Health check — service status, version, DB info, uptime.",auth:false,
+       params:[],
+       response:`{
+  "status": "ok",
+  "service": "b2b-ai",
+  "version": "2.x.x",
+  "backend": "sqlite",
+  "db_path": "...",
+  "schema_version": 1,
+  "invoices": 42,
+  "tenants": 3,
+  "uptime_seconds": 86400,
+  "total_requests": 12500
+}`},
+      {method:"GET",path:"/health/detailed",summary:"Detailed health: DB, Redis, disk, memory, uptime.",auth:false,
+       params:[],
+       response:`{
+  "status": "ok|degraded",
+  "components": { ... },
+  "degraded_components": []
+}`},
+      {method:"GET",path:"/metrics",summary:"Operational metrics: request count, latency per route, status codes.",auth:false,
+       params:[],
+       response:`{
+  "uptime_seconds": 86400,
+  "total_requests": 12500,
+  "routes": { "/api/v1/stats": { "count": 120, "avg_ms": 15.2 } }
+}`},
+      {method:"GET",path:"/metrics/prometheus",summary:"Prometheus text exposition format for scraping.",auth:false,
+       params:[],
+       response:`# HELP b2b_http_requests_total Total HTTP requests
+# TYPE b2b_http_requests_total counter
+b2b_http_requests_total{path="/api/v1/stats",status="200"} 120`},
+    ]
+  },
+  "Invoices": {
+    desc: "CFDI processing pipeline — upload, validate, classify, and store electronic invoices.",
+    endpoints: [
+      {method:"POST",path:"/api/v1/invoices/process",summary:"Process a CFDI (XML) through the full pipeline.",auth:true,
+       body:{type:"multipart/form-data",fields:[
+         {name:"xml_file",type:"file",required:true,desc:"CFDI XML file (.xml or .pdf)"},
+       ],alt:"JSON body with xml_path or folder"},
+       params:[],
+       response:`{
+  "result": {
+    "archivo": "factura_001.xml",
+    "valido": true,
+    "requires_human_review": false,
+    "categoria": "gasto_operacion",
+    "confianza": 0.95,
+    "erp_poliza": "P-2026-001",
+    "erp_status": "created",
+    "insertado": true,
+    "total": "15000.00",
+    "emisor": "EMP820101AB1",
+    "notificacion": "sent"
+  }
+}`},
+      {method:"GET",path:"/api/v1/invoices",summary:"List invoices with filters (tenant, category, validity, date range).",auth:true,
+       params:[
+         {name:"tenant_id",type:"int",required:false,desc:"Filter by tenant ID (service key only)"},
+         {name:"categoria",type:"string",required:false,desc:"Filter by category (e.g., gasto_operacion)"},
+         {name:"valido",type:"bool",required:false,desc:"Filter by validity (true/false)"},
+         {name:"fecha_desde",type:"string",required:false,desc:"Start date (YYYY-MM-DD)"},
+         {name:"fecha_hasta",type:"string",required:false,desc:"End date (YYYY-MM-DD)"},
+         {name:"limit",type:"int",required:false,desc:"Max results (1-1000, default: 100)"},
+       ],
+       response:`{
+  "count": 42,
+  "tenant_id": 1,
+  "invoices": [
+    {
+      "id": 1,
+      "folio_fiscal": "a1b2c3d4-...",
+      "emisor_rfc": "EMP820101AB1",
+      "total": "15000.00",
+      "fecha": "2026-01-15",
+      "categoria": "gasto_operacion",
+      "valido": true
+    }
+  ]
+}`},
+      {method:"GET",path:"/api/v1/invoices/{invoice_id}",summary:"Get invoice detail by ID.",auth:true,
+       params:[{name:"invoice_id",type:"int",required:true,desc:"Invoice ID"}],
+       response:`{
+  "invoice": {
+    "id": 1,
+    "folio_fiscal": "a1b2c3d4-...",
+    "emisor_rfc": "EMP820101AB1",
+    "emisor_nombre": "Proveedor SA de CV",
+    "total": "15000.00",
+    "subtotal": "12931.03",
+    "iva": "2068.97",
+    "fecha": "2026-01-15",
+    "valido": true,
+    "categoria": "gasto_operacion"
+  }
+}`},
+      {method:"POST",path:"/api/v1/leads",summary:"Create a lead from the landing page (public, no auth).",auth:false,
+       body:{type:"application/json",schema:`{
+  "nombre": "Juan Pérez",
+  "email": "juan@despacho.mx",
+  "despacho": "Despacho Contable XYZ",
+  "facturas": "500-1000",
+  "mensaje": "Interesados en automación"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "lead_id": 1,
+  "message": "Lead registrado. Te contactamos en menos de 24h."
+}`},
+    ]
+  },
+  "Stats": {
+    desc: "Aggregated metrics and reporting data across all invoices and tenants.",
+    endpoints: [
+      {method:"GET",path:"/api/v1/stats",summary:"Aggregated metrics: totals, by category, tenants, tools.",auth:true,
+       params:[],
+       response:`{
+  "total": 42,
+  "validas": 40,
+  "invalidas": 2,
+  "monto_total": "630000.00",
+  "iva_total": "100800.00",
+  "tenants": [{ "id": 1, "name": "Despacho Demo" }],
+  "audit_calls": 128,
+  "notifications": 5,
+  "tools_registered": ["cfdi_parser", "reconciler", ...]
+}`},
+    ]
+  },
+  "Reconcile": {
+    desc: "Bank reconciliation — match invoices against bank transactions with confidence scoring.",
+    endpoints: [
+      {method:"POST",path:"/api/v1/reconcile/run",summary:"Execute bank reconciliation (match invoices vs. bank transactions).",auth:true,
+       body:{type:"application/json",schema:`{
+  "invoices": [
+    { "folio_fiscal": "abc-123", "fecha": "2026-01-15", "total": 15000 }
+  ],
+  "bank_transactions": [
+    { "fecha": "2026-01-15", "monto": 15000, "ref": "SPEI-001" }
+  ],
+  "date_tolerance_days": 3
+}`},
+       params:[],
+       response:`{
+  "conciliados": 1,
+  "pendientes_banco": 0,
+  "pendientes_facturas": 0,
+  "tasa_conciliacion": 100,
+  "matched": [
+    { "folio_fiscal": "abc-123", "monto": 15000, "via": "monto+fecha" }
+  ]
+}`},
+      {method:"POST",path:"/api/v1/reconciliation/upload",summary:"Upload bank statement (CSV/PDF) and load transactions.",auth:true,
+       body:{type:"multipart/form-data",fields:[
+         {name:"file",type:"file",required:true,desc:"Bank statement file (CSV or PDF)"},
+         {name:"bank",type:"string",required:false,desc:"Bank name: bbva, banorte, santander, hsbc, generico (default)"},
+       ]},
+       params:[],
+       response:`{
+  "ok": true,
+  "banco": "bbva",
+  "filename": "estado_cuenta_jul.csv",
+  "movimientos": 25
+}`},
+      {method:"GET",path:"/api/v1/reconciliation/matches",summary:"Auto-matched transactions with confidence scores.",auth:true,
+       params:[{name:"refresh",type:"bool",required:false,desc:"Recalculate matches (default: true)"}],
+       response:`{
+  "matches": [
+    { "transaction_id": "TXN-001", "invoice_id": "INV-001", "confidence": 95, "method": "auto" }
+  ]
+}`},
+      {method:"POST",path:"/api/v1/reconciliation/confirm",summary:"Manually confirm a transaction-invoice match.",auth:true,
+       body:{type:"application/json",schema:`{
+  "transaction_id": "TXN-001",
+  "invoice_id": "INV-001"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "match": { "method": "manual", "confidence": 100 }
+}`},
+      {method:"GET",path:"/api/v1/reconciliation/report",summary:"Reconciliation report for the current session.",auth:true,
+       params:[],
+       response:`{
+  "ok": true,
+  "conciliados": 18,
+  "pendientes_banco": 3,
+  "pendientes_facturas": 2,
+  "tasa_conciliacion": 78.3
+}`},
+    ]
+  },
+  "Accounting": {
+    desc: "Chart of accounts, trial balance, and SAT submission (mock).",
+    endpoints: [
+      {method:"GET",path:"/api/v1/accounting/catalog",summary:"Chart of accounts (CUC) — SAT catalog.",auth:true,
+       params:[],
+       response:`{
+  "count": 45,
+  "catalogo": [
+    { "codigo": "1000", "descripcion": "Caja", "nivel": 1, "naturaleza": "deudora" }
+  ]
+}`},
+      {method:"GET",path:"/api/v1/accounting/balance",summary:"Trial balance from invoices in the database.",auth:true,
+       params:[{name:"periodo",type:"string",required:false,desc:"Period (YYYY-MM)"}],
+       response:`{
+  "periodo": "2026-01",
+  "lineas": [
+    { "cuenta": "1000", "debe": "50000", "haber": "30000", "saldo": "20000" }
+  ],
+  "cuadrada": true
+}`},
+      {method:"POST",path:"/api/v1/accounting/sat/send",summary:"Send trial balance to SAT (MOCK mode).",auth:true,
+       params:[
+         {name:"ejercicio",type:"int",required:true,desc:"Tax year (e.g., 2026)"},
+         {name:"mes",type:"int",required:true,desc:"Month (1-12)"},
+         {name:"rfc",type:"string",required:false,desc:"RFC (defaults to tenant config)"},
+         {name:"periodo",type:"string",required:false,desc:"Period (YYYY-MM)"},
+       ],
+       response:`{
+  "ok": true,
+  "acuse": "MOCK-ACUSE-001",
+  "fecha_presentacion": "2026-01-31",
+  "ejercicio": 2026,
+  "mes": 1
+}`},
+    ]
+  },
+  "Contabilidad": {
+    desc: "Electronic accounting — chart of accounts, journal entries, trial balance, and SAT electronic package.",
+    endpoints: [
+      {method:"POST",path:"/api/v1/contabilidad/catalogo",summary:"Import/create the SAT chart of accounts for the tenant.",auth:true,
+       body:{type:"application/json",schema:`{
+  "rfc": "EMP820101AB1",
+  "cuentas": [
+    { "codigo": "1000", "descripcion": "Caja", "nivel": 1, "naturaleza": "D" }
+  ]
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "importadas": 45,
+  "rfc": "EMP820101AB1",
+  "catalogo": [...]
+}`},
+      {method:"GET",path:"/api/v1/contabilidad/catalogo",summary:"List tenant's chart of accounts.",auth:true,
+       params:[],
+       response:`{
+  "count": 45,
+  "catalogo": [...],
+  "fuente": "db"
+}`},
+      {method:"POST",path:"/api/v1/contabilidad/asientos",summary:"Register a journal entry.",auth:true,
+       body:{type:"application/json",schema:`{
+  "fecha": "2026-01-15",
+  "cuenta_debito": "1000",
+  "cuenta_credito": "2000",
+  "monto": "15000.00",
+  "descripcion": "Pago a proveedor",
+  "factura_id": ""
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "asiento_id": 1
+}`},
+      {method:"POST",path:"/api/v1/contabilidad/balanza/{periodo}",summary:"Generate trial balance for a period.",auth:true,
+       params:[{name:"periodo",type:"string",required:true,desc:"Period (YYYY-MM)"}],
+       response:`{
+  "periodo": "2026-01",
+  "cuadrada": true,
+  "total_debe": "500000.00",
+  "total_haber": "500000.00",
+  "lineas": [...]
+}`},
+      {method:"GET",path:"/api/v1/contabilidad/balanza/{periodo}",summary:"Download trial balance XML (SAT format).",auth:true,
+       params:[
+         {name:"periodo",type:"string",required:true,desc:"Period (YYYY-MM)"},
+         {name:"rfc",type:"string",required:false,desc:"RFC"},
+       ],
+       response:`<xml>BalanzaComprobacion ...</xml>`},
+      {method:"POST",path:"/api/v1/contabilidad/electronica/{periodo}",summary:"Generate electronic accounting package for the month.",auth:true,
+       body:{type:"application/json",schema:`{
+  "rfc": "EMP820101AB1",
+  "razon_social": "Empresa SA de CV",
+  "ejercicio": 2026,
+  "mes": 1
+}`},
+       params:[{name:"periodo",type:"string",required:true,desc:"Period (YYYY-MM)"}],
+       response:`{
+  "periodo": "2026-01",
+  "estado": "borrador",
+  "catalogo": { "cuentas": 45, "sha1": "abc123..." },
+  "balanza": { "cuadrada": true, "sha1": "def456..." },
+  "generado_en": "2026-01-31T23:59:59Z"
+}`},
+      {method:"GET",path:"/api/v1/contabilidad/electronica/{periodo}/download",summary:"Download XML ready for SAT (catalog + balance).",auth:true,
+       params:[
+         {name:"periodo",type:"string",required:true,desc:"Period (YYYY-MM)"},
+         {name:"rfc",type:"string",required:false,desc:"RFC"},
+       ],
+       response:`<!-- Contabilidad electrónica SAT — paquete 2026-01 -->
+<xml>...</xml>`},
+    ]
+  },
+  "Contabilidad Electrónica": {
+    desc: "Workflow for electronic accounting packages — generate, hash, transition states, and get summaries.",
+    endpoints: [
+      {method:"POST",path:"/contabilidad/electronica/package",summary:"Generate electronic accounting package with asientos.",auth:false,
+       body:{type:"application/json",schema:`{
+  "rfc": "EMP820101AB1",
+  "razon_social": "Empresa SA de CV",
+  "ejercicio": 2026,
+  "mes": 1,
+  "asientos": [
+    { "cuenta": "1000", "debe": "5000", "haber": "0", "fecha": "2026-01-15" }
+  ]
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "package_id": "a1b2c3d4e5f6",
+  "periodo": "2026-01",
+  "estado": "borrador",
+  "catalogo_cuentas": 45,
+  "catalogo_sha1": "abc123...",
+  "balanza_cuadrada": true,
+  "balanza_sha1": "def456..."
+}`},
+      {method:"POST",path:"/contabilidad/electronica/hash",summary:"Calculate SHA-1 hash (SAT requirement).",auth:false,
+       body:{type:"application/json",schema:`{
+  "content": "<xml>Balanza ...</xml>"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "sha1": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+  "length": 1234
+}`},
+      {method:"GET",path:"/contabilidad/electronica/status/{package_id}",summary:"Get package status.",auth:false,
+       params:[{name:"package_id",type:"string",required:true,desc:"Package ID"}],
+       response:`{
+  "ok": true,
+  "package_id": "a1b2c3d4e5f6",
+  "estado": "borrador",
+  "periodo": "2026-01"
+}`},
+      {method:"POST",path:"/contabilidad/electronica/transition",summary:"Transition package state (borrador → listo_para_timbrar → timbrado → enviado).",auth:false,
+       body:{type:"application/json",schema:`{
+  "package_id": "a1b2c3d4e5f6",
+  "target_state": "listo_para_timbrar"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "package_id": "a1b2c3d4e5f6",
+  "estado_anterior": "borrador",
+  "estado_nuevo": "listo_para_timbrar"
+}`},
+      {method:"GET",path:"/contabilidad/electronica/summary/{package_id}",summary:"Monthly summary of electronic accounting.",auth:false,
+       params:[{name:"package_id",type:"string",required:true,desc:"Package ID"}],
+       response:`{
+  "ok": true,
+  "summary": {
+    "total_debe": "500000.00",
+    "total_haber": "500000.00",
+    "cuentas": 45,
+    "cuadra": true
+  }
+}`},
+    ]
+  },
+  "Payroll": {
+    desc: "Payroll calculation — ISR, IMSS, INFONAVIT deductions and optional CFDI generation.",
+    endpoints: [
+      {method:"POST",path:"/api/v1/payroll/calculate",summary:"Calculate payroll (ISR, IMSS, INFONAVIT) and optionally generate CFDI.",auth:true,
+       body:{type:"application/json",schema:`{
+  "empleado": {
+    "nombre": "Juan Pérez",
+    "rfc": "PEPJ850101AB1",
+    "curp": "PEPJ850101HDFRRV01",
+    "salario_diario": 800,
+    "salario_integrado": 1100
+  },
+  "emisor": {
+    "rfc": "DESP820101AB1",
+    "nombre": "Despacho Contable B&B",
+    "regimen_fiscal": "601"
+  },
+  "periodo": {
+    "sueldo_bruto": 16000,
+    "dias_pagados": 20
+  },
+  "generar_cfdi": false
+}`},
+       params:[],
+       response:`{
+  "sueldo_bruto": 16000,
+  "isr": 1820.50,
+  "imss": 450.00,
+  "infonavit": 640.00,
+  "neto": 13089.50,
+  "cfdi_xml": null
+}`},
+    ]
+  },
+  "Collections": {
+    desc: "Automated collections — aging analysis, collectability scoring, and reminder generation.",
+    endpoints: [
+      {method:"POST",path:"/api/v1/collections/analyze",summary:"Analyze outstanding invoices — classify by aging and calculate score.",auth:true,
+       body:{type:"application/json",schema:`{
+  "invoices": [
+    { "factura_id": "INV-001", "monto": 50000, "fecha_vencimiento": "2026-01-15" }
+  ],
+  "sync": false
+}`},
+       params:[],
+       response:`{
+  "analizadas": 10,
+  "por_bucket": {
+    "0-30": { "count": 4, "monto": 80000 },
+    "31-60": { "count": 3, "monto": 45000 },
+    "61-90": { "count": 2, "monto": 30000 },
+    "90+": { "count": 1, "monto": 15000 }
+  },
+  "sync": false
+}`},
+      {method:"POST",path:"/api/v1/collections/send-reminder",summary:"Generate and optionally record a collection reminder.",auth:true,
+       body:{type:"application/json",schema:`{
+  "invoice": { "factura_id": "INV-001", "monto": 50000 },
+  "stage": "first_reminder",
+  "channel": "email",
+  "record": true
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "message": "Estimado cliente, le recordamos que su factura...",
+  "stage": "first_reminder",
+  "recorded": true
+}`},
+      {method:"GET",path:"/api/v1/collections/aging",summary:"Aging report for persisted outstanding invoices.",auth:true,
+       params:[],
+       response:`{
+  "buckets": {
+    "0-30": { "count": 4, "monto": 80000 },
+    "31-60": { "count": 3, "monto": 45000 },
+    "61-90": { "count": 2, "monto": 30000 },
+    "90+": { "count": 1, "monto": 15000 }
+  },
+  "total": 170000
+}`},
+      {method:"GET",path:"/api/v1/collections/score/{invoice_id}",summary:"Collectability score for an outstanding invoice.",auth:true,
+       params:[{name:"invoice_id",type:"string",required:true,desc:"Invoice ID"}],
+       response:`{
+  "factura_id": "INV-001",
+  "monto": 50000,
+  "fecha_vencimiento": "2026-01-15",
+  "dias_vencido": 45,
+  "score": 0.72,
+  "historial": [...]
+}`},
+    ]
+  },
+  "Billing": {
+    desc: "Payment processing — checkout, subscriptions, invoices, and webhook handling (Stripe/Conekta).",
+    endpoints: [
+      {method:"POST",path:"/api/v1/billing/checkout",summary:"Initiate checkout and process payment.",auth:true,
+       body:{type:"application/json",schema:`{
+  "plan": "profesional",
+  "email": "admin@despacho.mx",
+  "name": "Despacho Contable XYZ",
+  "currency": "MXN",
+  "payment_method_type": "card"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "checkout_id": 1,
+  "plan": { "key": "profesional", "price_mxn": 2999 },
+  "payment": { "status": "succeeded", "reference": "pi_xxx" },
+  "tenant_id": 1
+}`},
+      {method:"POST",path:"/api/v1/billing/subscription",summary:"Create or activate a subscription to a plan.",auth:true,
+       body:{type:"application/json",schema:`{
+  "plan": "enterprise",
+  "email": "admin@despacho.mx",
+  "name": "Despacho Contable XYZ",
+  "payment_method_id": "pm_xxx"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "subscription_id": 1,
+  "plan": { "key": "enterprise", "price_mxn": 9999 },
+  "status": "active",
+  "provider_subscription_id": "sub_xxx"
+}`},
+      {method:"GET",path:"/api/v1/billing/invoices",summary:"List billing invoices for the tenant.",auth:true,
+       params:[{name:"limit",type:"int",required:false,desc:"Max results (default: 100)"}],
+       response:`{
+  "count": 5,
+  "invoices": [
+    { "id": 1, "amount": 2999, "currency": "MXN", "status": "paid" }
+  ]
+}`},
+      {method:"GET",path:"/api/v1/billing/plans",summary:"List available plans and pricing.",auth:true,
+       params:[],
+       response:`{
+  "plans": [
+    { "key": "basico", "name": "Básico", "price_mxn": 999 },
+    { "key": "profesional", "name": "Profesional", "price_mxn": 2999 },
+    { "key": "enterprise", "name": "Enterprise", "price_mxn": 0 }
+  ]
+}`},
+      {method:"POST",path:"/api/v1/billing/webhook",summary:"Receive webhook events from payment provider.",auth:true,
+       body:{type:"application/json",schema:`{
+  "provider": "stripe",
+  "event_type": "payment_intent.succeeded",
+  "data": { "object": { "id": "pi_xxx", "status": "succeeded" } }
+}`},
+       params:[],
+       response:`{
+  "received": true,
+  "result": { "mark_paid": true, "invoice_id": "1" }
+}`},
+    ]
+  },
+  "Auth": {
+    desc: "Enterprise authentication — JWT login, user management, and RBAC (Role-Based Access Control).",
+    endpoints: [
+      {method:"POST",path:"/api/v1/auth/register",summary:"Register a new user (bootstrap or admin).",auth:false,
+       body:{type:"application/json",schema:`{
+  "email": "admin@despacho.mx",
+  "password": "SecureP@ss123",
+  "tenant_id": 1,
+  "role": "admin",
+  "name": "Admin User"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "user": { "id": 1, "email": "admin@despacho.mx", "role": "admin" }
+}`},
+      {method:"POST",path:"/api/v1/auth/login",summary:"Login with email + password → JWT tokens.",auth:false,
+       body:{type:"application/json",schema:`{
+  "email": "admin@despacho.mx",
+  "password": "SecureP@ss123",
+  "tenant_id": 1
+}`},
+       params:[],
+       response:`{
+  "user": { "id": 1, "email": "admin@despacho.mx", "role": "admin" },
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+  "tenant_id": 1
+}`},
+      {method:"POST",path:"/api/v1/auth/refresh",summary:"Refresh session with a refresh token.",auth:false,
+       body:{type:"application/json",schema:`{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
+}`},
+       params:[],
+       response:`{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
+}`},
+      {method:"GET",path:"/api/v1/auth/me",summary:"Get authenticated user info.",auth:true,jwt:true,
+       params:[],
+       response:`{
+  "user": { "id": 1, "email": "admin@despacho.mx" },
+  "tenant_id": 1,
+  "role": "admin"
+}`},
+      {method:"PUT",path:"/api/v1/auth/me",summary:"Update own profile.",auth:true,jwt:true,
+       body:{type:"application/json",schema:`{
+  "name": "New Name",
+  "email": "new@despacho.mx"
+}`},
+       params:[],
+       response:`{
+  "user": { "id": 1, "name": "New Name", "email": "new@despacho.mx" }
+}`},
+      {method:"GET",path:"/api/v1/tenants/{tenant_id}/users",summary:"List users in a tenant (admin only).",auth:true,jwt:true,
+       params:[{name:"tenant_id",type:"int",required:true,desc:"Tenant ID"}],
+       response:`{
+  "tenant_id": 1,
+  "count": 3,
+  "users": [
+    { "id": 1, "email": "admin@despacho.mx", "role": "admin" }
+  ]
+}`},
+      {method:"POST",path:"/api/v1/tenants/{tenant_id}/users",summary:"Create a user in the tenant (admin only).",auth:true,jwt:true,
+       params:[{name:"tenant_id",type:"int",required:true,desc:"Tenant ID"}],
+       body:{type:"application/json",schema:`{
+  "email": "contador@despacho.mx",
+  "password": "SecureP@ss123",
+  "name": "María López",
+  "role": "contador"
+}`},
+       response:`{
+  "ok": true,
+  "user": { "id": 2, "email": "contador@despacho.mx", "role": "contador" }
+}`},
+      {method:"PUT",path:"/api/v1/tenants/{tenant_id}/users/{user_id}/role",summary:"Change user role (admin only).",auth:true,jwt:true,
+       params:[
+         {name:"tenant_id",type:"int",required:true,desc:"Tenant ID"},
+         {name:"user_id",type:"int",required:true,desc:"User ID"},
+       ],
+       body:{type:"application/json",schema:`{
+  "role": "admin"
+}`},
+       response:`{
+  "ok": true,
+  "user": { "id": 2, "role": "admin" }
+}`},
+    ]
+  },
+  "Tenants": {
+    desc: "Multi-tenant onboarding — create new client tenants with configuration.",
+    endpoints: [
+      {method:"POST",path:"/api/v1/tenants",summary:"Onboard a new tenant (create client + config + API key).",auth:true,
+       body:{type:"application/json",schema:`{
+  "name": "Despacho Contable XYZ",
+  "rfc": "EMP820101AB1",
+  "erp_type": "contpaqi",
+  "plantilla_contable": "SAT",
+  "notif_channel": "email",
+  "webhook_url": "",
+  "user_name": "Admin",
+  "user_email": "admin@despacho.mx"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "tenant": {
+    "id": 5,
+    "name": "Despacho Contable XYZ",
+    "api_key": "b2b_live_xxxx..."
+  }
+}`},
+    ]
+  },
+  "Dashboard": {
+    desc: "Live dashboards — HTML panel, JSON data, summary, anomalies, and analytics.",
+    endpoints: [
+      {method:"GET",path:"/api/v1/dashboard",summary:"Interactive HTML dashboard with live metrics and charts.",auth:true,
+       params:[],
+       response:`<html>Dashboard with SVG charts...</html>`},
+      {method:"GET",path:"/api/v1/dashboard/data",summary:"Dashboard data as JSON (for live refresh).",auth:true,
+       params:[],
+       response:`{
+  "service": "B&B AI — Enterprise",
+  "metricas": { "total_facturas": 42, "monto_total": 630000 },
+  "graficas": { "por_categoria": [...], "por_mes": [...] },
+  "conciliacion": { "tasa_conciliacion": 78.3 }
+}`},
+      {method:"GET",path:"/api/v1/dashboard/summary",summary:"Invoice totals, amounts, and status summary.",auth:true,
+       params:[{name:"tenant_id",type:"int",required:false,desc:"Filter by tenant"}],
+       response:`{
+  "total": 42,
+  "monto_total": 630000,
+  "validas": 40,
+  "por_estado": { "valida": 40, "invalida": 2 }
+}`},
+      {method:"GET",path:"/api/v1/dashboard/anomalies",summary:"Detected anomalies across all invoices.",auth:true,
+       params:[],
+       response:`{
+  "anomalias": [
+    { "invoice_id": 5, "tipo": "monto_atipico", "severidad": "warning" }
+  ]
+}`},
+      {method:"GET",path:"/api/v1/dashboard/monthly",summary:"Monthly aggregation of invoices and anomalies.",auth:true,
+       params:[],
+       response:`{
+  "monthly": [
+    { "mes": "2026-01", "facturas": 12, "monto": 180000, "anomalias": 1 }
+  ]
+}`},
+      {method:"GET",path:"/api/v1/dashboard/top-providers",summary:"Top providers by amount with anomaly counts.",auth:true,
+       params:[{name:"limit",type:"int",required:false,desc:"Max providers (default: 10)"}],
+       response:`{
+  "providers": [
+    { "rfc": "EMP820101AB1", "nombre": "Proveedor SA", "count": 15, "monto": 225000 }
+  ]
+}`},
+    ]
+  },
+  "Analytics": {
+    desc: "Cross-module analytics with period comparisons and trend data.",
+    endpoints: [
+      {method:"GET",path:"/api/v1/analytics",summary:"Advanced analytics with period comparison.",auth:true,
+       params:[
+         {name:"periodo",type:"string",required:false,desc:"Current period (YYYY-MM)"},
+         {name:"compare",type:"string",required:false,desc:"Comparison period (YYYY-MM)"},
+       ],
+       response:`{
+  "periodo_actual": { "facturas": 42, "monto": 630000 },
+  "periodo_anterior": { "facturas": 38, "monto": 570000 },
+  "cambio_porcentual": { "facturas": 10.5, "monto": 10.5 }
+}`},
+    ]
+  },
+  "Notifications": {
+    desc: "WhatsApp and email notifications — send, history, configuration, and preferences.",
+    endpoints: [
+      {method:"POST",path:"/api/v1/notifications/send",summary:"Queue/send a WhatsApp notification.",auth:true,
+       body:{type:"application/json",schema:`{
+  "recipient": "+525512345678",
+  "message": "Su factura ha sido procesada exitosamente.",
+  "template": "invoice_processed",
+  "type": "whatsapp"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "notification_id": 1,
+  "queued": true,
+  "pending": 3,
+  "backend": "whatsapp_business"
+}`},
+      {method:"GET",path:"/api/v1/notifications/history",summary:"Notification history (persisted in DB).",auth:true,
+       params:[{name:"limit",type:"int",required:false,desc:"Max results (default: 50)"}],
+       response:`{
+  "count": 15,
+  "notifications": [
+    { "id": 1, "type": "whatsapp", "recipient": "+525512345678", "status": "sent" }
+  ]
+}`},
+      {method:"POST",path:"/api/v1/notifications/config",summary:"Save WhatsApp configuration for the tenant.",auth:true,
+       body:{type:"application/json",schema:`{
+  "recipient": "+525512345678",
+  "whatsapp_token": "your_wa_token",
+  "whatsapp_phone_number_id": "123456",
+  "notif_channel": "whatsapp"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "updated": ["recipient", "whatsapp_token"]
+}`},
+      {method:"POST",path:"/api/v1/notifications/email",summary:"Send an email (SMTP) or queue it.",auth:true,
+       body:{type:"application/json",schema:`{
+  "to": "cliente@empresa.mx",
+  "subject": "Factura procesada",
+  "body": "Su factura ha sido procesada.",
+  "template": "invoice_ready"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "notification_id": 2,
+  "subject": "Factura procesada",
+  "queued": false,
+  "sent": true
+}`},
+      {method:"PUT",path:"/api/v1/notifications/preferences",summary:"Save notification preferences for the tenant.",auth:true,
+       body:{type:"application/json",schema:`{
+  "channel": "both",
+  "digest": "daily",
+  "digest_time": "09:00",
+  "email": "admin@despacho.mx"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "updated": ["channel", "digest", "digest_time"]
+}`},
+    ]
+  },
+  "SAT Integration": {
+    desc: "SAT integration — bulk CFDI download, verification, and scheduled automation.",
+    endpoints: [
+      {method:"POST",path:"/api/v1/sat/download",summary:"Bulk download CFDI by date range (mock mode).",auth:true,
+       body:{type:"application/json",schema:`{
+  "rfc": "EMP820101AB1",
+  "ciec": "your_ciec_password",
+  "fecha_inicio": "2026-01-01",
+  "fecha_fin": "2026-01-31",
+  "tipo": "emitidas"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "count": 25,
+  "tipo": "emitidas",
+  "rango": { "inicio": "2026-01-01", "fin": "2026-01-31" }
+}`},
+      {method:"POST",path:"/api/v1/sat/verify",summary:"Verify CFDI status and chain.",auth:true,
+       body:{type:"application/json",schema:`{
+  "folio_fiscal": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "folio_fiscal": "a1b2c3d4-...",
+  "estado": "activo",
+  "estatus": { "descripcion": "Comprobante obtenido satisfactoriamente" }
+}`},
+      {method:"GET",path:"/api/v1/sat/status",summary:"SAT session and scheduler status.",auth:true,
+       params:[],
+       response:`{
+  "tenant_id": 1,
+  "rfc": "EMP820101AB1",
+  "downloader": { "logged_in": false },
+  "scheduler": { "daily_enabled": true, "weekly_enabled": false }
+}`},
+      {method:"POST",path:"/api/v1/sat/schedule",summary:"Schedule daily download / weekly verification.",auth:true,
+       body:{type:"application/json",schema:`{
+  "rfc": "EMP820101AB1",
+  "ciec": "your_ciec_password",
+  "frequency": "daily",
+  "tipo": "emitidas"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "frequency": "daily",
+  "rfc": "EMP820101AB1",
+  "executed": [{ "task": "daily", "result": { "count": 25 } }]
+}`},
+    ]
+  },
+  "Onboarding": {
+    desc: "Client onboarding wizard — multi-step setup with readiness scoring.",
+    endpoints: [
+      {method:"GET",path:"/api/v1/onboarding/status",summary:"Onboarding status and readiness score.",auth:true,
+       params:[],
+       response:`{
+  "onboarding": { "current_step": 2, "completed_steps": [1], "status": "in_progress" },
+  "checklist": { "score": 65, "items": [...] }
+}`},
+      {method:"GET",path:"/api/v1/onboarding/steps",summary:"Definitions of all wizard steps.",auth:true,
+       params:[],
+       response:`{
+  "steps": [
+    { "id": 1, "name": "company_profile", "required": true },
+    { "id": 2, "name": "sat_credentials", "required": true },
+    { "id": 3, "name": "erp_connection", "required": true },
+    { "id": 4, "name": "billing_plan", "required": true },
+    { "id": 5, "name": "cfdi_test", "required": false }
+  ]
+}`},
+      {method:"GET",path:"/api/v1/onboarding/step/{step}",summary:"Read data for a specific step.",auth:true,
+       params:[{name:"step",type:"int",required:true,desc:"Step number (1-5)"}],
+       response:`{
+  "step": 1,
+  "name": "company_profile",
+  "data": { "name": "Empresa SA", "rfc": "EMP820101AB1" },
+  "status": "completed"
+}`},
+      {method:"PUT",path:"/api/v1/onboarding/step/{step}",summary:"Submit and validate a wizard step.",auth:true,
+       params:[{name:"step",type:"int",required:true,desc:"Step number (1-5)"}],
+       body:{type:"application/json",schema:`{
+  "name": "Empresa SA de CV",
+  "rfc": "EMP820101AB1",
+  "address": "Calle Principal 123, CDMX",
+  "contact_name": "Admin",
+  "contact_email": "admin@empresa.mx"
+}`},
+       params2:[{name:"step",type:"int",required:true,desc:"Step number (1-5)"}],
+       response:`{
+  "ok": true,
+  "onboarding": { "current_step": 2, "completed_steps": [1] }
+}`},
+      {method:"POST",path:"/api/v1/onboarding/complete",summary:"Close onboarding (validates all required steps).",auth:true,
+       params:[],
+       response:`{
+  "ok": true,
+  "onboarding": { "status": "completed" },
+  "checklist": { "score": 100 }
+}`},
+      {method:"GET",path:"/api/v1/onboarding/plans",summary:"Available billing plans with pricing.",auth:false,
+       params:[],
+       response:`{
+  "plans": [
+    { "key": "basico", "name": "Básico", "price_mxn": 999 },
+    { "key": "profesional", "name": "Profesional", "price_mxn": 2999 }
+  ]
+}`},
+      {method:"GET",path:"/api/v1/onboarding/erp-options",summary:"Available ERP integration options.",auth:false,
+       params:[],
+       response:`{
+  "erp_options": [
+    { "key": "contpaqi", "name": "ContPAQ i" },
+    { "key": "aspel", "name": "Aspel" },
+    { "key": "csv", "name": "CSV Import" }
+  ]
+}`},
+    ]
+  },
+  "Nómina": {
+    desc: "Payroll XML parsing and SAT Nomina 1.2 validation.",
+    endpoints: [
+      {method:"POST",path:"/nomina/parse",summary:"Parse Nomina 1.2 complement from a CFDI XML.",auth:false,
+       body:{type:"multipart/form-data",fields:[
+         {name:"file",type:"file",required:true,desc:"CFDI 4.0 XML file with Nomina complement"},
+       ]},
+       params:[],
+       response:`{
+  "ok": true,
+  "nomina": {
+    "empleado": { "nombre": "Juan Pérez", "rfc": "PEPJ850101AB1" },
+    "percepciones": { "total_gravado": 16000 },
+    "deducciones": { "total": 2910.50 }
+  }
+}`},
+      {method:"POST",path:"/nomina/validate",summary:"Validate CFDI Nomina 1.2 against SAT rules.",auth:false,
+       body:{type:"multipart/form-data",fields:[
+         {name:"file",type:"file",required:true,desc:"CFDI 4.0 XML file"},
+       ]},
+       params:[],
+       response:`{
+  "ok": true,
+  "errors": [],
+  "nomina": { ... }
+}`},
+      {method:"GET",path:"/nomina/catalog",summary:"SAT catalog of payroll codes.",auth:false,
+       params:[],
+       response:`{
+  "periodicidad_pago": { "01": "Semanal", "02": "Quincenal", ... },
+  "tipo_nomina": { "O": "Ordinaria", "E": "Extraordinaria" },
+  "tipo_jornada": { "01": "Diurna", "02": "Nocturna", ... },
+  "riesgo_puesto": { "1": "Ensalamiento mínimo", ... }
+}`},
+    ]
+  },
+  "Pagos": {
+    desc: "Payment complement (Pagos 1.1) parsing and SAT validation.",
+    endpoints: [
+      {method:"POST",path:"/pagos/parse",summary:"Parse Pagos 1.1 complement from a CFDI XML.",auth:false,
+       body:{type:"multipart/form-data",fields:[
+         {name:"file",type:"file",required:true,desc:"CFDI 4.0 XML with Pagos complement"},
+       ]},
+       params:[],
+       response:`{
+  "ok": true,
+  "pagos": {
+    "totales": { "total_monto": 50000 },
+    "pagos": [{ "fecha_pago": "2026-01-15", "monto": 50000 }]
+  }
+}`},
+      {method:"POST",path:"/pagos/validate",summary:"Validate CFDI Pagos 1.1 against SAT rules.",auth:false,
+       body:{type:"multipart/form-data",fields:[
+         {name:"file",type:"file",required:true,desc:"CFDI 4.0 XML file"},
+       ]},
+       params:[],
+       response:`{
+  "ok": true,
+  "errors": [],
+  "pagos": { ... }
+}`},
+      {method:"GET",path:"/pagos/catalog",summary:"SAT catalog of payment codes.",auth:false,
+       params:[],
+       response:`{
+  "forma_pago": { "01": "Efectivo", "02": "Cheque nominativo", ... },
+  "tipo_cadena_pago": { "01": "CFDI", ... },
+  "monedas_iso": { "MXN": "Peso mexicano", "USD": "Dólar de EUA" }
+}`},
+    ]
+  },
+  "Contabilidad (Parser)": {
+    desc: "Electronic accounting XML parsing — Balanza, Catálogo, and Estado de Resultados.",
+    endpoints: [
+      {method:"POST",path:"/contabilidad/balanza",summary:"Parse trial balance from SAT electronic accounting XML.",auth:false,
+       body:{type:"multipart/form-data",fields:[
+         {name:"file",type:"file",required:true,desc:"Electronic accounting XML"},
+       ]},
+       params:[],
+       response:`{
+  "ok": true,
+  "balanza": {
+    "ejercicio": 2026,
+    "mes": 1,
+    "cuentas": [{ "codigo": "1000", "debe": "50000", "haber": "30000" }]
+  }
+}`},
+      {method:"POST",path:"/contabilidad/catalogo",summary:"Parse chart of accounts from SAT XML.",auth:false,
+       body:{type:"multipart/form-data",fields:[
+         {name:"file",type:"file",required:true,desc:"Electronic accounting XML"},
+       ]},
+       params:[],
+       response:`{
+  "ok": true,
+  "catalogo": {
+    "cuentas": [{ "codigo": "1000", "descripcion": "Caja", "nivel": 1 }]
+  }
+}`},
+      {method:"POST",path:"/contabilidad/estado-resultados",summary:"Parse income statement from SAT XML.",auth:false,
+       body:{type:"multipart/form-data",fields:[
+         {name:"file",type:"file",required:true,desc:"Electronic accounting XML"},
+       ]},
+       params:[],
+       response:`{
+  "ok": true,
+  "estado_resultados": {
+    "ingresos": "1000000",
+    "costos": "600000",
+    "utilidad_neta": "320000"
+  }
+}`},
+      {method:"GET",path:"/contabilidad/catalog",summary:"SAT electronic accounting catalog codes.",auth:false,
+       params:[],
+       response:`{
+  "naturaleza": { "D": "Deudor", "A": "Acreedor" },
+  "tipo_balanza": { "A": "Auxiliar", "C": "Comprobación", ... }
+}`},
+    ]
+  },
+  "Reportes": {
+    desc: "Financial reports — Balance General, Estado de Resultados, Conciliación Bancaria, and Nómina (JSON/CSV/HTML).",
+    endpoints: [
+      {method:"POST",path:"/reportes/balance",summary:"Generate Balance General (Statement of Financial Position).",auth:false,
+       body:{type:"application/json",schema:`{
+  "activos_circulantes": [{ "cuenta": "1000", "descripcion": "Caja", "monto": 50000 }],
+  "pasivos_circulantes": [{ "cuenta": "2000", "descripcion": "Proveedores", "monto": 30000 }],
+  "empresa_rfc": "EMP820101AB1",
+  "empresa_nombre": "Empresa SA",
+  "periodo_inicio": "2026-01-01",
+  "periodo_fin": "2026-01-31",
+  "formato": "json"
+}`},
+       params:[],
+       response:`{
+  "metadata": { "tipo_reporte": "balance_general" },
+  "activos_totales": 500000,
+  "pasivos_totales": 200000,
+  "capital_contable": 300000
+}`},
+      {method:"POST",path:"/reportes/estado-resultados",summary:"Generate Income Statement.",auth:false,
+       body:{type:"application/json",schema:`{
+  "ingresos": [{ "cuenta": "4000", "monto": 1000000 }],
+  "costos": [{ "cuenta": "5000", "monto": 600000 }],
+  "empresa_rfc": "EMP820101AB1",
+  "formato": "json"
+}`},
+       params:[],
+       response:`{
+  "metadata": { "tipo_reporte": "estado_resultados" },
+  "utilidad_neta": 320000
+}`},
+      {method:"POST",path:"/reportes/conciliacion",summary:"Generate Bank Reconciliation Report.",auth:false,
+       body:{type:"application/json",schema:`{
+  "movimientos_banco": [{ "fecha": "2026-01-15", "monto": 50000 }],
+  "movimientos_contabilidad": [{ "fecha": "2026-01-15", "monto": 50000 }],
+  "banco_nombre": "BBVA",
+  "formato": "json"
+}`},
+       params:[],
+       response:`{
+  "metadata": { "tipo_reporte": "conciliacion_bancaria" },
+  "conciliados": 18,
+  "pendientes": 5
+}`},
+      {method:"POST",path:"/reportes/nomina",summary:"Generate Payroll Report.",auth:false,
+       body:{type:"application/json",schema:`{
+  "empleados": [{ "nombre": "Juan Pérez", "sueldo_neto": 13089.50 }],
+  "empresa_rfc": "EMP820101AB1",
+  "periodo_pago": "2026-01-15",
+  "formato": "json"
+}`},
+       params:[],
+       response:`{
+  "metadata": { "tipo_reporte": "nomina" },
+  "total_empleados": 1,
+  "total_nomina": 13089.50
+}`},
+      {method:"GET",path:"/reportes/formats",summary:"List supported output formats.",auth:false,
+       params:[],
+       response:`{
+  "formats": [
+    { "name": "json", "description": "JSON estructurado" },
+    { "name": "csv", "description": "CSV plano para importación" },
+    { "name": "html", "description": "HTML profesional con estilos inline" }
+  ]
+}`},
+    ]
+  },
+  "Alerts": {
+    desc: "Intelligent alert engine — rules, evaluation, acknowledgment, and audit trail.",
+    endpoints: [
+      {method:"GET",path:"/api/v1/alerts",summary:"List alerts with optional filters.",auth:true,
+       params:[
+         {name:"severity",type:"string",required:false,desc:"Filter: info, warning, critical"},
+         {name:"type",type:"string",required:false,desc:"Filter by alert type"},
+         {name:"status",type:"string",required:false,desc:"Filter: active, acknowledged, dismissed"},
+         {name:"limit",type:"int",required:false,desc:"Max results (default: 100)"},
+       ],
+       response:`{
+  "count": 5,
+  "alerts": [
+    { "id": "abc123", "type": "anomaly", "severity": "warning", "status": "active", "message": "..." }
+  ]
+}`},
+      {method:"GET",path:"/api/v1/alerts/{alert_id}",summary:"Get alert detail by ID.",auth:true,
+       params:[{name:"alert_id",type:"string",required:true,desc:"Alert ID"}],
+       response:`{
+  "alert": {
+    "id": "abc123", "type": "anomaly", "severity": "warning",
+    "status": "active", "message": "Monto atípico detectado", "created_at": "2026-01-15T10:30:00Z"
+  }
+}`},
+      {method:"POST",path:"/api/v1/alerts/{alert_id}/acknowledge",summary:"Acknowledge an alert.",auth:true,
+       params:[{name:"alert_id",type:"string",required:true,desc:"Alert ID"}],
+       body:{type:"application/json",schema:`{ "user": "admin" }`},
+       response:`{ "ok": true, "alert": { "status": "acknowledged" } }`},
+      {method:"POST",path:"/api/v1/alerts/{alert_id}/dismiss",summary:"Dismiss an alert.",auth:true,
+       params:[{name:"alert_id",type:"string",required:true,desc:"Alert ID"}],
+       body:{type:"application/json",schema:`{ "user": "admin" }`},
+       response:`{ "ok": true, "alert": { "status": "dismissed" } }`},
+      {method:"DELETE",path:"/api/v1/alerts/{alert_id}",summary:"Permanently delete an alert.",auth:true,
+       params:[{name:"alert_id",type:"string",required:true,desc:"Alert ID"}],
+       response:`{ "ok": true, "deleted": "abc123" }`},
+      {method:"GET",path:"/api/v1/alerts/{alert_id}/history",summary:"Alert history / audit trail.",auth:true,
+       params:[{name:"alert_id",type:"string",required:true,desc:"Alert ID"}],
+       response:`{
+  "alert_id": "abc123",
+  "count": 3,
+  "history": [
+    { "action": "created", "timestamp": "2026-01-15T10:30:00Z" },
+    { "action": "acknowledged", "user": "admin", "timestamp": "2026-01-15T11:00:00Z" }
+  ]
+}`},
+      {method:"GET",path:"/api/v1/alerts/rules",summary:"List alert rules.",auth:true,
+       params:[{name:"enabled_only",type:"bool",required:false,desc:"Only enabled rules"}],
+       response:`{
+  "count": 5,
+  "rules": [
+    { "id": "r1", "name": "High amount", "type": "threshold", "severity": "warning", "enabled": true }
+  ]
+}`},
+      {method:"POST",path:"/api/v1/alerts/rules",summary:"Create an alert rule.",auth:true,
+       body:{type:"application/json",schema:`{
+  "name": "Monto alto",
+  "type": "threshold",
+  "condition": "gt",
+  "threshold_value": 100000,
+  "severity": "warning",
+  "message_template": "Factura de ${{monto}} excede umbral"
+}`},
+       params:[],
+       response:`{
+  "ok": true,
+  "rule": { "id": "r1", "name": "Monto alto", "type": "threshold" }
+}`},
+      {method:"GET",path:"/api/v1/alerts/stats",summary:"Alert statistics by severity and type.",auth:true,
+       params:[],
+       response:`{
+  "total": 15,
+  "by_severity": { "info": 5, "warning": 7, "critical": 3 },
+  "by_type": { "anomaly": 8, "threshold": 5, "reconciliation": 2 }
+}`},
+      {method:"POST",path:"/api/v1/alerts/evaluate",summary:"Evaluate data against rules and return new alerts.",auth:true,
+       body:{type:"application/json",schema:`{
+  "data": { "monto": 150000 },
+  "rules": [{ "type": "threshold", "condition": "gt", "threshold_value": 100000 }],
+  "tenant_id": 1
+}`},
+       params:[],
+       response:`{
+  "count": 1,
+  "alerts": [
+    { "type": "threshold", "severity": "warning", "message": "Monto 150000 excede umbral 100000" }
+  ]
+}`},
+    ]
+  },
+  "Admin Dashboard": {
+    desc: "Admin dashboard — client management, system health, usage metrics, and revenue reports.",
+    endpoints: [
+      {method:"GET",path:"/admin/dashboard/overview",summary:"Top-level admin overview: clients, revenue, CFDI counts.",auth:true,
+       params[],
+       response:`{
+  "total_clients": 15,
+  "active_clients": 12,
+  "mrr": 35988,
+  "cfdis_this_month": 450
+}`},
+      {method:"GET",path:"/admin/dashboard/clients",summary:"Paginated client list with sorting and filtering.",auth:true,
+       params:[
+         {name:"page",type:"int",required:false,desc:"Page number (default: 1)"},
+         {name:"page_size",type:"int",required:false,desc:"Items per page (default: 20)"},
+         {name:"sort_by",type:"string",required:false,desc:"Sort: name, id, invoice_count, monto_total"},
+         {name:"search",type:"string",required:false,desc:"Search by name or RFC"},
+       ],
+       response:`{
+  "clients": [
+    { "id": 1, "name": "Despacho XYZ", "invoice_count": 120, "monto_total": 1800000 }
+  ],
+  "total": 15,
+  "page": 1
+}`},
+      {method:"GET",path:"/admin/dashboard/clients/{client_id}",summary:"Detailed view of a single client.",auth:true,
+       params:[{name:"client_id",type:"int",required:true,desc:"Client ID"}],
+       response:`{
+  "client": { "id": 1, "name": "Despacho XYZ" },
+  "invoices": { "total": 120, "monto_total": 1800000 },
+  "api_calls": 5000
+}`},
+      {method:"GET",path:"/admin/dashboard/health",summary:"System health check.",auth:true,
+       params:[],
+       response:`{
+  "status": "healthy",
+  "uptime": 86400,
+  "db_size_mb": 45,
+  "error_rate_pct": 0.2
+}`},
+      {method:"GET",path:"/admin/dashboard/usage",summary:"Usage metrics for the last N days.",auth:true,
+       params:[{name:"days",type:"int",required:false,desc:"Number of days (default: 30)"}],
+       response:`{
+  "daily_cfdis": [ { "date": "2026-01-15", "count": 15 } ],
+  "avg_processing_time_ms": 250,
+  "error_rate_pct": 0.2
+}`},
+      {method:"GET",path:"/admin/dashboard/revenue",summary:"Revenue report: MRR, ARR, churn.",auth:true,
+       params:[],
+       response:`{
+  "mrr": 35988,
+  "arr": 431856,
+  "churn_rate_pct": 2.5,
+  "avg_revenue_per_client": 2399.2
+}`},
+    ]
+  },
+  "Outreach": {
+    desc: "Automated outbound email campaigns — leads, campaigns, sequences, and tracking.",
+    endpoints: [
+      {method:"POST",path:"/api/v1/outreach/leads",summary:"Create an outreach lead.",auth:true,
+       body:{type:"application/json",schema:`{
+  "name": "Juan Pérez",
+  "email": "juan@empresa.mx",
+  "company": "Empresa SA"
+}`},
+       params:[],
+       response:`{ "id": 1, "status": "created" }`},
+      {method:"GET",path:"/api/v1/outreach/leads",summary:"List outreach leads.",auth:true,
+       params:[
+         {name:"campaign_id",type:"int",required:false,desc:"Filter by campaign"},
+         {name:"status",type:"string",required:false,desc:"Filter by status"},
+       ],
+       response:`{
+  "leads": [ { "id": 1, "name": "Juan Pérez", "status": "new" } ],
+  "total": 1
+}`},
+      {method:"POST",path:"/api/v1/outreach/campaigns",summary:"Launch an outreach campaign.",auth:true,
+       body:{type:"application/json",schema:`{
+  "name": "Campaña Enero",
+  "sequence_id": 1,
+  "lead_ids": [1, 2, 3]
+}`},
+       params:[],
+       response:`{
+  "campaign_id": 1,
+  "leads_count": 3,
+  "status": "launched"
+}`},
+      {method:"POST",path:"/api/v1/outreach/campaigns/{campaign_id}/pause",summary:"Pause a campaign.",auth:true,
+       params:[{name:"campaign_id",type:"int",required:true,desc:"Campaign ID"}],
+       response:`{ "ok": true, "status": "paused" }`},
+      {method:"POST",path:"/api/v1/outreach/campaigns/{campaign_id}/resume",summary:"Resume a campaign.",auth:true,
+       params:[{name:"campaign_id",type:"int",required:true,desc:"Campaign ID"}],
+       response:`{ "ok": true, "status": "active" }`},
+      {method:"POST",path:"/api/v1/outreach/send",summary:"Send individual outreach email.",auth:true,
+       body:{type:"application/json",schema:`{
+  "lead_id": 1,
+  "template": "intro",
+  "subject": "Automatización contable con IA",
+  "body": "..."
+}`},
+       params:[],
+       response:`{ "ok": true, "email_id": 1 }`},
+      {method:"GET",path:"/api/v1/outreach/stats/{campaign_id}",summary:"Campaign statistics.",auth:true,
+       params:[{name:"campaign_id",type:"int",required:true,desc:"Campaign ID"}],
+       response:`{
+  "sent": 50,
+  "opened": 35,
+  "clicked": 12,
+  "replied": 5,
+  "open_rate": 70.0,
+  "click_rate": 24.0
+}`},
+      {method:"GET",path:"/api/v1/outreach/lead-score/{lead_id}",summary:"Lead score.",auth:true,
+       params:[{name:"lead_id",type:"int",required:true,desc:"Lead ID"}],
+       response:`{
+  "lead_id": 1,
+  "score": 75,
+  "factors": { "engagement": 80, "fit": 70, "recency": 75 }
+}`},
+    ]
+  },
+  "API v2": {
+    desc: "Enterprise v2 — batch processing, advanced analytics, webhooks, audit, export, and admin.",
+    endpoints: [
+      {method:"POST",path:"/api/v2/batch",summary:"Batch CFDI processing (≤1000 per batch, sync or async).",auth:true,
+       body:{type:"application/json",schema:`{
+  "xml_paths": ["/path/to/file1.xml", "/path/to/file2.xml"],
+  "async": true
+}`},
+       params:[],
+       response:`{
+  "job_id": "batch_a1b2c3",
+  "status": "processing",
+  "total": 2
+}`},
+      {method:"GET",path:"/api/v2/batch/{job_id}",summary:"Get batch job status/result.",auth:true,
+       params:[{name:"job_id",type:"string",required:true,desc:"Batch job ID"}],
+       response:`{
+  "job_id": "batch_a1b2c3",
+  "status": "completed",
+  "processed": 2,
+  "success": 2,
+  "failed": 0
+}`},
+      {method:"GET",path:"/api/v2/analytics",summary:"Advanced analytics with TTL cache.",auth:true,
+       params:[],
+       response:`{
+  "facturas_hoy": 15,
+  "monto_hoy": 225000,
+  "tendencia": { "cfdis_7d": [10, 12, 15, 11, 14, 13, 15] }
+}`},
+      {method:"POST",path:"/api/v2/webhooks",summary:"Register a webhook for an event.",auth:true,
+       body:{type:"application/json",schema:`{
+  "event": "invoice.processed",
+  "url": "https://your-app.com/webhook"
+}`},
+       params:[],
+       response:`{
+  "id": "wh_001",
+  "event": "invoice.processed",
+  "url": "https://your-app.com/webhook"
+}`},
+      {method:"GET",path:"/api/v2/webhooks",summary:"List webhook subscriptions.",auth:true,
+       params:[],
+       response:`{
+  "webhooks": [
+    { "id": "wh_001", "event": "invoice.processed", "url": "https://..." }
+  ]
+}`},
+      {method:"DELETE",path:"/api/v2/webhooks/{webhook_id}",summary:"Delete a webhook subscription.",auth:true,
+       params:[{name:"webhook_id",type:"string",required:true,desc:"Webhook ID"}],
+       response:`{ "ok": true }`},
+      {method:"GET",path:"/api/v2/audit",summary:"Full audit log for the tenant.",auth:true,
+       params:[{name:"limit",type:"int",required:false,desc:"Max entries"}],
+       response:`{
+  "entries": [
+    { "timestamp": "2026-01-15T10:30:00Z", "action": "POST /api/v1/invoices/process", "status": 200 }
+  ]
+}`},
+      {method:"POST",path:"/api/v2/export",summary:"Export data to CSV, XLSX, or PDF.",auth:true,
+       body:{type:"application/json",schema:`{
+  "type": "invoices",
+  "format": "csv",
+  "filters": { "fecha_desde": "2026-01-01" }
+}`},
+       params:[],
+       response:`{
+  "download_url": "/api/v2/export/download/exp_001.csv",
+  "format": "csv",
+  "rows": 42
+}`},
+      {method:"GET",path:"/api/v2/usage",summary:"Tenant usage: API calls, invoices processed.",auth:true,
+       params:[],
+       response:`{
+  "api_calls": 5000,
+  "invoices_processed": 120,
+  "period": "2026-01"
+}`},
+      {method:"GET",path:"/api/v2/health",summary:"Detailed health: DB pool, cache, uptime.",auth:true,
+       params:[],
+       response:`{
+  "status": "ok",
+  "db_pool": { "active": 2, "idle": 8 },
+  "cache": { "hits": 1200, "misses": 50 }
+}`},
+    ]
+  },
+};
+
+// ====== RENDER ======
+function renderAll() {
+  const container = document.getElementById('endpoints-container');
+  const nav = document.getElementById('sidebar-nav');
+  let totalEndpoints = 0;
+  let tagIndex = 0;
+  let navHTML = '';
+  let contentHTML = '';
+
+  for (const [tag, data] of Object.entries(API)) {
+    const tagId = 'tag-' + tagIndex++;
+    totalEndpoints += data.endpoints.length;
+
+    // Nav group
+    navHTML += `<div class="nav-group">
+      <div class="nav-group-title">${esc(tag)} (${data.endpoints.length})</div>`;
+    data.endpoints.forEach((ep, i) => {
+      const epId = tagId + '-ep-' + i;
+      navHTML += `<a class="nav-link" href="#${epId}" onclick="scrollToEp('${epId}')" data-ep="${epId}">
+        <span class="method-badge method-${ep.method.toLowerCase()}">${ep.method}</span>
+        <span class="ep-path">${esc(shortPath(ep.path))}</span>
+      </a>`;
+    });
+    navHTML += '</div>';
+
+    // Content
+    contentHTML += `<div class="tag-section" id="${tagId}">
+      <div class="tag-header" onclick="toggleTag('${tagId}')">
+        <h2>${esc(tag)}</h2>
+        <span class="tag-count">${data.endpoints.length} endpoints</span>
+        <span class="tag-toggle">▼</span>
+      </div>
+      <p class="tag-desc">${esc(data.desc)}</p>
+      <div class="tag-body">`;
+
+    data.endpoints.forEach((ep, i) => {
+      const epId = tagId + '-ep-' + i;
+      const authBadge = ep.auth
+        ? (ep.jwt ? '<span class="ep-badge auth">🔑 JWT Auth</span>' : '<span class="ep-badge auth">🔑 API Key</span>')
+        : '<span class="ep-badge public">🌐 Public</span>';
+
+      let bodyHTML = '';
+
+      // Description
+      bodyHTML += `<section><h4>Description</h4><p style="color:var(--txt2);font-size:14px">${esc(ep.summary)}</p></section>`;
+
+      // Query params
+      if (ep.params && ep.params.length > 0) {
+        bodyHTML += `<section><h4>Query Parameters</h4>
+          <table class="params-table">
+            <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            ${ep.params.map(p => `<tr>
+              <td><span class="pname">${esc(p.name)}</span>${p.required ? '<span class="prequired">required</span>' : ''}</td>
+              <td><span class="ptype">${esc(p.type)}</span></td>
+              <td style="color:var(--txt2)">${esc(p.desc)}</td>
+            </tr>`).join('')}
+          </table></section>`;
+      }
+
+      // Request body
+      if (ep.body) {
+        let bodyContent = '';
+        if (ep.body.type === 'multipart/form-data' && ep.body.fields) {
+          bodyContent = `<table class="params-table">
+            <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+            ${ep.body.fields.map(f => `<tr>
+              <td><span class="pname">${esc(f.name)}</span>${f.required ? '<span class="prequired">required</span>' : ''}</td>
+              <td><span class="ptype">${esc(f.type)}</span></td>
+              <td style="color:var(--txt2)">${esc(f.desc)}</td>
+            </tr>`).join('')}
+          </table>`;
+          if (ep.body.alt) bodyContent += `<p style="color:var(--mut);font-size:12px;margin-top:8px">Also accepts: ${esc(ep.body.alt)}</p>`;
+        } else if (ep.body.schema) {
+          bodyContent = `<div class="schema-block">${esc(ep.body.schema)}</div>`;
+        }
+        bodyHTML += `<section><h4>Request Body <span style="font-weight:400;font-size:11px;color:var(--mut)">${esc(ep.body.type)}</span></h4>${bodyContent}</section>`;
+      }
+
+      // Response
+      if (ep.response) {
+        bodyHTML += `<section><h4>Response</h4>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="label">Example Response</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <div class="code-body">${esc(ep.response)}</div>
+          </div></section>`;
+      }
+
+      // Curl example
+      const curlCmd = buildCurl(ep);
+      bodyHTML += `<section><h4>cURL Example</h4>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="label">Shell</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <div class="code-body">${esc(curlCmd)}</div>
+        </div></section>`;
+
+      contentHTML += `<div class="endpoint" id="${epId}" data-method="${ep.method}" data-path="${ep.path}" data-summary="${esc(ep.summary)}">
+        <div class="endpoint-header" onclick="toggleEndpoint('${epId}')">
+          <span class="method method-${ep.method.toLowerCase()}">${ep.method}</span>
+          <span class="ep-path-main">${esc(ep.path)}</span>
+          ${authBadge}
+          <span class="endpoint-arrow">▸</span>
+        </div>
+        <div class="endpoint-body">${bodyHTML}</div>
+      </div>`;
+    });
+
+    contentHTML += '</div></div>';
+  }
+
+  container.innerHTML = contentHTML;
+  nav.innerHTML = navHTML;
+  document.getElementById('total-endpoints').textContent = totalEndpoints;
+  document.getElementById('total-tags').textContent = Object.keys(API).length;
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function shortPath(p) { const parts = p.split('/').filter(Boolean); return parts.length > 2 ? '.../' + parts.slice(-2).join('/') : p; }
+
+function buildCurl(ep) {
+  const base = 'https://api.b2b-ai.local';
+  let cmd = `curl`;
+  if (ep.method !== 'GET') cmd += ` -X ${ep.method}`;
+  if (ep.auth && !ep.jwt) cmd += ` \\\n  -H "X-API-Key: YOUR_API_KEY"`;
+  if (ep.jwt) cmd += ` \\\n  -H "Authorization: Bearer YOUR_JWT_TOKEN"`;
+  if (ep.body && ep.body.type === 'application/json' && ep.body.schema) {
+    const firstLine = ep.body.schema.split('\n').slice(0, 20).join('\n');
+    cmd += ` \\\n  -H "Content-Type: application/json"`;
+    cmd += ` \\\n  -d '${firstLine.replace(/\n/g, '\n  ')}'`;
+  } else if (ep.body && ep.body.type === 'multipart/form-data') {
+    const fileField = ep.body.fields?.find(f => f.type === 'file');
+    if (fileField) cmd += ` \\\n  -F "${fileField.name}=@${fileField.name === 'file' ? 'file.xml' : 'factura.xml'}"`;
+    const otherFields = ep.body.fields?.filter(f => f.type !== 'file');
+    if (otherFields) otherFields.forEach(f => {
+      if (f.name === 'bank') cmd += ` \\\n  -F "bank=bbva"`;
+    });
+  }
+  cmd += ` \\\n  "${base}${ep.path}"`;
+  return cmd;
+}
+
+// ====== INTERACTIONS ======
+function toggleEndpoint(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+function toggleTag(tagId) {
+  const el = document.getElementById(tagId);
+  const header = el.querySelector('.tag-header');
+  const body = el.querySelector('.tag-body');
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    header.classList.remove('collapsed');
+  } else {
+    body.style.display = 'none';
+    header.classList.add('collapsed');
+  }
+}
+function scrollToEp(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'start'});
+  el.classList.add('open');
+  // highlight briefly
+  el.classList.add('highlight');
+  setTimeout(() => el.classList.remove('highlight'), 2000);
+  // close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+document.getElementById('sidebar-overlay').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+});
+
+// Copy to clipboard
+function copyCode(btn) {
+  const codeBlock = btn.closest('.code-block');
+  const code = codeBlock.querySelector('.code-body').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// Search
+document.getElementById('search').addEventListener('input', function(e) {
+  const q = e.target.value.toLowerCase().trim();
+  const endpoints = document.querySelectorAll('.endpoint');
+  const navLinks = document.querySelectorAll('.nav-link');
+  const tagSections = document.querySelectorAll('.tag-section');
+
+  if (!q) {
+    endpoints.forEach(ep => ep.classList.remove('hidden'));
+    navLinks.forEach(nl => nl.style.display = '');
+    tagSections.forEach(ts => ts.classList.remove('hidden'));
+    return;
+  }
+
+  // Filter endpoints
+  endpoints.forEach(ep => {
+    const path = (ep.dataset.path || '').toLowerCase();
+    const method = (ep.dataset.method || '').toLowerCase();
+    const summary = (ep.dataset.summary || '').toLowerCase();
+    const match = path.includes(q) || method.includes(q) || summary.includes(q);
+    ep.classList.toggle('hidden', !match);
+    if (match) {
+      // open matching endpoint
+      ep.classList.add('open');
+    }
+  });
+
+  // Show/hide nav links
+  navLinks.forEach(nl => {
+    const epId = nl.dataset.ep;
+    const ep = document.getElementById(epId);
+    nl.style.display = ep && !ep.classList.contains('hidden') ? '' : 'none';
+  });
+
+  // Show/hide tag sections
+  tagSections.forEach(ts => {
+    const visibleEps = ts.querySelectorAll('.endpoint:not(.hidden)');
+    ts.classList.toggle('hidden', visibleEps.length === 0);
+  });
+});
+
+// Keyboard shortcut: / to focus search
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    document.getElementById('search').focus();
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('search').blur();
+    document.getElementById('search').value = '';
+    document.getElementById('search').dispatchEvent(new Event('input'));
+  }
+});
+
+// Init
+renderAll();
+</script>
+</body>
+</html>
