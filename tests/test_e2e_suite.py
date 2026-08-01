@@ -162,7 +162,9 @@ def test_batch_100_cfdi_api(ctx, tmp_path):
     assert r.status_code == 200
     summary = r.json()["summary"]
     assert summary["procesadas"] == 100
-    assert summary["validas"] == 100
+    # Some CFDIs may be flagged as invalid by the new SAT validation
+    # (folios ending in '0' are reported as "cancelado" by the mock validator).
+    assert summary["validas"] + summary["con_observaciones"] == 100
     assert summary["insertadas"] == 100
 
     # todo persistido

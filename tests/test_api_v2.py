@@ -92,9 +92,12 @@ def test_batch_sin_inputs_rechaza(client):
     assert r.status_code == 400
 
 
-def test_batch_excede_1000_rechaza(client):
+def test_batch_excede_1000_rechaza(client, tmp_path, monkeypatch):
     c, _db = client
-    paths = [f"/tmp/x{i}.xml" for i in range(1001)]
+    monkeypatch.setenv("B2B_LOCAL_XML_DIRS", str(tmp_path))
+    for i in range(1001):
+        (tmp_path / f"x{i}.xml").write_text("<xml/>")
+    paths = [str(tmp_path / f"x{i}.xml") for i in range(1001)]
     r = c.post("/api/v2/batch", headers=_h1(), json={"paths": paths})
     assert r.status_code == 422
 

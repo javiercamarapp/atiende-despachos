@@ -128,7 +128,7 @@ def _memory_status() -> dict:
     return info
 
 
-def build_health_detailed(db) -> dict:
+def build_health_detailed(db, actual_backend=None) -> dict:
     """Construye el payload completo de /health/detailed."""
     db_ = _db_status(db)
     redis_ = _redis_status()

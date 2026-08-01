@@ -264,9 +264,11 @@ class TestProcessFile:
     @patch("b2b_ai.api.security.detect_pii", return_value={})
     @patch("b2b_ai.services.pipeline.call_tool")
     @patch("b2b_ai.services.pipeline.EmailSender")
-    def test_process_file_validacion_not_ok_skips_notification(self, mock_email, mock_call, mock_pii):
+    def test_process_file_validacion_not_ok_sends_rejection_notification(self, mock_email, mock_call, mock_pii):
+        """When validation fails, the pipeline now sends a rejection notification
+        (invoice_rejected event) instead of skipping."""
         fake_tools = _make_fake_tools()
-        fake_tools["validate_cfdi"] = MagicMock(return_value={"ok": False, "issues": []})
+        fake_tools["validate_cfdi"] = MagicMock(return_value={"ok": False, "issues": [], "warnings": []})
         mock_call.side_effect = lambda name, **kw: fake_tools[name](**kw)
         db = FakeDB()
         with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
@@ -274,7 +276,8 @@ class TestProcessFile:
             xml_path = f.name
         try:
             result = process_file(xml_path, db=db)
-            assert result["notificacion"]["status"] == "skipped"
+            assert result["notificacion"]["status"] == "sent"
+            assert result["erp"]["status"] == "rejected_invalid_cfdi"
         finally:
             os.unlink(xml_path)
 
@@ -404,7 +407,7 @@ class TestPipelineIntegration:
             result = process_file(xml_path, db=db)
             expected_keys = {"archivo", "datos", "validacion", "clasificacion", "anomalias",
                              "aprobacion", "erp", "invoice_id", "insertado", "tenant_id",
-                             "notificacion", "pii"}
+                             "notificacion", "pii", "efos_69b", "sat_status"}
             assert expected_keys == set(result.keys())
         finally:
             os.unlink(xml_path)

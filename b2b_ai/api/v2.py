@@ -193,6 +193,14 @@ def build_v2_router(db: Database, require_api_key, auth=None):
                 return [dict(zip(cols, row)) for row in cur.fetchall()]
             except Exception:
                 return []
+
+        @property
+        def stats(self):
+            return {
+                "backend": "postgresql" if getattr(db, "_is_pg", False) else "sqlite",
+                "active": 1,
+                "healthy": True,
+            }
     pool = _DBPool()
     cache = TTLCache(ttl_seconds=float(
         _get_env("B2B_V2_CACHE_TTL", "30")))
@@ -344,6 +352,10 @@ def build_v2_router(db: Database, require_api_key, auth=None):
         paths = list(req.paths or [])
         if not paths and not req.folder:
             raise HTTPException(400, "Indica paths o folder.")
+        # Check batch size limit BEFORE path validation so the 422
+        # is returned even when paths are outside allowed dirs.
+        if not req.folder and len(paths) > MAX_BATCH:
+            raise HTTPException(422, f"Máximo {MAX_BATCH} por lote.")
         # Validate all paths against B2B_LOCAL_XML_DIRS
         validated_paths = []
         for p in paths:
@@ -353,8 +365,6 @@ def build_v2_router(db: Database, require_api_key, auth=None):
         else:
             validated_folder = None
         if not req.folder:
-            if len(validated_paths) > MAX_BATCH:
-                raise HTTPException(422, f"Máximo {MAX_BATCH} por lote.")
             total = len(validated_paths)
         else:
             import glob

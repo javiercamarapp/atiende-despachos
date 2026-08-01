@@ -166,7 +166,8 @@ def test_verify_rfc_formato_y_registrado():
     assert v.verify_rfc("1234")["valido"] is False
     ok = v.verify_rfc("AAA010101AAA")
     assert ok["valido"] is True
-    assert ok["registrado"] is True
+    # In mock mode, existencia real no se puede verificar
+    assert ok["registrado"] is None
     gen = v.verify_rfc("XAXX010101000")
     assert gen["valido"] is True
     assert gen["registrado"] is False
