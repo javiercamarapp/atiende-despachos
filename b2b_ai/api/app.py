@@ -96,6 +96,15 @@ from b2b_ai.features.pre_auditoria.routes import build_pre_auditoria_router
 from b2b_ai.features.nomina_completa.routes import build_nomina_completa_router
 from b2b_ai.features.reportes_gerenciales.routes import build_reportes_gerenciales_router
 from b2b_ai.features.email_processing.routes import build_email_processing_router
+from b2b_ai.features.clientes.routes import build_clientes_router
+from b2b_ai.features.conciliacion_fiscal.routes import build_fiscal_router
+from b2b_ai.features.declaraciones.routes import build_declaraciones_router
+from b2b_ai.features.devolucion_iva.routes import build_devolucion_iva_router
+from b2b_ai.features.diot.routes import build_diot_router
+from b2b_ai.features.reconciliacion_ingresos_egresos.routes import (
+    build_reconciliacion_ingresos_egresos_router,
+)
+from b2b_ai.features.vencimientos.routes import build_vencimientos_router
 from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
@@ -1163,6 +1172,27 @@ def create_app(db=None):
 
     # Recepción de Correos: monitoreo inbox, extracción de CFDI.
     app.include_router(build_email_processing_router())
+
+    # Clientes: consulta y respuesta a clientes del despacho.
+    app.include_router(build_clientes_router(db, require_api_key))
+
+    # Conciliación Fiscal: comparación ERP vs SAT, omisiones y discrepancias.
+    app.include_router(build_fiscal_router(db, require_api_key))
+
+    # Declaraciones Periódicas: IVA, ISR provisional, ISR anual, vencimientos.
+    app.include_router(build_declaraciones_router(db, require_api_key))
+
+    # Devolución de IVA: recopilación, DIOT, conciliación y solicitud.
+    app.include_router(build_devolucion_iva_router(db, require_api_key))
+
+    # DIOT: generación, validación e historial de DIOT mensuales.
+    app.include_router(build_diot_router(db, require_api_key))
+
+    # Reconciliación Ingresos/Egresos: clasificación, balance IVA y papel de trabajo.
+    app.include_router(build_reconciliacion_ingresos_egresos_router(db, require_api_key))
+
+    # Vencimientos: deadlines, escalaciones y resumen de obligaciones fiscales.
+    app.include_router(build_vencimientos_router(db, require_api_key))
 
     # Reportes PDF (FASE reportes): generación + descarga de PDFs.
     app.include_router(build_reports_router(db, require_api_key),
