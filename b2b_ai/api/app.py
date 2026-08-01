@@ -586,7 +586,6 @@ def create_app(db=None):
             "service": "b2b-ai",
             "version": __version__,
             "backend": "postgresql" if getattr(db, "_is_pg", False) else "sqlite",
-            "db_path": db.path,
             "schema_version": db.schema_version(),
             "invoices": db.count_invoices(),
             "tenants": len(db.list_tenants()),
