@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from b2b_ai.features.contabilidad_electronica.models import (
     BalanzaRequest,
@@ -130,7 +130,7 @@ def _get_obligaciones_by_rfc(rfc: str) -> dict:
 # Router
 # --------------------------------------------------------------------------- #
 
-def build_contabilidad_electronica_router() -> APIRouter:
+def build_contabilidad_electronica_router(require_api_key=None) -> APIRouter:
     """Devuelve un APIRouter con endpoints /contabilidad-electronica/*.
 
     Sigue el patrón `build_*_router()` del proyecto. No requiere auth

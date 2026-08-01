@@ -201,10 +201,13 @@ def parse_cfdi(xml_path):
                     "importe": _dec(node.get("Importe")),
                 })
 
-    iva = next((t["importe"] for t in traslados if t["impuesto"] == "002"), None)
-    ieps = next((t["importe"] for t in traslados if t["impuesto"] == "003"), None)
-    ret_isr = next((r["importe"] for r in retenciones if r["impuesto"] == "001"), None)
-    ret_iva = next((r["importe"] for r in retenciones if r["impuesto"] == "002"), None)
+    # Sum ALL IVA (002) transfers -- SAT groups by (Impuesto, TipoFactor, TasaOCuota)
+    iva_list = [t["importe"] for t in traslados if t["impuesto"] == "002" and t["importe"] is not None]
+    iva = sum(iva_list) if iva_list else None
+    ieps_list = [t["importe"] for t in traslados if t["impuesto"] == "003" and t["importe"] is not None]
+    ieps = sum(ieps_list) if ieps_list else None
+    ret_isr = sum((r["importe"] or Decimal("0")) for r in retenciones if r["impuesto"] == "001") or None
+    ret_iva = sum((r["importe"] or Decimal("0")) for r in retenciones if r["impuesto"] == "002") or None
 
     # ---- Complemento TimbreFiscalDigital ----
     folio_fiscal = ""

@@ -54,12 +54,14 @@ class PayslipRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Router
 # ---------------------------------------------------------------------------
-def build_nomina_completa_router() -> APIRouter:
+def build_nomina_completa_router(require_api_key=None) -> APIRouter:
     """Devuelve un APIRouter con endpoints /nomina-completa/*.
 
     Almacena nóminas procesadas en memoria (MVP).
     """
+    from fastapi import Depends as _Depends
     router = APIRouter(prefix="/nomina-completa", tags=["nomina-completa"])
+    _auth = [Depends(require_api_key)] if require_api_key else []
 
     # Almacén de nóminas procesadas
     _processed: dict[str, dict] = {}

@@ -93,10 +93,15 @@ class TenantManager:
         for k, v in cfg.items():
             self.db.set_tenant_config(tenant_id, k, v)
 
-        user_id = None
-        if user_name:
-            user_id = self.db.create_user(
-                tenant_id, user_name, user_email, user_role)
+        # SECURITY FIX [1]: ALWAYS create an admin user so that
+        # has_tenant_users() returns True and the bootstrap door in
+        # POST /api/v1/auth/register closes immediately.
+        if not user_name:
+            user_name = "admin"
+        if not user_email:
+            user_email = f"admin@tenant-{tenant_id}.local"
+        user_id = self.db.create_user(
+            tenant_id, user_name, user_email, user_role or "admin")
 
         api_key = self._issue_api_key(tenant_id)
 

@@ -44,7 +44,7 @@ class NominaCatalog(BaseModel):
 # Router
 # ---------------------------------------------------------------------------
 
-def build_nomina_router() -> APIRouter:
+def build_nomina_router(require_api_key=None) -> APIRouter:
     """Devuelve un APIRouter con endpoints /nomina/*.
 
     Sigue el patrón `build_*_router()` del proyecto para inyección de DB.
@@ -52,6 +52,8 @@ def build_nomina_router() -> APIRouter:
     local (sin persistencia).
     """
     router = APIRouter(prefix="/nomina", tags=["nomina"])
+    if require_api_key:
+        router.dependencies.append(Depends(require_api_key))
 
     @router.post(
         "/parse",

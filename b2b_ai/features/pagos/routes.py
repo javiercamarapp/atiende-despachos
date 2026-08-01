@@ -41,7 +41,7 @@ class PagosCatalog(BaseModel):
 # Router
 # ---------------------------------------------------------------------------
 
-def build_pagos_router() -> APIRouter:
+def build_pagos_router(require_api_key=None) -> APIRouter:
     """Devuelve un APIRouter con endpoints /pagos/*.
 
     Sigue el patrón `build_*_router()` del proyecto para inyección de DB.
@@ -49,6 +49,8 @@ def build_pagos_router() -> APIRouter:
     local (sin persistencia).
     """
     router = APIRouter(prefix="/pagos", tags=["pagos"])
+    if require_api_key:
+        router.dependencies.append(Depends(require_api_key))
 
     @router.post(
         "/parse",

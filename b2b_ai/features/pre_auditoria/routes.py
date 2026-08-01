@@ -57,13 +57,14 @@ class CFFComplianceRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Router
 # ---------------------------------------------------------------------------
-def build_pre_auditoria_router() -> APIRouter:
+def build_pre_auditoria_router(require_api_key=None) -> APIRouter:
     """Devuelve un APIRouter con endpoints /pre-auditoria/*.
 
     Sigue el patrón `build_*_router()` del proyecto.
     Almacena reportes en memoria (MVP); en producción usar DB.
     """
     router = APIRouter(prefix="/pre-auditoria", tags=["pre-auditoria"])
+    _auth = [Depends(require_api_key)] if require_api_key else []
 
     # Almacén temporal de reportes (key = tenant_id-period)
     _reports: dict[str, dict] = {}

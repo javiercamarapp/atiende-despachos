@@ -1132,22 +1132,22 @@ def create_app(db=None):
     app.include_router(build_sat_router(db, require_api_key))
 
     # Nómina: parser y validador de complementos Nomina 1.2 del SAT.
-    app.include_router(build_nomina_router())
+    app.include_router(build_nomina_router(require_api_key))
 
     # Complemento de Pagos: parser y validador de complementos Pagos 1.1 del SAT.
-    app.include_router(build_pagos_router())
+    app.include_router(build_pagos_router(require_api_key))
 
     # Contabilidad Electrónica: parser, validador y endpoints para Balanza,
     # Catálogo de Cuentas y Estado de Resultados del SAT.
-    app.include_router(build_contabilidad_router())
+    app.include_router(build_contabilidad_router(require_api_key))
 
     # Contabilidad Electrónica workflow: generate package, hash, status,
     # transition, summary.
-    app.include_router(build_electronica_router())
+    app.include_router(build_electronica_router(require_api_key))
 
     # Reportes contables: Balance General, Estado de Resultados,
     # Conciliación Bancaria y Reporte de Nómina.
-    app.include_router(build_reportes_router())
+    app.include_router(build_reportes_router(require_api_key))
 
     # Admin Dashboard: gestión de clientes, salud del sistema, métricas de uso.
     app.include_router(build_dashboard_admin_router(db, require_api_key))
@@ -1159,19 +1159,19 @@ def create_app(db=None):
     app.include_router(build_conciliacion_router(db, require_api_key))
 
     # Contabilidad Electrónica SAT: Balanza, Catálogo de Cuentas, validación y obligaciones.
-    app.include_router(build_contabilidad_electronica_router())
+    app.include_router(build_contabilidad_electronica_router(require_api_key))
 
     # Pre-Auditoría Contable: escaneo pre-audit, deducibilidad y compliance CFF.
-    app.include_router(build_pre_auditoria_router())
+    app.include_router(build_pre_auditoria_router(require_api_key))
 
     # Nómina Completa: cálculo ISR/IMSS/INFONAVIT, CFDI de nómina y recibos.
-    app.include_router(build_nomina_completa_router())
+    app.include_router(build_nomina_completa_router(require_api_key))
 
     # Reportes Gerenciales: KPIs, cash flow, P&L y exportación.
-    app.include_router(build_reportes_gerenciales_router())
+    app.include_router(build_reportes_gerenciales_router(require_api_key))
 
     # Recepción de Correos: monitoreo inbox, extracción de CFDI.
-    app.include_router(build_email_processing_router())
+    app.include_router(build_email_processing_router(require_api_key))
 
     # Clientes: consulta y respuesta a clientes del despacho.
     app.include_router(build_clientes_router(db, require_api_key))

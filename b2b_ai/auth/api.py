@@ -107,6 +107,11 @@ def build_auth_router(db) -> APIRouter:
     def register(body: RegisterBody,
                  authorization: Optional[str] = Header(default=None)):
         tenant_id = body.tenant_id
+        # SECURITY FIX [1]: Validate that the tenant actually exists.
+        # Prevents attackers from claiming arbitrary tenant_ids that happen
+        # to have no users yet (CVE-class: CWE-287 auth bypass).
+        if db.get_tenant_by_id(tenant_id) is None:
+            raise HTTPException(404, "Tenant no encontrado.")
         existing = db.has_tenant_users(tenant_id)
         role = body.role
         if existing:

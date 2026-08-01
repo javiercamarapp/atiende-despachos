@@ -176,20 +176,26 @@ def validate_cfdi(datos):
     else:
         _ok("FormaPago en catálogo" if fp else "Sin FormaPago")
     mp = datos.get("metodo_pago", "")
-    if mp and not catalogs.is_valid_metodo_pago(mp):
+    if not mp:
+        _fail("metodo_pago_ausente", "MetodoPago es obligatorio (PUE o PPD).", "CFF art. 29-A")
+    elif not catalogs.is_valid_metodo_pago(mp):
         _fail("metodo_pago_invalido", f"MetodoPago '{mp}' no es PUE/PPD.", "c_MetodoPago")
     else:
-        _ok("MetodoPago válido")
+        _ok("MetodoPago valido")
     tdc = datos.get("tipo", "")
-    if tdc and not catalogs.is_valid_tipo_comprobante(tdc):
-        _fail("tipo_comprobante_invalido", f"TipoDeComprobante '{tdc}' inválido.",
-              "c_TipoDeComprobante")
+    if not tdc:
+        _fail("tipo_comprobante_ausente", "TipoDeComprobante es obligatorio (I, E, T, P, N).", "CFF art. 29-A")
+    elif not catalogs.is_valid_tipo_comprobante(tdc):
+        _fail("tipo_comprobante_invalido", f"TipoDeComprobante '{tdc}' invalido.", "c_TipoDeComprobante")
     else:
-        _ok("TipoDeComprobante válido")
+        _ok("TipoDeComprobante valido")
     regimen = datos.get("emisor", {}).get("regimen_fiscal", "")
-    if regimen and not catalogs.is_valid_regimen(regimen):
-        _fail("regimen_fiscal_invalido", f"RegimenFiscal '{regimen}' no está en el catálogo.",
-              "c_RegimenFiscal")
+    if not regimen:
+        _fail("regimen_fiscal_ausente", "RegimenFiscal del emisor es obligatorio.", "CFF art. 29-A")
+    elif not catalogs.is_valid_regimen(regimen):
+        _fail("regimen_fiscal_invalido", f"RegimenFiscal '{regimen}' no esta en el catalogo.", "c_RegimenFiscal")
+    else:
+        _ok("RegimenFiscal del emisor en catalogo")
     else:
         _ok("RegimenFiscal del emisor en catálogo")
 

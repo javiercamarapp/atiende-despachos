@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
 from b2b_ai.features.contabilidad.parser import (
@@ -44,7 +44,7 @@ class ContabilidadCatalog(BaseModel):
 # Router
 # ---------------------------------------------------------------------------
 
-def build_contabilidad_router() -> APIRouter:
+def build_contabilidad_router(require_api_key=None) -> APIRouter:
     """Devuelve un APIRouter con endpoints /contabilidad/*.
 
     Sigue el patrón `build_*_router()` del proyecto para inyección de DB.
@@ -52,6 +52,8 @@ def build_contabilidad_router() -> APIRouter:
     local (sin persistencia).
     """
     router = APIRouter(prefix="/contabilidad", tags=["contabilidad"])
+    if require_api_key:
+        router.dependencies.append(Depends(require_api_key))
 
     @router.post(
         "/balanza",

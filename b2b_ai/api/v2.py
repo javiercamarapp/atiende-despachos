@@ -236,6 +236,45 @@ def build_v2_router(db: Database, require_api_key, auth=None):
         }
 
     # --- /batch -----------------------------------------------------------
+    def _resolve_path_safe(candidate: str, want_dir: bool = False) -> str:
+        """Validate a local path against B2B_LOCAL_XML_DIRS (same as app.py)."""
+        from pathlib import Path as _Path
+        raw = os.environ.get("B2B_LOCAL_XML_DIRS", "").strip()
+        if not raw:
+            raise HTTPException(
+                status_code=400,
+                detail="La ingesta por ruta local está desactivada. "
+                       "Suba el archivo como multipart o configure "
+                       "B2B_LOCAL_XML_DIRS en el servidor.")
+        roots = []
+        for part in raw.split(os.pathsep if os.pathsep in raw else ":"):
+            part = part.strip()
+            if part:
+                try:
+                    roots.append(_Path(part).resolve(strict=False))
+                except OSError:
+                    continue
+        if not roots:
+            raise HTTPException(
+                status_code=400,
+                detail="La ingesta por ruta local está desactivada.")
+        try:
+            target = _Path(candidate).resolve(strict=False)
+        except (OSError, ValueError):
+            raise HTTPException(status_code=400, detail="Ruta inválida.")
+        if not any(target == r or r in target.parents for r in roots):
+            raise HTTPException(
+                status_code=403,
+                detail="Ruta fuera de los directorios permitidos.")
+        if want_dir:
+            if not target.is_dir():
+                raise HTTPException(status_code=404,
+                                    detail="Carpeta no encontrada.")
+        elif not target.is_file():
+            raise HTTPException(status_code=404,
+                                detail="Archivo no encontrado.")
+        return str(target)
+
     def _process_batch_items(tenant_id, paths, folder, webhook, job_id=None,
                              dbx=None):
         from collections import Counter
@@ -291,26 +330,35 @@ def build_v2_router(db: Database, require_api_key, auth=None):
         paths = list(req.paths or [])
         if not paths and not req.folder:
             raise HTTPException(400, "Indica paths o folder.")
+        # Validate all paths against B2B_LOCAL_XML_DIRS
+        validated_paths = []
+        for p in paths:
+            validated_paths.append(_resolve_path_safe(p))
+        if req.folder:
+            validated_folder = _resolve_path_safe(req.folder, want_dir=True)
+        else:
+            validated_folder = None
         if not req.folder:
-            if len(paths) > MAX_BATCH:
+            if len(validated_paths) > MAX_BATCH:
                 raise HTTPException(422, f"Máximo {MAX_BATCH} por lote.")
-            total = len(paths)
+            total = len(validated_paths)
         else:
             import glob
-            total = len(paths) + len(glob.glob(req.folder + "/*.xml"))
+            assert validated_folder is not None
+            total = len(validated_paths) + len(glob.glob(validated_folder + "/*.xml"))
             if total > MAX_BATCH:
                 raise HTTPException(422, f"Máximo {MAX_BATCH} por lote.")
 
         if req.async_:
             job_id = _new_job(tenant)
             t = threading.Thread(
-                target=lambda: _run_job(job_id, tenant, paths, req.folder,
+                target=lambda: _run_job(job_id, tenant, validated_paths, validated_folder,
                                         req.webhook),
                 daemon=True)
             t.start()
             return {"accepted": True, "job_id": job_id, "total": total,
                     "status": "running"}
-        out = _process_batch_items(tenant, paths, req.folder, req.webhook)
+        out = _process_batch_items(tenant, validated_paths, validated_folder, req.webhook)
         return {**out, "usage": db.get_usage(tenant)}
 
     def _run_job(job_id, tenant_id, paths, folder, webhook):

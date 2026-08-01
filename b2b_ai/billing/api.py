@@ -68,7 +68,11 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
         (modo demo — en producción el secret DEBE estar configurado).
         """
         if not secret:
-            # Sin secret configurado: modo demo. Log warning pero permite.
+            # Sin secret: en producción rechazar; en dev/test permitir (demo mode).
+            import os as _os
+            env = _os.environ.get("B2B_ENV", "development").lower()
+            if env in ("production", "staging"):
+                return False
             return True
         expected = hmac.new(
             secret.encode("utf-8"), payload_body, hashlib.sha256
@@ -184,8 +188,10 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
         permite sin verificación.
         """
         # Verificar firma del webhook.
-        provider_name = payload.provider.value if payload.provider else ""
-        secret = _get_webhook_secret(provider_name)
+        # Use the configured provider, NOT payload.provider (attacker-controlled).
+        configured_name = provider.provider.value if provider.provider else ""
+        secret = _get_webhook_secret(configured_name)
+        provider_name = configured_name
         if secret:
             # Obtener firma del header correspondiente.
             sig_header = ""

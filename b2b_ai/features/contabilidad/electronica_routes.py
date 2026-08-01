@@ -21,7 +21,7 @@ from datetime import datetime
 import uuid
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from b2b_ai.services.catalogo_cuentas import CatalogoCuentas
@@ -104,7 +104,7 @@ class TransitionRequest(BaseModel):
 # Router
 # ---------------------------------------------------------------------------
 
-def build_electronica_router() -> APIRouter:
+def build_electronica_router(require_api_key=None) -> APIRouter:
     """Devuelve un APIRouter con endpoints /contabilidad/electronica/*.
 
     Sigue el patrón `build_*_router()` del proyecto.  No requiere auth
@@ -114,6 +114,8 @@ def build_electronica_router() -> APIRouter:
         prefix="/contabilidad/electronica",
         tags=["contabilidad-electronica"],
     )
+    if require_api_key:
+        router.dependencies.append(Depends(require_api_key))
 
     # ---- POST /package ---------------------------------------------------
     @router.post(

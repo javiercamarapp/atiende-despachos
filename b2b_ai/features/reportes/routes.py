@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
@@ -121,7 +121,7 @@ def _format_response(report, formato: str):
 # Router
 # ---------------------------------------------------------------------------
 
-def build_reportes_router() -> APIRouter:
+def build_reportes_router(require_api_key=None) -> APIRouter:
     """Devuelve un APIRouter con endpoints /reportes/*.
 
     Sigue el patrón `build_*_router()` del proyecto para inyección de DB.
@@ -129,6 +129,8 @@ def build_reportes_router() -> APIRouter:
     de documentos desde datos proporcionados por el cliente.
     """
     router = APIRouter(prefix="/reportes", tags=["reportes"])
+    if require_api_key:
+        router.dependencies.append(Depends(require_api_key))
 
     @router.post(
         "/balance",
