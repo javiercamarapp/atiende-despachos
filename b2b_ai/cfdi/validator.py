@@ -25,7 +25,12 @@ from decimal import Decimal
 
 from b2b_ai.cfdi import catalogs
 
-IVA_TASA = Decimal("0.16")
+# Tasas de IVA vigentes (LIVA art. 1-C)
+IVA_TASA_GENERAL = Decimal("0.16")    # 16% - General
+IVA_TASA_FRONTERA = Decimal("0.08")  # 8% - Zona fronteriza (art. 1-C fracc. II)
+IVA_TASA_EXENTO = Decimal("0.00")    # 0% - Exento
+# Tasa por defecto para validación
+IVA_TASA = IVA_TASA_GENERAL
 TOLERANCIA = Decimal("0.02")
 RFC_RE = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
 

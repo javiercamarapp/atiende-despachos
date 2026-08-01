@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
+from fastapi import Depends, Header
+from b2b_ai.api.auth import require_api_key
 
 router = APIRouter(prefix="/api/v1/outreach", tags=["outreach"])
 
@@ -33,7 +35,7 @@ class EmailSend(BaseModel):
 
 
 @router.post("/leads")
-def create_lead(lead: LeadCreate):
+def create_lead(lead: LeadCreate, auth_info: dict = Depends(require_api_key)):
     """Crear un lead para outreach."""
     from b2b_ai.db.db import Database
     db = Database()
@@ -46,7 +48,7 @@ def create_lead(lead: LeadCreate):
 
 
 @router.get("/leads")
-def list_leads(campaign_id: Optional[int] = None, status: Optional[str] = None):
+def list_leads(campaign_id, auth_info: dict = Depends(require_api_key)): Optional[int] = None, status: Optional[str] = None):
     """Listar leads de outreach."""
     from b2b_ai.db.db import Database
     db = Database()
@@ -55,7 +57,7 @@ def list_leads(campaign_id: Optional[int] = None, status: Optional[str] = None):
 
 
 @router.post("/campaigns")
-def launch_campaign(campaign: CampaignCreate):
+def launch_campaign(campaign: CampaignCreate, auth_info: dict = Depends(require_api_key)):
     """Lanzar campaña de outreach."""
     from b2b_ai.outreach.sequences import OutreachManager
     from b2b_ai.db.db import Database
@@ -76,7 +78,7 @@ def launch_campaign(campaign: CampaignCreate):
 
 
 @router.post("/campaigns/{campaign_id}/pause")
-def pause_campaign(campaign_id: int):
+def pause_campaign(campaign_id: int, auth_info: dict = Depends(require_api_key)):
     """Pausar campaña."""
     from b2b_ai.outreach.sequences import OutreachManager
     from b2b_ai.db.db import Database
@@ -86,7 +88,7 @@ def pause_campaign(campaign_id: int):
 
 
 @router.post("/campaigns/{campaign_id}/resume")
-def resume_campaign(campaign_id: int):
+def resume_campaign(campaign_id: int, auth_info: dict = Depends(require_api_key)):
     """Reanudar campaña."""
     from b2b_ai.outreach.sequences import OutreachManager
     from b2b_ai.db.db import Database
@@ -96,7 +98,7 @@ def resume_campaign(campaign_id: int):
 
 
 @router.post("/send")
-def send_email(email: EmailSend):
+def send_email(email: EmailSend, auth_info: dict = Depends(require_api_key)):
     """Enviar email individual."""
     from b2b_ai.outreach.sequences import OutreachManager
     from b2b_ai.db.db import Database
@@ -110,7 +112,7 @@ def send_email(email: EmailSend):
 
 
 @router.post("/track/open")
-def track_open(lead_id: int, email_id: int):
+def track_open(lead_id: int, email_id: int, auth_info: dict = Depends(require_api_key)):
     """Trackear apertura de email."""
     from b2b_ai.outreach.sequences import OutreachManager
     from b2b_ai.db.db import Database
@@ -120,7 +122,7 @@ def track_open(lead_id: int, email_id: int):
 
 
 @router.post("/track/click")
-def track_click(lead_id: int, email_id: int, link_id: str):
+def track_click(lead_id: int, email_id: int, link_id: str, auth_info: dict = Depends(require_api_key)):
     """Trackear click en link."""
     from b2b_ai.outreach.sequences import OutreachManager
     from b2b_ai.db.db import Database
@@ -130,14 +132,14 @@ def track_click(lead_id: int, email_id: int, link_id: str):
 
 
 @router.get("/stats/{campaign_id}")
-def campaign_stats(campaign_id: int):
+def campaign_stats(campaign_id: int, auth_info: dict = Depends(require_api_key)):
     """Estadísticas de campaña."""
     from b2b_ai.outreach.analytics import campaign_stats
     return campaign_stats(campaign_id)
 
 
 @router.get("/lead-score/{lead_id}")
-def lead_score(lead_id: int):
+def lead_score(lead_id: int, auth_info: dict = Depends(require_api_key)):
     """Score de un lead."""
     from b2b_ai.outreach.analytics import lead_score
     return lead_score(lead_id)
