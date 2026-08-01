@@ -29,11 +29,12 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-from b2b_ai.collections_templates import SEQUENCE, STAGE_OFFSET_DAYS
+from b2b_ai.services.collections_templates import SEQUENCE, STAGE_OFFSET_DAYS
 from b2b_ai.services.collections import (
     CollectionsManager,
     age_bucket,
     days_overdue,
+    _parse_date,
 )
 from b2b_ai.services.collections_templates import format_monto, render, render_subject
 
@@ -153,25 +154,21 @@ class CollectionsScheduler:
         self._load_queue()
 
         if scheduled_date is None:
-            from b2b_ai.services.collections import _parse_date
             due = _parse_date(fecha_vencimiento)
             if due is None:
                 raise ValueError(
                     f"No se pudo parsear fecha_vencimiento: {fecha_vencimiento}"
                 )
             offset = STAGE_OFFSET_DAYS.get(stage, 0)
-            sched_date = due - __import__("datetime").timedelta(days=offset)
-            # Si el offset es negativo (antes del vencimiento), la fecha
-            # programada es VENCIMIENTO - offset (i.e. antes).
-            # Si es positivo, es VENCIMIENTO - offset (i.e. después).
-            sched_date = due - __import__("datetime").timedelta(days=-offset)
+            import datetime as _dt
+            sched_date = due + _dt.timedelta(days=-offset)
             # Para etapas post-vencimiento (offset positivo), la fecha de
             # envío es vencimiento + offset días.
             if offset > 0:
-                sched_date = due + __import__("datetime").timedelta(days=offset)
+                sched_date = due + _dt.timedelta(days=offset)
             elif offset < 0:
                 # Pre-vencimiento: enviar |offset| días ANTES.
-                sched_date = due + __import__("datetime").timedelta(days=offset)
+                sched_date = due + _dt.timedelta(days=offset)
             # Si hoy es la fecha calculada o pasó, enviar hoy.
             t = today or date.today()
             if sched_date <= t:
