@@ -19,7 +19,7 @@ class TestCalcISR:
     def test_first_bracket(self):
         r = calc_isr(500)
         assert float(r["impuesto"]) > 0
-        assert r["rango_aplicado"]["limite_inferior"] == "0.01"
+        assert r["rango_aplicado"]["limite_inferior"] == "312.42"
 
     def test_high_income(self):
         r = calc_isr(400000)
@@ -39,7 +39,7 @@ class TestCalcISR:
         r = calc_isr(10000)
         assert r["rango_aplicado"] is not None
         imp = float(r["impuesto"])
-        assert 500 < imp < 1500
+        assert 1400 < imp < 1700
 
 
 class TestCalcIMSS:

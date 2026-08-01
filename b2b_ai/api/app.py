@@ -263,6 +263,17 @@ class ContabilidadRequest(BaseModel):
     mes: Optional[int] = None
 
 
+class ARCORequest(BaseModel):
+    """Solicitud ARCO según LFPDPPP Art. 28-35."""
+    email: str
+    nombre_completo: str = ""
+    tipo_solicitud: str  # "acceso" | "rectificacion" | "cancelacion" | "oposicion"
+    descripcion: str = ""
+    datos_a_modificar: dict | None = None  # Para rectificación
+    identificacion_tipo: str = ""  # IFE, INE, pasaporte
+    identificacion_ref: str = ""
+
+
 # -------------------------------------------------------------------------- #
 # Rate limiting (en memoria, sin dependencias). Protege la API de abuso:
 # brute-force de API keys y spam del endpoint publico de leads. Limita por
@@ -1325,22 +1336,11 @@ def create_app(db=None):
         # ------------------------------------------------------------------
         # LFPDPPP ARCO Rights (Acceso, Rectificación, Cancelación, Oposición)
         # ------------------------------------------------------------------
-        from pydantic import BaseModel as _PydanticBase
-
-        class _ARCORequest(_PydanticBase):
-            """Solicitud ARCO según LFPDPPP Art. 28-35."""
-            email: str
-            nombre_completo: str = ""
-            tipo_solicitud: str  # "acceso" | "rectificacion" | "cancelacion" | "oposicion"
-            descripcion: str = ""
-            datos_a_modificar: dict | None = None  # Para rectificación
-            identificacion_tipo: str = ""  # IFE, INE, pasaporte
-            identificacion_ref: str = ""
 
         @app.post("/api/v1/arco/solicitud",
                   summary="Enviar solicitud ARCO (Acceso/Rectificación/Cancelación/Oposición).",
                   tags=["arco"])
-        async def arco_solicitud(body: _ARCORequest):
+        async def arco_solicitud(body: ARCORequest):
             """Endpoint público para recibir solicitudes ARCO de titulares.
 
             LFPDPPP Art. 29: el responsable debe registrar cada solicitud
