@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# B&B AI — Agente contable IA enterprise
+# Likida AI — Agente contable IA enterprise
 # Imagen de la API FastAPI (servida por uvicorn) en build multi-stage.
 #
 # Build:
@@ -62,7 +62,7 @@ WORKDIR /app
 # Etiquetas de trazabilidad de la imagen.
 LABEL org.opencontainers.image.title="b2b-ai" \
       org.opencontainers.image.version="1.0.0" \
-      org.opencontainers.image.description="Agente contable IA enterprise (B&B AI)"
+      org.opencontainers.image.description="Agente contable IA enterprise (Likida AI)"
 
 # Copia solo el prefix instalado + la landing estática (no el builder completo).
 COPY --from=builder /install /usr/local

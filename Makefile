@@ -1,5 +1,5 @@
 # =============================================================================
-# Makefile — B&B AI Enterprise MVP
+# Makefile — Likida AI Enterprise
 #
 # Usage:  make <target>
 #

@@ -518,7 +518,8 @@ class TestValidators:
         assert is_valid is True
 
     def test_validate_clasificacion_confianza_invalida(self):
-        clas = ClasificacionDepositoResult(
+        """Clasificación con confianza fuera de rango (bypassing pydantic)."""
+        clas = ClasificacionDepositoResult.model_construct(
             deposito_id="DEP-001",
             clasificacion=ClasificacionDeposito.INGRESO,
             confianza=1.5,
