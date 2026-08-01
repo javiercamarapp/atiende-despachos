@@ -23,33 +23,10 @@ from b2b_ai.features.compliance import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Tablas ISR 2026 (simplificadas — Mensual)
-# ---------------------------------------------------------------------------
-_ISR_TABLA = [
-    (0.01, 5_541.66, 0.00, 0.00),
-    (5_541.67, 47_071.37, 0.00, 0.00),
-    (47_071.38, 87_472.49, 0.30, 16_623.41),
-    (87_472.50, 103_376.40, 0.32, 34_746.75),
-    (103_376.41, 124_262.27, 0.34, 56_813.74),
-    (124_262.28, 250_000.00, 0.35, 69_274.90),
-    (250_000.01, 750_000.00, 0.37, 119_274.90),
-    (750_000.01, float('inf'), 0.39, 349_274.90),
-]
-
-
-def _calcular_isr(salario_gravable: float) -> float:
-    """Calcula el ISR mensual con tabla progresiva."""
-    if salario_gravable <= 0:
-        return 0.0
-    for lim_inf, lim_sup, tasa, cuota_fija in _ISR_TABLA:
-        if lim_inf <= salario_gravable <= lim_sup:
-            isr = (salario_gravable - lim_inf) * tasa + cuota_fija
-            return max(0.0, isr)
-    # Si es mayor al último límite
-    lim_inf, tasa, cuota_fija = _ISR_TABLA[-1][0], _ISR_TABLA[-1][2], _ISR_TABLA[-1][3]
-    isr = (salario_gravable - lim_inf) * tasa + cuota_fija
-    return max(0.0, isr)
+# _ISR_TABLA and _calcular_isr removed — use calculate_isr from
+# b2b_ai.features.compliance (LISR Art. 96, 2024 monthly table).
+# Previously had a wrong "simplified 2026" table that returned $0 ISR
+# for incomes up to $47,071.37, causing incorrect CFDI Nómina totals.
 
 
 def _calcular_imss_obrero(salario_diario: float) -> float:
@@ -108,7 +85,7 @@ def calculate_taxes(salary: float, benefits: float = 0.0,
     # Ingreso gravable = salario + prestaciones exentas
     gravable = salario_mensual + benefits
 
-    isr = _calcular_isr(gravable)
+    isr = calculate_isr(gravable)
     imss_obrero = _calcular_imss_obrero(salario_diario)
     imss_patronal = _calcular_imss_patronal(salario_diario)
     infonavit = _calcular_infonavit(salario_diario)
