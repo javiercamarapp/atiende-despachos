@@ -763,9 +763,9 @@ class TestHelperFunctions:
         assert _safe_float("$1,234,567.89") == pytest.approx(1234567.89)
 
     def test_safe_float_boolean_true(self):
-        # bool is subclass of int, but str(True)="True" can't convert to float
+        # bool is subclass of int; True → 1.0 (explicit bool handling)
         result = _safe_float(True)
-        assert result == 0.0  # falls through to except clause
+        assert result == 1.0
 
     def test_safe_float_boolean_false(self):
         result = _safe_float(False)
