@@ -16,11 +16,10 @@ from datetime import datetime
 from b2b_ai.db.models import MIGRATIONS
 
 DEFAULT_DB = (os.environ.get("B2B_DB_URL")
-              DEFAULT_DB = (os.environ.get("B2B_DB_URL")
-                            or os.environ.get("DATABASE_URL")  # Railway/Heroku auto-inject
-                            or os.environ.get("B2B_DB_PATH")
-                            or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-                                os.path.abspath(__file__)))), "b2b_ai.db"))
+              or os.environ.get("DATABASE_URL")  # Railway/Heroku auto-inject
+              or os.environ.get("B2B_DB_PATH")
+              or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                  os.path.abspath(__file__)))), "b2b_ai.db"))
 
 # Campos de tenant_config que se cifran en reposo (PII / credenciales).
 # Cualquier otro valor se guarda en claro.
