@@ -64,7 +64,7 @@ def test_html_subject_placeholder():
 
 # ---- EmailProvider -------------------------------------------------------- #
 def test_provider_sin_smtp_simula():
-    p = EmailProvider()  # sin SMTP_HOST → simulado
+    p = EmailProvider()  # sin B2B_SMTP_HOST → simulado
     assert not p.configured
     r = p.send("a@b.com", "Asunto", "Cuerpo")
     assert r["status"] == "simulado"

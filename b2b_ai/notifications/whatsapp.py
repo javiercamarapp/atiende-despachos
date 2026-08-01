@@ -10,7 +10,7 @@ Clases:
         Authorization: Bearer <token>
 
     Modo seguro por defecto: si no hay credenciales configuradas
-    (WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID), NO se envía nada real; el
+    (B2B_WHATSAPP_TOKEN + B2B_WHATSAPP_PHONE_NUMBER_ID), NO se envía nada real; el
     mensaje se registra como "simulado" y se devuelve al llamador. Cuando haya
     credenciales se hace la llamada HTTP real.
 
@@ -113,11 +113,11 @@ class WhatsAppBusiness:
         post: Optional[Callable] = None,
         max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
     ):
-        self.token = token or os.environ.get("WHATSAPP_TOKEN") or ""
+        self.token = token or os.environ.get("B2B_WHATSAPP_TOKEN") or ""
         self.phone_number_id = (
-            phone_number_id or os.environ.get("WHATSAPP_PHONE_NUMBER_ID") or ""
+            phone_number_id or os.environ.get("B2B_WHATSAPP_PHONE_NUMBER_ID") or ""
         )
-        self.base_url = (base_url or os.environ.get("WHATSAPP_API_URL")
+        self.base_url = (base_url or os.environ.get("B2B_WHATSAPP_API_URL")
                          or _WHATSAPP_API_URL)
         self._post = post  # transporte inyectable (tests)
         self.max_attempts = int(max_attempts)
@@ -180,8 +180,8 @@ class WhatsAppBusiness:
                 "template": template,
                 "id": None,
                 "message": ("WhatsApp no configurado; mensaje simulado. "
-                            "Configurar WHATSAPP_TOKEN y "
-                            "WHATSAPP_PHONE_NUMBER_ID para envío real."),
+                            "Configurar B2B_WHATSAPP_TOKEN y "
+                            "B2B_WHATSAPP_PHONE_NUMBER_ID para envío real."),
             }
             self.sent.append(record)
             return record

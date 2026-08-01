@@ -39,16 +39,16 @@ class EmailProvider:
                  from_addr: Optional[str] = None, use_ssl: bool = True,
                  default_recipient: Optional[str] = None):
         env = os.environ
-        self.host = host or env.get("SMTP_HOST")
-        self.port = int(port or env.get("SMTP_PORT", "465"))
-        self.user = user or env.get("SMTP_USER")
-        self.password = password or env.get("SMTP_PASSWORD")
+        self.host = host or env.get("B2B_SMTP_HOST")
+        self.port = int(port or env.get("B2B_SMTP_PORT", "465"))
+        self.user = user or env.get("B2B_SMTP_USER")
+        self.password = password or env.get("B2B_SMTP_PASSWORD")
         self.from_addr = from_addr or env.get(
-            "SMTP_FROM", "agente@b2b-ai.local")
+            "B2B_SMTP_FROM", "agente@b2b-ai.local")
         self.use_ssl = bool(use_ssl)
-        if env.get("SMTP_USE_SSL", "").lower() in ("0", "false", "no"):
+        if env.get("B2B_SMTP_USE_SSL", "").lower() in ("0", "false", "no"):
             self.use_ssl = False
-        self.default_recipient = default_recipient or env.get("SMTP_TO")
+        self.default_recipient = default_recipient or env.get("B2B_SMTP_TO")
         self.sent: List[dict] = []  # historial en memoria
 
     # ------------------------------------------------------------------ #
@@ -128,7 +128,7 @@ class EmailProvider:
             return self._record(
                 to, subject, "simulado",
                 "SMTP no configurado; email simulado. Configurar "
-                "SMTP_HOST/SMTP_USER/SMTP_PASSWORD para envío real.",
+                "B2B_SMTP_HOST/B2B_SMTP_USER/B2B_SMTP_PASSWORD para envío real.",
                 attachments, html=html, template=template)
         try:
             if self.use_ssl:

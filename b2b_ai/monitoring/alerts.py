@@ -12,7 +12,7 @@ del umbral. El historial guarda ambos eventos (triggered/cleared).
 
 Canales:
     - EmailChannel:   registra la alerta a nivel CRITICAL en el logger JSON. Si
-                      se configuran SMTP_HOST/SMTP_PORT (smtplib), envía de
+                      se configuran B2B_SMTP_HOST/B2B_SMTP_PORT (smtplib), envía de
                       verdad; si no, es un mock que no falla. Adecuado para el
                       MVP sin credenciales SMTP.
     - WebhookChannel: hace POST JSON a una URL vía urllib (timeout 5s) y reporta
@@ -134,20 +134,20 @@ def _window_samples(entries, now: float, window: float) -> list:
 class EmailChannel:
     """Canal email. Sin SMTP configurado: registra en el logger JSON (mock).
 
-    Con SMTP_HOST/SMTP_PORT y credenciales opcionales SMTP_USER/SMTP_PASSWORD y
+    Con B2B_SMTP_HOST/B2B_SMTP_PORT y credenciales opcionales B2B_SMTP_USER/B2B_SMTP_PASSWORD y
     SMTP_TO, envía de verdad usando smtplib. Nunca lanza: reporta éxito/fallo.
     """
 
     def __init__(self, to=None):
-        self.to = to or os.environ.get("SMTP_TO", "")
+        self.to = to or os.environ.get("B2B_SMTP_TO", "")
 
     def send(self, alert: Alert) -> bool:
         subject = "[%s] %s — %s" % (alert.severity.upper(), alert.rule_name, alert.message)
         log.critical("ALERTA %s | %s | %s",
                      alert.status.upper(), alert.rule_name, alert.message,
                      extra={"extra_fields": alert.to_dict()})
-        host = os.environ.get("SMTP_HOST")
-        port = int(os.environ.get("SMTP_PORT", "587"))
+        host = os.environ.get("B2B_SMTP_HOST")
+        port = int(os.environ.get("B2B_SMTP_PORT", "587"))
         if not host or not self.to:
             return True  # mock: canal configurado, envío registrado
         try:
@@ -155,13 +155,13 @@ class EmailChannel:
             from email.mime.text import MIMEText
             msg = MIMEText(json.dumps(alert.to_dict(), indent=2), "plain", "utf-8")
             msg["Subject"] = subject
-            msg["From"] = os.environ.get("SMTP_FROM", "monitor@b2b-ai.local")
+            msg["From"] = os.environ.get("B2B_SMTP_FROM", "monitor@b2b-ai.local")
             msg["To"] = self.to
             with smtplib.SMTP(host, port, timeout=10) as s:
-                user = os.environ.get("SMTP_USER")
+                user = os.environ.get("B2B_SMTP_USER")
                 if user:
                     s.starttls()
-                    s.login(user, os.environ.get("SMTP_PASSWORD", ""))
+                    s.login(user, os.environ.get("B2B_SMTP_PASSWORD", ""))
                 s.sendmail(msg["From"], [self.to], msg.as_string())
             return True
         except Exception as e:  # noqa: BLE001

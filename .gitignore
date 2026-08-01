@@ -27,3 +27,4 @@ node_modules/
 .env.railway
 nixpacks.toml
 *.db-shm\n*.db-wal
+.gstack/
