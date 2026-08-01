@@ -61,16 +61,21 @@ class TestCalcIMSS:
         """[36] Anchor to legal rate: SBC=1000 → known expected total.
 
         With 2025 IMSS worker rates (30 dias):
-          EYM (base+prest_din+prest_esp): (0.0025+0.0075+0.00375) × 1000 × 30 = 412.50
+          EYM (base+prest_din+prest_esp + excedente_3uma):
+            base:      0.0025 × 1000 × 30 =  75.00
+            prest_din: 0.0075 × 1000 × 30 = 225.00
+            prest_esp: 0.00375 × 1000 × 30 = 112.50
+            excedente: (1000 - 3×108.57) × 0.004 × 30 = 81.00
+            Subtotal EYM = 493.50
           IV (Invalidez y Vida):           0.00625 × 1000 × 30 = 187.50
           RCVA (Retiro, Cesantía):         0.01125 × 1000 × 30 = 337.50
           GMP (Gastos Médicos Pensionados): 0.00375 × 1000 × 30 = 112.50
-          Total = 1050.00
+          Total = 1131.00
         """
         r = calc_imss(1000)
         total = Decimal(r["total"])
-        assert total == Decimal("1050.00"), (
-            f"IMSS total for SBC=1000, 30d should be 1050.00, got {total}. "
+        assert total == Decimal("1131.00"), (
+            f"IMSS total for SBC=1000, 30d should be 1131.00, got {total}. "
             "Check RATES constants against LSS arts. 105-109.")
 
 

@@ -524,6 +524,31 @@ class TestValidator:
         r = validate_cfdi(d)
         assert any("IVA global" in w for w in r["warnings"])
 
+    def test_iva_global_anchored_to_16pct(self):
+        """[37] Verify the expected IVA is anchored to 16% (not 8% or other).
+
+        IVA=160 on SubTotal=1000 → no warning (exact 16%).
+        IVA=80 on SubTotal=1000 → warning (80 != 160).
+        """
+        from decimal import Decimal
+        from b2b_ai.cfdi.validator import IVA_TASA_GENERAL
+        # The constant must be 16%
+        assert IVA_TASA_GENERAL == Decimal("0.16"), (
+            f"IVA_TASA_GENERAL should be 0.16, got {IVA_TASA_GENERAL}")
+        # IVA=160 on SubTotal=1000 → exact match → no warning
+        d = self._valid_datos()
+        d["iva"] = "160.00"
+        r = validate_cfdi(d)
+        assert not any("IVA global" in w for w in r["warnings"]), (
+            "IVA=160 on SubTotal=1000 should match 16% — no warning expected")
+        # IVA=80 on SubTotal=1000 → mismatch → warning with expected 160
+        d["iva"] = "80.00"
+        r = validate_cfdi(d)
+        matching = [w for w in r["warnings"] if "IVA global" in w]
+        assert len(matching) == 1
+        assert "160" in matching[0], (
+            f"Warning should mention expected 160, got: {matching[0]}")
+
     def test_retencion_isr_warning(self):
         d = self._valid_datos()
         d["retenciones_isr"] = "9999.00"

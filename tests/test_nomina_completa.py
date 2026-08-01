@@ -64,7 +64,10 @@ def _empleado(**overrides) -> dict:
 class TestTaxes:
     def test_isr_bajo(self):
         taxes = calculate_taxes(salary=10000)
-        assert taxes.isr == 0.0  # Bajo umbral
+        # $10,000 falls in LISR Art. 96 bracket (6447.12, 12904.06] at 23.52%
+        # ISR = 717.37 + (10000 - 6447.12) * 0.2352 = 1553.01
+        assert taxes.isr > 0, "ISR must be > 0 for $10,000 (LISR Art. 96)"
+        assert abs(taxes.isr - 1553.01) < 1.0
 
     def test_isr_medio(self):
         taxes = calculate_taxes(salary=50000)
