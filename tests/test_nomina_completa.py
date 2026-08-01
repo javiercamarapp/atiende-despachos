@@ -152,7 +152,7 @@ class TestProcessPayroll:
 class TestCFDINomina:
     def test_genera_cfdi(self):
         cfdi = generate_cfdi_nomina({
-            "emisor": {"rfc": "DESP820101AB1", "nombre": "Despacho B&B"},
+            "emisor": {"rfc": "DESP820101AB1", "nombre": "Despacho Likida"},
             "receptor": {"rfc": "PEPJ800101ABC", "nombre": "Juan Pérez"},
             "period": {"month": 7, "year": 2026, "dias_pagados": 30},
             "subtotal": 25000,

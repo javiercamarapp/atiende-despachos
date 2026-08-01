@@ -1,7 +1,7 @@
-# API Reference — B&B AI (Enterprise)
+# API Reference — Likida AI Enterprise (Enterprise)
 
 Referencia técnica completa de la API REST del agente contable enterprise
-(Likida / B&B AI). Toda la documentación interactiva está disponible en la
+(Likida / Likida AI Enterprise). Toda la documentación interactiva está disponible en la
 instancia en ejecución:
 
 - Swagger UI: `GET /docs`

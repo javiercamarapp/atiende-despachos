@@ -1,4 +1,4 @@
-# B&B AI — Landing Production Deploy
+# Likida AI Enterprise — Landing Production Deploy
 
 ## Production URL
 

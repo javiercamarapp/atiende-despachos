@@ -125,7 +125,7 @@ EXAMPLES = {
         "date_tolerance_days": 3}}},
     "/api/v1/payroll/calculate": {"json": {"value": {
         "empleado": {"nombre": "Juan Pérez", "rfc": "PEJA850101XXX"},
-        "emisor": {"rfc": "DESP820101AB1", "nombre": "Despacho Contable B&B",
+        "emisor": {"rfc": "DESP820101AB1", "nombre": "Despacho Contable Likida",
                    "regimen_fiscal": "601"},
         "periodo": {"sueldo_bruto": 25000.0, "dias_pagados": 30},
         "generar_cfdi": False}}},

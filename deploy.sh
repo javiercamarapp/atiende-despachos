@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# deploy.sh — Deploy de B&B AI
+# deploy.sh — Deploy de Likida AI Enterprise
 #
 # Opción A: deploy local (VPS con Docker Compose) — ya funciona
 #   ./deploy.sh local [--no-build] [--prune]

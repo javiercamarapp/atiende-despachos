@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Comprehensive QA Testing for B&B AI — Alertas + Contabilidad Electrónica
+Comprehensive QA Testing for Likida AI Enterprise — Alertas + Contabilidad Electrónica
 ========================================================================
 Tests gaps in existing coverage: edge cases, error paths, data integrity,
 API schema compliance, concurrent behavior, and boundary conditions.

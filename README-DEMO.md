@@ -1,4 +1,4 @@
-# 🚀 B&B AI — Guía de Demo para Prospectos
+# 🚀 Likida AI Enterprise — Guía de Demo para Prospectos
 
 ## Inicio rápido
 
@@ -29,7 +29,7 @@ El servidor arranca en **http://localhost:8080** con un dashboard interactivo.
 
 1. Ejecuta `./demo_run.sh`
 2. Abre **http://localhost:8080** en el navegador
-3. Verás el dashboard de B&B AI con las estadísticas en 0
+3. Verás el dashboard de Likida AI Enterprise con las estadísticas en 0
 
 ### 2. Procesar los 10 CFDI de ejemplo
 
@@ -153,4 +153,4 @@ Esto genera un reporte HTML estático en `b2b_ai/demo-output/demo-report.html`.
 
 ---
 
-*B&B AI — Agente contable inteligente para despachos mexicanos*
+*Likida AI Enterprise — Agente contable inteligente para despachos mexicanos*

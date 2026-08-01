@@ -5,7 +5,7 @@ aislamiento multi-tenant y auditoría por request para la API enterprise.
 
 Sin dependencias externas: los JWT se firman con HMAC-SHA256 (HS256) usando
 la librería estándar (hmac / base64 / hashlib), consistente con el estilo del
-resto del auth de B&B AI (comparaciones en tiempo constante con hmac).
+resto del auth de Likida AI Enterprise (comparaciones en tiempo constante con hmac).
 
 Secret: se lee de `B2B_JWT_SECRET` y debe medir al menos 32 caracteres. Si
 falta, el arranque FALLA salvo si `B2B_ENV` dice explícitamente que es un

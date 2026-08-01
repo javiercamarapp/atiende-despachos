@@ -532,7 +532,7 @@ def generate_demo_report(results: List[Dict], output_dir: str,
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>B&B AI — Demo Reporte CFDI</title>
+    <title>Likida AI Enterprise — Demo Reporte CFDI</title>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
@@ -621,7 +621,7 @@ def generate_demo_report(results: List[Dict], output_dir: str,
 </head>
 <body>
     <div class="container">
-        <h1>B&B AI <span style="font-weight:300;font-size:1.4rem;background:none;-webkit-text-fill-color:#94a3b8;">— Demo Procesamiento CFDI</span></h1>
+        <h1>Likida AI Enterprise <span style="font-weight:300;font-size:1.4rem;background:none;-webkit-text-fill-color:#94a3b8;">— Demo Procesamiento CFDI</span></h1>
         <p class="subtitle">Procesado el {hoy} &middot; Tiempo total: {tiempo_str}</p>
 
         <div class="stats-grid">
@@ -668,7 +668,7 @@ def generate_demo_report(results: List[Dict], output_dir: str,
         <div class="anomalies">{anom_cards}</div>''' if anom_cards else ''}
 
         <div class="footer">
-            <p class="logo">B&B AI</p>
+            <p class="logo">Likida AI Enterprise</p>
             <p>Reporte generado automáticamente por el agente contable inteligente.</p>
             <p>Los resultados son informativos y no constituyen asesoría fiscal.</p>
         </div>

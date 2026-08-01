@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# health-check.sh — Verifica el estado de los servicios del stack B&B AI.
+# health-check.sh — Verifica el estado de los servicios del stack Likida AI Enterprise.
 #
 # Uso:
 #   ./scripts/health-check.sh                     # comprueba el stack completo

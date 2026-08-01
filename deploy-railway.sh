@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# deploy-railway.sh — Deploy de B&B AI a Railway
+# deploy-railway.sh — Deploy de Likida AI Enterprise a Railway
 #
 # Uso:
 #   ./deploy-railway.sh                    # deploy completo (build + push)

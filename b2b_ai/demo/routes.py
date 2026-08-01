@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-routes.py — Demo mode API routes for B&B AI.
+routes.py — Demo mode API routes for Likida AI Enterprise.
 
 When ``DEMO_MODE=true`` is set in the environment, these routes are mounted
 on the FastAPI app and provide realistic mock data for all major endpoints.
@@ -72,7 +72,7 @@ def mount_demo_routes(app) -> None:
         return {
             "status": "healthy",
             "mode": "demo",
-            "message": "B&B AI Demo Mode — todos los datos son simulados.",
+            "message": "Likida AI Enterprise Demo Mode — todos los datos son simulados.",
             "timestamp": datetime.now().isoformat(),
         }
 
@@ -516,7 +516,7 @@ def mount_demo_routes(app) -> None:
 
             return FileResponse(
                 path=pdf_path,
-                filename="B&B_AI_Reporte_ROI_Demo.pdf",
+                filename="Likida_AI_Reporte_ROI_Demo.pdf",
                 media_type="application/pdf",
             )
         except Exception as e:

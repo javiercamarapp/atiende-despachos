@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# stop.sh — Detiene B&B AI.
+# stop.sh — Detiene Likida AI Enterprise.
 #
 #   ./stop.sh          → docker compose down (conserva el volumen de la DB).
 #   ./stop.sh --purge  → docker compose down -v (ELIMINA la DB persistente).

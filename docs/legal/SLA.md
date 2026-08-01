@@ -1,15 +1,15 @@
-# Acuerdo de Nivel de Servicio (SLA) — B&B AI (Likida AI)
+# Acuerdo de Nivel de Servicio (SLA) — Likida AI Enterprise (Likida AI)
 
 **Versión:** 1.0  
 **Fecha de última actualización:** 1 de agosto de 2026  
-**Empresa:** B&B AI, S.A. de C.V. («el Proveedor»)  
+**Empresa:** Likida AI Enterprise, S.A. de C.V. («el Proveedor»)  
 **Cliente:** [Nombre del Cliente / Razón Social]
 
 ---
 
 ## 1. Alcance
 
-El presente Acuerdo de Nivel de Servicio («SLA») establece las métricas de desempeño, niveles de disponibilidad y compromisos de soporte técnico que el Proveedor garantiza al Cliente en relación con la Plataforma B&B AI (Likida AI).
+El presente Acuerdo de Nivel de Servicio («SLA») establece las métricas de desempeño, niveles de disponibilidad y compromisos de soporte técnico que el Proveedor garantiza al Cliente en relación con la Plataforma Likida AI Enterprise (Likida AI).
 
 Este SLA forma parte integral del contrato o cotización suscrito entre las partes y de los Términos de Servicio vigentes.
 
@@ -19,7 +19,7 @@ Este SLA forma parte integral del contrato o cotización suscrito entre las part
 
 | Término | Definición |
 |---|---|
-| **Plataforma** | El conjunto de servicios SaaS de automatización contable y fiscal proporcionados por el Proveedor bajo la marca B&B AI / Likida AI. |
+| **Plataforma** | El conjunto de servicios SaaS de automatización contable y fiscal proporcionados por el Proveedor bajo la marca Likida AI Enterprise / Likida AI. |
 | **Tiempo de actividad (Uptime)** | Porcentaje del tiempo total en que la Plataforma está disponible y operativa para el Cliente, excluyendo las ventanas de mantenimiento programado. |
 | **Tiempo de inactividad (Downtime)** | Periodo en que la Plataforma no está disponible o presenta degradación severa que impide su uso normal, excluyendo causas atribuibles al Cliente. |
 | **Mantenimiento programado** | Ventanas de mantenimiento planificado notificadas al Cliente con al menos 48 horas de anticipación. |
@@ -194,7 +194,7 @@ Al aceptar la cotización o firmar el contrato con el Proveedor, el Cliente decl
 
 ---
 
-**B&B AI, S.A. de C.V.**  
+**Likida AI Enterprise, S.A. de C.V.**  
 Ciudad de México, México  
 Sitio web: [www.likida.ai](https://www.likida.ai)  
 Contacto técnico: soporte@likida.ai

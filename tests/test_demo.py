@@ -101,7 +101,7 @@ def test_generate_demo_report_smoke(tmp_path):
         html = f.read()
     assert "<!DOCTYPE html>" in html
     assert "1,160.00" in html  # formatted with commas
-    assert "B&B AI" in html
+    assert "Likida AI Enterprise" in html
 
 
 def test_generate_report_with_anomalies(tmp_path):
@@ -179,7 +179,7 @@ def test_demo_pipeline_integration(tmp_path, tmp_db):
     assert os.path.exists(report_path)
     with open(report_path, "r") as f:
         html = f.read()
-    assert "B&B AI" in html
+    assert "Likida AI Enterprise" in html
     assert "Procesadas" in html or "procesadas" in html or "Facturas" in html
 
 

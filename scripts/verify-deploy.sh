@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# B&B AI — Deploy Verification Script
+# Likida AI Enterprise — Deploy Verification Script
 # Verifica que todo está listo antes de hacer deploy a Railway/Vercel
 # Uso: bash scripts/verify-deploy.sh
 # =============================================================================
@@ -40,7 +40,7 @@ warn_check() {
 }
 
 echo ""
-echo "🔍 B&B AI — Deploy Verification"
+echo "🔍 Likida AI Enterprise — Deploy Verification"
 echo "================================"
 echo ""
 

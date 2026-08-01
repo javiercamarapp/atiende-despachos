@@ -24,7 +24,7 @@ def db(tmp_path):
 def mgr(db):
     return OutreachManager(db=db, tenant_id=TENANT,
                            sender_email="ventas@b2b.example",
-                           sender_first_name="Ana", sender_company="B&B AI",
+                           sender_first_name="Ana", sender_company="Likida AI Enterprise",
                            tracking_base="https://track.test.example")
 
 

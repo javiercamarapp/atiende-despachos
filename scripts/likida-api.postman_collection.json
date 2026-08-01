@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Likida B&B AI API",
-    "description": "Colección oficial de la API REST de B&B AI (Likida) Enterprise. Generada desde docs/openapi.json. Usa el environment `likida-local` o `likida-prod`.",
+    "name": "Likida Likida AI Enterprise API",
+    "description": "Colección oficial de la API REST de Likida AI Enterprise (Likida) Enterprise. Generada desde docs/openapi.json. Usa el environment `likida-local` o `likida-prod`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -916,7 +916,7 @@
             "description": "Calcula una nómina (ISR, IMSS, INFONAVIT) y opcional nómina CFDI.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"empleado\": {\n    \"nombre\": \"Juan Pérez\",\n    \"rfc\": \"PEJA850101XXX\"\n  },\n  \"emisor\": {\n    \"rfc\": \"DESP820101AB1\",\n    \"nombre\": \"Despacho Contable B&B\",\n    \"regimen_fiscal\": \"601\"\n  },\n  \"periodo\": {\n    \"sueldo_bruto\": 25000.0,\n    \"dias_pagados\": 30\n  },\n  \"generar_cfdi\": false\n}",
+              "raw": "{\n  \"empleado\": {\n    \"nombre\": \"Juan Pérez\",\n    \"rfc\": \"PEJA850101XXX\"\n  },\n  \"emisor\": {\n    \"rfc\": \"DESP820101AB1\",\n    \"nombre\": \"Despacho Contable Likida\",\n    \"regimen_fiscal\": \"601\"\n  },\n  \"periodo\": {\n    \"sueldo_bruto\": 25000.0,\n    \"dias_pagados\": 30\n  },\n  \"generar_cfdi\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"

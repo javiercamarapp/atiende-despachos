@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# deploy.sh — Deploy de B&B AI en un VPS con Docker Compose.
+# deploy.sh — Deploy de Likida AI Enterprise en un VPS con Docker Compose.
 #
 # Flujo: construye la imagen, levanta el stack y verifica salud. Diseñado para
 # ejecutarse EN el servidor de destino (o vía SSH). Asume Docker + Compose v2.

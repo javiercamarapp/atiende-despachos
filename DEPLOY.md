@@ -1,8 +1,8 @@
-# B&B AI — Guía de despliegue (DEPLOY.md)
+# Likida AI Enterprise — Guía de despliegue (DEPLOY.md)
 
 **Última actualización:** 2026-07-31
 
-Guía rápida para poner B&B AI en producción. Para el detalle completo
+Guía rápida para poner Likida AI Enterprise en producción. Para el detalle completo
 (requisitos, opción VPS vs cloud, variables, rollback) consulta
 [`README-DEPLOY.md`](./README-DEPLOY.md) — este archivo es el resumen ejecutivo.
 

@@ -424,11 +424,11 @@ def create_app(db=None):
     # demasiado corto) en un entorno que no es de desarrollo, el arranque muere
     # aquí con un mensaje claro en vez de servir tráfico con tokens forjables.
     check_jwt_config()
-    app = FastAPI(title="B&B AI — API", version=__version__,
+    app = FastAPI(title="Likida AI Enterprise — API", version=__version__,
                   description="Agente contable IA enterprise para despachos "
                               "contables. Endpoints /api/v1/* requieren API "
                               "key en el header X-API-Key.",
-                  contact={"name": "B&B AI", "email": "ventas@b2b-ai.local"})
+                  contact={"name": "Likida AI Enterprise", "email": "ventas@b2b-ai.local"})
 
     # Cabeceras de seguridad (HSTS, CSP, X-Frame-Options, nosniff, etc.)
     install_security_headers(app)
@@ -797,7 +797,7 @@ def create_app(db=None):
             dias_pagados=req.periodo.get("dias_pagados"))
         if req.generar_cfdi:
             emisor = req.emisor or {"rfc": "DESP820101AB1",
-                                    "nombre": "Despacho Contable B&B",
+                                    "nombre": "Despacho Contable Likida",
                                     "regimen_fiscal": "601"}
             res["cfdi_xml"] = generate_payroll_cfdi(
                 req.empleado, emisor, req.periodo, resultados=res)

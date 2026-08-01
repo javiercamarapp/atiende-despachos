@@ -314,7 +314,7 @@ class GerentialReports:
 </head>
 <body>
 <h1>{title}</h1>
-<div class="meta">Generado por B&B AI — Dashboard gerencial · {datetime.now().isoformat(timespec='minutes')}</div>
+<div class="meta">Generado por Likida AI Enterprise — Dashboard gerencial · {datetime.now().isoformat(timespec='minutes')}</div>
 <table>
   <thead><tr>{thead}</tr></thead>
   <tbody>{tbody}</tbody>

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-b2b_ai — Agente IA enterprise para despachos contables (B&B AI).
+b2b_ai — Agente IA enterprise para despachos contables (Likida AI Enterprise).
 
 Expansión enterprise del MVP: tool calling, integraciones (ERP CONTPAQi
 simulada, facturación CFDI, notificaciones), base multi-tenant, API dashboard

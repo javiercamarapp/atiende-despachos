@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# demo_launch.sh — One-Click Demo Launch for B&B AI Sales Presentations
+# demo_launch.sh — One-Click Demo Launch for Likida AI Enterprise Sales Presentations
 #
 # This script:
 #   1. Activates the virtual environment
@@ -46,7 +46,7 @@ while [[ $# -gt 0 ]]; do
         --month) MONTH="$2"; shift 2 ;;
         --help|-h)
             echo ""
-            echo "  B&B AI — One-Click Demo Launcher"
+            echo "  Likida AI Enterprise — One-Click Demo Launcher"
             echo "  ================================="
             echo ""
             echo "  Usage: ./demo_launch.sh [OPTIONS]"
@@ -80,7 +80,7 @@ fi
 
 echo ""
 echo -e "  ${BOLD}${BLUE}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "  ${BOLD}${BLUE}║         B&B AI — Demo Completo de Ventas         ║${NC}"
+echo -e "  ${BOLD}${BLUE}║         Likida AI Enterprise — Demo Completo de Ventas         ║${NC}"
 echo -e "  ${BOLD}${BLUE}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "  ${CYAN}🐍 Python:${NC}    $PYTHON"
@@ -145,12 +145,12 @@ if '$PDF_ONLY' == 'true' or True:
         echo -e "  ${BOLD}${GREEN}║  ✅ Reporte PDF generado exitosamente             ║${NC}"
         echo -e "  ${BOLD}${GREEN}╚══════════════════════════════════════════════════╝${NC}"
         echo ""
-        echo -e "  📄 PDF: $DIR/demo-output/B&B_AI_Reporte_ROI_Demo.pdf"
+        echo -e "  📄 PDF: $DIR/demo-output/Likida_AI_Reporte_ROI_Demo.pdf"
         echo -e "  📊 JSON: $DIR/demo-output/demo-summary.json"
         echo ""
         # Open PDF
         if command -v open &>/dev/null; then
-            open "$DIR/demo-output/B&B_AI_Reporte_ROI_Demo.pdf"
+            open "$DIR/demo-output/Likida_AI_Reporte_ROI_Demo.pdf"
         fi
         exit 0
     fi
@@ -184,7 +184,7 @@ echo ""
 echo -e "  ${BOLD}🌐 Dashboard:${NC}    http://localhost:$PORT"
 echo -e "  ${BOLD}📡 API Docs:${NC}     http://localhost:$PORT/docs"
 echo -e "  ${BOLD}📊 Demo API:${NC}     http://localhost:$PORT/api/demo/health"
-echo -e "  ${BOLD}📄 ROI Report:${NC}   $DIR/demo-output/B&B_AI_Reporte_ROI_Demo.pdf"
+echo -e "  ${BOLD}📄 ROI Report:${NC}   $DIR/demo-output/Likida_AI_Reporte_ROI_Demo.pdf"
 echo ""
 echo -e "  ${YELLOW}💡 Tips para la venta:${NC}"
 echo -e "     • Abre el dashboard para mostrar la UI"

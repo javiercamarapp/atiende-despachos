@@ -140,7 +140,7 @@ def generate_aging_pdf(invoices: List[Dict[str, Any]],
     elements.append(Spacer(1, 0.5 * inch))
     elements.append(Paragraph(
         f"<i>Generado automáticamente el {datetime.utcnow().isoformat()} "
-        f"por B&B AI — Cobranza Automatizada</i>",
+        f"por Likida AI Enterprise — Cobranza Automatizada</i>",
         styles["Normal"]))
 
     doc.build(elements)
@@ -240,7 +240,7 @@ def generate_projection_pdf(invoices: List[Dict[str, Any]],
 
     elements.append(Spacer(1, 0.5 * inch))
     elements.append(Paragraph(
-        f"<i>Generado el {datetime.utcnow().isoformat()} por B&B AI</i>",
+        f"<i>Generado el {datetime.utcnow().isoformat()} por Likida AI Enterprise</i>",
         styles["Normal"]))
 
     doc.build(elements)
@@ -354,7 +354,7 @@ def generate_summary_pdf(invoices: List[Dict[str, Any]],
 
     elements.append(Spacer(1, 0.5 * inch))
     elements.append(Paragraph(
-        f"<i>Generado el {datetime.utcnow().isoformat()} por B&B AI</i>",
+        f"<i>Generado el {datetime.utcnow().isoformat()} por Likida AI Enterprise</i>",
         styles["Normal"]))
 
     doc.build(elements)

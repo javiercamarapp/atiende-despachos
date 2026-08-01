@@ -1,4 +1,4 @@
-# B&B AI Landing — Deploy Guide
+# Likida AI Enterprise Landing — Deploy Guide
 
 ## Quick Deploy
 

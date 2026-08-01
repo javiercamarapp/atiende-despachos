@@ -1,4 +1,4 @@
-# Architecture — B&B AI Enterprise
+# Architecture — Likida AI Enterprise Enterprise
 
 Documento de arquitectura del agente contable enterprise. Describe la visión del
 sistema, componentes, flujo de datos, diseño multi-tenant, modelo de seguridad y
@@ -8,7 +8,7 @@ opciones de despliegue.
 
 ## 1. System overview
 
-B&B AI es un **agente de IA enterprise** que automatiza el ciclo de vida de la
+Likida AI Enterprise es un **agente de IA enterprise** que automatiza el ciclo de vida de la
 facturación electrónica mexicana para despachos contables. Es un **monolito
 modular** en Python (FastAPI) que expone una API REST, una CLI, un dashboard web,
 un portal de cliente y landing pages, con una base de datos relacional (SQLite

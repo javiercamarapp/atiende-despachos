@@ -1,4 +1,4 @@
-# B&B AI — Agente Contable (expansión enterprise)
+# Likida AI Enterprise — Agente Contable (expansión enterprise)
 
 Agente de IA **enterprise** para despachos contables. Automatiza el ciclo de vida
 de la facturación electrónica mexicana (CFDI 4.0): captura, validación fiscal,
@@ -279,7 +279,7 @@ seguridad (e2e) y dashboard.
 
 ## License
 
-**Proprietary** (ver `pyproject.toml`). Uso interno del proyecto B&B AI; no
+**Proprietary** (ver `pyproject.toml`). Uso interno del proyecto Likida AI Enterprise; no
 redistribuible sin autorización expresa.
 
 ---

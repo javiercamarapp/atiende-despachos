@@ -1,8 +1,8 @@
-# API Documentation — B&B AI (Agente Contable Enterprise)
+# API Documentation — Likida AI Enterprise (Agente Contable Enterprise)
 
 Versión de API: `1.0.0` · Base URL: `http://localhost:8000`
 
-Esta documentación describe los endpoints del API real de B&B AI. El API se
+Esta documentación describe los endpoints del API real de Likida AI Enterprise. El API se
 autodocumenta en OpenAPI/Swagger:
 
 | Recurso | URL |

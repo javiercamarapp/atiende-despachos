@@ -31,7 +31,7 @@ El HTML fue actualizado por Zuck: paths relativos cambiados a `/static/assets/..
 
 La página carga sin errores JS (0 errores en consola) y todos los recursos se resuelven correctamente (0 HTTP ≥400 en `performance.getEntriesByType('resource')`).
 
-- Título: "B&B AI — Agente contable IA para despachos | 56% de ahorro en captura"
+- Título: "Likida AI Enterprise — Agente contable IA para despachos | 56% de ahorro en captura"
 - Navegación presente: Problema, Solución, Precios, Contacto, Dashboard
 - Secciones visibles: Hero, Video showcase, Problema, Solución, Características, Precios, Contacto
 

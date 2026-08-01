@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Dashboard — B&amp;B AI Agente Contable</title>
-<meta name="description" content="Dashboard del agente contable B&B AI: métricas, facturas procesadas y estado del pipeline. Disponible offline como PWA." />
+<title>Dashboard — Likida AI Enterprise Agente Contable</title>
+<meta name="description" content="Dashboard del agente contable Likida AI Enterprise: métricas, facturas procesadas y estado del pipeline. Disponible offline como PWA." />
 <meta name="theme-color" content="#0b0f19" />
 <meta name="robots" content="noindex" />
 
@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="B&B AI" />
+<meta name="apple-mobile-web-app-title" content="Likida AI Enterprise" />
 
 <style>
 :root{
@@ -131,7 +131,7 @@ input,select,button{font-size:16px}
 <nav class="nav">
   <div class="container">
     <div class="row">
-      <a class="logo" href="/"><span class="dot"></span>B&amp;B AI</a>
+      <a class="logo" href="/"><span class="dot"></span>Likida AI Enterprise</a>
       <div class="nav-actions">
         <button id="installBtn" class="btn btn-ghost btn-sm" aria-label="Instalar app">⬇ Instalar</button>
         <a href="/" class="btn btn-ghost btn-sm">← Landing</a>
@@ -147,7 +147,7 @@ input,select,button{font-size:16px}
   <!-- AUTH GATE -->
   <section id="gate" class="gate" style="display:none">
     <h2>Acceso al dashboard</h2>
-    <p>Ingresa tu API key de B&amp;B AI para ver métricas y facturas.</p>
+    <p>Ingresa tu API key de Likida AI Enterprise para ver métricas y facturas.</p>
     <form id="keyForm">
       <div class="field">
         <label for="apiKey">API Key</label>
@@ -212,7 +212,7 @@ input,select,button{font-size:16px}
 </main>
 
 <footer>
-  <div>B&amp;B AI — el profesional determina y firma.</div>
+  <div>Likida AI Enterprise — el profesional determina y firma.</div>
   <div style="margin-top:6px"><a href="/">Landing</a> · <a href="/docs">API docs</a> · <a href="/health">Health</a></div>
 </footer>
 
@@ -279,7 +279,7 @@ input,select,button{font-size:16px}
     });
   });
   window.addEventListener('appinstalled', function(){
-    toast('✅ B&B AI instalada en tu dispositivo');
+    toast('✅ Likida AI Enterprise instalada en tu dispositivo');
     installBtn.classList.remove('show');
   });
 

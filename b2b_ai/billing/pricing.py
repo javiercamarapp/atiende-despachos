@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pricing.py — Planes y precios del producto B&B AI (en MXN/mes).
+pricing.py — Planes y precios del producto Likida AI Enterprise (en MXN/mes).
 
 Tiers:
     Starter    — $4,999 MXN/mes  (hasta 500 CFDI/mes).

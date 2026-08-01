@@ -19,7 +19,7 @@ Forma de uso:
 
     mgr = OutreachManager(db=db, tenant_id=1,
                           sender_email="ventas@b2b-ai.example",
-                          sender_first_name="Ana", sender_company="B&B AI")
+                          sender_first_name="Ana", sender_company="Likida AI Enterprise")
     camp = mgr.launch_campaign(leads=[{"email": "a@firm.com",
                                        "first_name": "Luis", "company": "Firma X"}],
                                sequence_id=1, name="Cold Q3")
@@ -52,7 +52,7 @@ SEQUENCE_LENGTH = len(SEQUENCE_TEMPLATES)
 
 # Asuntos por paso (acepta los mismos placeholders que el cuerpo).
 SEQUENCE_SUBJECTS: Dict[int, str] = {
-    1: "B&B AI — automatización contable para {company}",
+    1: "Likida AI Enterprise — automatización contable para {company}",
     2: "Re: cómo ahorrar horas en captura de facturas",
     3: "Caso real: {industry} automatizó su contabilidad",
     4: "Demo de 20 minutos, sin compromiso",
@@ -112,7 +112,7 @@ class OutreachManager:
 
     def __init__(self, db: Optional[Database] = None, tenant_id: Optional[int] = None,
                  sender_email: str = "", sender_first_name: str = "",
-                 sender_company: str = "B&B AI", reply_to: Optional[str] = None,
+                 sender_company: str = "Likida AI Enterprise", reply_to: Optional[str] = None,
                  tracking_base: Optional[str] = None):
         self.db = db
         self.tenant_id = tenant_id

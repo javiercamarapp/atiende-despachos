@@ -1,10 +1,10 @@
-# User Guide — B&B AI
+# User Guide — Likida AI Enterprise
 
-Guía práctica para contadores, auxiliares y usuarios del sistema B&B AI: cómo
+Guía práctica para contadores, auxiliares y usuarios del sistema Likida AI Enterprise: cómo
 procesar CFDI, usar el dashboard, configurar integraciones y resolver problemas
 comunes.
 
-> **Importante**: B&B AI **prepara y valida**; el profesional **determina y
+> **Importante**: Likida AI Enterprise **prepara y valida**; el profesional **determina y
 > firma**. Ninguna salida con efecto fiscal (póliza, balanza, nómina, cancelación)
 > sustituye la revisión de un contador público, y nada se presenta ante el SAT sin
 > la e.firma del contribuyente.
@@ -255,7 +255,7 @@ la reposición. Los montos ≤ 0 y los lotes > 1000 también dan 422.
 ### 5.9 Contacto de soporte
 
 Para temas de credenciales, tenants o despliegue, contacta al administrador del
-sistema / equipo de soporte B&B AI (`ventas@b2b-ai.local`).
+sistema / equipo de soporte Likida AI Enterprise (`ventas@b2b-ai.local`).
 
 ---
 

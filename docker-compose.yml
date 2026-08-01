@@ -1,5 +1,5 @@
 # =============================================================================
-# B&B AI — docker-compose.yml · Stack completo de producción
+# Likida AI Enterprise — docker-compose.yml · Stack completo de producción
 #
 # Servicios: app (FastAPI/uvicorn), db (PostgreSQL), redis (cache), nginx
 # (reverse proxy / TLS / rate limiting).

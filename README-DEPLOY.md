@@ -1,8 +1,8 @@
-# Despliegue de B&B AI — Guía completa
+# Despliegue de Likida AI Enterprise — Guía completa
 
 **Última actualización:** 2026-07-31
 
-Esta guía cubre las dos formas de poner B&B AI en producción:
+Esta guía cubre las dos formas de poner Likida AI Enterprise en producción:
 
 | Opción | Landing | API | Costo/mes |
 |---|---|---|---|

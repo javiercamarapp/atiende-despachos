@@ -1,4 +1,4 @@
-# QA_REPORT_FINAL — B&B AI Enterprise MVP + Landing
+# QA_REPORT_FINAL — Likida AI Enterprise Enterprise MVP + Landing
 
 **Fecha:** 2026-07-31 · **QA:** Leonardo (Ingeniería de Calidad)
 **Alcance:** Suite completa, API v1/v2, Portal de cliente, CLI, Landing, Seguridad

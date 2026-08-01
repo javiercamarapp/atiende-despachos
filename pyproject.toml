@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "b2b-ai"
 version = "1.0.0"
-description = "Agente IA enterprise para despachos contables (B&B AI). Tool calling, ERP (CONTPAQi mock), facturación CFDI, multi-tenant, API dashboard y CLI."
+description = "Agente IA enterprise para despachos contables (Likida AI Enterprise). Tool calling, ERP (CONTPAQi mock), facturación CFDI, multi-tenant, API dashboard y CLI."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_erp_integration.py — Integration tests for the B&B AI ERP module.
+test_erp_integration.py — Integration tests for the Likida AI Enterprise ERP module.
 
 Covers:
   - ERP connectors: Aspel, CONTPAQi, CSV, QuickBooks (Phase 1 + Phase 2)

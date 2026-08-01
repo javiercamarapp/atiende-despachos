@@ -1,7 +1,7 @@
-# Guía de Desarrollo — Extender B&B AI con nuevos ERPs
+# Guía de Desarrollo — Extender Likida AI Enterprise con nuevos ERPs
 
 Esta guía está dirigida a **desarrolladores** que quieren añadir un ERP nuevo
-al agente contable B&B AI. Explica la arquitectura de integración, los
+al agente contable Likida AI Enterprise. Explica la arquitectura de integración, los
 contratos abstractos (`ERPInterface` y `BrowserAutomation` /
 `DesktopAutomation`), cómo crear un conector y cómo registrarlo en el
 pipeline.

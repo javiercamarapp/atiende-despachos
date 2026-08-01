@@ -1,10 +1,10 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "B&B AI \u2014 API",
+    "title": "Likida AI Enterprise \u2014 API",
     "description": "Agente contable IA enterprise para despachos contables. Endpoints /api/v1/* requieren API key en el header X-API-Key.",
     "contact": {
-      "name": "B&B AI",
+      "name": "Likida AI Enterprise",
       "email": "ventas@b2b-ai.local"
     },
     "version": "1.0.0"

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-mock_data.py — Realistic mock data for B&B AI demo mode.
+mock_data.py — Realistic mock data for Likida AI Enterprise demo mode.
 
 Provides Mexican CFDI data, invoices, analytics, and dashboard data
 that mimic what the production system would return from real processing.

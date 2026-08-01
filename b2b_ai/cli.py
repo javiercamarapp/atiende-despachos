@@ -117,7 +117,7 @@ def cmd_demo(args, db):
 
 def build_parser():
     p = argparse.ArgumentParser(prog="bb-ai",
-                                description="Agente contable IA (B&B AI).")
+                                description="Agente contable IA (Likida AI Enterprise).")
     p.add_argument("--version", action="version", version=f"bb-ai {__version__}")
     p.add_argument("--db", default=None, help="Ruta de la base SQLite.")
     p.add_argument("--tenant-id", type=int, default=None, dest="tenant_id",

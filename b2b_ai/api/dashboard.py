@@ -32,7 +32,7 @@ from b2b_ai.services import anomaly as anomaly_svc
 from b2b_ai.services.reports import GerentialReports
 
 # Datos del emisor que se muestran en el encabezado del panel.
-EMISOR = {"rfc": "DESP820101AB1", "nombre": "Despacho Contable B&B"}
+EMISOR = {"rfc": "DESP820101AB1", "nombre": "Despacho Contable Likida"}
 
 
 # Cache TTL para las lecturas agregadas del dashboard (/dashboard/data y
@@ -86,7 +86,7 @@ def _build_dashboard_data(db: Any, tenant_id: Optional[int] = None) -> Dict[str,
     conciliacion = _demo_reconcile(invoices)
 
     return {
-        "service": "B&B AI — Enterprise",
+        "service": "Likida AI Enterprise — Enterprise",
         "emisor": EMISOR,
         "tenant_id": tenant_id,
         "metricas": {
@@ -452,7 +452,7 @@ def build_dashboard_router(db: Any, require_api_key: Optional[Any] = None,
         data_json = json.dumps(data, ensure_ascii=False, default=str)\
             .replace("<", "\\u003c").replace(">", "\\u003e")
         html = _HTML.format(
-            title="B&B AI",
+            title="Likida AI Enterprise",
             data=data_json,
             emisor_rfc=EMISOR["rfc"],
             emisor_nombre=EMISOR["nombre"],

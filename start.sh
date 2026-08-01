@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# start.sh — Levanta B&B AI (landing + API + DB) en 5 minutos.
+# start.sh — Levanta Likida AI Enterprise (landing + API + DB) en 5 minutos.
 #
 # Modos:
 #   ./start.sh          → arranca con Docker Compose (recomendado, prod-like).
@@ -43,7 +43,7 @@ echo "→ Levantando con Docker Compose ..."
 docker compose up --build -d
 
 echo ""
-echo "  ✔ B&B AI arrancado."
+echo "  ✔ Likida AI Enterprise arrancado."
 echo "  → Landing :  http://localhost:${PORT}/"
 echo "  → API docs:  http://localhost:${PORT}/docs"
 echo "  → Health  :  http://localhost:${PORT}/health"

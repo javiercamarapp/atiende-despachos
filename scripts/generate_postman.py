@@ -237,8 +237,8 @@ for path, path_item in spec["paths"].items():
 # ---- Build collection ---------------------------------------------
 collection = {
     "info": {
-        "name": "Likida B&B AI API",
-        "description": "Colección oficial de la API REST de B&B AI (Likida) Enterprise. "
+        "name": "Likida Likida AI Enterprise API",
+        "description": "Colección oficial de la API REST de Likida AI Enterprise (Likida) Enterprise. "
                        "Generada desde docs/openapi.json. Usa el environment "
                        "`likida-local` o `likida-prod`.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",

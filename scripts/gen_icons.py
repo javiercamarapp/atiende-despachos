@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera los iconos PWA (PNG) de B&B AI sin dependencias externas.
+"""Genera los iconos PWA (PNG) de Likida AI Enterprise sin dependencias externas.
 
 Escribe icon-192.png, icon-512.png y maskable-512.png en landing/icons/.
 Usa solo stdlib (zlib + struct) para empaquetar un PNG válido.

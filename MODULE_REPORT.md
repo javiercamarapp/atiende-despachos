@@ -5,7 +5,7 @@
 
 ## Summary
 
-Built the complete audit trail and feature flags modules for the B&B AI enterprise MVP. Both modules follow existing codebase patterns: SQLite-first with PostgreSQL-ready migrations, multi-tenant isolation, and FastAPI router factories.
+Built the complete audit trail and feature flags modules for the Likida AI Enterprise enterprise MVP. Both modules follow existing codebase patterns: SQLite-first with PostgreSQL-ready migrations, multi-tenant isolation, and FastAPI router factories.
 
 ## Files Created
 

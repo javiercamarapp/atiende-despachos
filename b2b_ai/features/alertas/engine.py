@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-engine.py — Alert Engine for B&B AI.
+engine.py — Alert Engine for Likida AI Enterprise.
 
 Evaluates alert rules against incoming data and produces Alert instances.
 

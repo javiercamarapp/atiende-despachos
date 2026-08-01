@@ -190,7 +190,7 @@ def serialize_html(report: "ReportData") -> str:
     if report.metadata.get("moneda"):
         meta_parts.append(f"Moneda: {report.metadata['moneda']}")
     html_parts.append(f"""<div class="footer">
-  B&B AI — Agente Contable Enterprise<br>
+  Likida AI Enterprise — Agente Contable Enterprise<br>
   {' | '.join(_h(p) for p in meta_parts)}
 </div>
 </body>

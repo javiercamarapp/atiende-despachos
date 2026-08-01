@@ -131,7 +131,7 @@ class ConektaProvider(PaymentProvider):
             "currency": currency.lower(),
             "customer_info": {"customer_id": customer_id},
             "line_items": [{
-                "name": "Cargo B&B AI",
+                "name": "Cargo Likida AI Enterprise",
                 "unit_price": int(round(amount * 100)),
                 "quantity": 1,
             }],
@@ -193,7 +193,7 @@ class ConektaProvider(PaymentProvider):
                     },
                 }],
                 "line_items": [{
-                    "name": f"Cargo B&B AI ({method.value})",
+                    "name": f"Cargo Likida AI Enterprise ({method.value})",
                     "unit_price": int(round(amount * 100)),
                     "quantity": 1,
                 }],

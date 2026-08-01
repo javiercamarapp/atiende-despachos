@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# demo_run.sh — Launch B&B AI Demo Server
+# demo_run.sh — Launch Likida AI Enterprise Demo Server
 #
 # Usage:
 #   ./demo_run.sh          # Start on port 8080
@@ -25,7 +25,7 @@ else
 fi
 
 echo ""
-echo "  🚀 B&B AI — Demo Server"
+echo "  🚀 Likida AI Enterprise — Demo Server"
 echo "  ========================"
 echo "  🐍 Python:     $PYTHON"
 echo "  📂 Working dir: $DIR"

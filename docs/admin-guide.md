@@ -1,7 +1,7 @@
 # Guía de Administración — Configuración de Tenants
 
 Esta guía es para el **administrador del sistema** que gestiona los despachos
-(clientes) en B&B AI. Cubre el modelo multi-tenant, cómo crear y aislar
+(clientes) en Likida AI Enterprise. Cubre el modelo multi-tenant, cómo crear y aislar
 tenants, cómo provisionar API keys y cómo operar el sistema de forma segura.
 
 ---

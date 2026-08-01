@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_demo_e2e.py — End-to-end tests for the B&B AI demo module.
+test_demo_e2e.py — End-to-end tests for the Likida AI Enterprise demo module.
 
 Tests the full pipeline: generate sample data → process → produce PDF report.
 Covers firm generation, PDF report generation, HTTP routes, edge cases,
@@ -44,7 +44,7 @@ from b2b_ai.demo.report_pdf import generate_roi_report
 
 def _make_demo_app() -> FastAPI:
     """Create a FastAPI app with demo routes mounted."""
-    app = FastAPI(title="B&B AI — E2E Test")
+    app = FastAPI(title="Likida AI Enterprise — E2E Test")
     from b2b_ai.demo.routes import mount_demo_routes
     mount_demo_routes(app)
     return app
@@ -193,7 +193,7 @@ class TestReportPdfE2E:
     def test_report_pdf_named_correctly(self, firm_data, tmp_path):
         """PDF must have the expected filename."""
         pdf_path = generate_roi_report(firm_data, str(tmp_path))
-        assert os.path.basename(pdf_path) == "B&B_AI_Reporte_ROI_Demo.pdf"
+        assert os.path.basename(pdf_path) == "Likida_AI_Reporte_ROI_Demo.pdf"
 
     def test_report_pdf_contains_roi_content(self, firm_data, tmp_path):
         """PDF must be a valid multi-page document with expected structure."""

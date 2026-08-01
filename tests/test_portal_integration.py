@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_portal_integration.py — Integration tests for the B&B AI portal module.
+test_portal_integration.py — Integration tests for the Likida AI Enterprise portal module.
 
 Covers:
   - Portal API endpoints (auth, dashboard, invoices, notifications, settings)

@@ -127,7 +127,7 @@ class StripeProvider(PaymentProvider):
         inv_id = inv.get("id")
         self._post("/v1/invoices/{id}/lines".format(id=inv_id), {
             "amount": int(round(amount * 100)), "currency": currency.lower(),
-            "description": "Cargo B&B AI"})
+            "description": "Cargo Likida AI Enterprise"})
         self._post(f"/v1/invoices/{inv_id}/finalize", {})
         return Invoice(customer_id=0, amount=amount, currency=currency,
                        provider=self.provider, provider_invoice_id=inv_id,

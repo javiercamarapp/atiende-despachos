@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>B&B AI — API Documentation</title>
+<title>Likida AI Enterprise — API Documentation</title>
 <style>
 /* ====== RESET & VARIABLES ====== */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -300,9 +300,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);line-height:1
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <div class="sidebar-logo">
-      <div class="logo-icon">B&B</div>
+      <div class="logo-icon">Likida</div>
       <div>
-        <h1>B&B AI</h1>
+        <h1>Likida AI Enterprise</h1>
         <div class="version">Enterprise API v2</div>
       </div>
     </div>
@@ -330,7 +330,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);line-height:1
   <div class="content">
     <!-- HERO -->
     <div class="hero">
-      <h1>B&B AI Enterprise API</h1>
+      <h1>Likida AI Enterprise Enterprise API</h1>
       <p>Agente contable IA para despachos contables mexicanos. Procesamiento de CFDI, conciliación bancaria, contabilidad electrónica, nómina, cobranza y más.</p>
       <div class="stats">
         <div class="stat"><div class="stat-num" id="total-endpoints">0</div><div class="stat-label">Endpoints</div></div>
@@ -782,7 +782,7 @@ b2b_http_requests_total{path="/api/v1/stats",status="200"} 120`},
   },
   "emisor": {
     "rfc": "DESP820101AB1",
-    "nombre": "Despacho Contable B&B",
+    "nombre": "Despacho Contable Likida",
     "regimen_fiscal": "601"
   },
   "periodo": {
@@ -1047,7 +1047,7 @@ b2b_http_requests_total{path="/api/v1/stats",status="200"} 120`},
       {method:"GET",path:"/api/v1/dashboard/data",summary:"Dashboard data as JSON (for live refresh).",auth:true,
        params:[],
        response:`{
-  "service": "B&B AI — Enterprise",
+  "service": "Likida AI Enterprise — Enterprise",
   "metricas": { "total_facturas": 42, "monto_total": 630000 },
   "graficas": { "por_categoria": [...], "por_mes": [...] },
   "conciliacion": { "tasa_conciliacion": 78.3 }

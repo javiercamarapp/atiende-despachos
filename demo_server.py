@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-demo_server.py — Live demo server for B&B AI.
+demo_server.py — Live demo server for Likida AI Enterprise.
 
 FastAPI app that demonstrates CFDI processing to prospects.
 Run with: python demo_server.py
@@ -40,8 +40,8 @@ from b2b_ai.services.anomaly import detect_anomalies, summarize_anomalies
 # App state
 # ---------------------------------------------------------------------------
 app = FastAPI(
-    title="B&B AI — Demo CFDI",
-    description="Demo server for B&B AI CFDI processing",
+    title="Likida AI Enterprise — Demo CFDI",
+    description="Demo server for Likida AI Enterprise CFDI processing",
     version="1.0.0",
 )
 
@@ -253,7 +253,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>B&B AI — Demo Procesamiento CFDI</title>
+<title>Likida AI Enterprise — Demo Procesamiento CFDI</title>
 <style>
 :root {
   --blue: #2563EB;
@@ -669,7 +669,7 @@ tr:hover td { background: var(--gray-50); }
 <div class="header">
   <div class="header-inner">
     <div>
-      <div class="logo">B&B AI <span>— Agente Contable Inteligente</span></div>
+      <div class="logo">Likida AI Enterprise <span>— Agente Contable Inteligente</span></div>
     </div>
     <div class="header-badge">DEMO — Procesamiento CFDI</div>
   </div>
@@ -768,7 +768,7 @@ tr:hover td { background: var(--gray-50); }
 <div class="toast" id="toast"></div>
 
 <div class="footer">
-  <strong>B&B AI</strong> — Agente contable inteligente para despachos mexicanos.<br>
+  <strong>Likida AI Enterprise</strong> — Agente contable inteligente para despachos mexicanos.<br>
   Los resultados son informativos y no constituyen asesoría fiscal.
 </div>
 
@@ -1149,7 +1149,7 @@ async def dashboard():
 # ===========================================================================
 
 if __name__ == "__main__":
-    print("\n  🚀 B&B AI — Demo Server")
+    print("\n  🚀 Likida AI Enterprise — Demo Server")
     print("  " + "=" * 40)
     print(f"  📂 Demo data: {DEMO_DATA_DIR}")
     print(f"  🌐 Dashboard: http://localhost:8080")

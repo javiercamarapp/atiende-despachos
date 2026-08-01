@@ -1,6 +1,6 @@
 # SDK de Python — likida-sdk
 
-Cliente oficial de Python para la API REST de B&B AI (Likida) Enterprise.
+Cliente oficial de Python para la API REST de Likida AI Enterprise (Likida) Enterprise.
 Envuelve todos los endpoints del contrato OpenAPI (`docs/openapi.json`) en una
 API tipada, con reintentos, manejo de errores y helpers para facturas, reportes
 y webhooks.
