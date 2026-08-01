@@ -14,7 +14,7 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 # Puerto dinámico (Railway asigna un PORT aleatorio)
-startCommand = "uvicorn b2b_ai.api.app:app --host 0.0.0.0 --port $PORT --workers ${B2B_WORKERS:-1} --proxy-headers"
+startCommand = "sh -c 'uvicorn b2b_ai.api.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${B2B_WORKERS:-1} --proxy-headers'"
 
 # Health check endpoint (Railway lo llama para verificar que el servicio está vivo)
 healthcheckPath = "/health"
