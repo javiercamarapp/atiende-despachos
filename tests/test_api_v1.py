@@ -89,8 +89,15 @@ def test_process_path_inexistente(client):
     c, db = client
     r = c.post("/api/v1/invoices/process",
                headers=_auth_headers(),
+               json={"xml_path": "demo-data/no_existe.xml"})
+    # Dentro de un directorio permitido pero inexistente: 404.
+    assert r.status_code == 404
+    # Fuera de B2B_LOCAL_XML_DIRS: 403, sin confirmar si el archivo existe.
+    # Distinguir "no existe" de "no permitido" en una ruta arbitraria del
+    # servidor convertiría el endpoint en un oráculo del sistema de archivos.
+    r = c.post("/api/v1/invoices/process",
+               headers=_auth_headers(),
                json={"xml_path": "/no/existe.xml"})
-    # Fuera de B2B_LOCAL_XML_DIRS: 403 sin confirmar si el archivo existe.
     assert r.status_code == 403
 
 

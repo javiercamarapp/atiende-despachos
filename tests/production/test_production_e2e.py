@@ -154,6 +154,10 @@ def test_payloads_invalidos_never_500(clean_client, tmp_path):
 
     # xml_path fuera de los directorios permitidos -> 403 (nunca 500)
     r = c.post("/api/v1/invoices/process", headers=h,
+               json={"xml_path": "demo-data/no_existe.xml"})
+    assert r.status_code == 404
+    # y fuera de los directorios permitidos -> 403 (tampoco 500)
+    r = c.post("/api/v1/invoices/process", headers=h,
                json={"xml_path": "/no/existe.xml"})
     assert r.status_code == 403
 
