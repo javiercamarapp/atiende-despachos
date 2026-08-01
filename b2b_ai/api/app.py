@@ -543,7 +543,10 @@ def create_app(db=None):
         xml_path = (payload or {}).get("xml_path")
         if xml_path:
             # Path traversal defense: validate against allowed directories.
-            validate_xml_path(xml_path)
+            try:
+                validate_xml_path(xml_path)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
             if not os.path.exists(xml_path):
                 raise HTTPException(status_code=404,
                                     detail=f"Archivo no encontrado: {xml_path}")
