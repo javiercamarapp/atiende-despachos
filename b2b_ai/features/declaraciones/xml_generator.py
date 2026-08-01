@@ -25,10 +25,14 @@ SAT_NS = "http://www.sat.gob.mx/esquemas/DeclaracionInformativa"
 
 
 def _pretty_xml(root: ET.Element) -> str:
-    """Return pretty-printed XML string."""
+    """Return pretty-printed XML string without xml declaration."""
     rough = ET.tostring(root, encoding="unicode", xml_declaration=False)
     parsed = minidom.parseString(rough)
-    return parsed.toprettyxml(indent="  ", encoding=None)
+    # toprettyxml adds its own xml declaration; strip it
+    lines = parsed.toprettyxml(indent="  ", encoding=None).split("\n")
+    # Remove the xml declaration line added by minidom
+    clean_lines = [l for l in lines if not l.strip().startswith("<?xml")]
+    return "\n".join(clean_lines)
 
 
 class XMLGenerator:
