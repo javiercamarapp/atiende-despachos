@@ -17,6 +17,7 @@ del caller que use ContabilidadElectronica con db=.
 """
 from __future__ import annotations
 
+from datetime import datetime
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -79,7 +80,7 @@ class PackageRequest(BaseModel):
     """Parámetros para generar el paquete de contabilidad electrónica."""
     rfc: str = ""
     razon_social: str = ""
-    ejercicio: int = Field(default_factory=lambda: __import__("datetime").datetime.now().year)
+    ejercicio: int = Field(default_factory=lambda: datetime.now().year)
     mes: int = Field(default=1, ge=1, le=12)
     asientos: List[AsientoSchema]
     saldos_iniciales: Optional[Dict[str, str]] = None
