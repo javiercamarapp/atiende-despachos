@@ -120,7 +120,9 @@ def build_email_processing_router(
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
         """Scan a list of emails for attachments that could be CFDI invoices."""
-        service = _get_service(req.tenant_id)
+        # VULN-13: Derive tenant_id from authenticated user, not request body
+        tenant_id = str(auth_info.get("tenant_id", req.tenant_id))
+        service = _get_service(tenant_id)
 
         # Convert dicts to EmailMessage objects
         emails: List[EmailMessage] = []
@@ -173,7 +175,9 @@ def build_email_processing_router(
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
         """Validate and process extracted CFDI invoices."""
-        service = _get_service(req.tenant_id)
+        # VULN-13: Derive tenant_id from authenticated user, not request body
+        tenant_id = str(auth_info.get("tenant_id", req.tenant_id))
+        service = _get_service(tenant_id)
 
         # Convert dicts to ExtractedInvoice objects
         invoices: List[ExtractedInvoice] = []

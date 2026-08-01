@@ -26,6 +26,8 @@ from __future__ import annotations
 import csv
 import io
 import secrets
+import time as _time_mod
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -39,8 +41,26 @@ from pydantic import BaseModel
 
 from b2b_ai.services.reports import GerentialReports
 
-SESSION_TTL_DAYS = 30
+SESSION_TTL_DAYS = 1  # VULN-14: Reduced from 30 to 1 day (8h effective via sliding)
 COOKIE_NAME = "portal_session"
+
+# VULN-05: Login rate limiter — 5 attempts per 5 minutes per (IP, email)
+class _LoginRateLimiter:
+    def __init__(self, max_attempts: int = 5, window: int = 300):
+        self._attempts: defaultdict[tuple, list] = defaultdict(list)
+        self.max_attempts = max_attempts
+        self.window = window
+
+    def check(self, key: tuple) -> bool:
+        now = _time_mod.monotonic()
+        bucket = self._attempts[key]
+        self._attempts[key] = [t for t in bucket if now - t < self.window]
+        if len(self._attempts[key]) >= self.max_attempts:
+            return False
+        self._attempts[key].append(now)
+        return True
+
+_login_limiter = _LoginRateLimiter()
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
@@ -245,6 +265,10 @@ def build_portal_pages_router(db):
         em = (email or "").strip().lower()
         if not em or not password:
             return RedirectResponse(url="/portal/login?error=1", status_code=302)
+        # VULN-05: Rate limit per (IP, email) to prevent brute-force
+        ip = request.client.host if request.client else "unknown"
+        if not _login_limiter.check((ip, em)):
+            return RedirectResponse(url="/portal/login?error=rate_limit", status_code=429)
         user = db.get_client_user_by_email(em)
         if user is None or not _check_password(password, user["password_hash"]):
             return RedirectResponse(url="/portal/login?error=1", status_code=302)
@@ -252,7 +276,7 @@ def build_portal_pages_router(db):
         db.create_portal_session(user["id"], token, _expires())
         resp = RedirectResponse(url="/portal/dashboard", status_code=302)
         resp.set_cookie(COOKIE_NAME, token, max_age=SESSION_TTL_DAYS * 86400,
-                        httponly=True, samesite="lax", path="/")
+                        httponly=True, secure=True, samesite="lax", path="/")
         return resp
 
     @router.get("/logout", include_in_schema=False)

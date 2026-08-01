@@ -342,7 +342,8 @@ class Database:
             q += " WHERE " + " AND ".join(clauses)
         q += " ORDER BY id DESC"
         if limit:
-            q += f" LIMIT {int(limit)}"
+            q += " LIMIT ?"
+            params.append(int(limit))
         return [dict(r) for r in self.conn.execute(q, params).fetchall()]
 
     def invoice_stats(self, tenant_id=None):

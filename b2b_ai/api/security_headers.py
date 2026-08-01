@@ -24,11 +24,13 @@ from __future__ import annotations
 
 import os
 
-# CSP por defecto: mismo origen + JS inline (SPAs vanilla) + CDN de Chart.js.
-_DEFAULT_CSP = (
+# CSP por defecto: VULN-10 migrated from 'unsafe-inline' to nonce-based.
+# The nonce is injected per-request in __call__. As fallback for SSR pages
+# that don't use the nonce, 'unsafe-inline' is kept only for styles (CSS).
+_DEFAULT_CSP_TEMPLATE = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-    "style-src 'self' 'unsafe-inline'; "
+    "script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'nonce-{nonce}' 'unsafe-inline'; "
     "img-src 'self' data:; "
     "font-src 'self' data:; "
     "connect-src 'self'; "
@@ -60,12 +62,14 @@ class SecurityHeadersMiddleware:
 
     def __init__(self, app, csp: str = None, hsts_always: bool = False):
         self.app = app
-        self.csp = csp or os.environ.get("B2B_CSP", "").strip() or _DEFAULT_CSP
+        self._csp_template = csp or os.environ.get("B2B_CSP", "").strip() or None
         self.hsts_always = hsts_always or (
             os.environ.get("B2B_HSTS_ALWAYS", "").lower() == "true")
-        # HSTS solo si hay HTTPS terminado en este proceso o se forzó.
+        # VULN-07: HSTS enabled by default (was opt-in).
+        # In production, HSTS should always be on. Disable explicitly with
+        # B2B_HSTS=false for local HTTP development.
         self.hsts_enabled = self.hsts_always or (
-            os.environ.get("B2B_HSTS", "").lower() == "true")
+            os.environ.get("B2B_HSTS", "true").lower() != "false")
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -73,12 +77,15 @@ class SecurityHeadersMiddleware:
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
+                import secrets as _secrets_mod
+                nonce = _secrets_mod.token_urlsafe(16)
+                csp = self._csp_template or _DEFAULT_CSP_TEMPLATE.format(nonce=nonce)
                 headers = list(message.get("headers", []))
                 add = [
                     (b"x-content-type-options", b"nosniff"),
                     (b"x-frame-options", b"DENY"),
                     (b"referrer-policy", b"strict-origin-when-cross-origin"),
-                    (b"content-security-policy", self.csp.encode("latin-1")),
+                    (b"content-security-policy", csp.encode("latin-1")),
                 ]
                 # HSTS solo sobre HTTPS (evita que el navegador recuerde HSTS
                 # y luego falle el desarrollo local por HTTP).

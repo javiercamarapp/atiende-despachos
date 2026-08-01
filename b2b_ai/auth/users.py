@@ -161,13 +161,19 @@ class UserManager:
 
     # ---- Tokens ----------------------------------------------------------
     def refresh_token(self, token: str) -> Dict[str, Any]:
-        """Refresca una sesión a partir de un refresh token válido."""
+        """Refresca una sesión a partir de un refresh token válido.
+
+        VULN-12: Invalidates the old refresh token (rotation) so a stolen
+        token cannot be reused indefinitely.
+        """
         try:
             claims = self.jwt.decode(token)
         except JWTError:
             raise InvalidTokenError("Token inválido o caducado.")
         if claims.get("type") != "refresh":
             raise InvalidTokenError("No es un token de refresco.")
+        # VULN-12: Revoke the old refresh token before issuing new ones
+        self.jwt.revoke_token(token)
         try:
             user_id = int(claims["sub"])
         except (KeyError, ValueError, TypeError):
