@@ -1007,6 +1007,10 @@ def create_app(db=None):
     app.include_router(build_reports_router(db, require_api_key),
                        prefix="/api/v1")
 
+    # Outreach (FASE outreach): campañas automatizadas de outbound email.
+    from b2b_ai.api.outreach import router as outreach_router
+    app.include_router(outreach_router)
+
     # ------------------------------------------------------------------ #
     # Endpoints legacy (compatibilidad) — AHORA PROTEGIDOS por API key.
     # Antes exponían datos financieros y lectura de archivos sin auth.
