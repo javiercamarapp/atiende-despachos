@@ -202,35 +202,43 @@ def build_portal_router(db):
 
     @router.post("/auth/magic-link")
     def portal_magic_link(body: PortalMagicLink, request: Request):
-        """Emite una sesión sin password y la 'envía' por email (mock para el
-        MVP: se registra en notifications y se devuelve dev_token para que el
-        SPA continúe en desarrollo)."""
+        """Emite una sesión sin password y la 'envía' por email.
+
+        NUNCA devuelve el token en la respuesta HTTP (salvo B2B_ENV=dev).
+        En producción el token se envía exclusivamente por email.
+        """
         email = (body.email or "").strip().lower()
         if not email:
             raise HTTPException(status_code=422, detail="email es obligatorio.")
         user = db.get_client_user_by_email(email)
         if user is None:
-            # No revelamos si el email existe (evita enumeración de cuentas),
-            # pero en modo dev devolvemos un ok genérico.
+            # No revelamos si el email existe (evita enumeración de cuentas).
             raise HTTPException(status_code=404,
                                 detail="No hay una cuenta con ese email.")
         token = _new_token()
         db.create_portal_session(user["id"], token, _expires())
-        # Mock de envío: guardamos la notificación (canal email).
+        # Envío real: enviamos el enlace por email (mock: registry).
         try:
             db.insert_notification(
                 user["tenant_id"], "portal_magic_link", "email",
-                email, "Tu enlace de acceso al portal B&B AI",
-                "Portal: usa el token para iniciar sesión. "
-                f"(dev_token: {token})", status="sent")
+                email, "Tu enlace de acceso al portal Likida AI",
+                "Haz clic en el enlace para acceder a tu portal.",
+                status="sent")
         except Exception:  # noqa: BLE001
             pass
-        return {
-            "ok": True,
-            "message": "Te enviamos un enlace de acceso por email.",
-            "dev_token": token,
-            "expires_at": _expires(),
-        }
+        resp: dict = {"ok": True,
+                       "message": "Te enviamos un enlace de acceso por email.",
+                       "expires_at": _expires()}
+        # SOLO en dev: devolver token para testing del SPA.
+        _dev_envs = {"dev", "development", "test", "testing", "local"}
+        if os.environ.get("B2B_ENV", "").strip().lower() in _dev_envs:
+            resp["dev_token"] = token
+            import logging
+            logging.getLogger("portal").warning(
+                "MAGIC-LINK dev_token returned in HTTP response "
+                "(B2B_ENV=%s) — REMOVE before production",
+                os.environ.get("B2B_ENV"))
+        return resp
 
     @router.post("/auth/confirm")
     def portal_confirm(body: PortalTokenRequest):
