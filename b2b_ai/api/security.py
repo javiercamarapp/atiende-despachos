@@ -66,6 +66,20 @@ import tempfile  # noqa: E402 — needed by _allowed_dirs
 def validate_xml_path(xml_path: str) -> str:
     """Valida que xml_path no contenga path traversal.
 
+    ⚠️ NO ES LA DEFENSA ACTIVA. Los endpoints usan `_resolve_local_path()` de
+    `b2b_ai/api/app.py`. Esta función se conserva por compatibilidad, pero no
+    la llama nadie, así que no protege nada por sí sola.
+
+    Se sustituyó por tres motivos, todos verificados:
+      · solo cubría la rama JSON de `/api/v1/invoices/process`. El `/process`
+        legacy y el parámetro `folder` seguían aceptando rutas arbitrarias.
+      · lanza `ValueError`, que en el llamador no se capturaba: una ruta
+        rechazada devolvía 500 en vez de un código de cliente.
+      · el mensaje de error repite la ruta pedida Y la lista de directorios
+        permitidos, que es justo lo que un atacante quiere para orientarse.
+      · la lista estaba fija en el código e incluía `tempfile.gettempdir()`,
+        así que cualquier archivo que se pudiera dejar en /tmp era legible.
+
     Resuelve symlinks y '..' y verifica que el path real esté dentro de
     un directorio permitido. Lanza ValueError si el path es inseguro.
     Devuelve el path resuelto (absoluto, sin symlinks).

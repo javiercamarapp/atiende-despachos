@@ -7,6 +7,13 @@ __pycache__/
 .env.production
 *.db
 *.sqlite3
+# Los auxiliares del modo WAL. `*.db` NO los cubre, y `b2b_ai.db-wal` (4 MB de
+# páginas con datos de facturas) llegó a estar versionado por eso. Un WAL
+# versionado además corrompe el árbol de quien lo clona: al restaurarlo sobre
+# una base que ya avanzó, SQLite falla con "malformed database schema".
+*.db-wal
+*.db-shm
+*.db-journal
 .pytest_cache/
 .coverage
 htmlcov/

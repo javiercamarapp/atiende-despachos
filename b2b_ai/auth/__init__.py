@@ -13,7 +13,8 @@ Módulos:
 from b2b_ai.auth.roles import (VALID_ROLES, PERMISSIONS, is_valid_role,
                                role_permissions, has_permission)
 from b2b_ai.auth.middleware import (JWTAuth, JWTError, encode_token,
-                                    decode_token, jwt_secret)
+                                    decode_token, jwt_secret,
+                                    check_jwt_config)
 from b2b_ai.auth.users import (UserManager, UserExistsError,
                                UserNotFoundError, LastAdminError,
                                InvalidRoleError, InvalidEmailError,
@@ -23,6 +24,7 @@ __all__ = [
     "VALID_ROLES", "PERMISSIONS", "is_valid_role", "role_permissions",
     "has_permission",
     "JWTAuth", "JWTError", "encode_token", "decode_token", "jwt_secret",
+    "check_jwt_config",
     "UserManager", "UserExistsError", "UserNotFoundError", "LastAdminError",
     "InvalidRoleError", "InvalidEmailError", "InvalidTokenError",
 ]

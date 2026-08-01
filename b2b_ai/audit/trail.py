@@ -110,8 +110,12 @@ class AuditTrail:
         (recomendado en operación multi-tenant).
         """
         like = f"%{query}%"
-        q = ("SELECT * FROM audit_entries WHERE ("
-             "action LIKE ? OR resource LIKE ? OR resource_id LIKE ? "
+        # Los paréntesis NO son cosméticos: `AND` liga más fuerte que `OR`, así
+        # que sin ellos el filtro por tenant solo aplicaba a la última rama
+        # (`ip LIKE ? AND tenant_id=?`) y la búsqueda devolvía entradas de
+        # auditoría de OTROS tenants. Ver tests/test_audit.py::test_search_audit_log.
+        q = ("SELECT * FROM audit_entries WHERE "
+             "(action LIKE ? OR resource LIKE ? OR resource_id LIKE ? "
              "OR details LIKE ? OR user_id LIKE ? OR ip LIKE ?)")
         params: List[Any] = [like] * 6
         if tenant_id is not None:

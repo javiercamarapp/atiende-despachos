@@ -7,8 +7,11 @@ Sin dependencias externas: los JWT se firman con HMAC-SHA256 (HS256) usando
 la librería estándar (hmac / base64 / hashlib), consistente con el estilo del
 resto del auth de B&B AI (comparaciones en tiempo constante con hmac).
 
-Secret: se lee de `B2B_JWT_SECRET`. La variable es **obligatoria**;
-si no está configurada se lanza RuntimeError al arrancar.
+Secret: se lee de `B2B_JWT_SECRET` y debe medir al menos 32 caracteres. Si
+falta, el arranque FALLA salvo si `B2B_ENV` dice explícitamente que es un
+entorno de desarrollo (dev/development/test/testing/local), donde se genera uno
+aleatorio por proceso. `B2B_ENV` sin definir cuenta como producción. No hay
+ningún secreto literal en el código: ver el bloque de `jwt_secret()`.
 
 Dependencias FastAPI expuestas por `JWTAuth`:
   - require_auth            : valida el Bearer token y devuelve el contexto
@@ -36,22 +39,78 @@ ACCESS_TTL = int(os.environ.get("B2B_JWT_ACCESS_TTL", "1800"))      # 30 min
 REFRESH_TTL = int(os.environ.get("B2B_JWT_REFRESH_TTL", "604800"))  # 7 días
 RESET_TTL = int(os.environ.get("B2B_JWT_RESET_TTL", "3600"))        # 1 hora
 
-_JWT_KEY_NAME = "B2B_JWT_SECRET"
+# Nombre de la variable de entorno (no es un secreto).
+_JWT_SECRET_ENV = "B2B_JWT_SECRET"
+
+# Longitud mínima aceptada (32 bytes ≈ el `openssl rand -hex 32` de la doc).
+# Un secreto corto es fuerza-brutable offline a partir de un solo token.
+MIN_SECRET_LEN = 32
+
+# NO hay secreto de desarrollo literal en el código.
+#
+# Aquí vivía una constante `_DEV_SECRET` con un literal fijo, usada como
+# fallback de `jwt_secret()`. Con la env sin definir, la aplicación arrancaba
+# igual y firmaba y validaba tokens con una cadena publicada en el repositorio:
+# cualquiera podía forjar un access token con el `tenant_id` y el `role` que
+# quisiera. El fallo de configuración más común que existe —un `.env`
+# incompleto— dejaba la autenticación entera abierta.
+#
+# Ahora, sin la env definida:
+#   · con B2B_ENV en dev/development/test/testing/local se genera un
+#     secreto ALEATORIO por proceso. Los tokens siguen funcionando dentro de una
+#     misma corrida y dejan de servir al reiniciar, que es justo lo que se
+#     quiere de un entorno de desarrollo.
+#   · en cualquier otro caso —incluido B2B_ENV SIN DEFINIR— se lanza y el
+#     arranque falla ruidoso.
+# `B2B_ENV` SIN DEFINIR NO CUENTA COMO DESARROLLO. El default tiene que ser el
+# lado seguro: en Railway, Docker o cualquier PaaS lo normal es no definir esa
+# variable, y si "vacío" significara desarrollo, ese despliegue arrancaría en
+# silencio con secretos efímeros —sesiones que mueren en cada reinicio y en cada
+# worker— sin que nada avise. Hay que pedir el entorno de desarrollo de forma
+# explícita.
+_DEV_ENVS = ("dev", "development", "test", "testing", "local")
+
+_ephemeral_secret: Optional[str] = None
+
+
+def _is_dev_env() -> bool:
+    return os.environ.get("B2B_ENV", "").strip().lower() in _DEV_ENVS
 
 
 def jwt_secret() -> str:
-    """Secret de firma: B2B_JWT_SECRET (requerido).
+    """Secret de firma HS256.
 
-    Raises RuntimeError at startup if the variable is not set, so no
-    request can ever be signed with a weak or predictable secret.
+    Lee `B2B_JWT_SECRET`. Si falta o es demasiado corto, falla en producción y
+    genera uno efímero por proceso en desarrollo. Nunca devuelve un valor
+    constante conocido.
     """
-    secret = os.environ.get(_JWT_KEY_NAME, "")
-    if not secret:
+    global _ephemeral_secret
+    secret = os.environ.get(_JWT_SECRET_ENV, "").strip()
+    if secret:
+        if len(secret) < MIN_SECRET_LEN:
+            raise RuntimeError(
+                f"{_JWT_SECRET_ENV} mide {len(secret)} caracteres; se requieren al "
+                f"menos {MIN_SECRET_LEN}. Genera uno con: openssl rand -hex 32")
+        return secret
+    if not _is_dev_env():
         raise RuntimeError(
-            "B2B_JWT_SECRET no está definido.  Configura la variable de "
-            "entorno B2B_JWT_SECRET antes de arrancar la aplicación."
-        )
-    return secret
+            f"{_JWT_SECRET_ENV} no está definida y B2B_ENV="
+            f"{os.environ.get('B2B_ENV', '')!r} no es un entorno de desarrollo. "
+            f"Sin ella no se pueden firmar tokens de forma segura. "
+            f"Genera uno con: openssl rand -hex 32")
+    if _ephemeral_secret is None:
+        _ephemeral_secret = secrets.token_urlsafe(48)
+    return _ephemeral_secret
+
+
+def check_jwt_config() -> None:
+    """Valida la configuración de firma al arrancar (fail-fast).
+
+    La llama `create_app`, de modo que un despliegue mal configurado muere en el
+    arranque con un mensaje claro en vez de servir tráfico con autenticación
+    forjable.
+    """
+    jwt_secret()
 
 
 class JWTError(Exception):

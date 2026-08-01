@@ -209,12 +209,23 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def _clear_sessions():
-    """Limpia la sesión global de reconciliación entre tests (evita orden)."""
+def _sin_estado_global_de_reconciliacion():
+    """Ya no hay nada que limpiar entre pruebas, y eso es la corrección.
+
+    Aquí había un `_clear_sessions` que vaciaba `rec._SESSIONS` antes y después
+    de cada prueba. Era un parche sobre el síntoma: el estado de conciliación
+    vivía en un diccionario a nivel de módulo y se filtraba entre pruebas. Lo
+    que se arregló es la causa —el estado se persiste por tenant en la base—,
+    así que cada prueba queda aislada por su propia `Database` sin ayuda.
+
+    La fixture se conserva vacía a propósito, como guardia: si alguien devuelve
+    el global, esto falla y explica por qué.
+    """
     import b2b_ai.api.reconciliation as rec
-    rec._SESSIONS.clear()
+    assert not hasattr(rec, "_SESSIONS"), (
+        "volvió el estado global de conciliación: es lo que rompía el "
+        "despliegue multi-worker (ver docs/auditoria-2026-08.md, hallazgo 4)")
     yield
-    rec._SESSIONS.clear()
 
 
 @pytest.fixture

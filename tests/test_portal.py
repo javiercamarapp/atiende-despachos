@@ -75,7 +75,11 @@ def test_login_unknown_email(ctx):
 def test_me_requires_token(ctx):
     c = ctx["client"]
     assert c.get("/portal/auth/me").status_code == 401
+    # El JSON del portal vive en /portal/invoices.json. /portal/invoices
+    # es la PÁGINA HTML (portal/routes.py), que sin sesión redirige a
+    # /portal/login con un 302 en vez de responder 401.
     assert c.get("/portal/invoices.json").status_code == 401
+    assert c.get("/portal/invoices", follow_redirects=False).status_code == 302
 
 
 def test_me_with_valid_token(ctx):

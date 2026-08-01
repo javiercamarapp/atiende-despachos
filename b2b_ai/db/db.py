@@ -570,6 +570,77 @@ class Database:
         self.conn.commit()
         return cur.rowcount > 0
 
+    # ---- Conciliación bancaria (estado persistido por tenant) ----
+    # Sustituye al diccionario en memoria que vivía en api/reconciliation.py.
+    # Solo se guarda lo no derivable: movimientos subidos y confirmaciones
+    # manuales. Toda lectura y escritura filtra por tenant_id.
+    def add_bank_transactions(self, tenant_id, transactions, banco=None,
+                              filename=None):
+        """Persiste movimientos normalizados. Devuelve cuántos son nuevos.
+
+        Idempotente por (tenant_id, tx_id): resubir el mismo estado de cuenta
+        no duplica movimientos.
+        """
+        nuevos = 0
+        with self.conn:
+            for t in transactions or []:
+                tx_id = str(t.get("id") or t.get("tx_id") or "")
+                if not tx_id:
+                    continue
+                # `ON CONFLICT DO NOTHING` sin target y no `INSERT OR IGNORE`:
+                # la primera forma la entienden SQLite y PostgreSQL por igual,
+                # y este método corre contra los dos backends.
+                cur = self.conn.execute(
+                    "INSERT INTO bank_transactions"
+                    "(tenant_id, tx_id, banco, filename, data)"
+                    " VALUES (?,?,?,?,?) ON CONFLICT DO NOTHING",
+                    (tenant_id, tx_id, banco, filename, json.dumps(t)))
+                nuevos += cur.rowcount or 0
+        return nuevos
+
+    def list_bank_transactions(self, tenant_id=None):
+        """Movimientos persistidos del tenant, en orden de inserción."""
+        rows = self.conn.execute(
+            "SELECT data FROM bank_transactions"
+            " WHERE COALESCE(tenant_id, -1)=COALESCE(?, -1)"
+            " ORDER BY id ASC", (tenant_id,)).fetchall()
+        out = []
+        for r in rows:
+            try:
+                out.append(json.loads(r["data"]))
+            except (ValueError, TypeError):
+                continue
+        return out
+
+    def set_bank_confirmation(self, tenant_id, tx_id, invoice_id):
+        """Registra (o reemplaza) una confirmación manual de cruce."""
+        with self.conn:
+            self.conn.execute(
+                "DELETE FROM bank_confirmations"
+                " WHERE COALESCE(tenant_id, -1)=COALESCE(?, -1) AND tx_id=?",
+                (tenant_id, str(tx_id)))
+            self.conn.execute(
+                "INSERT INTO bank_confirmations(tenant_id, tx_id, invoice_id)"
+                " VALUES (?,?,?)",
+                (tenant_id, str(tx_id), str(invoice_id)))
+
+    def list_bank_confirmations(self, tenant_id=None):
+        """Confirmaciones manuales del tenant como {tx_id: invoice_id}."""
+        rows = self.conn.execute(
+            "SELECT tx_id, invoice_id FROM bank_confirmations"
+            " WHERE COALESCE(tenant_id, -1)=COALESCE(?, -1)",
+            (tenant_id,)).fetchall()
+        return {r["tx_id"]: r["invoice_id"] for r in rows}
+
+    def clear_bank_reconciliation(self, tenant_id=None):
+        """Borra movimientos y confirmaciones del tenant (reset de sesión)."""
+        with self.conn:
+            for tabla in ("bank_transactions", "bank_confirmations"):
+                self.conn.execute(
+                    f"DELETE FROM {tabla}"  # nosec B608 — nombre literal fijo
+                    " WHERE COALESCE(tenant_id, -1)=COALESCE(?, -1)",
+                    (tenant_id,))
+
     # ---- API keys (multi-tenant) ----
     def create_api_key(self, tenant_id, name, key):
         """Guarda una API key hashada. Devuelve (id, key_hash)."""

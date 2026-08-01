@@ -86,8 +86,8 @@ from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
                                  encrypt_field, decrypt_field)
-from b2b_ai.api.security import validate_xml_path
 from b2b_ai.auth.api import build_auth_router
+from b2b_ai.auth.middleware import check_jwt_config
 from b2b_ai.monitoring.logger import (get_logger as get_structured_logger,
                                       request_context)
 from b2b_ai.monitoring.metrics import metrics as prom_metrics
@@ -249,10 +249,13 @@ class ContabilidadRequest(BaseModel):
 class RateLimiter:
     """Ventana deslizante por (ip, ruta). `limit` peticiones por `window` seg."""
 
-    def __init__(self, limit: int = 300, window: float = 60.0):
+    def __init__(self, limit: int = 300, window: float = 60.0,
+                 sweep_every: int = 1000):
         self.limit = limit
         self.window = window
         self._hits: "defaultdict[tuple, list[float]]" = defaultdict(list)
+        self._sweep_every = max(1, int(sweep_every))
+        self._since_sweep = 0
 
     def allow(self, key: tuple) -> bool:
         now = time.monotonic()
@@ -264,10 +267,32 @@ class RateLimiter:
         if len(bucket) >= self.limit:
             return False
         bucket.append(now)
+        # Barrido periódico de claves vacías. Antes se podaban las marcas de
+        # tiempo pero la CLAVE `(ip, ruta)` no se borraba nunca: pedir rutas
+        # aleatorias hacía crecer el diccionario sin techo, o sea agotar la
+        # memoria a través del propio mecanismo antiabuso. Se barre cada
+        # `_sweep_every` admisiones para no pagar un recorrido por petición.
+        self._since_sweep += 1
+        if self._since_sweep >= self._sweep_every:
+            self._since_sweep = 0
+            self._sweep(cutoff)
         return True
+
+    def _sweep(self, cutoff: float) -> None:
+        """Elimina las claves cuyas marcas de tiempo ya caducaron todas."""
+        muertas = [k for k, v in self._hits.items()
+                   if not v or v[-1] < cutoff]
+        for k in muertas:
+            self._hits.pop(k, None)
 
     def reset(self):
         self._hits.clear()
+        self._since_sweep = 0
+
+    @property
+    def tracked_keys(self) -> int:
+        """Claves vivas. Lo usa la prueba que fija el techo de memoria."""
+        return len(self._hits)
 
 
 def _client_ip(request: Request) -> str:
@@ -302,6 +327,72 @@ def _client_ip(request: Request) -> str:
     return real_ip
 
 
+# -------------------------------------------------------------------------- #
+# Ingesta por ruta local (`xml_path` / `folder`)
+#
+# Estos parámetros dejan que el CLIENTE elija una ruta DEL SERVIDOR. Antes solo
+# se comprobaba `os.path.exists()`, así que cualquier portador de una API key
+# válida podía pasar una ruta arbitraria: leía cualquier XML del disco —los CFDI
+# almacenados de OTROS despachos, entre ellos— e importarlo a su propio tenant
+# para consultarlo después por `GET /api/v1/invoices`. `folder` servía además
+# para sondear el sistema de archivos.
+#
+# `api/security.py::validate_xml_path` fue un primer intento, pero solo cubría
+# la rama JSON de /api/v1 (dejaba fuera el /process legacy y `folder`), lanzaba
+# un ValueError que nadie capturaba —500 en vez de un código de cliente—, y su
+# mensaje repetía la ruta pedida y la lista de directorios permitidos.
+#
+# Ahora la ingesta local es OPT-IN y está confinada: `B2B_LOCAL_XML_DIRS` lista
+# los directorios base permitidos, separados por `:`. Sin esa variable la
+# funcionalidad queda desactivada y responde 400 — el flujo real de la API es la
+# subida multipart, que no toca este camino.
+# -------------------------------------------------------------------------- #
+def _allowed_xml_roots() -> list:
+    raw = os.environ.get("B2B_LOCAL_XML_DIRS", "").strip()
+    if not raw:
+        return []
+    roots = []
+    for part in raw.split(os.pathsep if os.pathsep in raw else ":"):
+        part = part.strip()
+        if part:
+            try:
+                roots.append(Path(part).resolve(strict=False))
+            except OSError:
+                continue
+    return roots
+
+
+def _resolve_local_path(candidate: str, want_dir: bool = False) -> Path:
+    """Resuelve una ruta local del cliente dentro de los roots permitidos.
+
+    Lanza HTTPException 400 si la ingesta local está desactivada, 403 si la
+    ruta cae fuera de los roots y 404 si no existe. Resuelve symlinks antes de
+    comparar, de modo que un enlace dentro de un root no sirve para escapar.
+    """
+    roots = _allowed_xml_roots()
+    if not roots:
+        raise HTTPException(
+            status_code=400,
+            detail="La ingesta por ruta local está desactivada. Suba el archivo "
+                   "como multipart (campo xml_file) o configure "
+                   "B2B_LOCAL_XML_DIRS en el servidor.")
+    try:
+        target = Path(candidate).resolve(strict=False)
+    except (OSError, ValueError):
+        raise HTTPException(status_code=400, detail="Ruta inválida.")
+    if not any(target == r or r in target.parents for r in roots):
+        # Mensaje deliberadamente sin eco de la ruta: no confirma qué existe.
+        raise HTTPException(
+            status_code=403,
+            detail="Ruta fuera de los directorios permitidos.")
+    if want_dir:
+        if not target.is_dir():
+            raise HTTPException(status_code=404, detail="Carpeta no encontrada.")
+    elif not target.is_file():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado.")
+    return target
+
+
 # Rutas que NO se limitan (healthcheck, estáticos, SW/PWA, docs).
 _RATE_LIMIT_EXEMPT_PREFIXES = (
     "/health", "/metrics", "/static", "/icons", "/manifest.json",
@@ -314,6 +405,11 @@ _RATE_LIMIT_EXEMPT_PREFIXES = (
 def create_app(db=None):
     db = db or Database()
     logger.set_db(db)
+
+    # Fail-fast de configuración de firma. Si B2B_JWT_SECRET falta (o es
+    # demasiado corto) en un entorno que no es de desarrollo, el arranque muere
+    # aquí con un mensaje claro en vez de servir tráfico con tokens forjables.
+    check_jwt_config()
     app = FastAPI(title="B&B AI — API", version=__version__,
                   description="Agente contable IA enterprise para despachos "
                               "contables. Endpoints /api/v1/* requieren API "
@@ -542,15 +638,14 @@ def create_app(db=None):
             raise HTTPException(400, "Body inválido. Use multipart o JSON con xml_path.")
         xml_path = (payload or {}).get("xml_path")
         if xml_path:
-            # Path traversal defense: validate against allowed directories.
+            safe = _resolve_local_path(str(xml_path))
             try:
-                validate_xml_path(xml_path)
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-            if not os.path.exists(xml_path):
-                raise HTTPException(status_code=404,
-                                    detail=f"Archivo no encontrado: {xml_path}")
-            res = process_file(xml_path, db=db, tenant_id=tenant)
+                res = process_file(str(safe), db=db, tenant_id=tenant)
+            except CFDIError as e:
+                # Misma respuesta que la rama multipart. Antes esta excepción
+                # subía sin capturar y un XML truncado devolvía un 500.
+                raise HTTPException(status_code=422,
+                                    detail=f"CFDI inválido: {e}")
             _record_business_metrics(res)
             return {"result": _strip(res)}
         raise HTTPException(status_code=400,
@@ -1058,16 +1153,12 @@ def create_app(db=None):
         tenant = _scope(auth_info) or req.tenant_id
         try:
             if req.xml_path:
-                if not os.path.exists(req.xml_path):
-                    raise HTTPException(status_code=404,
-                                        detail=f"Archivo no encontrado: {req.xml_path}")
-                res = process_file(req.xml_path, db=db, tenant_id=tenant)
+                safe = _resolve_local_path(str(req.xml_path))
+                res = process_file(str(safe), db=db, tenant_id=tenant)
                 return {"result": _strip(res)}
             if req.folder:
-                if not os.path.isdir(req.folder):
-                    raise HTTPException(status_code=404,
-                                        detail=f"Carpeta no encontrada: {req.folder}")
-                results = process_batch(req.folder, db=db, tenant_id=tenant)
+                safe_dir = _resolve_local_path(str(req.folder), want_dir=True)
+                results = process_batch(str(safe_dir), db=db, tenant_id=tenant)
                 from b2b_ai.services.pipeline import summarize
                 return {"summary": summarize(results),
                         "results": [_strip(r) for r in results]}

@@ -76,7 +76,11 @@ def test_process_archivo_no_existe(client):
     c, db = client
     r = c.post("/process", json={"xml_path": "/no/existe.xml"},
                headers=_auth())
-    assert r.status_code == 404
+    # 403 y no 404: la ruta cae FUERA de B2B_LOCAL_XML_DIRS, así que se rechaza
+    # antes de mirar el disco. Distinguir "no existe" de "no permitido" en una
+    # ruta arbitraria del servidor convertiría el endpoint en un oráculo de
+    # existencia de archivos. Un 404 solo se devuelve dentro de los roots.
+    assert r.status_code == 403
 
 
 def test_process_folder(client, fixture_dir):

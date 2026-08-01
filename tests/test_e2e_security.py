@@ -100,9 +100,12 @@ def test_e2e_http_codes(ctx):
         r = c.post("/api/v1/invoices/process", headers=h,
                    files={"xml_file": ("readme.xml", fh, "text/xml")})
     assert r.status_code == 422
-    # 404 xml_path inexistente
+    # 403 xml_path fuera de los directorios permitidos (no confirma existencia)
     assert c.post("/api/v1/invoices/process", headers=h,
                   json={"xml_path": "demo-data/no_existe.xml"}).status_code == 404
+    # 403 fuera de los directorios permitidos (no confirma existencia)
+    assert c.post("/api/v1/invoices/process", headers=h,
+                  json={"xml_path": "/no/existe.xml"}).status_code == 403
 
 
 # --------------------------------------------------------------------------- #

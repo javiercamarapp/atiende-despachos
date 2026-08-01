@@ -1,29 +1,69 @@
 name: Deploy Likida AI
 
+# Solo pruebas: los despliegues a Vercel y Railway se hacen a mano (decisión de
+# `main` en 814e433). Este workflow es la puerta de calidad, no el pipeline de
+# entrega.
 on:
   push:
     branches: [main]
+  # También en PR: es donde hay que enterarse, no después de mergear.
+  pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # bash CON pipefail. El default de GitHub Actions en Linux es `bash -e {0}`,
+    # que NO activa pipefail: en un pipeline solo cuenta el estado del ÚLTIMO
+    # comando. Por eso `pytest ... | tail -20` daba verde con la suite en rojo
+    # —`tail` siempre sale 0 y se tragaba el fallo de pytest—. Se declara aquí
+    # para todo el job, de modo que ningún paso futuro reintroduzca el problema
+    # por accidente.
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
 
-      - name: Install dependencies
+      # Las dependencias FIJADAS de producción, y no las abiertas de
+      # pyproject.toml: la suite tiene que correr contra las mismas versiones que
+      # se despliegan. La diferencia importa —con `lxml>=4.9` el parser de CFDI
+      # resolvería entidades externas; con la 6.1.1 fijada, no—.
+      #
+      # Sin `|| true`: si la instalación falla, el job tiene que morir aquí. Con
+      # el fallback silencioso, unas dependencias ausentes se convertían en
+      # errores de colección de pytest, que el pipe a `tail` volvía a ocultar.
+      # (`requirements.txt` a secas no existe en este repo; el archivo es
+      # `requirements-production.txt`.)
+      - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt 2>/dev/null || pip install -e . 2>/dev/null || true
-          pip install pytest bandit
+          pip install -r requirements-production.txt
+          pip install pytest httpx 'psycopg[binary]' psycopg-pool reportlab
+          pip install -e .
 
-      - name: Run tests
-        run: python -m pytest tests/ -v --tb=short -q 2>&1 | tail -20
+      # Sin pipe: el código de salida de pytest ES el resultado del job.
+      - name: Pruebas
+        run: pytest -q
 
-      - name: Security lint
-        run: bandit -r b2b_ai/ -ll --skip B101 2>/dev/null || true
+      # Bandit, heredado del workflow anterior. Se conserva como informativo
+      # (`|| true`) a propósito: hoy marca falsos positivos —los f-string de
+      # `LIMIT {int(limit)}` y el `UPDATE ... SET {sets}` con allowlist fija—,
+      # así que bloquear con él solo enseñaría a ignorarlo. Convertirlo en
+      # puerta exige antes anotar esos casos con `# nosec` y su porqué.
+      - name: Lint de seguridad (bandit, informativo)
+        run: |
+          pip install bandit
+          bandit -r b2b_ai/ -ll --skip B101 || true
