@@ -149,12 +149,27 @@ class PGConnection:
         self._c = raw_conn
         self._release = release
         self._c.row_factory = _row_factory
+        self._released = False
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
-        self.close()
+        # Only commit/rollback — do NOT release to pool here.
+        # Releasing happens in close() when Database.close() is called.
+        # This matches sqlite3.Connection behavior: `with conn:` does
+        # transaction control but keeps the connection usable.
+        # Previously this called self.close() which released the physical
+        # connection back to psycopg_pool, but Database._local.conn still
+        # cached the stale PGConnection → two threads sharing the same
+        # socket under concurrent load (issue [26]).
+        try:
+            if exc[0] is not None:
+                self._c.rollback()
+            else:
+                self._c.commit()
+        except Exception:  # noqa: BLE001
+            pass
         return False
 
     def execute(self, sql, params=None):
@@ -180,6 +195,10 @@ class PGConnection:
 
     def close(self):
         # Devuelve la conexión al pool vía el context manager que la prestó.
+        # Idempotent: only releases once.
+        if self._released:
+            return
+        self._released = True
         if self._release is not None:
             try:
                 self._release.__exit__(None, None, None)
