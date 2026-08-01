@@ -23,6 +23,9 @@ import base64
 import hashlib
 import os
 import re
+from pathlib import Path
+
+from b2b_ai.common.rfc import RFC_RE as _CANONICAL_RFC_RE
 
 # --------------------------------------------------------------------------- #
 # Upload validation
@@ -40,9 +43,57 @@ def allowed_upload_extension(filename: str) -> bool:
 
 
 # --------------------------------------------------------------------------- #
+# Path traversal defense
+# --------------------------------------------------------------------------- #
+# Directorios permitidos para xml_path (resolved, no trailing slash).
+def _allowed_dirs():
+    """Devuelve directorios permitidos para xml_path."""
+    base = Path(__file__).resolve().parent.parent.parent  # enterprise/
+    return [
+        (base / "data").resolve(),
+        (base / "tmp").resolve(),
+        (base / "uploads").resolve(),
+        Path(tempfile.gettempdir()).resolve(),
+    ]
+
+
+import tempfile  # noqa: E402 — needed by _allowed_dirs
+
+
+def validate_xml_path(xml_path: str) -> str:
+    """Valida que xml_path no contenga path traversal.
+
+    Resuelve symlinks y '..' y verifica que el path real esté dentro de
+    un directorio permitido. Lanza ValueError si el path es inseguro.
+    Devuelve el path resuelto (absoluto, sin symlinks).
+    """
+    if not xml_path or not isinstance(xml_path, str):
+        raise ValueError("xml_path es obligatorio.")
+    # Resolve para colapsar '..', symlinks, etc.
+    try:
+        resolved = Path(xml_path).resolve()
+    except (OSError, ValueError) as e:
+        raise ValueError(f"xml_path inválido: {e}") from e
+    # Verificar que el path resuelto está dentro de un directorio permitido.
+    allowed = _allowed_dirs()
+    for d in allowed:
+        try:
+            resolved.relative_to(d)
+            return str(resolved)
+        except ValueError:
+            continue
+    # Si no está en ningún directorio permitido, rechazar.
+    raise ValueError(
+        f"xml_path fuera de directorios permitidos: {xml_path}. "
+        f"Directorios permitidos: {[str(d) for d in allowed]}"
+    )
+
+
+# --------------------------------------------------------------------------- #
 # PII detection
 # --------------------------------------------------------------------------- #
-_RFC_RE = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{2,3}$")
+# Use canonical RFC regex from b2b_ai.common.rfc for consistency.
+_RFC_RE = _CANONICAL_RFC_RE
 _CURP_RE = re.compile(r"^[A-Z][AEIOUX][A-Z]{2}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$")
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 _PHONE_RE = re.compile(

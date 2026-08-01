@@ -86,6 +86,7 @@ from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
                                  encrypt_field, decrypt_field)
+from b2b_ai.api.security import validate_xml_path
 from b2b_ai.auth.api import build_auth_router
 from b2b_ai.monitoring.logger import (get_logger as get_structured_logger,
                                       request_context)
@@ -541,6 +542,8 @@ def create_app(db=None):
             raise HTTPException(400, "Body inválido. Use multipart o JSON con xml_path.")
         xml_path = (payload or {}).get("xml_path")
         if xml_path:
+            # Path traversal defense: validate against allowed directories.
+            validate_xml_path(xml_path)
             if not os.path.exists(xml_path):
                 raise HTTPException(status_code=404,
                                     detail=f"Archivo no encontrado: {xml_path}")
@@ -1008,8 +1011,8 @@ def create_app(db=None):
                        prefix="/api/v1")
 
     # Outreach (FASE outreach): campañas automatizadas de outbound email.
-    from b2b_ai.api.outreach import router as outreach_router
-    app.include_router(outreach_router)
+    from b2b_ai.api.outreach import build_outreach_router
+    app.include_router(build_outreach_router(require_api_key))
 
     # ------------------------------------------------------------------ #
     # Endpoints legacy (compatibilidad) — AHORA PROTEGIDOS por API key.

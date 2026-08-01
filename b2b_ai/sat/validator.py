@@ -17,15 +17,15 @@ el servicio "Consulta de estatus de un CFDI" (SAT).
 """
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-RFC_RE = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
+from b2b_ai.common.rfc import RFC_RE, is_valid_rfc, normalize_rfc
 
 
 def _es_rfc_valido(rfc: str) -> bool:
-    return bool(rfc and RFC_RE.match((rfc or "").strip().upper()))
+    """Valida RFC usando la función canónica centralizada."""
+    return is_valid_rfc(rfc)
 
 
 def _normalize_folio(folio: str) -> str:

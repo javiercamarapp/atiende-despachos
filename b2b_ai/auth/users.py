@@ -73,9 +73,34 @@ def _check_password(password: str, password_hash: str) -> bool:
 
 
 def _validate_password(password: str) -> None:
-    if not password or len(password) < 8:
+    """Valida que el password cumpla la política de seguridad enterprise.
+
+    Requisitos:
+        - Mínimo 10 caracteres (up from 8)
+        - Al menos 1 mayúscula
+        - Al menos 1 minúscula
+        - Al menos 1 dígito
+        - Al menos 1 carácter especial (!@#$%^&*...)
+
+    Lanza InvalidPasswordError si no cumple.
+    """
+    if not password:
+        raise InvalidPasswordError("El password no puede estar vacío.")
+    errors = []
+    if len(password) < 10:
+        errors.append("al menos 10 caracteres")
+    if not re.search(r"[A-Z]", password):
+        errors.append("al menos 1 letra mayúscula")
+    if not re.search(r"[a-z]", password):
+        errors.append("al menos 1 letra minúscula")
+    if not re.search(r"\d", password):
+        errors.append("al menos 1 dígito")
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?`~]", password):
+        errors.append("al menos 1 carácter especial (!@#$%^&*...)")
+    if errors:
         raise InvalidPasswordError(
-            "El password debe tener al menos 8 caracteres.")
+            "El password debe tener: " + ", ".join(errors) + "."
+        )
 
 
 class UserManager:

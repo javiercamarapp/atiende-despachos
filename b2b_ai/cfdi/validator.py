@@ -24,6 +24,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from b2b_ai.cfdi import catalogs
+from b2b_ai.common.rfc import RFC_RE, is_valid_rfc
 
 # Tasas de IVA vigentes (LIVA art. 1-C)
 IVA_TASA_GENERAL = Decimal("0.16")    # 16% - General
@@ -32,7 +33,6 @@ IVA_TASA_EXENTO = Decimal("0.00")    # 0% - Exento
 # Tasa por defecto para validación
 IVA_TASA = IVA_TASA_GENERAL
 TOLERANCIA = Decimal("0.02")
-RFC_RE = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
 
 # Umbrales referenciales (sujetos a validación humana; regla 2.7.1.47 RMF)
 # Montos que suelen requerir aceptación del receptor para cancelar.
@@ -59,7 +59,8 @@ def _parse_fecha(f):
 
 
 def _es_rfc_valido(rfc):
-    return bool(rfc and RFC_RE.match(rfc))
+    """Valida RFC usando la función canónica centralizada."""
+    return is_valid_rfc(rfc)
 
 
 class ValidationResult(dict):

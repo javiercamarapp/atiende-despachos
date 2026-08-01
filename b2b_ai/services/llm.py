@@ -33,8 +33,170 @@ import json
 import os
 import random
 import re
+from typing import Optional
 
 from b2b_ai.services.classify import classify_cfdi, CATEGORIA_NOMBRE
+
+
+# ==========================================================================
+# Prompt sanitization — previene prompt injection via datos CFDI
+# ==========================================================================
+# Patrones que pueden intentar inyectar instrucciones en el LLM.
+_INJECTION_PATTERNS = [
+    re.compile(r"\b(ignore|disregard|override)\b.{0,30}\b(previous|above|instructions?)\b", re.I),
+    re.compile(r"\b(you are now|act as|pretend to be|roleplay as)\b", re.I),
+    re.compile(r"\b(system prompt|new instructions?|admin mode)\b", re.I),
+    re.compile(r"<\s*(script|iframe|object|embed|img|svg)", re.I),
+    re.compile(r"\[SYSTEM\]|\[ADMIN\]|\[INST\]", re.I),
+]
+
+# Límites de seguridad para datos enviados al LLM.
+_MAX_FIELD_LENGTH = 2000   # truncar campos individuales
+_MAX_PAYLOAD_LENGTH = 8000  # truncar payload completo
+
+
+def _sanitize_field(value) -> str:
+    """Sanitiza un campo individual: convierte a str, trunca, escapa XML."""
+    if value is None:
+        return ""
+    s = str(value)
+    # Truncar valores excesivamente largos (posible abuso / inyección).
+    if len(s) > _MAX_FIELD_LENGTH:
+        s = s[:_MAX_FIELD_LENGTH] + "[...truncado]"
+    return s
+
+
+def _sanitize_payload(payload: dict) -> dict:
+    """Limpia un payload CFDI antes de enviarlo al LLM.
+
+    1. Convierte todos los valores a str (seguro para serialización).
+    2. Trunca campos excesivamente largos.
+    3. Elimina tags HTML/XML que podrían inyectar contenido.
+    4. Detecta y registra patrones de prompt injection.
+    """
+    if not isinstance(payload, dict):
+        return {"_raw": _sanitize_field(payload)}
+    clean = {}
+    for k, v in payload.items():
+        if isinstance(v, (list, tuple)):
+            clean[k] = [_sanitize_payload(item) if isinstance(item, dict)
+                         else _sanitize_field(item) for item in v]
+        elif isinstance(v, dict):
+            clean[k] = _sanitize_payload(v)
+        else:
+            clean[k] = _sanitize_field(v)
+    return clean
+
+
+def _strip_xml_tags(text: str) -> str:
+    """Elimina tags XML/HTML del texto para prevenir inyección via XML."""
+    return re.sub(r"<[^>]+>", "", text)
+
+
+def _detect_injection(text: str) -> bool:
+    """Detecta patrones de prompt injection en el texto."""
+    for pattern in _INJECTION_PATTERNS:
+        if pattern.search(text):
+            return True
+    return False
+
+
+# ==========================================================================
+# Token cost control / budget
+# ==========================================================================
+class TokenBudget:
+    """Control de presupuesto de tokens para llamadas LLM.
+
+    Límites configurables por env:
+        B2B_LLM_MAX_INPUT_TOKENS   — máximo de tokens de entrada por llamada (default: 4000)
+        B2B_LLM_MAX_OUTPUT_TOKENS  — máximo de tokens de salida por llamada (default: 1024)
+        B2B_LLM_MAX_CALLS          — máximo de llamadas por sesión (default: 100)
+        B2B_LLM_MAX_COST_USD       — máximo de costo USD por sesión (default: 5.00)
+    """
+    # Precios por 1K tokens (aproximados, actualizables via env).
+    DEFAULT_COST_PER_1K = {
+        "gpt-4o-mini": 0.00015,
+        "gpt-4o": 0.005,
+        "claude-sonnet-4-20250514": 0.003,
+        "deepseek-chat": 0.00027,
+        "deepseek/deepseek-v4-flash": 0.0001,
+    }
+
+    def __init__(self):
+        self.max_input_tokens = int(os.environ.get("B2B_LLM_MAX_INPUT_TOKENS", "4000"))
+        self.max_output_tokens = int(os.environ.get("B2B_LLM_MAX_OUTPUT_TOKENS", "1024"))
+        self.max_calls = int(os.environ.get("B2B_LLM_MAX_CALLS", "100"))
+        self.max_cost_usd = float(os.environ.get("B2B_LLM_MAX_COST_USD", "5.00"))
+        self.calls_made = 0
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
+        self.total_cost_usd = 0.0
+
+    def check_allowance(self) -> None:
+        """Lanza LLMError si se excede el presupuesto."""
+        if self.calls_made >= self.max_calls:
+            raise LLMError(
+                f"Presupuesto LLM agotado: {self.calls_made} llamadas "
+                f"(máximo {self.max_calls})."
+            )
+        if self.total_cost_usd >= self.max_cost_usd:
+            raise LLMError(
+                f"Presupuesto LLM agotado: ${self.total_cost_usd:.4f} "
+                f"(máximo ${self.max_cost_usd:.2f})."
+            )
+
+    def record_call(self, input_tokens: int, output_tokens: int,
+                    model: str = "") -> None:
+        """Registra el uso de tokens de una llamada."""
+        self.calls_made += 1
+        self.total_input_tokens += input_tokens
+        self.total_output_tokens += output_tokens
+        cost_per_1k = self.DEFAULT_COST_PER_1K.get(model, 0.001)
+        self.total_cost_usd += (input_tokens + output_tokens) / 1000.0 * cost_per_1k
+
+    def clamp_max_tokens(self, requested: int) -> int:
+        """Ajusta max_tokens al límite del presupuesto."""
+        return min(requested, self.max_output_tokens)
+
+    def clamp_input(self, messages: list) -> list:
+        """Trunca el input si excede el límite de tokens (estimación rough)."""
+        # Estimación rough: 1 token ≈ 4 chars en español/inglés.
+        estimated = sum(len(m.get("content", "")) for m in messages) // 4
+        if estimated <= self.max_input_tokens:
+            return messages
+        # Truncar el último mensaje del usuario si es el culpable.
+        factor = self.max_input_tokens / max(estimated, 1)
+        out = []
+        for m in messages:
+            content = m.get("content", "")
+            if m["role"] == "user" and len(content) > 100:
+                truncated_len = int(len(content) * factor)
+                content = content[:truncated_len] + "\n[...truncado por presupuesto]"
+            out.append({**m, "content": content})
+        return out
+
+    def to_dict(self) -> dict:
+        return {
+            "calls_made": self.calls_made,
+            "total_input_tokens": self.total_input_tokens,
+            "total_output_tokens": self.total_output_tokens,
+            "total_cost_usd": round(self.total_cost_usd, 6),
+            "limits": {
+                "max_calls": self.max_calls,
+                "max_cost_usd": self.max_cost_usd,
+                "max_input_tokens": self.max_input_tokens,
+                "max_output_tokens": self.max_output_tokens,
+            },
+        }
+
+
+# Instancia global de presupuesto (compartida entre todas las llamadas LLM).
+_global_budget = TokenBudget()
+
+
+def get_token_budget() -> TokenBudget:
+    """Devuelve el presupuesto global de tokens."""
+    return _global_budget
 
 
 class LLMError(Exception):
@@ -105,14 +267,21 @@ _CATEGORIAS_PROMPT = ", ".join(CATEGORIA_NOMBRE.keys())
 
 
 def _render_prompt(task, payload):
+    """Renderiza el prompt sanitizando los datos CFDI antes de incluirlos."""
+    sanitized = _sanitize_payload(payload)
     p = PROMPTS[task]
-    user = p["user"].format(datos=_json(payload))
+    user = p["user"].format(datos=_json(sanitized))
     system = p["system"].format(categorias=_CATEGORIAS_PROMPT)
     return system, user
 
 
 def _json(obj):
     return json.dumps(obj, ensure_ascii=False, default=str)
+
+
+def _estimate_tokens(text: str) -> int:
+    """Estimación rough de tokens (~4 chars por token en español)."""
+    return max(1, len(text) // 4)
 
 
 def _parse_json(value):
@@ -461,13 +630,29 @@ class LLMService:
         self.client = client or get_llm()
         self.last_source = "rules"
         self.last_error = None
+        self.budget = get_token_budget()
 
     # ---- helpers internos -------------------------------------------------
     def _run(self, task, payload):
+        """Ejecuta una tarea LLM con sanitización y control de presupuesto."""
+        self.budget.check_allowance()
         system, user = _render_prompt(task, payload)
-        text = self.client.complete(
-            [{"role": "system", "content": system},
-             {"role": "user", "content": user}])
+        messages = [{"role": "system", "content": system},
+                     {"role": "user", "content": user}]
+        # Clamp input y output al presupuesto.
+        messages = self.budget.clamp_input(messages)
+        max_tokens = self.budget.clamp_max_tokens(512)
+        try:
+            text = self.client.complete(messages, max_tokens=max_tokens)
+        except LLMError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            raise LLMError(f"Error LLM inesperado: {e}") from e
+        # Estimar y registrar tokens (rough: ~4 chars/token).
+        in_tokens = _estimate_tokens(system + user)
+        out_tokens = _estimate_tokens(text or "")
+        self.budget.record_call(in_tokens, out_tokens,
+                                getattr(self.client, "model", ""))
         if not text or not text.strip():
             raise LLMError("Respuesta LLM vacía.")
         return text

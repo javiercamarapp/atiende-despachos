@@ -37,7 +37,9 @@ import uuid
 # Patrones de PII latina / mexicana. La sustitución es total (no deja parte del
 # dato visible): en logs la existencia del campo importa más que su valor.
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
-_RFC_RE = re.compile(r"\b[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}\b")
+# Use canonical RFC regex for PII masking.
+from b2b_ai.common.rfc import RFC_RE as _CANONICAL_RFC_RE
+_RFC_RE = re.compile(r"\b" + _CANONICAL_RFC_RE.pattern.lstrip("^").rstrip("$") + r"\b")
 _CURP_RE = re.compile(r"\b[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9][0-9]\b")
 # Teléfonos: 10+ dígitos, opcional prefijo internacional/separadores.
 _PHONE_RE = re.compile(r"(?:\+?\d{1,3}[\s.\-()]*)?(?:\(?\d{2,4}\)?[\s.\-]?)\d{3}[\s.\-]?\d{3,4}\b")

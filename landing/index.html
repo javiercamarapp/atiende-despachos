@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>B&amp;B AI — Agente contable IA para despachos | 56% de ahorro en captura</title>
+<title>Likida AI — Agente contable IA para despachos | 56% de ahorro en captura</title>
 
 <!-- ============ PWA / installable ============ -->
 <link rel="manifest" href="/manifest.json" />
@@ -15,22 +15,25 @@
 <meta name="apple-mobile-web-app-title" content="B&B AI" />
 
 <!-- ============ SEO ============ -->
-<meta name="description" content="Automatiza la captura, validación y registro de facturas CFDI con IA. El agente contable de B&B AI prepara, valida y clasifica; tú determinas y firmas. 56% menos tiempo en captura." />
+<meta name="description" content="Automatiza la captura, validación y registro de facturas CFDI con IA. El agente contable de Likida AI prepara, valida y clasifica; tú determinas y firmas. 56% menos tiempo en captura." />
 <meta name="robots" content="index, follow" />
 <meta name="author" content="B&B AI" />
-<link rel="canonical" href="https://www.b2b-ai.local/" />
+<link rel="canonical" href="https://likida.ai/" />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="B&amp;B AI" />
-<meta property="og:title" content="B&amp;B AI — Agente contable IA para despachos" />
+<meta property="og:site_name" content="Likida AI" />
+<meta property="og:title" content="Likida AI — Agente contable IA para despachos" />
 <meta property="og:description" content="Automatiza la captura, validación y registro de facturas CFDI 4.0 con IA. La máquina prepara y valida; tú determinas y firmas. 56% menos tiempo en captura." />
-<meta property="og:url" content="https://www.b2b-ai.local/" />
+<meta property="og:url" content="https://likida.ai/" />
+<meta property="og:image" content="https://likida.ai/assets/og-image.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
 <meta property="og:locale" content="es_MX" />
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="B&amp;B AI — Agente contable IA para despachos" />
+<meta name="twitter:title" content="Likida AI — Agente contable IA para despachos" />
 <meta name="twitter:description" content="Automatiza la captura, validación y registro de facturas CFDI 4.0 con IA. 56% menos tiempo en captura." />
 
 <!-- Favicon (SVG inline, cero peticiones extra) -->
@@ -43,35 +46,35 @@
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://www.b2b-ai.local/#org",
-      "name": "B&B AI",
-      "url": "https://www.b2b-ai.local/",
-      "email": "ventas@b2b-ai.local",
+      "@id": "https://likida.ai/#org",
+      "name": "Likida AI",
+      "url": "https://likida.ai/",
+      "email": "ventas@likida.ai",
       "description": "Agente contable IA para despachos contables en México. Captura, validación fiscal CFDI 4.0 y clasificación contable automatizadas."
     },
     {
       "@type": "WebSite",
-      "@id": "https://www.b2b-ai.local/#site",
-      "url": "https://www.b2b-ai.local/",
-      "name": "B&B AI",
-      "publisher": { "@id": "https://www.b2b-ai.local/#org" },
+      "@id": "https://likida.ai/#site",
+      "url": "https://likida.ai/",
+      "name": "Likida AI",
+      "publisher": { "@id": "https://likida.ai/#org" },
       "inLanguage": "es-MX"
     },
     {
       "@type": "SoftwareApplication",
-      "@id": "https://www.b2b-ai.local/#app",
-      "name": "B&B AI — Agente Contable",
+      "@id": "https://likida.ai/#app",
+      "name": "Likida AI — Agente Contable",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web / API",
       "inLanguage": "es-MX",
       "description": "Automatiza la captura, validación fiscal CFDI 4.0 y clasificación contable de facturas. Multi-tenant con auditoría.",
-      "offers": {
-        "@type": "Offer",
-        "price": "8000",
-        "priceCurrency": "MXN",
-        "description": "Plan mensual por despacho"
-      },
-      "publisher": { "@id": "https://www.b2b-ai.local/#org" }
+      "offers": [
+        { "@type": "Offer", "name": "Starter", "price": "8000", "priceCurrency": "MXN", "description": "Hasta 300 CFDI/mes" },
+        { "@type": "Offer", "name": "Pro", "price": "20000", "priceCurrency": "MXN", "description": "Hasta 900 CFDI/mes" },
+        { "@type": "Offer", "name": "Business", "price": "40000", "priceCurrency": "MXN", "description": "Hasta 2,500 CFDI/mes" },
+        { "@type": "Offer", "name": "Enterprise", "price": "80000", "priceCurrency": "MXN", "description": "Hasta 6,000 CFDI/mes, multi-despacho" }
+      ],
+      "publisher": { "@id": "https://likida.ai/#org" }
     }
   ]
 }
@@ -413,7 +416,7 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
       <div class="price reveal">
         <h3>Starter</h3>
         <div class="amount">$8,000<small> MXN</small></div>
-        <div class="per">por mes · hasta 200 facturas</div>
+        <div class="per">por mes · hasta 300 CFDI</div>
         <ul>
           <li>Captura y validación CFDI 4.0</li>
           <li>Clasificación contable automática</li>
@@ -424,9 +427,9 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
       </div>
       <div class="price hot reveal reveal-delay-1">
         <div class="flag">MÁS ELEGIDO</div>
-        <h3>Growth</h3>
-        <div class="amount">$15,000<small> MXN</small></div>
-        <div class="per">por mes · hasta 1,000 facturas</div>
+        <h3>Pro</h3>
+        <div class="amount">$20,000<small> MXN</small></div>
+        <div class="per">por mes · hasta 900 CFDI</div>
         <ul>
           <li>Todo lo de Starter</li>
           <li>Computer use sobre tu ERP</li>
@@ -438,15 +441,26 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
         <a href="#contacto" class="btn btn-primary" data-ripple>Agendar demo</a>
       </div>
       <div class="price reveal reveal-delay-2">
-        <h3>Enterprise</h3>
-        <div class="amount">$25,000<small> MXN</small></div>
-        <div class="per">por mes · volumen alto · multi-despacho</div>
+        <h3>Business</h3>
+        <div class="amount">$40,000<small> MXN</small></div>
+        <div class="per">por mes · hasta 2,500 CFDI</div>
         <ul>
-          <li>Todo lo de Growth</li>
+          <li>Todo lo de Pro</li>
+          <li>Conciliación bancaria</li>
+          <li>Reportes para auditoría</li>
+          <li>Onboarding y capacitación</li>
+        </ul>
+        <a href="#contacto" class="btn btn-ghost" data-ripple>Cotizar</a>
+      </div>
+      <div class="price reveal reveal-delay-3">
+        <h3>Enterprise</h3>
+        <div class="amount">$80,000<small> MXN</small></div>
+        <div class="per">por mes · hasta 6,000 CFDI · multi-despacho</div>
+        <ul>
+          <li>Todo lo de Business</li>
           <li>Multi-tenant con aislamiento</li>
           <li>API real para integración propia</li>
-          <li>Onboarding y capacitación</li>
-          <li>SLA y gerente de cuenta</li>
+          <li>SLA y gerente de cuenta dedicado</li>
         </ul>
         <a href="#contacto" class="btn btn-ghost" data-ripple>Cotizar</a>
       </div>
@@ -526,8 +540,8 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
 <footer>
   <div class="container">
     <div class="foot">
-      <div class="logo"><span class="dot"></span>B&amp;B AI</div>
-      <div class="disclaimer">B&amp;B AI prepara y valida; el profesional determina y firma. No sustituye a un contador público ni presenta ante el SAT.</div>
+      <div class="logo"><span class="dot"></span>Likida AI</div>
+      <div class="disclaimer">Likida AI prepara y valida; el profesional determina y firma. No sustituye a un contador público ni presenta ante el SAT.</div>
     </div>
   </div>
 </footer>
@@ -705,7 +719,7 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
       if(res.ok){ showOk(); }
       else { showOk(); }
     }).catch(function(){
-      var mailto = 'mailto:ventas@b2b-ai.local?subject=' +
+      var mailto = 'mailto:ventas@likida.ai?subject=' +
         encodeURIComponent('Solicitud de demo — ' + payload.despacho) +
         '&body=' + encodeURIComponent('Nombre: ' + payload.nombre + '\nDespacho: ' + payload.despacho + '\nEmail: ' + payload.email + '\nFacturas/mes: ' + payload.facturas + '\nERP: ' + (payload.mensaje || '-'));
       window.location.href = mailto;

@@ -1,4 +1,4 @@
-# Netlify configuration for B&B AI landing
+# Netlify configuration for Likida AI landing
 # Alternative deploy target to Vercel. Static site — no build step required.
 # Videos are pre-optimized H.264 in assets/. Publish dir is the site root.
 
