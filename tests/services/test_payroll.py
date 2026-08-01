@@ -171,8 +171,8 @@ class TestCalculatePayroll:
     def test_provisions_included(self):
         emp = {"salario_diario": 500}
         r = calculate_payroll(emp, 15000)
-        assert "aguinaldo" in r["provisiones"]
-        assert "prima_vacacional" in r["provisiones"]
+        assert "aguinaldo" in r["provisiones_patron"]
+        assert "prima_vacacional" in r["provisiones_patron"]
 
     def test_negative_gravado_clamped(self):
         """If exento > sueldo, gravado should be 0."""

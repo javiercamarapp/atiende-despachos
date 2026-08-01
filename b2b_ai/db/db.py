@@ -264,7 +264,12 @@ class Database:
             "issues": issues_txt,
             "erp_poliza": (erp or {}).get("poliza", "") if erp else "",
             "erp_status": (erp or {}).get("status", "") if erp else "",
-            "status": "procesado",
+            # [33] Derivar status del erp_status: pending_approval NO es "procesado".
+            "status": ("pending_approval"
+                       if (erp or {}).get("status") == "pending_approval"
+                       else ("rejected"
+                             if (erp or {}).get("status") == "rejected_invalid_cfdi"
+                             else "procesado")),
             "procesado_en": now,
         }
         try:

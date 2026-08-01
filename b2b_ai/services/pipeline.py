@@ -139,7 +139,41 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
     # 6. Notificación (si aplica; no bloquea el pipeline)
     notif = {"status": "skipped"}
     try:
-        if validacion.get("ok"):
+        if not validacion.get("ok"):
+            # [32] CFDI inválido: notificar rechazo al despacho para que revise.
+            event = "invoice_rejected"
+            ctx = {
+                "nombre": "Equipo",
+                "archivo": datos.get("folio_fiscal", archivo)[:12],
+                "folio": datos.get("folio_fiscal", archivo)[:12],
+                "emisor": datos.get("emisor_nombre", ""),
+                "monto": datos.get("total", ""),
+                "detalle": "; ".join(
+                    i.get("mensaje", str(i))
+                    for i in validacion.get("issues", [])),
+                "issues": "; ".join(
+                    i.get("mensaje", str(i))
+                    for i in validacion.get("issues", [])),
+                "uuid": datos.get("folio_fiscal", ""),
+            }
+            notif = _tool("send_notification", logger_, tenant_id,
+                          event_type=event, to="despacho@b2b-ai.local",
+                          context=ctx, email=email or EmailSender())
+        elif erp_res.get("status") == "pending_approval":
+            # [33] Factura pendiente de aprobación: notificar que NO se registró.
+            event = "invoice_pending_approval"
+            ctx = {
+                "nombre": "Equipo",
+                "folio": datos.get("folio_fiscal", archivo)[:12],
+                "emisor": datos.get("emisor_nombre", ""),
+                "monto": datos.get("total", ""),
+                "decision": aprobacion.get("decision", ""),
+                "uuid": datos.get("folio_fiscal", ""),
+            }
+            notif = _tool("send_notification", logger_, tenant_id,
+                          event_type=event, to="despacho@b2b-ai.local",
+                          context=ctx, email=email or EmailSender())
+        elif validacion.get("ok"):
             event = "invoice_processed"
             ctx = {
                 "nombre": "Equipo", "folio": datos.get("folio_fiscal", archivo)[:12],
