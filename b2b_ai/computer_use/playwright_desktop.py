@@ -65,6 +65,21 @@ class PlaywrightDesktop(DesktopAutomation):
         self._page = None  # Page instance
         self._launched = False
 
+    def __del__(self):
+        """Ensure browser resources are freed on garbage collection."""
+        if self._launched or self._browser:
+            logger.warning("PlaywrightDesktop: resources not closed before GC. "
+                           "Call close() explicitly to avoid fd leaks.")
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                try:
+                    loop.run_until_complete(self.close())
+                finally:
+                    loop.close()
+            except Exception:
+                pass
+
     async def launch(self, url: str) -> Dict[str, Any]:
         """Launch a real Chromium browser and navigate to the URL.
 
