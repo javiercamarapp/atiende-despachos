@@ -92,6 +92,10 @@ from b2b_ai.features.dashboard.routes import build_dashboard_admin_router
 from b2b_ai.features.alertas.routes import build_alertas_router
 from b2b_ai.features.conciliacion.routes import build_conciliacion_router
 from b2b_ai.features.contabilidad_electronica.routes import build_contabilidad_electronica_router
+from b2b_ai.features.pre_auditoria.routes import build_pre_auditoria_router
+from b2b_ai.features.nomina_completa.routes import build_nomina_completa_router
+from b2b_ai.features.reportes_gerenciales.routes import build_reportes_gerenciales_router
+from b2b_ai.features.email_processing.routes import build_email_processing_router
 from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
@@ -1147,6 +1151,18 @@ def create_app(db=None):
 
     # Contabilidad Electrónica SAT: Balanza, Catálogo de Cuentas, validación y obligaciones.
     app.include_router(build_contabilidad_electronica_router())
+
+    # Pre-Auditoría Contable: escaneo pre-audit, deducibilidad y compliance CFF.
+    app.include_router(build_pre_auditoria_router())
+
+    # Nómina Completa: cálculo ISR/IMSS/INFONAVIT, CFDI de nómina y recibos.
+    app.include_router(build_nomina_completa_router())
+
+    # Reportes Gerenciales: KPIs, cash flow, P&L y exportación.
+    app.include_router(build_reportes_gerenciales_router())
+
+    # Recepción de Correos: monitoreo inbox, extracción de CFDI.
+    app.include_router(build_email_processing_router())
 
     # Reportes PDF (FASE reportes): generación + descarga de PDFs.
     app.include_router(build_reports_router(db, require_api_key),

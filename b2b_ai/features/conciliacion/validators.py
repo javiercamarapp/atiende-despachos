@@ -1,21 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-validators.py — Validation functions for bank statements and CFDI data
-used in the reconciliation process.
+validators.py — Validation functions for bank statements, CFDI data,
+and polizas contables used in the reconciliation process.
 
 Validates:
   - Bank statement CSV data before import
   - CFDI references before matching
+  - Poliza contable data before matching
+  - Amount matching with tolerance
+  - Date range validation
   - Data integrity and format requirements
 """
 from __future__ import annotations
 
 import re
-from typing import List, Tuple
+from datetime import datetime
+from typing import List, Tuple, Optional
 
 from b2b_ai.features.conciliacion.models import (
     BankTransaction,
     CFDIReference,
+    PolizaContable,
     TransactionType,
 )
 
@@ -44,7 +49,6 @@ def validate_bank_statement(
 
     for i, txn in enumerate(transactions, 1):
         prefix = f"Transacción #{i}"
-
         # Required fields
         for field in ("id", "date", "amount", "type"):
             if field not in txn or txn[field] is None:
@@ -66,6 +70,14 @@ def validate_bank_statement(
                     f"{prefix}: formato de fecha inválido '{date_str}'. "
                     "Se esperaba YYYY-MM-DD."
                 )
+            else:
+                # Validate date is a real date
+                try:
+                    datetime.strptime(str(date_str), "%Y-%m-%d")
+                except ValueError:
+                    errors.append(
+                        f"{prefix}: fecha no válida '{date_str}'."
+                    )
 
         # Amount validation
         amount = txn.get("amount")
@@ -153,6 +165,11 @@ def validate_cfdi_for_conciliation(
                 f"{prefix}: formato de fecha inválido '{fecha}'. "
                 "Se esperaba YYYY-MM-DD."
             )
+        elif fecha:
+            try:
+                datetime.strptime(str(fecha), "%Y-%m-%d")
+            except ValueError:
+                errors.append(f"{prefix}: fecha no válida '{fecha}'.")
 
         # RFC format (emisor)
         rfc_emisor = cfdi.get("rfc_emisor", "")
@@ -195,3 +212,214 @@ def validate_cfdi_for_conciliation(
             )
 
     return len(errors) == 0, errors
+
+
+# ---------------------------------------------------------------------------
+# Poliza contable validation
+# ---------------------------------------------------------------------------
+
+def validate_polizas_contables(
+    polizas: List[dict],
+) -> Tuple[bool, List[str]]:
+    """Validate a list of raw poliza contable dicts.
+
+    Returns (is_valid, list_of_errors).
+
+    Checks:
+      - Required fields present (id, fecha, monto)
+      - Date format YYYY-MM-DD
+      - Monto is numeric and non-zero
+      - No duplicate IDs
+      - Referencia is string (if present)
+    """
+    errors: List[str] = []
+    seen_ids = set()
+
+    if not polizas:
+        errors.append("La lista de pólizas contables está vacía.")
+        return False, errors
+
+    for i, pol in enumerate(polizas, 1):
+        prefix = f"Póliza #{i}"
+
+        # Required fields
+        for field in ("id", "fecha", "monto"):
+            if field not in pol or pol[field] is None:
+                errors.append(f"{prefix}: campo '{field}' es obligatorio.")
+
+        # ID validation
+        pol_id = pol.get("id", "")
+        if not pol_id:
+            errors.append(f"{prefix}: 'id' no puede estar vacío.")
+        elif pol_id in seen_ids:
+            errors.append(f"{prefix}: ID duplicado '{pol_id}'.")
+        seen_ids.add(pol_id)
+
+        # Date format
+        fecha = pol.get("fecha", "")
+        if fecha:
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", str(fecha)):
+                errors.append(
+                    f"{prefix}: formato de fecha inválido '{fecha}'. "
+                    "Se esperaba YYYY-MM-DD."
+                )
+            else:
+                try:
+                    datetime.strptime(str(fecha), "%Y-%m-%d")
+                except ValueError:
+                    errors.append(f"{prefix}: fecha no válida '{fecha}'.")
+
+        # Monto validation
+        monto = pol.get("monto")
+        if monto is not None:
+            try:
+                monto_val = float(monto)
+                if monto_val == 0:
+                    errors.append(f"{prefix}: el monto no puede ser cero.")
+            except (ValueError, TypeError):
+                errors.append(
+                    f"{prefix}: monto inválido '{monto}'. "
+                    "Debe ser un número."
+                )
+
+        # Referencia is string
+        ref = pol.get("referencia")
+        if ref is not None and not isinstance(ref, str):
+            errors.append(f"{prefix}: 'referencia' debe ser texto.")
+
+    return len(errors) == 0, errors
+
+
+# ---------------------------------------------------------------------------
+# Amount matching validation
+# ---------------------------------------------------------------------------
+
+def validate_amount_match(
+    amount1: float,
+    amount2: float,
+    tolerance: float = 0.01,
+) -> Tuple[bool, float]:
+    """Check if two amounts match within a given tolerance.
+
+    Parameters
+    ----------
+    amount1 : float
+        First amount.
+    amount2 : float
+        Second amount.
+    tolerance : float
+        Maximum fractional difference allowed (default 0.01 = 1%).
+
+    Returns
+    -------
+    (matches, variance) — True if amounts are within tolerance,
+    and the actual variance as a fraction.
+    """
+    if amount2 == 0:
+        return amount1 == 0, 1.0 if amount1 != 0 else 0.0
+
+    variance = abs(amount1 - amount2) / abs(amount2)
+    return variance <= tolerance, round(variance, 6)
+
+
+# ---------------------------------------------------------------------------
+# Date range validation
+# ---------------------------------------------------------------------------
+
+def validate_date_range(
+    start_date: str,
+    end_date: str,
+) -> Tuple[bool, List[str]]:
+    """Validate a date range (start_date <= end_date, valid format).
+
+    Parameters
+    ----------
+    start_date : str
+        Start date in YYYY-MM-DD format.
+    end_date : str
+        End date in YYYY-MM-DD format.
+
+    Returns
+    -------
+    (is_valid, list_of_errors).
+    """
+    errors: List[str] = []
+
+    date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+    if not start_date or not date_pattern.match(str(start_date)):
+        errors.append(f"Fecha de inicio inválida: '{start_date}'. Se esperaba YYYY-MM-DD.")
+    if not end_date or not date_pattern.match(str(end_date)):
+        errors.append(f"Fecha de fin inválida: '{end_date}'. Se esperaba YYYY-MM-DD.")
+
+    if not errors:
+        try:
+            d_start = datetime.strptime(str(start_date), "%Y-%m-%d")
+            d_end = datetime.strptime(str(end_date), "%Y-%m-%d")
+            if d_start > d_end:
+                errors.append(
+                    f"Fecha de inicio ({start_date}) es posterior a fecha de fin ({end_date})."
+                )
+        except ValueError as e:
+            errors.append(f"Error parseando fechas: {e}")
+
+    return len(errors) == 0, errors
+
+
+# ---------------------------------------------------------------------------
+# Batch validation for reconciliation data
+# ---------------------------------------------------------------------------
+
+def validate_reconciliation_data(
+    bank_transactions: List[dict],
+    polizas: Optional[List[dict]] = None,
+    cfdi_list: Optional[List[dict]] = None,
+) -> Tuple[bool, List[str]]:
+    """Validate all data needed for a reconciliation run.
+
+    Returns (is_valid, combined_list_of_errors).
+    """
+    all_errors: List[str] = []
+
+    # Validate bank transactions
+    is_valid_bank, bank_errors = validate_bank_statement(bank_transactions)
+    if not is_valid_bank:
+        all_errors.extend([f"[Bancario] {e}" for e in bank_errors])
+
+    # Validate polizas if provided
+    if polizas:
+        is_valid_pol, pol_errors = validate_polizas_contables(polizas)
+        if not is_valid_pol:
+            all_errors.extend([f"[Póliza] {e}" for e in pol_errors])
+
+    # Validate CFDI if provided
+    if cfdi_list:
+        is_valid_cfdi, cfdi_errors = validate_cfdi_for_conciliation(cfdi_list)
+        if not is_valid_cfdi:
+            all_errors.extend([f"[CFDI] {e}" for e in cfdi_errors])
+
+    # Cross-validation: check that amounts can be compared
+    if bank_transactions and (polizas or cfdi_list):
+        # Check date range overlap
+        bank_dates = [t.get("date", "") for t in bank_transactions if t.get("date")]
+        ref_dates = []
+        if polizas:
+            ref_dates.extend([p.get("fecha", "") for p in polizas if p.get("fecha")])
+        if cfdi_list:
+            ref_dates.extend([c.get("fecha", "") for c in cfdi_list if c.get("fecha")])
+
+        if bank_dates and ref_dates:
+            bank_min = min(bank_dates)
+            bank_max = max(bank_dates)
+            ref_min = min(ref_dates)
+            ref_max = max(ref_dates)
+
+            # Warn if date ranges don't overlap at all
+            if bank_max < ref_min or ref_max < bank_min:
+                all_errors.append(
+                    f"[Rango] Los rangos de fecha no se superponen: "
+                    f"banco=[{bank_min}, {bank_max}], "
+                    f"referencia=[{ref_min}, {ref_max}]."
+                )
+
+    return len(all_errors) == 0, all_errors

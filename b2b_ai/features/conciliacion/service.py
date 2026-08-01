@@ -125,8 +125,11 @@ class ConciliationService:
             poliza_matches = self.match_transactions_to_polizas(transactions, polizas)
             results["poliza_matches"] = poliza_matches
 
-            # Identify unmatched bank transactions
-            matched_ids = {m.bank_transaction_id for m in poliza_matches}
+            # Identify unmatched bank transactions (only those with no successful match)
+            matched_ids = {
+                m.bank_transaction_id for m in poliza_matches
+                if m.status in (MatchStatus.MATCHED, MatchStatus.PARTIAL)
+            }
             results["unmatched_bank"] = [
                 t for t in transactions if t.id not in matched_ids
             ]

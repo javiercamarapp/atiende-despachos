@@ -175,7 +175,7 @@ def validate_iva_data(data: dict) -> Tuple[bool, List[str]]:
             # Could be a border zone (8%) or exempt (0%) — just warn
             pass  # Soft validation, not blocking
 
-    # saldo_favor / saldo_contra consistency
+    # Validate calculated balances match (only if provided)
     saldo_favor = data.get("saldo_favor", 0)
     saldo_contra = data.get("saldo_contra", 0)
 
@@ -191,20 +191,21 @@ def validate_iva_data(data: dict) -> Tuple[bool, List[str]]:
             "saldo_favor y saldo_contra no pueden ser ambos mayores a cero."
         )
 
-    # Validate calculated balances match
-    expected_saldo_favor = max(0, iva_pagado - iva_cobrado)
-    expected_saldo_contra = max(0, iva_cobrado - iva_pagado)
+    # Validate calculated balances match (only if explicitly provided)
+    if "saldo_favor" in data or "saldo_contra" in data:
+        expected_saldo_favor = max(0, iva_pagado - iva_cobrado)
+        expected_saldo_contra = max(0, iva_cobrado - iva_pagado)
 
-    if abs(saldo_favor - expected_saldo_favor) > 0.01:
-        errors.append(
-            f"saldo_favor incorrecto. Esperado {expected_saldo_favor:.2f}, "
-            f"recibido {saldo_favor:.2f}."
-        )
-    if abs(saldo_contra - expected_saldo_contra) > 0.01:
-        errors.append(
-            f"saldo_contra incorrecto. Esperado {expected_saldo_contra:.2f}, "
-            f"recibido {saldo_contra:.2f}."
-        )
+        if abs(saldo_favor - expected_saldo_favor) > 0.01:
+            errors.append(
+                f"saldo_favor incorrecto. Esperado {expected_saldo_favor:.2f}, "
+                f"recibido {saldo_favor:.2f}."
+            )
+        if abs(saldo_contra - expected_saldo_contra) > 0.01:
+            errors.append(
+                f"saldo_contra incorrecto. Esperado {expected_saldo_contra:.2f}, "
+                f"recibido {saldo_contra:.2f}."
+            )
 
     return len(errors) == 0, errors
 
@@ -283,13 +284,14 @@ def validate_isr_data(data: dict, is_annual: bool = False) -> Tuple[bool, List[s
             f"deducciones ({deducciones}) no pueden exceder ingresos ({ingresos})."
         )
 
-    # Utilidad consistency
-    expected_utilidad = round(ingresos - deducciones, 2)
-    if abs(utilidad - expected_utilidad) > 0.01:
-        errors.append(
-            f"utilidad incorrecta. Esperado {expected_utilidad:.2f} "
-            f"(ingresos - deducciones), recibido {utilidad:.2f}."
-        )
+    # Utilidad consistency (only if provided)
+    if "utilidad" in data:
+        expected_utilidad = round(ingresos - deducciones, 2)
+        if abs(utilidad - expected_utilidad) > 0.01:
+            errors.append(
+                f"utilidad incorrecta. Esperado {expected_utilidad:.2f} "
+                f"(ingresos - deducciones), recibido {utilidad:.2f}."
+            )
 
     # ISR must be non-negative
     if isr_calculated < 0:
