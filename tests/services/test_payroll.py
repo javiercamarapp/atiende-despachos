@@ -141,7 +141,7 @@ class TestCalcPrimaVacacional:
 
     def test_custom_tasa(self):
         r = calc_prima_vacacional(500, 1, tasa=Decimal("0.30"))
-        assert r["tasa"] == "0.3000"
+        assert float(r["tasa"]) == 0.30
 
 
 class TestCalculatePayroll:

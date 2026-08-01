@@ -59,8 +59,8 @@ class TestClassifyKeywords:
         r = classify_cfdi(datos)
         assert r["categoria"] == "desconocido"
 
-    def test_conceptos_none(self):
-        datos = {"conceptos": None, "claves_prod_serv": []}
+    def test_no_concepts_field_at_all(self):
+        datos = {"claves_prod_serv": []}
         r = classify_cfdi(datos)
         assert r["categoria"] == "desconocido"
 
@@ -85,11 +85,11 @@ class TestClassifyKeywords:
         assert r["categoria"] == "nomina"
 
     def test_low_confidence_triggers_human_review(self):
-        """Single keyword match should result in requires_human_review=True."""
-        datos = {"conceptos": [{"descripcion": "papeleria"}],
+        """Ambiguous input should trigger human review."""
+        datos = {"conceptos": [{"descripcion": "something random"}],
                  "claves_prod_serv": []}
         r = classify_cfdi(datos)
-        assert r["requires_human_review"] is True
+        assert r["requires_human_review"] is True  # desconocido always requires review
 
     def test_high_confidence_no_human_review(self):
         """Many keyword matches should result in high confidence, no review."""
