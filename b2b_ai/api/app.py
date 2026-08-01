@@ -88,6 +88,7 @@ from b2b_ai.features.pagos.routes import build_pagos_router
 from b2b_ai.features.contabilidad.routes import build_contabilidad_router
 from b2b_ai.features.reportes.routes import build_reportes_router
 from b2b_ai.features.dashboard.routes import build_dashboard_admin_router
+from b2b_ai.features.alertas.routes import build_alertas_router
 from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
@@ -1130,6 +1131,9 @@ def create_app(db=None):
 
     # Admin Dashboard: gestión de clientes, salud del sistema, métricas de uso.
     app.include_router(build_dashboard_admin_router(db, require_api_key))
+
+    # Alertas inteligentes: motor de reglas, dedup, historial y API REST.
+    app.include_router(build_alertas_router(db, require_api_key))
 
     # Reportes PDF (FASE reportes): generación + descarga de PDFs.
     app.include_router(build_reports_router(db, require_api_key),
