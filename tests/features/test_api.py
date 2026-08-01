@@ -8,8 +8,8 @@ from b2b_ai.features.api import build_features_router, FeatureFlagUpdate
 
 
 @pytest.fixture
-def db():
-    return Database(":memory:")
+def db(tmp_path):
+    return Database(str(tmp_path / "test.db"))
 
 
 @pytest.fixture
