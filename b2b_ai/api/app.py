@@ -68,6 +68,7 @@ from b2b_ai.services.contabilidad_electronica import ContabilidadElectronica
 from b2b_ai.services.collections import CollectionsManager
 from b2b_ai.services.collections_report import aging_report
 from b2b_ai.api.dashboard import build_dashboard_router
+from b2b_ai.api.analytics import build_analytics_router
 from b2b_ai.tools.registry import all_tools
 from b2b_ai.tools.logger import logger
 from b2b_ai.api.auth import APIKeyAuth, make_require_api_key
@@ -1036,6 +1037,10 @@ def create_app(db=None):
 
     # Dashboard web (FASE 2) — HTML + JSON, misma protección por API key.
     app.include_router(build_dashboard_router(db, require_api_key=require_api_key),
+                       prefix="/api/v1")
+
+    # Analytics dashboard — cross-module aggregation con comparativa de periodos.
+    app.include_router(build_analytics_router(db, require_api_key=require_api_key),
                        prefix="/api/v1")
 
     # FASE 3 — Dashboard interactivo (SPA, Chart.js) servido en /dashboard/.
