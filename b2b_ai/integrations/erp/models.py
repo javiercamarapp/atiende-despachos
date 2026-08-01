@@ -21,6 +21,13 @@ class ERPType(str, Enum):
     ASPEL_CLOUD = "aspel_cloud"
     QUICKBOOKS_ONLINE = "quickbooks_online"
     XERO = "xero"
+    PEAK = "peak"
+    MULTILEG = "multileg"
+    EUROWEB = "euroweb"
+    ABSIS = "absis"
+    FACTOR_D = "factor_d"
+    TAXKO = "taxko"
+    FACTURADIRECTA = "facturadirecta"
     GENERIC = "generic"
 
 
