@@ -417,8 +417,8 @@ class TestPortalSettings:
         assert r.json()["updated"] == []
 
     def test_settings_requires_auth(self, ctx):
-        r = ctx["client"].get("/portal/settings")
-        assert r.status_code == 302  # redirect to login
+        r = ctx["client"].get("/portal/settings", follow_redirects=False)
+        assert r.status_code == 302
 
 
 # ===================================================================
@@ -487,7 +487,7 @@ class TestPortalEdgeCases:
                     fecha="2026-05-01")
         c = ctx["client"]
         token = _login(c, "alpha@test.com", "pass_a")
-        r = c.get("/portal/invoices.json", headers=_auth(token))
+        r = c.get("/portal/invoices.json?limit=1000", headers=_auth(token))
         assert r.status_code == 200
         body = r.json()
         assert body["count"] == 203  # 3 original + 200 bulk
