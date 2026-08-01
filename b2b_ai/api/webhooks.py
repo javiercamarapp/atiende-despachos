@@ -250,7 +250,10 @@ def register_webhook_routes(app: Any, db: Database, require_api_key: Any,
                       auth_info: dict = Depends(require_api_key)):
         # auth_info viene del Depends; FastAPI lo inyecta si es parámetro
         scope = auth_info.get("tenant_id")
-        if email.tenant_id is not None:
+        # Solo la key de servicio (tenant_id=None) puede fijar el tenant
+        # explícitamente; una key de tenant real NUNCA permite override del
+        # body para evitar IDOR (issue [5] del punchlist).
+        if scope is None and email.tenant_id is not None:
             scope = email.tenant_id
         if scope is None:
             raise HTTPException(status_code=422,
