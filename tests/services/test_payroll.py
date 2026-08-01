@@ -57,6 +57,22 @@ class TestCalcIMSS:
         r = calc_imss(5000)
         assert "LSS" in r["referencia"]
 
+    def test_known_value_sbc_1000(self):
+        """[36] Anchor to legal rate: SBC=1000 → known expected total.
+
+        With 2025 IMSS worker rates (30 dias):
+          EYM (base+prest_din+prest_esp): (0.0025+0.0075+0.00375) × 1000 × 30 = 412.50
+          IV (Invalidez y Vida):           0.00625 × 1000 × 30 = 187.50
+          RCVA (Retiro, Cesantía):         0.01125 × 1000 × 30 = 337.50
+          GMP (Gastos Médicos Pensionados): 0.00375 × 1000 × 30 = 112.50
+          Total = 1050.00
+        """
+        r = calc_imss(1000)
+        total = Decimal(r["total"])
+        assert total == Decimal("1050.00"), (
+            f"IMSS total for SBC=1000, 30d should be 1050.00, got {total}. "
+            "Check RATES constants against LSS arts. 105-109.")
+
 
 class TestCalcINFONAVIT:
     def test_basic(self):
