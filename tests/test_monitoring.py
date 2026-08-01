@@ -280,7 +280,7 @@ def _h():
 
 def test_health_detailed_endpoint(client):
     c, db = client
-    r = c.get("/health/detailed")
+    r = c.get("/health/detailed", headers=_h())
     assert r.status_code == 200
     j = r.json()
     assert j["status"] in ("ok", "degraded")
@@ -312,6 +312,6 @@ def test_business_metrics_incrementa_al_procesar(client):
 
 def test_metrics_legacy_sigue_funcionando(client):
     c, db = client
-    r = c.get("/metrics")
+    r = c.get("/metrics", headers=_h())
     assert r.status_code == 200
     assert "total_requests" in r.json()
