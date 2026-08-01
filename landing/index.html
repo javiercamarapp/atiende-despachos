@@ -202,13 +202,15 @@ a.btn,button.btn,input,select,textarea{font-size:16px}
 .arch-section{background:var(--bg2);padding:96px 0 0;overflow:hidden;position:relative}
 .arch-section .container{position:relative;max-width:1120px;margin:0 auto;padding:0 24px}
 .arch-section .sec-head{text-align:center;max-width:720px;margin:0 auto 48px}
-.arch-wrap{position:relative;overflow:hidden;margin:0 -24px}
-.arch-wrap svg{display:block;width:130%;max-width:1600px;margin-left:-8%;height:auto}
-.arch-fade{position:absolute;top:0;right:0;bottom:0;width:180px;background:linear-gradient(90deg,transparent,var(--bg2));pointer-events:none;z-index:2}
-.arch-bottom-fade{position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(180deg,transparent,var(--bg2));pointer-events:none;z-index:2}
+.arch-wrap{position:relative;overflow:hidden;margin:0 -24px;padding-right:0}
+.arch-wrap svg{display:block;width:140%;max-width:1800px;margin-left:-12%;height:auto}
+.arch-fade{position:absolute;top:0;right:0;bottom:0;width:220px;background:linear-gradient(90deg,transparent 0%,var(--bg2) 100%);pointer-events:none;z-index:2}
+.arch-bottom-fade{position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(180deg,transparent 0%,var(--bg2) 100%);pointer-events:none;z-index:2}
+.arch-section::after{content:"";position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,var(--line) 30%,var(--line) 70%,transparent 100%)}
 /* Arch layer labels */
 .arch-labels{display:flex;justify-content:center;gap:48px;margin-top:-32px;position:relative;z-index:3;padding:0 24px 64px}
-.arch-label{text-align:center}
+.arch-label{text-align:center;opacity:0;transform:translateY(16px);transition:opacity .6s cubic-bezier(.2,.8,.2,1),transform .6s cubic-bezier(.2,.8,.2,1)}
+.arch-label.in{opacity:1;transform:translateY(0)}
 .arch-label span{display:block;font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .arch-label em{display:block;font-style:normal;color:var(--ink);font-size:1rem;font-weight:600;margin-top:4px}
 @media(max-width:720px){
@@ -335,6 +337,7 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
     <div class="nav-links" id="navLinks">
       <a href="#problema">Problema</a>
       <a href="#solucion">Solución</a>
+      <a href="#arquitectura">Arquitectura</a>
       <a href="#pricing">Precios</a>
       <a href="#contacto">Contacto</a>
       <a href="/dashboard.html">Dashboard</a>
@@ -418,7 +421,7 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
 </section>
 
 <!-- ISOMETRIC ARCHITECTURE -->
-<section class="arch-section">
+<section class="arch-section" id="arquitectura">
   <div class="container">
     <div class="sec-head reveal">
       <span class="tag">Arquitectura</span>
@@ -662,6 +665,11 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
 
         </g>
       </svg>
+    </div>
+    <div class="arch-labels reveal">
+      <div class="arch-label"><span>Visibilidad en tiempo real</span><em>Dashboard, reportes, alertas</em></div>
+      <div class="arch-label"><span>Agentes IA (Computer Use)</span><em>Capturan, validan, clasifican, registran</em></div>
+      <div class="arch-label"><span>Fuentes de datos</span><em>Tu ERP, SAT, email</em></div>
     </div>
   </div>
 </section>
@@ -922,6 +930,39 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
   } else {
     document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
   }
+  // ---- Staggered reveal for architecture labels ----
+  if('IntersectionObserver' in window){
+    var archLabels = document.querySelectorAll('.arch-label');
+    if(archLabels.length){
+      var archObs = new IntersectionObserver(function(entries){
+        entries.forEach(function(en){
+          if(en.isIntersecting){
+            archLabels.forEach(function(label, i){
+              setTimeout(function(){ label.classList.add('in'); }, i * 180);
+            });
+            archObs.disconnect();
+          }
+        });
+      }, {threshold: .3});
+      archObs.observe(archLabels[0]);
+    }
+  }
+
+  // ---- Smooth anchor scrolling with offset for sticky nav ----
+  document.querySelectorAll('a[href^="#"]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      var id = a.getAttribute('href');
+      if(id === '#') return;
+      var target = document.querySelector(id);
+      if(target){
+        e.preventDefault();
+        var navH = document.querySelector('.nav').offsetHeight || 66;
+        var top = target.getBoundingClientRect().top + window.scrollY - navH - 16;
+        window.scrollTo({top: top, behavior: 'smooth'});
+      }
+    });
+  });
+
 
   // ---- Parallax sutil en el hero ----
   var hero = document.getElementById('top');
