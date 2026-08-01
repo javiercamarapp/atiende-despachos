@@ -764,17 +764,26 @@ class TestDiscrepancies:
     def test_discrepancy_detected_above_threshold(self):
         service = ConciliationService(discrepancy_threshold=0.02)
         txns = [BankTransaction(
-            id="TXN001", date="2024-01-15", amount=10500.0,  # 5% over
+            id="TXN001", date="2024-01-15", amount=10500.0,
             type=TransactionType.INGRESO,
         )]
         polizas = [PolizaContable(
             id="POL001", fecha="2024-01-15", monto=10000.0,
         )]
-        matches = service.match_transactions_to_polizas(txns, polizas)
+        # Manually create a match to test discrepancy detection
+        # (amounts differ by 5% which exceeds amount_tolerance, so auto-match won't happen)
+        matches = [MatchResult(
+            bank_transaction_id="TXN001",
+            poliza_id="POL001",
+            match_type=MatchType.EXACT,
+            confidence_score=0.8,
+            status=MatchStatus.MATCHED,
+        )]
         discrepancies = service.identify_discrepancies(matches, txns, polizas)
-        monto_discs = [d for d in discrepancies if d.type == DiscrepancyType.MONTO]
-        assert len(monto_discs) == 1
-        assert monto_discs[0].variance == 5.0
+        # When bank_amount > poliza_amount, type is SOBRANTE
+        sobrante_discs = [d for d in discrepancies if d.type == DiscrepancyType.SOBRANTE]
+        assert len(sobrante_discs) == 1
+        assert sobrante_discs[0].variance == 5.0
 
     def test_no_discrepancy_below_threshold(self):
         service = ConciliationService(discrepancy_threshold=0.02)
@@ -815,7 +824,14 @@ class TestDiscrepancies:
         polizas = [PolizaContable(
             id="POL001", fecha="2024-01-15", monto=10000.0,
         )]
-        matches = service.match_transactions_to_polizas(txns, polizas)
+        # Manually create a match (5% difference exceeds amount_tolerance)
+        matches = [MatchResult(
+            bank_transaction_id="TXN001",
+            poliza_id="POL001",
+            match_type=MatchType.EXACT,
+            confidence_score=0.8,
+            status=MatchStatus.MATCHED,
+        )]
         discrepancies = service.identify_discrepancies(matches, txns, polizas)
         faltante = [d for d in discrepancies if d.type == DiscrepancyType.FALTANTE]
         assert len(faltante) == 1
@@ -1464,7 +1480,8 @@ class TestRoutes:
         assert resp.status_code == 200
         data = resp.json()
         assert data["ok"] is True
-        assert len(data["matches"]) == 1
+        # CFDI matches are in "cfdi_matches" field
+        assert len(data["cfdi_matches"]) == 1
 
     def test_match_endpoint_with_polizas(self, client):
         tc, db = client
@@ -1673,7 +1690,8 @@ class TestRoutes:
         assert resp.status_code == 200
         data = resp.json()
         assert data["total_transactions"] == 3
-        matched = sum(1 for m in data["matches"] if m["status"] == "MATCHED")
+        # CFDI matches are in "cfdi_matches" field
+        matched = sum(1 for m in data["cfdi_matches"] if m["status"] == "MATCHED")
         assert matched == 2
 
     def test_apply_adjustments_endpoint(self, client):

@@ -1,231 +1,370 @@
 # -*- coding: utf-8 -*-
 """
-routes.py — Endpoints FastAPI para el módulo de Reportes Gerenciales.
+routes.py — FastAPI router for the Management Reports API.
 
 Endpoints:
-    POST /reportes-gerenciales/monthly   — Genera reporte financiero mensual.
-    POST /reportes-gerenciales/kpi       — Genera dashboard de KPIs.
-    POST /reportes-gerenciales/cash-flow — Genera análisis de flujo.
-    POST /reportes-gerenciales/pnl       — Genera Estado de Resultados.
-    GET  /reportes-gerenciales/download/{id} — Descarga reporte en formato.
-    GET  /reportes-gerenciales/formats   — Lista formatos disponibles.
+    POST /api/v1/reportes/monthly      — Generate monthly report
+    POST /api/v1/reportes/kpi          — Generate KPI dashboard
+    POST /api/v1/reportes/cash-flow    — Generate cash flow analysis
+    POST /api/v1/reportes/profit-loss  — Generate P&L statement
+    GET  /api/v1/reportes/download/{id} — Download report in specified format
+    GET  /api/v1/reportes/             — List all available reports
+
+The router is built with `build_reportes_gerenciales_router(db, require_api_key)`.
 """
 from __future__ import annotations
 
-from typing import Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
-from b2b_ai.features.reportes_gerenciales.service import (
-    export_report,
-    generate_cash_flow,
-    generate_kpi_dashboard,
-    generate_monthly_report,
-    generate_profit_loss,
+from b2b_ai.features.reportes_gerenciales.models import (
+    CashFlow,
+    ExportFormat,
+    KPI,
+    MonthlyReport,
+    ProfitLoss,
+    ReportPeriod,
 )
-from b2b_ai.features.reportes_gerenciales.models import MonthlyReport
+from b2b_ai.features.reportes_gerenciales.service import ReportesService
+from b2b_ai.features.reportes_gerenciales.validators import (
+    validate_amount_range,
+    validate_period,
+    validate_monthly_report_data,
+)
 
 
 # ---------------------------------------------------------------------------
-# Request Schemas
+# Request / Response schemas
 # ---------------------------------------------------------------------------
+
 class MonthlyReportRequest(BaseModel):
-    """Request para generar reporte financiero mensual."""
-    tenant_id: int
-    month: int = Field(..., ge=1, le=12)
-    year: int = Field(..., ge=2020)
-    revenue: float = Field(0.0, description="Ingresos totales")
-    cost_of_goods: float = Field(0.0, description="Costo de ventas")
-    operating_expenses: float = Field(0.0, description="Gastos de operación")
-    taxes: float = Field(0.0, description="Impuestos")
-    previous_revenue: float = Field(0.0, description="Ingresos del periodo anterior")
-    formato: str = Field("json", description="Formato de salida: json, csv, html")
+    """Request to generate a monthly report."""
+    tenant_id: str = Field(default="default", description="Tenant ID")
+    month: int = Field(..., ge=1, le=12, description="Month (1-12)")
+    year: int = Field(..., ge=2020, le=2030, description="Year")
+    revenue: float = Field(default=0.0, ge=0, description="Total revenue")
+    expenses: float = Field(default=0.0, ge=0, description="Total expenses")
+    taxes_paid: float = Field(default=0.0, ge=0, description="Taxes paid")
+    invoices_count: int = Field(default=0, ge=0, description="Invoice count")
+    prev_revenue: Optional[float] = Field(default=None, description="Previous month revenue for comparison")
+    prev_gross_margin: Optional[float] = Field(default=None, description="Previous month gross margin %")
+    details: Dict[str, Any] = Field(default_factory=dict, description="Additional details")
 
 
-class KPIDashboardRequest(BaseModel):
-    """Request para generar dashboard de KPIs."""
-    tenant_id: int
-    period: str = Field(..., description="Periodo YYYY-MM")
-    metrics: dict = Field(default_factory=dict, description="Métricas personalizadas")
+class KPIRequest(BaseModel):
+    """Request to generate a KPI dashboard."""
+    tenant_id: str = Field(default="default", description="Tenant ID")
+    period: str = Field(..., description="Period in YYYY-MM format")
+    revenue: float = Field(default=0.0, ge=0, description="Revenue")
+    expenses: float = Field(default=0.0, ge=0, description="Expenses")
+    profit: float = Field(default=0.0, description="Profit")
+    invoices_count: int = Field(default=0, ge=0, description="Invoice count")
+    avg_ticket: float = Field(default=0.0, ge=0, description="Average ticket size")
+    days_to_collect: float = Field(default=0.0, ge=0, description="Average days to collect")
+    data: Dict[str, Any] = Field(default_factory=dict, description="Additional KPI data")
 
 
 class CashFlowRequest(BaseModel):
-    """Request para análisis de flujo de efectivo."""
-    tenant_id: int
-    period: str
-    inflows: float = 0.0
-    outflows: float = 0.0
-    beginning_balance: float = 0.0
-    details: dict = Field(default_factory=dict)
+    """Request to generate cash flow analysis."""
+    tenant_id: str = Field(default="default", description="Tenant ID")
+    period: str = Field(..., description="Period in YYYY-MM format")
+    opening_balance: float = Field(default=0.0, description="Opening balance")
+    inflows: float = Field(default=0.0, ge=0, description="Cash inflows")
+    outflows: float = Field(default=0.0, ge=0, description="Cash outflows")
+    categories: Dict[str, float] = Field(default_factory=dict, description="Category breakdown")
+    project_forward: bool = Field(default=False, description="Generate projection")
+    monthly_growth_rate: float = Field(default=0.0, description="Monthly growth rate for projection")
+    projection_months: int = Field(default=3, ge=1, le=12, description="Months to project")
 
 
-class PnLRequest(BaseModel):
-    """Request para Estado de Resultados."""
-    tenant_id: int
-    period: str
-    revenue: float = 0.0
-    cost_of_goods: float = 0.0
-    operating_expenses: float = 0.0
-    other_income: float = 0.0
-    taxes: float = 0.0
-    depreciation: float = 0.0
-    interest: float = 0.0
-    formato: str = Field("json")
+class ProfitLossRequest(BaseModel):
+    """Request to generate P&L statement."""
+    tenant_id: str = Field(default="default", description="Tenant ID")
+    period: str = Field(..., description="Period in YYYY-MM format")
+    income: float = Field(default=0.0, ge=0, description="Total income")
+    cost_of_goods_sold: float = Field(default=0.0, ge=0, description="Cost of goods sold")
+    operating_expenses: float = Field(default=0.0, ge=0, description="Operating expenses")
+    other_income: float = Field(default=0.0, description="Other income")
+    other_expenses: float = Field(default=0.0, ge=0, description="Other expenses")
+    isr_rate: float = Field(default=0.30, ge=0, le=1, description="ISR rate (default 30%)")
+    cost_breakdown: Dict[str, float] = Field(default_factory=dict, description="Cost breakdown")
+    expense_breakdown: Dict[str, float] = Field(default_factory=dict, description="Expense breakdown")
 
 
 # ---------------------------------------------------------------------------
-# Router
+# Router builder
 # ---------------------------------------------------------------------------
-def build_reportes_gerenciales_router() -> APIRouter:
-    """Devuelve un APIRouter con endpoints /reportes-gerenciales/*.
 
-    Almacena reportes generados para descarga posterior.
+def build_reportes_gerenciales_router(
+    db: Any = None,
+    require_api_key: Any = None,
+) -> APIRouter:
+    """Construct the management reports API router.
+
+    Parameters
+    ----------
+    db : Database instance.
+    require_api_key : FastAPI dependency for auth.
     """
-    router = APIRouter(prefix="/reportes-gerenciales", tags=["reportes-gerenciales"])
+    auth_dep = require_api_key or (lambda: None)
 
-    _reports: dict[str, dict] = {}
+    # In-memory stores
+    _services: Dict[str, ReportesService] = {}
 
+    def _get_service(tenant_id: str) -> ReportesService:
+        if tenant_id not in _services:
+            _services[tenant_id] = ReportesService(tenant_id=tenant_id)
+        return _services[tenant_id]
+
+    router = APIRouter(prefix="/api/v1/reportes", tags=["reportes_gerenciales"])
+
+    # -----------------------------------------------------------------------
+    # POST /monthly — Generate monthly report
+    # -----------------------------------------------------------------------
     @router.post(
         "/monthly",
-        summary="Genera un reporte financiero mensual.",
+        summary="Generate a monthly financial report.",
         response_model=None,
     )
-    def generar_reporte_mensual(req: MonthlyReportRequest):
-        """Genera reporte con márgenes, KPIs y resumen ejecutivo."""
-        report = generate_monthly_report(
-            tenant_id=req.tenant_id,
-            month=req.month,
-            year=req.year,
-            revenue=req.revenue,
-            cost_of_goods=req.cost_of_goods,
-            operating_expenses=req.operating_expenses,
-            taxes=req.taxes,
-            previous_revenue=req.previous_revenue,
-        )
-        key = f"{req.tenant_id}-{req.year}-{req.month:02d}"
-        _reports[key] = report.to_dict()
+    def generate_monthly(
+        req: MonthlyReportRequest,
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Generate a monthly financial summary with KPIs."""
+        service = _get_service(req.tenant_id)
 
-        # Exportar en formato solicitado
-        content = export_report(report, req.formato)
-        if req.formato == "html":
-            return HTMLResponse(content=content, status_code=200)
-        elif req.formato == "csv":
-            return PlainTextResponse(
-                content=content, status_code=200,
-                media_type="text/csv; charset=utf-8",
+        try:
+            report = service.generate_monthly_report(
+                tenant_id=req.tenant_id,
+                month=req.month,
+                year=req.year,
+                data={
+                    "revenue": req.revenue,
+                    "expenses": req.expenses,
+                    "taxes_paid": req.taxes_paid,
+                    "invoices_count": req.invoices_count,
+                    "prev_revenue": req.prev_revenue,
+                    "prev_gross_margin": req.prev_gross_margin,
+                    "details": req.details,
+                },
             )
-        return {"ok": True, "report": report.to_dict()}
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
 
-    @router.post(
-        "/kpi",
-        summary="Genera un dashboard de KPIs.",
-        response_model=None,
-    )
-    def generar_kpis(req: KPIDashboardRequest):
-        """Genera indicadores clave de desempeño para el periodo."""
-        kpis = generate_kpi_dashboard(
-            tenant_id=req.tenant_id,
-            period=req.period,
-            metrics=req.metrics,
-        )
         return {
             "ok": True,
-            "period": req.period,
-            "kpis": [k.to_dict() for k in kpis],
+            "report": report.model_dump(),
         }
 
+    # -----------------------------------------------------------------------
+    # POST /kpi — Generate KPI dashboard
+    # -----------------------------------------------------------------------
+    @router.post(
+        "/kpi",
+        summary="Generate a KPI dashboard for the given period.",
+        response_model=None,
+    )
+    def generate_kpi(
+        req: KPIRequest,
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Generate a KPI dashboard with alerts for out-of-target metrics."""
+        is_valid, errors = validate_period(req.period)
+        if not is_valid:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Período inválido: {'; '.join(errors)}",
+            )
+
+        service = _get_service(req.tenant_id)
+
+        data = {
+            "revenue": req.revenue,
+            "expenses": req.expenses,
+            "profit": req.profit,
+            "invoices_count": req.invoices_count,
+            "avg_ticket": req.avg_ticket,
+            "days_to_collect": req.days_to_collect,
+            **req.data,
+        }
+
+        result = service.generate_kpi_dashboard(
+            tenant_id=req.tenant_id,
+            period=req.period,
+            data=data,
+        )
+
+        return result
+
+    # -----------------------------------------------------------------------
+    # POST /cash-flow — Generate cash flow analysis
+    # -----------------------------------------------------------------------
     @router.post(
         "/cash-flow",
-        summary="Genera análisis de flujo de efectivo.",
+        summary="Generate cash flow analysis.",
         response_model=None,
     )
-    def generar_flujo(req: CashFlowRequest):
-        """Análisis de entradas, salidas y proyección de efectivo."""
-        cf = generate_cash_flow(
+    def generate_cash_flow(
+        req: CashFlowRequest,
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Generate cash flow with optional forward projection."""
+        is_valid, errors = validate_period(req.period)
+        if not is_valid:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Período inválido: {'; '.join(errors)}",
+            )
+
+        service = _get_service(req.tenant_id)
+
+        cash_flow = service.generate_cash_flow(
             tenant_id=req.tenant_id,
             period=req.period,
-            inflows=req.inflows,
-            outflows=req.outflows,
-            beginning_balance=req.beginning_balance,
-            details=req.details,
+            data={
+                "opening_balance": req.opening_balance,
+                "inflows": req.inflows,
+                "outflows": req.outflows,
+                "categories": req.categories,
+                "project_forward": req.project_forward,
+                "monthly_growth_rate": req.monthly_growth_rate,
+                "projection_months": req.projection_months,
+            },
         )
-        return {"ok": True, "cash_flow": cf.to_dict()}
 
-    @router.post(
-        "/pnl",
-        summary="Genera Estado de Resultados (P&L).",
-        response_model=None,
-    )
-    def generar_pnl(req: PnLRequest):
-        """Estado de Resultados con desglose de gastos, depreciación e interés."""
-        report = generate_profit_loss(
-            tenant_id=req.tenant_id,
-            period=req.period,
-            revenue=req.revenue,
-            cost_of_goods=req.cost_of_goods,
-            operating_expenses=req.operating_expenses,
-            other_income=req.other_income,
-            taxes=req.taxes,
-            depreciation=req.depreciation,
-            interest=req.interest,
-        )
-        key = f"pnl-{req.tenant_id}-{req.period}"
-        _reports[key] = report.to_dict()
-        content = export_report(report, req.formato)
-        if req.formato == "html":
-            return HTMLResponse(content=content, status_code=200)
-        elif req.formato == "csv":
-            return PlainTextResponse(content=content, status_code=200,
-                                     media_type="text/csv; charset=utf-8")
-        return {"ok": True, "report": report.to_dict()}
-
-    @router.get(
-        "/download/{report_id}",
-        summary="Descarga un reporte generado.",
-        response_model=None,
-    )
-    def descargar_reporte(
-        report_id: str,
-        formato: str = Query(default="json", description="json, csv, html"),
-    ):
-        """Descarga un reporte previamente generado en el formato solicitado."""
-        report_data = _reports.get(report_id)
-        if report_data is None:
-            raise HTTPException(status_code=404, detail=f"Reporte '{report_id}' no encontrado.")
-        report = MonthlyReport(
-            period=report_data.get("period", ""),
-            tenant_id=report_data.get("tenant_id"),
-            revenue=report_data.get("revenue", 0),
-            cost_of_goods=report_data.get("cost_of_goods", 0),
-            gross_profit=report_data.get("gross_profit", 0),
-            operating_expenses=report_data.get("operating_expenses", 0),
-            ebitda=report_data.get("ebitda", 0),
-            taxes=report_data.get("taxes", 0),
-            net_profit=report_data.get("net_profit", 0),
-            summary=report_data.get("summary", ""),
-        )
-        content = export_report(report, formato)
-        if formato == "html":
-            return HTMLResponse(content=content, status_code=200)
-        elif formato == "csv":
-            return PlainTextResponse(content=content, status_code=200,
-                                     media_type="text/csv; charset=utf-8")
-        return {"ok": True, "report": report_data}
-
-    @router.get(
-        "/formats",
-        summary="Lista los formatos de exportación disponibles.",
-        response_model=None,
-    )
-    def listar_formatos():
         return {
-            "formats": [
-                {"name": "json", "description": "JSON estructurado"},
-                {"name": "csv", "description": "CSV para importación"},
-                {"name": "html", "description": "HTML profesional con estilos"},
-            ]
+            "ok": True,
+            "cash_flow": cash_flow.model_dump(),
         }
+
+    # -----------------------------------------------------------------------
+    # POST /profit-loss — Generate P&L statement
+    # -----------------------------------------------------------------------
+    @router.post(
+        "/profit-loss",
+        summary="Generate a Profit & Loss (Estado de Resultados) statement.",
+        response_model=None,
+    )
+    def generate_profit_loss(
+        req: ProfitLossRequest,
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Generate P&L with ISR/IVA estimation."""
+        is_valid, errors = validate_period(req.period)
+        if not is_valid:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Período inválido: {'; '.join(errors)}",
+            )
+
+        service = _get_service(req.tenant_id)
+
+        pl = service.generate_profit_loss(
+            tenant_id=req.tenant_id,
+            period=req.period,
+            data={
+                "income": req.income,
+                "cost_of_goods_sold": req.cost_of_goods_sold,
+                "operating_expenses": req.operating_expenses,
+                "other_income": req.other_income,
+                "other_expenses": req.other_expenses,
+                "isr_rate": req.isr_rate,
+                "cost_breakdown": req.cost_breakdown,
+                "expense_breakdown": req.expense_breakdown,
+            },
+        )
+
+        return {
+            "ok": True,
+            "profit_loss": pl.model_dump(),
+        }
+
+    # -----------------------------------------------------------------------
+    # GET / — List all available reports
+    # -----------------------------------------------------------------------
+    @router.get(
+        "/",
+        summary="List all available report periods.",
+        response_model=None,
+    )
+    def list_reports(
+        tenant_id: str = Query(default="default", description="Tenant ID"),
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """List all available report periods for a tenant."""
+        service = _get_service(tenant_id)
+        periods = service.list_reports()
+        return {
+            "ok": True,
+            "total": len(periods),
+            "periods": periods,
+        }
+
+    # -----------------------------------------------------------------------
+    # GET /download/{period} — Export report
+    # -----------------------------------------------------------------------
+    @router.get(
+        "/download/{period}",
+        summary="Download a report in the specified format.",
+        response_model=None,
+    )
+    def download_report(
+        period: str,
+        tenant_id: str = Query(default="default", description="Tenant ID"),
+        report_type: str = Query(default="monthly", description="Report type: monthly, cash-flow, profit-loss"),
+        format: str = Query(default="json", description="Export format: json, csv, pdf"),
+        auth_info: dict = Depends(auth_dep),
+    ) -> Any:
+        """Export a report in the specified format."""
+        is_valid, errors = validate_period(period)
+        if not is_valid:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Período inválido: {'; '.join(errors)}",
+            )
+
+        service = _get_service(tenant_id)
+
+        # Get the report
+        report = None
+        if report_type == "monthly":
+            report = service.get_report(period)
+        elif report_type == "cash-flow":
+            report = service.get_cash_flow(period)
+        elif report_type == "profit-loss":
+            report = service.get_profit_loss(period)
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Tipo de reporte inválido: '{report_type}'",
+            )
+
+        if not report:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontró reporte {report_type} para el período '{period}'.",
+            )
+
+        # Parse format
+        try:
+            export_format = ExportFormat(format)
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Formato inválido: '{format}'. Permitidos: json, csv, pdf.",
+            )
+
+        exported = service.export_report(report, export_format)
+
+        if export_format == ExportFormat.CSV:
+            return PlainTextResponse(content=exported, media_type="text/csv")
+        elif export_format == ExportFormat.PDF:
+            return PlainTextResponse(content=exported, media_type="text/markdown")
+        else:
+            return exported
 
     return router

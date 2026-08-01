@@ -1,306 +1,518 @@
 # -*- coding: utf-8 -*-
 """
-service.py — Servicio de Reportes Gerenciales.
+service.py — ReportesService: report generation, KPI calculation, cash flow, P&L, and export.
 
-Genera reportes financieros mensuales, dashboards de KPIs,
-análisis de flujo de efectivo y estados de resultados.
+Generates monthly financial reports, KPI dashboards, cash flow analysis,
+and profit & loss statements. Supports export to multiple formats.
 """
 from __future__ import annotations
 
 import csv
 import io
 import json
-from typing import Any, Optional
+import uuid as _uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from b2b_ai.features.reportes_gerenciales.models import (
     CashFlow,
+    ExportFormat,
     KPI,
     MonthlyReport,
+    ProfitLoss,
+    ReportPeriod,
+    TrendDirection,
 )
 
 
-def generate_monthly_report(tenant_id: int,
-                            month: int,
-                            year: int,
-                            revenue: float = 0.0,
-                            cost_of_goods: float = 0.0,
-                            operating_expenses: float = 0.0,
-                            taxes: float = 0.0,
-                            previous_revenue: float = 0.0,
-                            cash_flow: Optional[CashFlow] = None) -> MonthlyReport:
-    """Genera un reporte financiero mensual.
+class ReportesService:
+    """Core service for management reports."""
 
-    Calcula márgenes, KPIs y genera un resumen ejecutivo.
-    """
-    gross_profit = revenue - cost_of_goods
-    ebitda = gross_profit - operating_expenses
-    net_profit = ebitda - taxes
+    def __init__(self, tenant_id: str = "default"):
+        self.tenant_id = tenant_id
+        # In-memory stores
+        self._reports: Dict[str, MonthlyReport] = {}
+        self._cash_flows: Dict[str, CashFlow] = {}
+        self._profit_losses: Dict[str, ProfitLoss] = {}
 
-    period = f"{year}-{month:02d}"
+    # -------------------------------------------------------------------
+    # Monthly report generation
+    # -------------------------------------------------------------------
 
-    # KPIs
-    kpis = []
+    def generate_monthly_report(
+        self,
+        tenant_id: str,
+        month: int,
+        year: int,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> MonthlyReport:
+        """Generate a monthly financial report.
 
-    # Margen bruto
-    mg = (gross_profit / revenue * 100) if revenue > 0 else 0
-    kpis.append(KPI(
-        name="Margen Bruto",
-        value=round(mg, 2),
-        unit="%",
-        target=40.0,
-        trend="up" if mg >= 40 else "down",
-    ))
+        Parameters
+        ----------
+        tenant_id : str
+            Tenant identifier.
+        month : int
+            Month (1-12).
+        year : int
+            Year (e.g. 2024).
+        data : Optional[dict]
+            Input data with revenue, expenses, etc.
 
-    # Margen neto
-    mn = (net_profit / revenue * 100) if revenue > 0 else 0
-    kpis.append(KPI(
-        name="Margen Neto",
-        value=round(mn, 2),
-        unit="%",
-        target=15.0,
-        trend="up" if mn >= 15 else "down",
-    ))
+        Returns
+        -------
+        MonthlyReport with computed KPIs.
+        """
+        if not 1 <= month <= 12:
+            raise ValueError(f"Mes inválido: {month}. Debe ser 1-12.")
 
-    # Variación de ingresos
-    if previous_revenue > 0:
-        rev_var = ((revenue - previous_revenue) / previous_revenue) * 100
-    else:
-        rev_var = 0.0
-    kpis.append(KPI(
-        name="Variación de Ingresos",
-        value=round(rev_var, 2),
-        unit="%",
-        target=5.0,
-        trend="up" if rev_var >= 0 else "down",
-        delta_pct=round(rev_var, 2),
-    ))
+        period = f"{year}-{month:02d}"
+        data = data or {}
 
-    # EBITDA
-    kpis.append(KPI(
-        name="EBITDA",
-        value=round(ebitda, 2),
-        unit="MXN",
-        target=0.0,
-        trend="up" if ebitda > 0 else "down",
-    ))
+        revenue = data.get("revenue", 0.0)
+        expenses = data.get("expenses", 0.0)
+        taxes_paid = data.get("taxes_paid", 0.0)
+        invoices_count = data.get("invoices_count", 0)
+        profit = revenue - expenses - taxes_paid
 
-    # Resumen ejecutivo
-    if net_profit > 0:
-        summary = (
-            f"Periodo {period}: Ingresos ${revenue:,.2f}, "
-            f"utilidad neta ${net_profit:,.2f} (margen {mn:.1f}%). "
-            f"{'Crecimiento positivo.' if rev_var > 0 else 'Ingresos a la baja.'}"
-        )
-    else:
-        summary = (
-            f"Periodo {period}: Ingresos ${revenue:,.2f}, "
-            f"pérdida neta ${abs(net_profit):,.2f}. "
-            f"Se requiere revisión de gastos."
+        # Generate KPIs
+        kpis = self._compute_kpis(revenue, expenses, profit, taxes_paid, invoices_count, data)
+
+        report = MonthlyReport(
+            id=str(_uuid.uuid4()),
+            period=period,
+            tenant_id=tenant_id,
+            revenue=revenue,
+            expenses=expenses,
+            profit=profit,
+            taxes_paid=taxes_paid,
+            invoices_count=invoices_count,
+            kpis=kpis,
+            details=data.get("details", {}),
+            created_at=datetime.now().isoformat(),
         )
 
-    return MonthlyReport(
-        period=period,
-        tenant_id=tenant_id,
-        revenue=round(revenue, 2),
-        cost_of_goods=round(cost_of_goods, 2),
-        gross_profit=round(gross_profit, 2),
-        operating_expenses=round(operating_expenses, 2),
-        ebitda=round(ebitda, 2),
-        taxes=round(taxes, 2),
-        net_profit=round(net_profit, 2),
-        kpis=kpis,
-        cash_flow=cash_flow,
-        summary=summary,
-    )
+        self._reports[period] = report
+        return report
 
+    def _compute_kpis(
+        self,
+        revenue: float,
+        expenses: float,
+        profit: float,
+        taxes_paid: float,
+        invoices_count: int,
+        data: Dict[str, Any],
+    ) -> List[KPI]:
+        """Compute KPIs from financial data."""
+        kpis: List[KPI] = []
 
-def generate_kpi_dashboard(tenant_id: int,
-                           period: str,
-                           metrics: Optional[dict] = None) -> list[KPI]:
-    """Genera un dashboard de KPIs clave.
+        # Ingresos mensuales
+        prev_revenue = data.get("prev_revenue")
+        revenue_change = None
+        revenue_trend = TrendDirection.STABLE
+        if prev_revenue and prev_revenue != 0:
+            revenue_change = round(((revenue - prev_revenue) / abs(prev_revenue)) * 100, 2)
+            revenue_trend = TrendDirection.UP if revenue_change > 0 else (
+                TrendDirection.DOWN if revenue_change < 0 else TrendDirection.STABLE
+            )
 
-    Acepta métricas personalizadas o genera KPIs por defecto.
-    """
-    metrics = metrics or {}
-    kpis = []
-
-    # Revenue per employee
-    employees = metrics.get("employees", 1)
-    revenue = metrics.get("revenue", 0)
-    rpe = revenue / employees if employees > 0 else 0
-    kpis.append(KPI(name="Ingresos por Empleado", value=round(rpe, 2), unit="MXN"))
-
-    # Collection rate
-    billed = metrics.get("billed", 0)
-    collected = metrics.get("collected", 0)
-    cr = (collected / billed * 100) if billed > 0 else 0
-    kpis.append(KPI(name="Tasa de Cobro", value=round(cr, 2), unit="%"))
-
-    # DSO (Days Sales Outstanding)
-    ar = metrics.get("accounts_receivable", 0)
-    daily_rev = revenue / 30 if revenue > 0 else 1
-    dso = ar / daily_rev if daily_rev > 0 else 0
-    kpis.append(KPI(name="DSO (Días de Cobro)", value=round(dso, 1), unit="días"))
-
-    # Operating expense ratio
-    opex = metrics.get("operating_expenses", 0)
-    oer = (opex / revenue * 100) if revenue > 0 else 0
-    kpis.append(KPI(name="Ratio de Gastos Operativos", value=round(oer, 2), unit="%"))
-
-    # Cash runway
-    cash = metrics.get("cash_balance", 0)
-    monthly_burn = metrics.get("monthly_burn", 1)
-    runway = cash / monthly_burn if monthly_burn > 0 else 0
-    kpis.append(KPI(
-        name="Cash Runway (meses)",
-        value=round(runway, 1),
-        target=6.0,
-        trend="up" if runway >= 6 else "down",
-    ))
-
-    return kpis
-
-
-def generate_cash_flow(tenant_id: int,
-                       period: str,
-                       inflows: float = 0.0,
-                       outflows: float = 0.0,
-                       beginning_balance: float = 0.0,
-                       details: Optional[dict] = None) -> CashFlow:
-    """Genera un análisis de flujo de efectivo."""
-    net = inflows - outflows
-    ending = beginning_balance + net
-    # Proyección simple: misma tasa neta
-    projection = ending + net
-
-    return CashFlow(
-        period=period,
-        inflows=round(inflows, 2),
-        outflows=round(outflows, 2),
-        net=round(net, 2),
-        beginning_balance=round(beginning_balance, 2),
-        ending_balance=round(ending, 2),
-        projection_next_month=round(projection, 2),
-        details=details or {},
-    )
-
-
-def generate_profit_loss(tenant_id: int,
-                         period: str,
-                         revenue: float = 0.0,
-                         cost_of_goods: float = 0.0,
-                         operating_expenses: float = 0.0,
-                         other_income: float = 0.0,
-                         taxes: float = 0.0,
-                         depreciation: float = 0.0,
-                         interest: float = 0.0) -> MonthlyReport:
-    """Genera un Estado de Resultados (P&L) detallado.
-
-    Incluye desglose de gastos de operación y otros ingresos.
-    """
-    gross = revenue - cost_of_goods
-    operating_income = gross - operating_expenses - depreciation
-    ebit = operating_income + other_income - interest
-    ebitda = gross - operating_expenses
-    net = ebit - taxes
-
-    # KPIs del P&L
-    kpis = []
-    if revenue > 0:
         kpis.append(KPI(
-            name="EBIT",
-            value=round(ebit, 2),
+            name="Ingresos Mensuales",
+            value=round(revenue, 2),
             unit="MXN",
-            trend="up" if ebit > 0 else "down",
-        ))
-        kpis.append(KPI(
-            name="Depreciación/Aмортизación",
-            value=round(depreciation, 2),
-            unit="MXN",
-        ))
-        kpis.append(KPI(
-            name="Costo Financiero",
-            value=round(interest, 2),
-            unit="MXN",
+            trend=revenue_trend,
+            change_pct=revenue_change,
+            target=data.get("revenue_target"),
+            category="financial",
         ))
 
-    period_label = period
-    return MonthlyReport(
-        period=period_label,
-        tenant_id=tenant_id,
-        revenue=round(revenue, 2),
-        cost_of_goods=round(cost_of_goods, 2),
-        gross_profit=round(gross, 2),
-        operating_expenses=round(operating_expenses, 2),
-        ebitda=round(ebitda, 2),
-        taxes=round(taxes, 2),
-        net_profit=round(net, 2),
-        kpis=kpis,
-        summary=f"P&L {period}: Utilidad neta ${net:,.2f}",
-    )
+        # Margen bruto
+        gross_margin = round((profit / revenue * 100), 2) if revenue > 0 else 0.0
+        prev_margin = data.get("prev_gross_margin")
+        margin_change = None
+        margin_trend = TrendDirection.STABLE
+        if prev_margin and prev_margin != 0:
+            margin_change = round(gross_margin - prev_margin, 2)
+            margin_trend = TrendDirection.UP if margin_change > 0 else (
+                TrendDirection.DOWN if margin_change < 0 else TrendDirection.STABLE
+            )
 
+        kpis.append(KPI(
+            name="Margen Bruto",
+            value=gross_margin,
+            unit="%",
+            trend=margin_trend,
+            change_pct=margin_change,
+            target=data.get("margin_target", 20.0),
+            category="financial",
+        ))
 
-def export_report(report: MonthlyReport, format: str = "json") -> str:
-    """Exporta un reporte en el formato solicitado (json, csv, html).
+        # Efectividad de facturación
+        eff_rate = round((invoices_count / max(data.get("invoices_expected", invoices_count), 1)) * 100, 2)
+        kpis.append(KPI(
+            name="Efectividad de Facturación",
+            value=eff_rate,
+            unit="%",
+            trend=TrendDirection.STABLE,
+            target=100.0,
+            category="operational",
+        ))
 
-    Returns:
-        String con el contenido del reporte.
-    """
-    data = report.to_dict()
+        # Carga impositiva
+        tax_burden = round((taxes_paid / revenue * 100), 2) if revenue > 0 else 0.0
+        kpis.append(KPI(
+            name="Carga Impositiva",
+            value=tax_burden,
+            unit="%",
+            trend=TrendDirection.STABLE,
+            target=None,
+            category="compliance",
+        ))
 
-    if format == "json":
-        return json.dumps(data, indent=2, ensure_ascii=False)
+        # Gasto por factura
+        cost_per_invoice = round(expenses / invoices_count, 2) if invoices_count > 0 else 0.0
+        kpis.append(KPI(
+            name="Gasto por Factura",
+            value=cost_per_invoice,
+            unit="MXN",
+            trend=TrendDirection.STABLE,
+            target=data.get("cost_per_invoice_target"),
+            category="operational",
+        ))
 
-    elif format == "csv":
-        output = io.StringIO()
-        writer = csv.writer(output)
-        # Header
-        writer.writerow(["Concepto", "Monto"])
-        writer.writerow(["Periodo", data["period"]])
-        writer.writerow(["Ingresos", data["revenue"]])
-        writer.writerow(["Costo de Ventas", data["cost_of_goods"]])
-        writer.writerow(["Utilidad Bruta", data["gross_profit"]])
-        writer.writerow(["Gastos Operativos", data["operating_expenses"]])
-        writer.writerow(["EBITDA", data["ebitda"]])
-        writer.writerow(["Impuestos", data["taxes"]])
-        writer.writerow(["Utilidad Neta", data["net_profit"]])
-        # KPIs
-        for kpi in data["kpis"]:
-            writer.writerow([f"KPI: {kpi['name']}", f"{kpi['value']} {kpi['unit']}"])
-        return output.getvalue()
+        return kpis
 
-    elif format == "html":
-        rows = ""
-        for kpi in data["kpis"]:
-            color = "#22c55e" if kpi["trend"] == "up" else "#ef4444" if kpi["trend"] == "down" else "#94a3b8"
-            rows += f"""
-            <tr>
-                <td>{kpi['name']}</td>
-                <td style="text-align:right">{kpi['value']:.2f} {kpi['unit']}</td>
-                <td style="color:{color};text-align:center">{kpi['trend'].upper()}</td>
-            </tr>"""
-        return f"""<!DOCTYPE html>
-<html>
-<head><title>Reporte {data['period']}</title>
-<style>body{{font-family:sans-serif;margin:2em}}table{{border-collapse:collapse;width:100%}}
-td,th{{border:1px solid #ddd;padding:8px}}th{{background:#1e293b;color:white}}</style></head>
-<body>
-<h1>Reporte Gerencial — {data['period']}</h1>
-<table>
-<tr><th>Concepto</th><th style="text-align:right">Monto</th></tr>
-<tr><td>Ingresos</td><td style="text-align:right">${data['revenue']:,.2f}</td></tr>
-<tr><td>Costo de Ventas</td><td style="text-align:right">${data['cost_of_goods']:,.2f}</td></tr>
-<tr><td>Utilidad Bruta</td><td style="text-align:right">${data['gross_profit']:,.2f}</td></tr>
-<tr><td>Gastos Operativos</td><td style="text-align:right">${data['operating_expenses']:,.2f}</td></tr>
-<tr><td>EBITDA</td><td style="text-align:right">${data['ebitda']:,.2f}</td></tr>
-<tr><td>Impuestos</td><td style="text-align:right">${data['taxes']:,.2f}</td></tr>
-<tr><td><strong>Utilidad Neta</strong></td><td style="text-align:right"><strong>${data['net_profit']:,.2f}</strong></td></tr>
-</table>
-<h2>KPIs</h2>
-<table><tr><th>Indicador</th><th>Valor</th><th>Tendencia</th></tr>
-{rows}</table>
-<p>{data['summary']}</p>
-</body></html>"""
+    # -------------------------------------------------------------------
+    # KPI dashboard
+    # -------------------------------------------------------------------
 
-    else:
-        raise ValueError(f"Formato no soportado: {format}. Use: json, csv, html")
+    def generate_kpi_dashboard(
+        self,
+        tenant_id: str,
+        period: str,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Generate a KPI dashboard for a given period.
+
+        Parameters
+        ----------
+        tenant_id : str
+            Tenant identifier.
+        period : str
+            Period in YYYY-MM format.
+        data : Optional[dict]
+            Input data for KPI calculation.
+
+        Returns
+        -------
+        Dict with KPIs, summary, and alerts.
+        """
+        data = data or {}
+        kpis: List[KPI] = []
+
+        # Financial KPIs
+        for name, value, unit, target in [
+            ("Ingresos", data.get("revenue", 0.0), "MXN", data.get("revenue_target")),
+            ("Egresos", data.get("expenses", 0.0), "MXN", data.get("expense_target")),
+            ("Utilidad Neta", data.get("profit", 0.0), "MXN", None),
+            ("Ticket Promedio", data.get("avg_ticket", 0.0), "MXN", None),
+            ("Días de Cobro", data.get("days_to_collect", 0), "days", 30),
+            ("Facturas Procesadas", data.get("invoices_count", 0), "count", None),
+        ]:
+            kpis.append(KPI(
+                name=name,
+                value=round(value, 2),
+                unit=unit,
+                trend=TrendDirection.STABLE,
+                target=target,
+            ))
+
+        # Alerts: KPIs that are below target
+        alerts = []
+        for kpi in kpis:
+            if kpi.target is not None and kpi.unit == "%" and kpi.value < kpi.target:
+                alerts.append({
+                    "kpi": kpi.name,
+                    "current": kpi.value,
+                    "target": kpi.target,
+                    "message": f"{kpi.name} está por debajo del objetivo ({kpi.value} vs {kpi.target})",
+                })
+
+        return {
+            "ok": True,
+            "period": period,
+            "tenant_id": tenant_id,
+            "kpis": [k.model_dump() for k in kpis],
+            "summary": {
+                "total_kpis": len(kpis),
+                "alerts_count": len(alerts),
+            },
+            "alerts": alerts,
+            "generated_at": datetime.now().isoformat(),
+        }
+
+    # -------------------------------------------------------------------
+    # Cash flow
+    # -------------------------------------------------------------------
+
+    def generate_cash_flow(
+        self,
+        tenant_id: str,
+        period: str,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> CashFlow:
+        """Generate cash flow analysis.
+
+        Parameters
+        ----------
+        tenant_id : str
+            Tenant identifier.
+        period : str
+            Period in YYYY-MM format.
+        data : Optional[dict]
+            Input data with inflows, outflows, balances.
+
+        Returns
+        -------
+        CashFlow with projection.
+        """
+        data = data or {}
+
+        opening = data.get("opening_balance", 0.0)
+        inflows = data.get("inflows", 0.0)
+        outflows = data.get("outflows", 0.0)
+        net = inflows - outflows
+        closing = opening + net
+
+        # Projection: simple linear projection for next 3 months
+        projection = None
+        if data.get("project_forward", False):
+            monthly_growth = data.get("monthly_growth_rate", 0.0)
+            months = data.get("projection_months", 3)
+            proj_data = []
+            current = closing
+            for m in range(1, months + 1):
+                proj_inflows = inflows * (1 + monthly_growth) ** m
+                proj_outflows = outflows * (1 + monthly_growth * 0.5) ** m
+                current += (proj_inflows - proj_outflows)
+                proj_data.append({
+                    "month_offset": m,
+                    "projected_inflows": round(proj_inflows, 2),
+                    "projected_outflows": round(proj_outflows, 2),
+                    "projected_balance": round(current, 2),
+                })
+            projection = {
+                "months": months,
+                "monthly_growth_rate": monthly_growth,
+                "projections": proj_data,
+            }
+
+        # Category breakdown
+        categories = data.get("categories", {
+            "ventas": inflows * 0.7 if inflows else 0,
+            "servicios": inflows * 0.3 if inflows else 0,
+            "nómina": outflows * 0.4 if outflows else 0,
+            "proveedores": outflows * 0.3 if outflows else 0,
+            "impuestos": outflows * 0.15 if outflows else 0,
+            "otros": outflows * 0.15 if outflows else 0,
+        })
+
+        cash_flow = CashFlow(
+            id=str(_uuid.uuid4()),
+            period=period,
+            tenant_id=tenant_id,
+            opening_balance=opening,
+            inflows=inflows,
+            outflows=outflows,
+            net=round(net, 2),
+            closing_balance=round(closing, 2),
+            projection=projection,
+            categories={k: round(v, 2) for k, v in categories.items()},
+            created_at=datetime.now().isoformat(),
+        )
+
+        self._cash_flows[period] = cash_flow
+        return cash_flow
+
+    # -------------------------------------------------------------------
+    # Profit & Loss
+    # -------------------------------------------------------------------
+
+    def generate_profit_loss(
+        self,
+        tenant_id: str,
+        period: str,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> ProfitLoss:
+        """Generate Profit & Loss (Estado de Resultados).
+
+        Parameters
+        ----------
+        tenant_id : str
+            Tenant identifier.
+        period : str
+            Period in YYYY-MM format.
+        data : Optional[dict]
+            Input data for P&L computation.
+
+        Returns
+        -------
+        ProfitLoss with computed margins.
+        """
+        data = data or {}
+
+        income = data.get("income", 0.0)
+        cogs = data.get("cost_of_goods_sold", 0.0)
+        gross_profit = income - cogs
+
+        op_expenses = data.get("operating_expenses", 0.0)
+        operating_profit = gross_profit - op_expenses
+
+        other_income = data.get("other_income", 0.0)
+        other_expenses = data.get("other_expenses", 0.0)
+        pre_tax_profit = operating_profit + other_income - other_expenses
+
+        # ISR + IVA estimation
+        isr_rate = data.get("isr_rate", 0.30)
+        taxes = round(pre_tax_profit * isr_rate, 2) if pre_tax_profit > 0 else 0.0
+        net_profit = pre_tax_profit - taxes
+        margin_pct = round((net_profit / income * 100), 2) if income > 0 else 0.0
+
+        # Breakdowns
+        cost_breakdown = data.get("cost_breakdown", {
+            "materia_prima": cogs * 0.6 if cogs else 0,
+            "mano_obra": cogs * 0.25 if cogs else 0,
+            "indirectos": cogs * 0.15 if cogs else 0,
+        })
+
+        expense_breakdown = data.get("expense_breakdown", {
+            "nómina_admin": op_expenses * 0.35 if op_expenses else 0,
+            "renta": op_expenses * 0.15 if op_expenses else 0,
+            "servicios": op_expenses * 0.10 if op_expenses else 0,
+            "depreciación": op_expenses * 0.10 if op_expenses else 0,
+            "marketing": op_expenses * 0.10 if op_expenses else 0,
+            "otros": op_expenses * 0.20 if op_expenses else 0,
+        })
+
+        pl = ProfitLoss(
+            id=str(_uuid.uuid4()),
+            period=period,
+            tenant_id=tenant_id,
+            income=round(income, 2),
+            cost_of_goods_sold=round(cogs, 2),
+            gross_profit=round(gross_profit, 2),
+            operating_expenses=round(op_expenses, 2),
+            operating_profit=round(operating_profit, 2),
+            other_income=round(other_income, 2),
+            other_expenses=round(other_expenses, 2),
+            pre_tax_profit=round(pre_tax_profit, 2),
+            taxes=taxes,
+            net_profit=round(net_profit, 2),
+            margin_pct=margin_pct,
+            cost_breakdown={k: round(v, 2) for k, v in cost_breakdown.items()},
+            expense_breakdown={k: round(v, 2) for k, v in expense_breakdown.items()},
+            created_at=datetime.now().isoformat(),
+        )
+
+        self._profit_losses[period] = pl
+        return pl
+
+    # -------------------------------------------------------------------
+    # Export
+    # -------------------------------------------------------------------
+
+    def export_report(
+        self,
+        report: Any,
+        format: ExportFormat = ExportFormat.JSON,
+    ) -> Any:
+        """Export a report to the specified format.
+
+        Parameters
+        ----------
+        report : MonthlyReport, CashFlow, or ProfitLoss
+            The report to export.
+        format : ExportFormat
+            Target format.
+
+        Returns
+        -------
+        JSON string, CSV string, or dict depending on format.
+        """
+        if hasattr(report, "model_dump"):
+            data = report.model_dump()
+        else:
+            data = report
+
+        if format == ExportFormat.JSON:
+            return json.dumps(data, indent=2, ensure_ascii=False, default=str)
+
+        elif format == ExportFormat.CSV:
+            output = io.StringIO()
+            writer = csv.writer(output)
+            # Header
+            writer.writerow(["Campo", "Valor"])
+            for key, value in data.items():
+                if isinstance(value, (dict, list)):
+                    writer.writerow([key, json.dumps(value, ensure_ascii=False)])
+                else:
+                    writer.writerow([key, value])
+            return output.getvalue()
+
+        elif format == ExportFormat.PDF:
+            # Simplified: return markdown that can be converted
+            lines = [f"# Reporte - {data.get('period', 'N/A')}", ""]
+            for key, value in data.items():
+                if isinstance(value, (dict, list)):
+                    lines.append(f"**{key}:**")
+                    if isinstance(value, list):
+                        for item in value:
+                            if isinstance(item, dict):
+                                lines.append(f"  - {json.dumps(item, ensure_ascii=False)}")
+                            else:
+                                lines.append(f"  - {item}")
+                    else:
+                        for k2, v2 in value.items():
+                            lines.append(f"  - {k2}: {v2}")
+                else:
+                    lines.append(f"**{key}:** {value}")
+            return "\n".join(lines)
+
+        elif format == ExportFormat.XLSX:
+            # Return a simplified dict representation for XLSX generation
+            return {
+                "sheets": [
+                    {
+                        "name": "Reporte",
+                        "headers": ["Campo", "Valor"],
+                        "rows": [[k, v] for k, v in data.items() if not isinstance(v, (dict, list))],
+                    }
+                ]
+            }
+
+        return data
+
+    # -------------------------------------------------------------------
+    # Retrieval
+    # -------------------------------------------------------------------
+
+    def get_report(self, period: str) -> Optional[MonthlyReport]:
+        """Get a monthly report by period."""
+        return self._reports.get(period)
+
+    def get_cash_flow(self, period: str) -> Optional[CashFlow]:
+        """Get cash flow by period."""
+        return self._cash_flows.get(period)
+
+    def get_profit_loss(self, period: str) -> Optional[ProfitLoss]:
+        """Get P&L by period."""
+        return self._profit_losses.get(period)
+
+    def list_reports(self) -> List[str]:
+        """List all available report periods."""
+        return sorted(set(
+            list(self._reports.keys())
+            + list(self._cash_flows.keys())
+            + list(self._profit_losses.keys())
+        ))

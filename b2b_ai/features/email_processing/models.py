@@ -1,107 +1,91 @@
 # -*- coding: utf-8 -*-
 """
-models.py — Modelos de Recepción de Correos.
+models.py — Pydantic schemas for the Email Processing module.
 
-EmailMessage      — Mensaje de correo con archivos adjuntos.
-ExtractedInvoice  — Factura CFDI extraída de un correo.
-ProcessingResult  — Resultado del procesamiento de correos.
+Handles email inbox monitoring, attachment classification, CFDI extraction
+from XML/PDF files, and processing result tracking.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field, field_validator
 
 
-@dataclass
-class Attachment:
-    """Archivo adjunto de un correo."""
-
-    filename: str = ""
-    content_type: str = ""
-    size: int = 0
-    content: bytes = b""
-
-    def to_dict(self) -> dict:
-        return {
-            "filename": self.filename,
-            "content_type": self.content_type,
-            "size": self.size,
-        }
+class AttachmentType(str, Enum):
+    """Type of email attachment."""
+    XML = "xml"
+    PDF = "pdf"
+    IMAGE = "image"
+    OTHER = "other"
 
 
-@dataclass
-class EmailMessage:
-    """Mensaje de correo electrónico."""
-
-    message_id: str = ""
-    from_address: str = ""
-    to_address: str = ""
-    subject: str = ""
-    date: str = ""
-    body: str = ""
-    attachments: list[Attachment] = field(default_factory=list)
-    tenant_id: Optional[int] = None
-
-    def to_dict(self) -> dict:
-        return {
-            "message_id": self.message_id,
-            "from": self.from_address,
-            "to": self.to_address,
-            "subject": self.subject,
-            "date": self.date,
-            "body": self.body[:200],  # Truncar para preview
-            "attachment_count": len(self.attachments),
-            "attachments": [a.to_dict() for a in self.attachments],
-            "tenant_id": self.tenant_id,
-        }
+class ProcessingStatus(str, Enum):
+    """Status of invoice processing."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
 
 
-@dataclass
-class ExtractedInvoice:
-    """Factura CFDI extraída de un correo."""
+class EmailMessage(BaseModel):
+    """An email message from the inbox."""
+    id: Optional[str] = Field(default=None, description="Unique email ID")
+    from_addr: str = Field(..., description="Sender email address")
+    subject: str = Field(default="", description="Email subject line")
+    date: str = Field(..., description="Email date in ISO format or YYYY-MM-DD")
+    body: Optional[str] = Field(default=None, description="Email body text")
+    attachments: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="List of attachments: [{filename, content_type, size_bytes}]"
+    )
+    tenant_id: str = Field(default="default", description="Tenant ID")
+    processed: bool = Field(default=False, description="Whether already processed")
 
-    filename: str = ""
-    message_id: str = ""
-    cfdi_data: dict = field(default_factory=dict)
-    status: str = "pending"  # pending, valid, invalid, error
-    errors: list[str] = field(default_factory=list)
-    emisor_rfc: str = ""
-    receptor_rfc: str = ""
-    total: float = 0.0
-
-    def to_dict(self) -> dict:
-        return {
-            "filename": self.filename,
-            "message_id": self.message_id,
-            "status": self.status,
-            "errors": self.errors,
-            "emisor_rfc": self.emisor_rfc,
-            "receptor_rfc": self.receptor_rfc,
-            "total": round(self.total, 2),
-        }
+    @field_validator("from_addr")
+    @classmethod
+    def _from_addr_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("from_addr no puede estar vacío")
+        return v.strip()
 
 
-@dataclass
-class ProcessingResult:
-    """Resultado del procesamiento de correos."""
+class ExtractedInvoice(BaseModel):
+    """An invoice extracted from an email attachment."""
+    filename: str = Field(..., description="Source filename")
+    cfdi_data: Dict[str, Any] = Field(default_factory=dict, description="Extracted CFDI data")
+    status: ProcessingStatus = Field(default=ProcessingStatus.PENDING, description="Processing status")
+    errors: List[str] = Field(default_factory=list, description="Processing errors")
+    email_id: Optional[str] = Field(default=None, description="Source email ID")
+    attachment_type: AttachmentType = Field(default=AttachmentType.XML, description="Source attachment type")
+    uuid: Optional[str] = Field(default=None, description="CFDI UUID if extracted")
+    rfc_emisor: Optional[str] = Field(default=None, description="RFC emisor if extracted")
+    rfc_receptor: Optional[str] = Field(default=None, description="RFC receptor if extracted")
+    total: Optional[float] = Field(default=None, description="Invoice total if extracted")
+    fecha: Optional[str] = Field(default=None, description="Invoice date if extracted")
 
-    total_emails: int = 0
-    emails_with_cfdi: int = 0
-    total_invoices: int = 0
-    processed: int = 0
-    failed: int = 0
-    valid: int = 0
-    invalid: int = 0
-    details: list[ExtractedInvoice] = field(default_factory=list)
+    @field_validator("filename")
+    @classmethod
+    def _filename_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("filename no puede estar vacío")
+        return v.strip()
 
-    def to_dict(self) -> dict:
-        return {
-            "total_emails": self.total_emails,
-            "emails_with_cfdi": self.emails_with_cfdi,
-            "total_invoices": self.total_invoices,
-            "processed": self.processed,
-            "failed": self.failed,
-            "valid": self.valid,
-            "invalid": self.invalid,
-            "details": [d.to_dict() for d in self.details],
-        }
+
+class ProcessingResult(BaseModel):
+    """Result of processing a batch of emails/invoices."""
+    id: Optional[str] = Field(default=None, description="Batch result ID")
+    total: int = Field(default=0, description="Total emails scanned")
+    processed: int = Field(default=0, description="Successfully processed")
+    failed: int = Field(default=0, description="Failed to process")
+    skipped: int = Field(default=0, description="Skipped (no attachments, already processed)")
+    invoices_found: int = Field(default=0, description="CFDI invoices found in attachments")
+    details: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Detailed results per email"
+    )
+    errors: List[str] = Field(default_factory=list, description="Batch-level errors")
+    tenant_id: str = Field(default="default", description="Tenant ID")
+    scan_period: Optional[str] = Field(default=None, description="Scan period (YYYY-MM)")
+    created_at: Optional[str] = Field(default=None, description="ISO timestamp")

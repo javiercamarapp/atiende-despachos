@@ -198,7 +198,7 @@ def generate_payslip(payroll_data: dict) -> dict:
     return {
         "tipo": "recibo_nomina",
         "empleado": {
-            "id": employee.get("employee_id", ""),
+            "employee_id": employee.get("employee_id", ""),
             "nombre": employee.get("nombre", ""),
             "puesto": employee.get("puesto", ""),
             "departamento": employee.get("departamento", ""),

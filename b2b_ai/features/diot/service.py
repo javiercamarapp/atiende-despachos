@@ -1,324 +1,313 @@
-# -*- coding: utf-8 -*-
-"""
-service.py — DiotService: generación, validación, inconsistencias y exportación XML.
+"""DIOT service layer — generation, validation, export.
 
-This service:
-  - Generates a DIOT from a list of CFDI invoices
-  - Validates DIOT data against CFDI records
-  - Detects inconsistencies (missing RFC, IVA mismatches, duplicates)
-  - Exports DIOT to SAT XML format
+All business logic lives here.  The service is stateless: it receives data,
+validates it, aggregates it, and exports the result.  Persistence (DB reads /
+writes) is expected to be injected by the caller or a repository layer.
 """
 from __future__ import annotations
 
-import uuid as _uuid
+import json
+import xml.etree.ElementTree as ET
+from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
-from xml.etree.ElementTree import Element, SubElement, tostring
 
-from b2b_ai.features.diot.models import (
+from .models import (
+    CFDIInvoiceInput,
     DiotEntry,
     DiotReport,
     DiotSummary,
     EstatusDIOT,
-    OperacionType,
+    Inconsistencia,
+    TipoIva,
+    TipoOperacion,
 )
-from b2b_ai.features.diot.validators import (
+from .validators import (
+    ValidationResult,
     validate_diot_entries,
-    validate_iva_amount,
-    validate_rfc,
+    validate_invoices,
 )
 
+# ---------------------------------------------------------------------------
+# In-memory store (replace with real DB in production)
+# ---------------------------------------------------------------------------
+
+_reports: Dict[str, DiotReport] = {}
+
+
+# ---------------------------------------------------------------------------
+# Aggregation: invoices -> DIOT entries
+# ---------------------------------------------------------------------------
+
+def _aggregate_invoices(invoices: list[CFDIInvoiceInput]) -> list[DiotEntry]:
+    """Group invoices by (rfc, tipo_operacion, tipo_iva) and sum amounts."""
+    groups: dict[tuple[str, TipoOperacion, TipoIva], dict] = defaultdict(lambda: {
+        "nombre": "",
+        "monto_neto": 0.0,
+        "iva_trasladado": 0.0,
+        "iva_acreditable": 0.0,
+        "count": 0,
+        "uuids": [],
+    })
+
+    for inv in invoices:
+        # Normalize MXN amounts
+        neto = inv.subtotal * inv.tipo_cambio
+        iva_t = inv.iva_trasladado * inv.tipo_cambio
+        iva_a = inv.iva_acreditable * inv.tipo_cambio
+
+        key = (inv.rfc_emisor, inv.tipo_operacion, inv.tipo_iva)
+        g = groups[key]
+        g["nombre"] = inv.nombre_emisor  # last-wins, should be consistent per RFC
+        g["monto_neto"] += neto
+        g["iva_trasladado"] += iva_t
+        g["iva_acreditable"] += iva_a
+        g["count"] += 1
+        g["uuids"].append(inv.uuid)
+
+    entries: list[DiotEntry] = []
+    for (rfc, tipo_op, tipo_iva), g in sorted(groups.items()):
+        entries.append(DiotEntry(
+            rfc_tercero=rfc,
+            nombre=g["nombre"],
+            tipo_operacion=tipo_op,
+            tipo_iva=tipo_iva,
+            monto_neto=round(g["monto_neto"], 2),
+            iva_trasladado=round(g["iva_trasladado"], 2),
+            iva_acreditable=round(g["iva_acreditable"], 2),
+            numero_facturas=g["count"],
+            uuids=g["uuids"],
+        ))
+    return entries
+
+
+# ---------------------------------------------------------------------------
+# Public functions (module-level API)
+# ---------------------------------------------------------------------------
+
+def generate_diot(
+    month: int,
+    year: int,
+    tenant_id: str,
+    invoices: list[CFDIInvoiceInput] | None = None,
+) -> DiotReport:
+    """Generate a complete DIOT report.
+
+    Parameters
+    ----------
+    month : 1-12
+    year  : fiscal year (>= 2014)
+    tenant_id : platform tenant
+    invoices  : list of captured CFDI invoices; if *None* the caller is
+                expected to have already fetched them from the DB.
+
+    Returns
+    -------
+    DiotReport  with entries, summary, and any inconsistencies detected.
+    """
+    report = DiotReport(
+        month=month,
+        year=year,
+        tenant_id=tenant_id,
+        estatus=EstatusDIOT.VALIDANDO,
+    )
+
+    if not invoices:
+        report.estatus = EstatusDIOT.ERROR
+        report.inconsistencies = [
+            Inconsistencia(
+                tipo="sin_facturas",
+                severidad="critical",
+                descripcion="No se proporcionaron facturas para generar la DIOT",
+            ),
+        ]
+        _reports[report.id] = report
+        return report
+
+    # 1. Validate invoices
+    inv_validation = validate_invoices(invoices)
+
+    # 2. Aggregate into DIOT entries
+    entries = _aggregate_invoices(invoices)
+
+    # 3. Validate entries
+    entry_validation = validate_diot_entries(entries, invoices)
+
+    # 4. Merge all inconsistencies
+    all_inconsistencies = inv_validation.inconsistencies + entry_validation.inconsistencies
+
+    # 5. Build report
+    report.entries = entries
+    report.inconsistencies = all_inconsistencies
+    report.recompute_summary()
+    report.generated_at = datetime.utcnow()
+
+    if entry_validation.valid and inv_validation.valid:
+        report.estatus = EstatusDIOT.GENERADA
+    else:
+        report.estatus = EstatusDIOT.GENERADA  # generate anyway; mark issues
+
+    _reports[report.id] = report
+    return report
+
+
+def validate_diot_data(
+    invoices: list[CFDIInvoiceInput] | list[dict],
+) -> ValidationResult:
+    """Validate invoice data before DIOT generation.
+
+    Returns a ``ValidationResult`` with ``.valid``, ``.inconsistencies``,
+    ``.errors``, and ``.warnings``.
+    """
+    return validate_invoices(invoices)
+
+
+def detect_inconsistencies(
+    entries: list[DiotEntry],
+    invoices: list[CFDIInvoiceInput] | None = None,
+) -> list[Inconsistencia]:
+    """Run inconsistency detection on existing DIOT entries."""
+    result = validate_diot_entries(entries, invoices)
+    return result.inconsistencies
+
+
+def export_diot_xml(diot_report: DiotReport, output_dir: str = "/tmp/diot") -> str:
+    """Export DIOT report to SAT XML format.
+
+    Follows the SAT layout for the DIOT declaracion informativa.
+
+    Returns
+    -------
+    str : path to the generated XML file
+    """
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    filename = f"DIOT_{diot_report.tenant_id}_{diot_report.year}_{diot_report.month:02d}.xml"
+    filepath = out / filename
+
+    # Build XML — xmlns is injected as a raw attribute after serialization
+    # so child elements keep plain tag names (simplifies parsing).
+    root = ET.Element("PlacasDiarioDiario")
+
+    # Header
+    header = ET.SubElement(root, "Encabezado")
+    ET.SubElement(header, "RFC").text = diot_report.tenant_id
+    ET.SubElement(header, "Mes").text = str(diot_report.month).zfill(2)
+    ET.SubElement(header, "Anio").text = str(diot_report.year)
+    ET.SubElement(header, "TotalOperaciones").text = str(diot_report.summary.total_operaciones)
+    ET.SubElement(header, "TotalMontoNeto").text = f"{diot_report.summary.total_monto_neto:.2f}"
+    ET.SubElement(header, "TotalIVATrasladado").text = f"{diot_report.summary.total_iva_trasladado:.2f}"
+    ET.SubElement(header, "TotalIVAAcreditable").text = f"{diot_report.summary.total_iva_acreditable:.2f}"
+
+    # Entries
+    for entry in diot_report.entries:
+        row = ET.SubElement(root, "Registro")
+        row.set("rfc", entry.rfc_tercero)
+        ET.SubElement(row, "Nombre").text = entry.nombre
+        ET.SubElement(row, "TipoOperacion").text = entry.tipo_operacion.value
+        ET.SubElement(row, "TipoIVA").text = entry.tipo_iva.value
+        ET.SubElement(row, "MontoNeto").text = f"{entry.monto_neto:.2f}"
+        ET.SubElement(row, "IVATrasladado").text = f"{entry.iva_trasladado:.2f}"
+        ET.SubElement(row, "IVAAcreditable").text = f"{entry.iva_acreditable:.2f}"
+        ET.SubElement(row, "NumFacturas").text = str(entry.numero_facturas)
+        ET.SubElement(row, "Uuids").text = "|".join(entry.uuids)
+
+    # Inconsistencies (if any)
+    if diot_report.inconsistencies:
+        incs = ET.SubElement(root, "Inconsistencias")
+        for inc in diot_report.inconsistencies:
+            inc_el = ET.SubElement(incs, "Inconsistencia")
+            inc_el.set("tipo", inc.tipo)
+            inc_el.set("severidad", inc.severidad)
+            inc_el.text = inc.descripcion
+
+    # Write
+    tree = ET.ElementTree(root)
+    ET.indent(tree, space="  ")
+    tree.write(str(filepath), encoding="UTF-8", xml_declaration=True)
+
+    # Also save a JSON sidecar for programmatic consumption
+    json_path = filepath.with_suffix(".json")
+    json_path.write_text(
+        json.dumps(diot_report.model_dump(mode="json"), indent=2, default=str),
+        encoding="utf-8",
+    )
+
+    return str(filepath)
+
+
+# ---------------------------------------------------------------------------
+# Report store helpers
+# ---------------------------------------------------------------------------
+
+def get_report(report_id: str) -> Optional[DiotReport]:
+    """Retrieve a generated DIOT report by ID."""
+    return _reports.get(report_id)
+
+
+def list_reports(
+    tenant_id: str | None = None,
+    month: int | None = None,
+    year: int | None = None,
+) -> list[DiotReport]:
+    """List reports with optional filters."""
+    results = list(_reports.values())
+    if tenant_id:
+        results = [r for r in results if r.tenant_id == tenant_id]
+    if month is not None:
+        results = [r for r in results if r.month == month]
+    if year is not None:
+        results = [r for r in results if r.year == year]
+    return sorted(results, key=lambda r: (r.year, r.month), reverse=True)
+
+
+# ---------------------------------------------------------------------------
+# DiotService class — wraps module-level functions for router use
+# ---------------------------------------------------------------------------
 
 class DiotService:
-    """Core service for DIOT generation and validation."""
+    """Stateless service class that wraps DIOT generation and validation.
 
-    def __init__(self):
-        self._reports: Dict[str, DiotReport] = {}
-
-    # -------------------------------------------------------------------
-    # Generate DIOT from invoices
-    # -------------------------------------------------------------------
+    Used by the FastAPI router. All methods delegate to module-level functions.
+    """
 
     def generate_diot(
         self,
         month: int,
         year: int,
-        tenant_id: Optional[str] = None,
-        invoices: Optional[List[dict]] = None,
+        tenant_id: str,
+        invoices: list | None = None,
     ) -> DiotReport:
-        """Generate a DIOT report for a given month/year from invoice data.
+        # Convert dict invoices to CFDIInvoiceInput if needed
+        typed_invoices = self._coerce_invoices(invoices)
+        return generate_diot(month, year, tenant_id, typed_invoices)
 
-        Parameters
-        ----------
-        month : int
-            Month (1-12).
-        year : int
-            Year.
-        tenant_id : Optional[str]
-            Tenant identifier.
-        invoices : Optional[List[dict]]
-            Raw invoice dicts with keys: rfc_tercero, nombre, tipo_operacion,
-            monto_neto, iva_trasladado, iva_acreditable, uuid_cfdi, fecha.
-
-        Returns
-        -------
-        DiotReport
-        """
-        entries: List[DiotEntry] = []
-
-        if invoices:
-            for inv in invoices:
-                try:
-                    entry = DiotEntry(
-                        rfc_tercero=inv.get("rfc_tercero", ""),
-                        nombre=inv.get("nombre", ""),
-                        tipo_operacion=inv.get("tipo_operacion", "01"),
-                        monto_neto=float(inv.get("monto_neto", 0)),
-                        iva_trasladado=float(inv.get("iva_trasladado", 0)),
-                        iva_acreditable=float(inv.get("iva_acreditable", 0)),
-                        uuid_cfdi=inv.get("uuid_cfdi"),
-                        fecha=inv.get("fecha"),
-                    )
-                    entries.append(entry)
-                except Exception:
-                    continue
-
-        # Build summary
-        summary = self._build_summary(entries)
-
-        # Detect inconsistencies
-        inconsistencies = self.detect_inconsistencies(entries)
-
-        report_id = f"DIOT-{year}-{month:02d}-{str(_uuid.uuid4())[:8]}"
-        report = DiotReport(
-            id=report_id,
-            month=month,
-            year=year,
-            tenant_id=tenant_id,
-            entries=entries,
-            summary=summary,
-            inconsistencies=inconsistencies,
-            estatus=EstatusDIOT.PENDIENTE,
-            created_at=datetime.now().isoformat(),
-        )
-
-        self._reports[report_id] = report
-        return report
-
-    # -------------------------------------------------------------------
-    # Validate DIOT data
-    # -------------------------------------------------------------------
-
-    def validate_diot_data(
-        self,
-        invoices: List[dict],
-    ) -> Dict[str, Any]:
-        """Validate invoice data before DIOT generation.
-
-        Returns dict with:
-          - is_valid: bool
-          - errors: List[str]
-          - warnings: List[str]
-          - valid_entries: int
-          - total_entries: int
-        """
-        is_valid, errors = validate_diot_entries(invoices)
-        warnings: List[str] = []
-
-        # Additional warnings for edge cases
-        for i, inv in enumerate(invoices, 1):
-            rfc = inv.get("rfc_tercero", "")
-            if rfc:
-                is_valid_rfc, _ = validate_rfc(rfc)
-                if not is_valid_rfc:
-                    warnings.append(f"Entrada #{i}: RFC '{rfc}' no pasa validación estricta.")
-
-            monto_neto = inv.get("monto_neto", 0)
-            iva_trasladado = inv.get("iva_trasladado", 0)
-            if monto_neto and monto_neto > 0 and iva_trasladado == 0:
-                warnings.append(
-                    f"Entrada #{i}: monto_neto={monto_neto} pero iva_trasladado=0. "
-                    "¿Operación exenta de IVA?"
-                )
-
-        return {
-            "is_valid": is_valid,
-            "errors": errors,
-            "warnings": warnings,
-            "valid_entries": sum(1 for _ in invoices if True) - len(errors),
-            "total_entries": len(invoices),
-        }
-
-    # -------------------------------------------------------------------
-    # Detect inconsistencies
-    # -------------------------------------------------------------------
-
-    def detect_inconsistencies(
-        self,
-        entries: List[DiotEntry],
-    ) -> List[Dict[str, Any]]:
-        """Detect inconsistencies in DIOT entries.
-
-        Checks:
-          - IVA amount doesn't match monto_neto × rate
-          - RFC format invalid
-          - Missing required data
-          - Duplicate entries
-          - IVA acreditable > IVA trasladado (red flag)
-        """
-        inconsistencies: List[Dict[str, Any]] = []
-        seen_rfc_tipo: Dict[tuple, int] = {}
-
-        for i, entry in enumerate(entries, 1):
-            # RFC validation
-            is_valid_rfc, rfc_err = validate_rfc(entry.rfc_tercero)
-            if not is_valid_rfc:
-                inconsistencies.append({
-                    "type": "RFC_INVALIDO",
-                    "entry_index": i,
-                    "rfc": entry.rfc_tercero,
-                    "detail": rfc_err,
-                    "severity": "error",
-                })
-
-            # IVA amount validation
-            if entry.monto_neto > 0:
-                is_valid_iva, iva_err = validate_iva_amount(
-                    entry.monto_neto, entry.iva_trasladado
-                )
-                if not is_valid_iva:
-                    inconsistencies.append({
-                        "type": "IVA_MISMATCH",
-                        "entry_index": i,
-                        "rfc": entry.rfc_tercero,
-                        "detail": iva_err,
-                        "severity": "warning",
-                    })
-
-            # IVA acreditable > IVA trasladado
-            if entry.iva_acreditable > entry.iva_trasladado:
-                inconsistencies.append({
-                    "type": "IVA_ACREDITABLE_MAYOR",
-                    "entry_index": i,
-                    "rfc": entry.rfc_tercero,
-                    "detail": (
-                        f"IVA acreditable ({entry.iva_acreditable}) es mayor que "
-                        f"IVA trasladado ({entry.iva_trasladado})."
-                    ),
-                    "severity": "warning",
-                })
-
-            # Duplicate detection
-            key = (entry.rfc_tercero.strip().upper(), entry.tipo_operacion)
-            if key in seen_rfc_tipo:
-                inconsistencies.append({
-                    "type": "DUPLICADO",
-                    "entry_index": i,
-                    "rfc": entry.rfc_tercero,
-                    "detail": (
-                        f"Entrada duplicada para RFC='{entry.rfc_tercero}' "
-                        f"tipo='{entry.tipo_operacion}'."
-                    ),
-                    "severity": "warning",
-                })
-            seen_rfc_tipo[key] = seen_rfc_tipo.get(key, 0) + 1
-
-            # Missing data
-            if not entry.nombre:
-                inconsistencies.append({
-                    "type": "NOMBRE_FALTANTE",
-                    "entry_index": i,
-                    "rfc": entry.rfc_tercero,
-                    "detail": "Nombre o razón social del tercero no proporcionado.",
-                    "severity": "info",
-                })
-
-        return inconsistencies
-
-    # -------------------------------------------------------------------
-    # Export to XML
-    # -------------------------------------------------------------------
-
-    def export_diot_xml(
-        self,
-        diot_data: DiotReport,
-    ) -> str:
-        """Export a DIOT report to SAT XML format.
-
-        Returns the XML as a string.
-
-        SAT DIOT XML structure (simplified):
-          <DIOT>
-            <Periodo mes="MM" anio="AAAA"/>
-            <Operaciones>
-              <Operacion rfc="..." tipo="..." montoNeto="..." ivaTrasladado="..." ivaAcreditable="..."/>
-              ...
-            </Operaciones>
-          </DIOT>
-        """
-        root = Element("DIOT")
-        root.set("version", "1.0")
-
-        # Periodo
-        periodo = SubElement(root, "Periodo")
-        periodo.set("mes", f"{diot_data.month:02d}")
-        periodo.set("anio", str(diot_data.year))
-
-        # Operaciones
-        operaciones = SubElement(root, "Operaciones")
-
-        for entry in diot_data.entries:
-            op = SubElement(operaciones, "Operacion")
-            op.set("rfc", entry.rfc_tercero)
-            op.set("tipo", entry.tipo_operacion.value)
-            op.set("montoNeto", f"{entry.monto_neto:.2f}")
-            op.set("ivaTrasladado", f"{entry.iva_trasladado:.2f}")
-            op.set("ivaAcreditable", f"{entry.iva_acreditable:.2f}")
-            if entry.uuid_cfdi:
-                op.set("uuidCFDI", entry.uuid_cfdi)
-
-        # Summary
-        resumen = SubElement(root, "Resumen")
-        resumen.set("totalOperaciones", str(diot_data.summary.total_operaciones))
-        resumen.set("totalIvaTrasladado", f"{diot_data.summary.total_iva_trasladado:.2f}")
-        resumen.set("totalIvaAcreditable", f"{diot_data.summary.total_iva_acreditable:.2f}")
-        resumen.set("diferencias", f"{diot_data.summary.diferencias:.2f}")
-
-        xml_bytes = tostring(root, encoding="unicode", xml_declaration=False)
-        return '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_bytes
-
-    # -------------------------------------------------------------------
-    # Get report
-    # -------------------------------------------------------------------
+    def validate_diot_data(self, invoices: list) -> ValidationResult:
+        typed_invoices = self._coerce_invoices(invoices)
+        return validate_diot_data(typed_invoices)
 
     def get_report(self, report_id: str) -> Optional[DiotReport]:
-        """Retrieve a DIOT report by ID."""
-        return self._reports.get(report_id)
+        return get_report(report_id)
 
-    def get_history(
-        self,
-        tenant_id: Optional[str] = None,
-    ) -> List[DiotReport]:
-        """Get all DIOT reports, optionally filtered by tenant."""
-        reports = list(self._reports.values())
-        if tenant_id:
-            reports = [r for r in reports if r.tenant_id == tenant_id]
-        return sorted(reports, key=lambda r: (r.year, r.month), reverse=True)
+    def get_history(self, tenant_id: str | None = None) -> list[DiotReport]:
+        return list_reports(tenant_id=tenant_id)
 
-    # -------------------------------------------------------------------
-    # Helpers
-    # -------------------------------------------------------------------
+    def export_diot_xml(self, report: DiotReport, output_dir: str = "/tmp/diot") -> str:
+        return export_diot_xml(report, output_dir)
 
-    def _build_summary(self, entries: List[DiotEntry]) -> DiotSummary:
-        """Build a summary from DIOT entries."""
-        total_neto = sum(e.monto_neto for e in entries)
-        total_trasladado = sum(e.iva_trasladado for e in entries)
-        total_acreditable = sum(e.iva_acreditable for e in entries)
-
-        return DiotSummary(
-            total_operaciones=len(entries),
-            total_iva_trasladado=total_trasladado,
-            total_iva_acreditable=total_acreditable,
-            diferencias=total_trasladado - total_acreditable,
-            total_monto_neto=total_neto,
-        )
+    @staticmethod
+    def _coerce_invoices(invoices: list | None) -> list[CFDIInvoiceInput] | None:
+        """Convert dicts to CFDIInvoiceInput objects."""
+        if not invoices:
+            return None
+        result = []
+        for inv in invoices:
+            if isinstance(inv, CFDIInvoiceInput):
+                result.append(inv)
+            elif isinstance(inv, dict):
+                result.append(CFDIInvoiceInput(**inv))
+            else:
+                result.append(CFDIInvoiceInput(**inv.model_dump()))
+        return result

@@ -1,151 +1,243 @@
 # -*- coding: utf-8 -*-
 """
-routes.py — FastAPI routes for Deadline Management (Vencimientos).
+routes.py — FastAPI router for the Vencimientos API.
+
+Endpoints:
+    GET  /api/v1/vencimientos/upcoming     — Get upcoming deadlines
+    GET  /api/v1/vencimientos/overdue      — Get overdue deadlines
+    POST /api/v1/vencimientos/acknowledge  — Acknowledge/mark deadline completed
+    POST /api/v1/vencimientos/calculate    — Calculate deadlines for a period
+    GET  /api/v1/vencimientos/summary      — Get deadline summary
+    GET  /api/v1/vencimientos/escalations  — Get escalation history
+
+The router is built with `build_vencimientos_router(db, require_api_key)`
+following the project pattern.
 """
 from __future__ import annotations
 
-from typing import Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from .models import (
-    Deadline,
-    DeadlineWithEscalations,
-    Prioridad,
-    UpcomingSummary,
-)
-from .service import (
-    acknowledge_deadline,
-    calculate_deadlines,
-    check_overdue,
-    create_deadline,
-    escalate,
-    get_deadline,
-    get_deadline_with_escalations,
-    get_upcoming_summary,
-    mark_completed,
+from b2b_ai.features.vencimientos.models import Deadline, Escalation, VencimientoSummary
+from b2b_ai.features.vencimientos.service import VencimientosService
+from b2b_ai.features.vencimientos.validators import (
+    validate_date,
+    validate_date_range_venc,
+    validate_priority,
 )
 
 
-router = APIRouter(prefix="/vencimientos", tags=["vencimientos"])
-
-
 # ---------------------------------------------------------------------------
-# Request/Response schemas
+# Request / Response schemas
 # ---------------------------------------------------------------------------
-
-class CreateDeadlineRequest(BaseModel):
-    """Request body for creating a deadline."""
-    tenant_id: str = Field(..., description="Company/tenant identifier")
-    tipo: str = Field(..., description="Deadline type (diot, iva, isr, provisional, contabilidad_electronica, sat)")
-    fecha_limite: str = Field(..., description="Deadline date in YYYY-MM-DD format")
-    prioridad: str = Field(default="media", description="Priority (baja, media, alta, critica)")
-    descripcion: str = Field(default="", description="Additional details")
-    responsable: str = Field(default="", description="Responsible person")
-
 
 class AcknowledgeRequest(BaseModel):
-    """Request to acknowledge a deadline."""
-    deadline_id: str = Field(..., description="Deadline ID")
-    responsable: str = Field(default="", description="Person acknowledging")
+    """Request to acknowledge/complete a deadline."""
+    deadline_id: str = Field(
+        ...,
+        description="ID del vencimiento a completar",
+    )
+    proof: str = Field(
+        default="",
+        description="URL o referencia del comprobante de presentación",
+    )
+    note: str = Field(
+        default="",
+        description="Nota adicional",
+    )
 
 
-class CompleteRequest(BaseModel):
-    """Request to mark a deadline as completed."""
-    deadline_id: str = Field(..., description="Deadline ID")
-    proof: str = Field(default="", description="Completion proof URL or description")
+class CalculateRequest(BaseModel):
+    """Request to calculate deadlines for a period."""
+    month: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=12,
+        description="Mes (1-12). Default: mes actual.",
+    )
+    year: Optional[int] = Field(
+        default=None,
+        ge=2014,
+        le=2099,
+        description="Año. Default: año actual.",
+    )
+    tenant_id: Optional[str] = Field(
+        default=None,
+        description="Tenant ID",
+    )
 
 
-class EscalateRequest(BaseModel):
-    """Request to escalate a deadline."""
-    deadline_id: str = Field(..., description="Deadline ID to escalate")
+class VencimientosResponse(BaseModel):
+    """Standard response for vencimientos operations."""
+    ok: bool
+    message: str = ""
+    data: Optional[dict] = None
 
 
 # ---------------------------------------------------------------------------
-# Routes
+# Router builder
 # ---------------------------------------------------------------------------
 
-@router.get("/upcoming", response_model=UpcomingSummary)
-async def get_upcoming(
-    tenant_id: str = Query(..., description="Tenant identifier"),
-    days: int = Query(30, ge=1, le=90, description="Days to look ahead"),
-) -> UpcomingSummary:
-    """Get upcoming deadlines within the next N days."""
-    return get_upcoming_summary(tenant_id, days_ahead=days)
+def build_vencimientos_router(
+    db: Any = None,
+    require_api_key: Any = None,
+) -> APIRouter:
+    """Construct the vencimientos API router.
 
+    Parameters
+    ----------
+    db : Database instance (unused for now; matching is in-memory).
+    require_api_key : FastAPI dependency for auth.
+    """
+    auth_dep = require_api_key or (lambda: None)
 
-@router.get("/overdue", response_model=list[Deadline])
-async def get_overdue(
-    tenant_id: str = Query(..., description="Tenant identifier"),
-) -> list[Deadline]:
-    """Get all overdue deadlines."""
-    return check_overdue(tenant_id)
+    # In-memory service
+    service = VencimientosService()
 
+    router = APIRouter(prefix="/api/v1/vencimientos", tags=["vencimientos"])
 
-@router.get("/deadline/{deadline_id}")
-async def get_single_deadline(deadline_id: str) -> DeadlineWithEscalations:
-    """Get a deadline with its escalation history."""
-    result = get_deadline_with_escalations(deadline_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Deadline not found")
-    return result
-
-
-@router.post("/create", response_model=Deadline, status_code=201)
-async def create_new_deadline(request: CreateDeadlineRequest) -> Deadline:
-    """Create a new fiscal deadline."""
-    try:
-        tipo = request.tipo.lower()
-        prioridad = request.prioridad.lower()
-    except AttributeError:
-        raise HTTPException(status_code=400, detail="Invalid tipo or prioridad")
-
-    deadline = create_deadline(
-        tenant_id=request.tenant_id,
-        tipo=tipo,
-        fecha_limite=request.fecha_limite,
-        prioridad=prioridad,
-        descripcion=request.descripcion,
-        responsable=request.responsable,
+    # -----------------------------------------------------------------------
+    # GET /upcoming — Get upcoming deadlines
+    # -----------------------------------------------------------------------
+    @router.get(
+        "/upcoming",
+        summary="Get upcoming fiscal deadlines.",
+        response_model=None,
     )
-    return deadline
+    def get_upcoming(
+        days_ahead: int = Query(default=30, ge=1, le=365, description="Días a proyectar"),
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Get deadlines that are approaching within N days."""
+        tenant_id = auth_info.get("tenant_id") if auth_info else None
+        deadlines = service.get_upcoming(tenant_id=tenant_id, days_ahead=days_ahead)
 
+        return {
+            "ok": True,
+            "total": len(deadlines),
+            "deadlines": [d.model_dump() for d in deadlines],
+        }
 
-@router.post("/acknowledge")
-async def acknowledge(request: AcknowledgeRequest) -> dict:
-    """Acknowledge a deadline, moving it to en_proceso."""
-    success = acknowledge_deadline(
-        deadline_id=request.deadline_id,
-        responsable=request.responsable,
+    # -----------------------------------------------------------------------
+    # GET /overdue — Get overdue deadlines
+    # -----------------------------------------------------------------------
+    @router.get(
+        "/overdue",
+        summary="Get overdue fiscal deadlines.",
+        response_model=None,
     )
-    if not success:
-        raise HTTPException(status_code=404, detail="Deadline not found")
-    return {"status": "acknowledged", "deadline_id": request.deadline_id}
+    def get_overdue(
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Get deadlines that are past their due date."""
+        tenant_id = auth_info.get("tenant_id") if auth_info else None
+        overdue = service.check_overdue(tenant_id=tenant_id)
 
+        return {
+            "ok": True,
+            "total": len(overdue),
+            "deadlines": [d.model_dump() for d in overdue],
+        }
 
-@router.post("/complete")
-async def complete(request: CompleteRequest) -> dict:
-    """Mark a deadline as completed with proof."""
-    success = mark_completed(
-        deadline_id=request.deadline_id,
-        proof=request.proof,
+    # -----------------------------------------------------------------------
+    # POST /acknowledge — Acknowledge/mark deadline completed
+    # -----------------------------------------------------------------------
+    @router.post(
+        "/acknowledge",
+        summary="Mark a deadline as completed.",
+        response_model=None,
     )
-    if not success:
-        raise HTTPException(status_code=404, detail="Deadline not found")
-    return {"status": "completed", "deadline_id": request.deadline_id}
+    def acknowledge_deadline(
+        req: AcknowledgeRequest,
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Mark a deadline as completed with optional proof."""
+        completed = service.mark_completed(
+            deadline_id=req.deadline_id,
+            proof=req.proof,
+        )
 
+        if not completed:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Vencimiento '{req.deadline_id}' no encontrado.",
+            )
 
-@router.post("/escalate")
-async def escalate_deadline(request: EscalateRequest) -> dict:
-    """Escalate a deadline to the next notification level."""
-    deadline = get_deadline(request.deadline_id)
-    if deadline is None:
-        raise HTTPException(status_code=404, detail="Deadline not found")
-    escalation = escalate(deadline)
-    return {
-        "status": "escalated",
-        "deadline_id": request.deadline_id,
-        "escalation_level": escalation.level.value,
-        "channel": ["email", "whatsapp", "call"][escalation.level.value - 1],
-    }
+        return {
+            "ok": True,
+            "message": f"Vencimiento '{req.deadline_id}' marcado como completado.",
+            "deadline_id": req.deadline_id,
+            "proof": req.proof,
+            "note": req.note,
+        }
+
+    # -----------------------------------------------------------------------
+    # POST /calculate — Calculate deadlines for a period
+    # -----------------------------------------------------------------------
+    @router.post(
+        "/calculate",
+        summary="Calculate fiscal deadlines for a period.",
+        response_model=None,
+    )
+    def calculate_deadlines(
+        req: CalculateRequest,
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Calculate standard fiscal deadlines for a given period."""
+        tenant_id = auth_info.get("tenant_id") if auth_info else req.tenant_id
+
+        deadlines = service.calculate_deadlines(
+            tenant_id=tenant_id,
+            month=req.month,
+            year=req.year,
+        )
+
+        return {
+            "ok": True,
+            "message": f"Se calcularon {len(deadlines)} vencimientos.",
+            "total": len(deadlines),
+            "deadlines": [d.model_dump() for d in deadlines],
+        }
+
+    # -----------------------------------------------------------------------
+    # GET /summary — Get deadline summary
+    # -----------------------------------------------------------------------
+    @router.get(
+        "/summary",
+        summary="Get deadline summary.",
+        response_model=None,
+    )
+    def get_summary(
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Get a summary of all deadlines."""
+        tenant_id = auth_info.get("tenant_id") if auth_info else None
+        summary = service.get_summary(tenant_id=tenant_id)
+
+        return {
+            "ok": True,
+            "summary": summary.model_dump(),
+        }
+
+    # -----------------------------------------------------------------------
+    # GET /escalations — Get escalation history
+    # -----------------------------------------------------------------------
+    @router.get(
+        "/escalations",
+        summary="Get escalation history.",
+        response_model=None,
+    )
+    def get_escalations(
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        """Get all escalation events."""
+        return {
+            "ok": True,
+            "total": len(service._escalations),
+            "escalations": [e.model_dump() for e in service._escalations],
+        }
+
+    return router

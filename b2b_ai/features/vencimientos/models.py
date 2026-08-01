@@ -1,34 +1,32 @@
 # -*- coding: utf-8 -*-
 """
-models.py — Pydantic schemas for Deadline Management (Vencimientos).
+models.py — Pydantic schemas for the Vencimientos module.
 
-Manages Mexican fiscal deadlines including DIOT, IVA, ISR, provisional
-payments, electronic accounting, and SAT filings with escalation.
+All models use pydantic v2 (BaseModel) with Field for descriptions.
+These represent fiscal deadlines, escalations, and summaries used by
+contadores in Mexico to manage tax filing deadlines and compliance.
 """
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 
-class DeadlineTipo(str, Enum):
-    """Types of fiscal deadlines."""
-    DIOT = "diot"
-    IVA = "iva"
-    ISR = "isr"
-    PROVISIONAL = "provisional"
-    CONTABILIDAD_ELECTRONICA = "contabilidad_electronica"
-    SAT = "sat"
+class PrioridadVencimiento(str, Enum):
+    """Prioridad de un vencimiento fiscal."""
+    CRITICA = "critica"     # Vence hoy o venció
+    ALTA = "alta"           # Vence en 1-3 días
+    MEDIA = "media"         # Vence en 4-7 días
+    BAJA = "baja"           # Vence en 8+ días
 
 
-class DeadlineEstado(str, Enum):
-    """Status of a deadline."""
+class EstadoVencimiento(str, Enum):
+    """Estado de un vencimiento fiscal."""
     PENDIENTE = "pendiente"
     EN_PROCESO = "en_proceso"
     COMPLETADO = "completado"
@@ -36,118 +34,116 @@ class DeadlineEstado(str, Enum):
     ESCALADO = "escalado"
 
 
-class Prioridad(str, Enum):
-    """Deadline priority levels."""
-    BAJA = "baja"
-    MEDIA = "media"
-    ALTA = "alta"
-    CRITICA = "critica"
-
-
-class EscalationLevel(int, Enum):
-    """Escalation channel levels."""
-    EMAIL = 1
-    WHATSAPP = 2
-    CALL = 3
-
-
-class EscalationEstado(str, Enum):
-    """Escalation notification status."""
-    PENDIENTE = "pendiente"
-    ENVIADO = "enviado"
-    ENTREGADO = "entregado"
-    RESPONDIDO = "respondido"
-    FALLIDO = "fallido"
+class NivelEscalamiento(str, Enum):
+    """Nivel de escalamiento de un vencimiento."""
+    NIVEL_1 = "nivel_1"    # Recordatorio interno
+    NIVEL_2 = "nivel_2"    # Notificación a supervisor
+    NIVEL_3 = "nivel_3"    # Alerta a dirección
+    NIVEL_4 = "nivel_4"    # Escalamiento gerencial
 
 
 # ---------------------------------------------------------------------------
-# Core schemas
+# Deadline schema
 # ---------------------------------------------------------------------------
 
 class Deadline(BaseModel):
-    """A fiscal deadline to track and manage."""
-    id: str = Field(
-        default="",
-        description="Unique deadline identifier",
-    )
-    tenant_id: str = Field(
+    """Un vencimiento fiscal."""
+    id: str = Field(default="", description="Identificador único del vencimiento")
+    tipo: str = Field(
         ...,
-        description="Company/tenant identifier",
-    )
-    tipo: DeadlineTipo = Field(
-        ...,
-        description="Type of deadline (diot, iva, isr, provisional, contabilidad_electronica, sat)",
+        description="Tipo de obligación fiscal (ISR, IVA, DIOT, SAT, nómina, etc.)",
     )
     fecha_limite: str = Field(
         ...,
-        description="Deadline date in YYYY-MM-DD format",
+        description="Fecha límite YYYY-MM-DD",
     )
-    prioridad: Prioridad = Field(
-        default=Prioridad.MEDIA,
-        description="Priority level (baja, media, alta, critica)",
+    fecha_presentacion: Optional[str] = Field(
+        default=None,
+        description="Fecha de presentación real (si ya se presentó)",
     )
-    estado: DeadlineEstado = Field(
-        default=DeadlineEstado.PENDIENTE,
-        description="Current status (pendiente, en_proceso, completado, vencido, escalado)",
+    prioridad: PrioridadVencimiento = Field(
+        default=PrioridadVencimiento.MEDIA,
+        description="Prioridad del vencimiento",
+    )
+    estado: EstadoVencimiento = Field(
+        default=EstadoVencimiento.PENDIENTE,
+        description="Estado actual del vencimiento",
     )
     descripcion: str = Field(
         default="",
-        description="Additional details about the deadline",
+        description="Descripción de la obligación fiscal",
     )
-    responsable: str = Field(
-        default="",
-        description="Person responsible for meeting this deadline",
-    )
-    proof_url: Optional[str] = Field(
+    periodo: Optional[str] = Field(
         default=None,
-        description="URL or reference to completion proof",
+        description="Período fiscal relacionado (YYYY-MM)",
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    tenant_id: Optional[str] = Field(
+        default=None,
+        description="Tenant ID",
+    )
+    responsable: Optional[str] = Field(
+        default=None,
+        description="Persona responsable de cumplir el vencimiento",
+    )
+    comprobante_url: Optional[str] = Field(
+        default=None,
+        description="URL del comprobante de presentación",
+    )
 
+    @field_validator("fecha_limite")
+    @classmethod
+    def _fecha_limite_format(cls, v: str) -> str:
+        import re
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", v):
+            raise ValueError(f"Formato de fecha inválido: '{v}'. Se esperaba YYYY-MM-DD.")
+        return v
+
+
+# ---------------------------------------------------------------------------
+# Escalation schema
+# ---------------------------------------------------------------------------
 
 class Escalation(BaseModel):
-    """An escalation notification sent for a deadline."""
-    id: str = Field(
-        default="",
-        description="Unique escalation identifier",
-    )
+    """Un evento de escalamiento de un vencimiento."""
+    id: str = Field(default="", description="Identificador único del escalamiento")
     deadline_id: str = Field(
         ...,
-        description="Reference to the deadline being escalated",
+        description="ID del vencimiento relacionado",
     )
-    level: EscalationLevel = Field(
+    level: NivelEscalamiento = Field(
         ...,
-        description="Channel: 1=email, 2=whatsapp, 3=phone call",
+        description="Nivel de escalamiento",
     )
-    sent_at: Optional[datetime] = Field(
-        default=None,
-        description="When the notification was sent",
+    sent_at: str = Field(
+        ...,
+        description="Fecha/hora de envío ISO format",
     )
     response: Optional[str] = Field(
         default=None,
-        description="Response received from the recipient",
+        description="Respuesta del destinatario (si se recibió)",
     )
-    estado: EscalationEstado = Field(
-        default=EscalationEstado.PENDIENTE,
-        description="Notification status",
+    responded_at: Optional[str] = Field(
+        default=None,
+        description="Fecha/hora de respuesta ISO format",
     )
-
-
-class DeadlineWithEscalations(BaseModel):
-    """Deadline with its escalation history."""
-    deadline: Deadline
-    escalations: List[Escalation] = Field(
-        default_factory=list,
-        description="Escalation history for this deadline",
+    notes: str = Field(
+        default="",
+        description="Notas adicionales del escalamiento",
     )
 
 
-class UpcomingSummary(BaseModel):
-    """Summary of upcoming deadlines."""
-    tenant_id: str
-    total: int = Field(default=0)
-    criticas: int = Field(default=0)
-    altas: int = Field(default=0)
-    medias: int = Field(default=0)
-    bajas: int = Field(default=0)
-    deadlines: List[Deadline] = Field(default_factory=list)
+# ---------------------------------------------------------------------------
+# Summary schema
+# ---------------------------------------------------------------------------
+
+class VencimientoSummary(BaseModel):
+    """Resumen de vencimientos para un tenant/período."""
+    total: int = Field(default=0, description="Total de vencimientos")
+    pendientes: int = Field(default=0, description="Vencimientos pendientes")
+    completados: int = Field(default=0, description="Vencimientos completados")
+    vencidos: int = Field(default=0, description="Vencimientos vencidos")
+    escalados: int = Field(default=0, description="Vencimientos escalados")
+    proximos_7_dias: int = Field(
+        default=0,
+        description="Vencimientos que vencen en los próximos 7 días",
+    )

@@ -1,224 +1,241 @@
 # -*- coding: utf-8 -*-
-"""Tests for Fiscal Conciliation (ERP vs SAT) agent."""
-from __future__ import annotations
-
+"""Tests for the Conciliación Fiscal module."""
 import pytest
-from datetime import datetime
-
 from b2b_ai.features.conciliacion_fiscal.models import (
-    DeclaracionTipo,
-    DiscrepancySeverity,
-    ERPRecord,
-    SATRecord,
+    FiscalComparison,
+    FiscalDiscrepancy,
+    FiscalReport,
+    Omission,
+    TipoDiscrepancia,
+    TipoOmicion,
 )
-from b2b_ai.features.conciliacion_fiscal.service import (
-    compare_erp_vs_sat,
-    detect_discrepancies,
-    detect_omissions,
-    generate_fiscal_report,
-    get_comparison,
-    resolve_discrepancy,
+from b2b_ai.features.conciliacion_fiscal.service import FiscalConciliationService
+from b2b_ai.features.conciliacion_fiscal.validators import (
+    cross_reference_data,
+    validate_fiscal_amounts,
+    validate_fiscal_period,
 )
 
 
 # ---------------------------------------------------------------------------
-# Fixtures
+# Validators tests
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-def erp_records():
-    """Sample ERP records."""
-    return [
-        ERPRecord(id="erp-1", concepto="iva", monto=50000.00, periodo="2026-06"),
-        ERPRecord(id="erp-2", concepto="isr", monto=30000.00, periodo="2026-06"),
-        ERPRecord(id="erp-3", concepto="diot", monto=15000.00, periodo="2026-06"),
-    ]
+class TestValidateFiscalPeriod:
+    def test_valid_period(self):
+        ok, err = validate_fiscal_period("2024-01")
+        assert ok is True
+        assert err == ""
+
+    def test_invalid_format(self):
+        ok, err = validate_fiscal_period("2024/01")
+        assert ok is False
+        assert "inválido" in err
+
+    def test_invalid_month(self):
+        ok, err = validate_fiscal_period("2024-13")
+        assert ok is False
+
+    def test_empty_period(self):
+        ok, err = validate_fiscal_period("")
+        assert ok is False
+
+    def test_valid_december(self):
+        ok, err = validate_fiscal_period("2024-12")
+        assert ok is True
 
 
-@pytest.fixture
-def sat_records():
-    """Sample SAT records matching ERP."""
-    return [
-        SATRecord(id="sat-1", tipo=DeclaracionTipo.IVA, monto=50000.00, periodo="2026-06"),
-        SATRecord(id="sat-2", tipo=DeclaracionTipo.ISR, monto=30000.00, periodo="2026-06"),
-        SATRecord(id="sat-3", tipo=DeclaracionTipo.DIOT, monto=15000.00, periodo="2026-06"),
-    ]
+class TestValidateFiscalAmounts:
+    def test_valid_amounts(self):
+        ok, err = validate_fiscal_amounts(10000.0, 9500.0)
+        assert ok is True
+
+    def test_negative_erp(self):
+        ok, err = validate_fiscal_amounts(-1000.0, 5000.0)
+        assert ok is False
+        assert "negativo" in err
+
+    def test_negative_sat(self):
+        ok, err = validate_fiscal_amounts(5000.0, -1000.0)
+        assert ok is False
+
+    def test_zero_amounts(self):
+        ok, err = validate_fiscal_amounts(0.0, 0.0)
+        assert ok is True
 
 
-@pytest.fixture
-def erp_records_with_discrepancy():
-    """ERP records with amount mismatches."""
-    return [
-        ERPRecord(id="erp-d1", concepto="iva", monto=52000.00, periodo="2026-06"),
-        ERPRecord(id="erp-d2", concepto="isr", monto=30000.00, periodo="2026-06"),
-    ]
+class TestCrossReferenceData:
+    def test_matching_data(self):
+        erp = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 1000.0}]
+        sat = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 1000.0}]
+        ok, issues = cross_reference_data(erp, sat)
+        assert ok is True
+        assert len(issues) == 0
 
+    def test_erp_not_in_sat(self):
+        erp = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 1000.0}]
+        sat = []
+        ok, issues = cross_reference_data(erp, sat)
+        assert ok is False
+        assert len(issues) == 1
+        assert "no en SAT" in issues[0]
 
-@pytest.fixture
-def sat_records_with_discrepancy():
-    """SAT records with different amounts."""
-    return [
-        SATRecord(id="sat-d1", tipo=DeclaracionTipo.IVA, monto=50000.00, periodo="2026-06"),
-        SATRecord(id="sat-d2", tipo=DeclaracionTipo.ISR, monto=30000.00, periodo="2026-06"),
-    ]
+    def test_sat_not_in_erp(self):
+        erp = []
+        sat = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 1000.0}]
+        ok, issues = cross_reference_data(erp, sat)
+        assert ok is False
+        assert len(issues) == 1
+        assert "no en ERP" in issues[0]
+
+    def test_amount_discrepancy(self):
+        erp = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 1000.0}]
+        sat = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 900.0}]
+        ok, issues = cross_reference_data(erp, sat)
+        assert ok is False
+        assert any("monto" in i.lower() for i in issues)
+
+    def test_both_empty(self):
+        ok, issues = cross_reference_data([], [])
+        assert ok is False
+        assert "vacías" in issues[0]
 
 
 # ---------------------------------------------------------------------------
-# Tests: Comparison with matching data
+# Models tests
 # ---------------------------------------------------------------------------
 
-class TestComparisonMatching:
-    """Test comparison when ERP and SAT data match perfectly."""
-
-    def test_perfect_match(self, erp_records, sat_records):
-        comp = compare_erp_vs_sat(
-            tenant_id="tenant-test",
-            month=6,
-            year=2026,
-            erp_records=erp_records,
-            sat_records=sat_records,
+class TestOmission:
+    def test_create_omission(self):
+        o = Omission(
+            tipo=TipoOmicion.FACTURA_ERP,
+            periodo="2024-01",
+            monto=5000.0,
+            rfc="ABC123",
         )
-        assert comp.tenant_id == "tenant-test"
-        assert comp.periodo == "2026-06"
-        assert comp.erp_total == 95000.00
-        assert comp.sat_total == 95000.00
-        assert comp.diferencia == 0.0
-        assert len(comp.omisiones) == 0
-        assert len(comp.discrepancias) == 0
+        assert o.tipo == TipoOmicion.FACTURA_ERP
+        assert o.periodo == "2024-01"
+        assert o.monto == 5000.0
+        assert o.resuelta is False
 
-    def test_perfect_match_generates_report(self, erp_records, sat_records):
-        comp = compare_erp_vs_sat(
-            tenant_id="tenant-test",
-            month=6,
-            year=2026,
-            erp_records=erp_records,
-            sat_records=sat_records,
+
+class TestFiscalDiscrepancy:
+    def test_create_discrepancy(self):
+        d = FiscalDiscrepancy(
+            tipo=TipoDiscrepancia.MONTO,
+            erp_amount=1000.0,
+            sat_amount=900.0,
+            diff=100.0,
         )
-        report = generate_fiscal_report(comp)
-        assert report.risk_level == "low"
-        assert report.total_omisiones == 0
-        assert report.total_discrepancias == 0
-        assert len(report.recommendations) == 1
-        assert "Sin acciones" in report.recommendations[0]
+        assert d.tipo == TipoDiscrepancia.MONTO
+        assert d.diff == 100.0
+
+
+# ---------------------------------------------------------------------------
+# Service tests
+# ---------------------------------------------------------------------------
+
+class TestFiscalConciliationService:
+    def test_compare_erp_vs_sat_matching(self):
+        service = FiscalConciliationService()
+        erp = [
+            {"uuid": "uuid-1", "rfc": "ABC123", "monto": 10000.0, "concepto": "Servicios"},
+            {"uuid": "uuid-2", "rfc": "DEF456", "monto": 5000.0, "concepto": "Productos"},
+        ]
+        sat = [
+            {"uuid": "uuid-1", "rfc": "ABC123", "monto": 10000.0, "concepto": "Servicios"},
+            {"uuid": "uuid-2", "rfc": "DEF456", "monto": 5000.0, "concepto": "Productos"},
+        ]
+        comparison = service.compare_erp_vs_sat("t1", 1, 2024, erp, sat)
+        assert comparison.erp_total == 15000.0
+        assert comparison.sat_total == 15000.0
+        assert comparison.diferencia == 0.0
+        assert len(comparison.omisiones) == 0
+        assert len(comparison.discrepancias) == 0
+
+    def test_compare_erp_vs_sat_with_omissions(self):
+        service = FiscalConciliationService()
+        erp = [
+            {"uuid": "uuid-1", "rfc": "ABC123", "monto": 10000.0},
+            {"uuid": "uuid-2", "rfc": "DEF456", "monto": 5000.0},
+        ]
+        sat = [
+            {"uuid": "uuid-1", "rfc": "ABC123", "monto": 10000.0},
+        ]
+        comparison = service.compare_erp_vs_sat("t1", 1, 2024, erp, sat)
+        assert len(comparison.omisiones) == 1
+        assert comparison.omisiones[0].tipo == TipoOmicion.FACTURA_ERP
+
+    def test_compare_erp_vs_sat_with_discrepancies(self):
+        service = FiscalConciliationService()
+        erp = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 10000.0, "concepto": "Servicios"}]
+        sat = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 9500.0, "concepto": "Servicios"}]
+        comparison = service.compare_erp_vs_sat("t1", 1, 2024, erp, sat)
+        assert len(comparison.discrepancias) == 1
+        assert comparison.discrepancias[0].tipo == TipoDiscrepancia.MONTO
+        assert comparison.discrepancias[0].diff == 500.0
+
+    def test_detect_omissions(self):
+        service = FiscalConciliationService()
+        erp = [{"uuid": "uuid-1"}, {"uuid": "uuid-2"}]
+        sat = [{"uuid": "uuid-1"}]
+        omissions = service.detect_omissions(erp, sat, "2024-01")
+        assert len(omissions) == 1
+        assert omissions[0].uuid_cfdi == "uuid-2"
+
+    def test_detect_discrepancies_rfc(self):
+        service = FiscalConciliationService()
+        erp = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 1000.0}]
+        sat = [{"uuid": "uuid-1", "rfc": "XYZ789", "monto": 1000.0}]
+        disc = service.detect_discrepancies(erp, sat, "2024-01")
+        assert len(disc) == 1
+        assert disc[0].tipo == TipoDiscrepancia.RFC
+
+    def test_generate_fiscal_report(self):
+        service = FiscalConciliationService()
+        comparison = FiscalComparison(
+            erp_total=10000.0,
+            sat_total=9500.0,
+            diferencia=500.0,
+            periodo="2024-01",
+        )
+        report = service.generate_fiscal_report(comparison)
+        assert report.id.startswith("FR-")
+        assert report.comparison.periodo == "2024-01"
+        assert len(report.recomendaciones) > 0
+
+    def test_generate_report_no_issues(self):
+        service = FiscalConciliationService()
+        comparison = FiscalComparison(
+            erp_total=10000.0,
+            sat_total=10000.0,
+            diferencia=0.0,
+            periodo="2024-01",
+        )
+        report = service.generate_fiscal_report(comparison)
+        assert len(report.recomendaciones) == 1
+        assert "conciliados" in report.recomendaciones[0].lower()
+
+    def test_resolve_omission(self):
+        service = FiscalConciliationService()
+        erp = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 10000.0}]
+        sat = []
+        comparison = service.compare_erp_vs_sat("t1", 1, 2024, erp, sat)
+        assert len(comparison.omisiones) == 1
+
+        omission_id = comparison.omisiones[0].id
+        resolved = service.resolve_omission("2024-01", omission_id)
+        assert resolved is True
+        assert comparison.omisiones[0].resuelta is True
+
+    def test_resolve_nonexistent(self):
+        service = FiscalConciliationService()
+        resolved = service.resolve_omission("2024-01", "nonexistent")
+        assert resolved is False
 
     def test_empty_data(self):
-        comp = compare_erp_vs_sat(
-            tenant_id="tenant-empty",
-            month=6,
-            year=2026,
-            erp_records=[],
-            sat_records=[],
-        )
-        assert comp.erp_total == 0.0
-        assert comp.sat_total == 0.0
-        assert comp.diferencia == 0.0
-
-
-# ---------------------------------------------------------------------------
-# Tests: Omission detection
-# ---------------------------------------------------------------------------
-
-class TestOmissionDetection:
-    """Test detection of missing SAT declarations."""
-
-    def test_omission_detected(self, erp_records):
-        """DIOT in ERP but not in SAT → omission."""
-        sat_only_iva_isr = [
-            SATRecord(id="sat-1", tipo=DeclaracionTipo.IVA, monto=50000.00, periodo="2026-06"),
-            SATRecord(id="sat-2", tipo=DeclaracionTipo.ISR, monto=30000.00, periodo="2026-06"),
-        ]
-        omisiones = detect_omissions(erp_records, sat_only_iva_isr, "2026-06")
-        assert len(omisiones) == 1
-        assert omisiones[0].tipo == DeclaracionTipo.DIOT
-        assert omisiones[0].monto == 15000.00
-
-    def test_no_omissions_when_all_match(self, erp_records, sat_records):
-        omisiones = detect_omissions(erp_records, sat_records, "2026-06")
-        assert len(omisiones) == 0
-
-    def test_multiple_omissions(self):
-        erp = [
-            ERPRecord(id="e1", concepto="iva", monto=10000, periodo="2026-06"),
-            ERPRecord(id="e2", concepto="isr", monto=20000, periodo="2026-06"),
-            ERPRecord(id="e3", concepto="diot", monto=5000, periodo="2026-06"),
-        ]
-        # No SAT records at all
-        omisiones = detect_omissions(erp, [], "2026-06")
-        assert len(omisiones) == 3
-
-    def test_omission_preserves_periodo(self, erp_records):
-        sat = [
-            SATRecord(id="sat-1", tipo=DeclaracionTipo.IVA, monto=50000.00, periodo="2026-06"),
-        ]
-        omisiones = detect_omissions(erp_records, sat, "2026-06")
-        for o in omisiones:
-            assert o.periodo == "2026-06"
-
-
-# ---------------------------------------------------------------------------
-# Tests: Discrepancy calculation
-# ---------------------------------------------------------------------------
-
-class TestDiscrepancyCalculation:
-    """Test detection of amount mismatches."""
-
-    def test_discrepancy_detected(self, erp_records_with_discrepancy, sat_records_with_discrepancy):
-        disc = detect_discrepancies(erp_records_with_discrepancy, sat_records_with_discrepancy)
-        assert len(disc) == 1
-        assert disc[0].erp_amount == 52000.00
-        assert disc[0].sat_amount == 50000.00
-        assert disc[0].diff == 2000.00
-        assert disc[0].concepto == "iva"
-
-    def test_no_discrepancy_when_matching(self, erp_records, sat_records):
-        disc = detect_discrepancies(erp_records, sat_records)
-        assert len(disc) == 0
-
-    def test_severity_high_for_large_diff(self):
-        erp = [ERPRecord(id="e1", concepto="iva", monto=100000, periodo="2026-06")]
-        sat = [SATRecord(id="s1", tipo=DeclaracionTipo.IVA, monto=80000, periodo="2026-06")]
-        disc = detect_discrepancies(erp, sat)
-        assert len(disc) == 1
-        assert disc[0].severity == DiscrepancySeverity.HIGH
-
-    def test_severity_critical_for_huge_diff(self):
-        erp = [ERPRecord(id="e1", concepto="iva", monto=100000, periodo="2026-06")]
-        sat = [SATRecord(id="s1", tipo=DeclaracionTipo.IVA, monto=50000, periodo="2026-06")]
-        disc = detect_discrepancies(erp, sat)
-        assert disc[0].severity == DiscrepancySeverity.CRITICAL
-
-    def test_penny_differences_ignored(self):
-        erp = [ERPRecord(id="e1", concepto="iva", monto=10000.00, periodo="2026-06")]
-        sat = [SATRecord(id="s1", tipo=DeclaracionTipo.IVA, monto=10000.01, periodo="2026-06")]
-        disc = detect_discrepancies(erp, sat)
-        assert len(disc) == 0
-
-    def test_comparison_stores_discrepancies(self, erp_records_with_discrepancy, sat_records_with_discrepancy):
-        comp = compare_erp_vs_sat(
-            tenant_id="tenant-disc",
-            month=6,
-            year=2026,
-            erp_records=erp_records_with_discrepancy,
-            sat_records=sat_records_with_discrepancy,
-        )
-        assert len(comp.discrepancias) == 1
-        assert comp.diferencia == 2000.00
-
-    def test_resolve_discrepancy(self, erp_records_with_discrepancy, sat_records_with_discrepancy):
-        comp = compare_erp_vs_sat(
-            tenant_id="tenant-resolve",
-            month=6,
-            year=2026,
-            erp_records=erp_records_with_discrepancy,
-            sat_records=sat_records_with_discrepancy,
-        )
-        assert len(comp.discrepancias) == 1
-        result = resolve_discrepancy(comp.id, 0)
-        assert result is True
-        comp2 = get_comparison(comp.id)
-        assert len(comp2.discrepancias) == 0
-        assert comp2.status == "resolved"
-
-    def test_resolve_nonexistent_returns_false(self):
-        result = resolve_discrepancy("nonexistent-id", 0)
-        assert result is False
+        service = FiscalConciliationService()
+        comparison = service.compare_erp_vs_sat("t1", 1, 2024, [], [])
+        assert comparison.erp_total == 0.0
+        assert comparison.sat_total == 0.0
+        assert comparison.diferencia == 0.0

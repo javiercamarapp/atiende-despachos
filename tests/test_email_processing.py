@@ -11,8 +11,9 @@ Cobertura:
 """
 from __future__ import annotations
 
-import pytest
-from fastapi import FastAPI
+import base64
+import re
+import xml.etree.ElementTree as ET
 from fastapi.testclient import TestClient
 
 from b2b_ai.features.email_processing.models import (
@@ -79,6 +80,8 @@ INVALID_CFDI_XML = """\
 
 
 def _email_con_cfdi(**overrides) -> dict:
+    # Use base64 so bytes are JSON-serializable via httpx TestClient
+    cfdi_b64 = base64.b64encode(VALID_CFDI_XML.encode("utf-8")).decode("ascii")
     base = {
         "message_id": "msg-001",
         "from": "proveedor@empresa.com",
@@ -91,7 +94,7 @@ def _email_con_cfdi(**overrides) -> dict:
                 "filename": "factura_12345.xml",
                 "content_type": "application/xml",
                 "size": 5000,
-                "content": VALID_CFDI_XML.encode("utf-8"),
+                "content": cfdi_b64,
             }
         ],
     }

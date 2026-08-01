@@ -1,337 +1,357 @@
 # -*- coding: utf-8 -*-
 """
-service.py — Fiscal Conciliation service (ERP vs SAT).
+service.py — FiscalConciliationService: comparación ERP vs SAT, detección de
+omisiones, discrepancias y generación de reportes fiscales.
 
-Cross-references ERP records with SAT filings, detects omissions
-and discrepancies, and generates fiscal reports.
+This service:
+  - Compares ERP records against SAT declarations
+  - Detects omissions (invoices in one system but not the other)
+  - Detects discrepancies (amount/date/RFC mismatches)
+  - Generates consolidated fiscal reports with recommendations
 """
 from __future__ import annotations
 
-import uuid
+import uuid as _uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-from .models import (
-    DeclaracionTipo,
-    DiscrepancySeverity,
-    ERPRecord,
+from b2b_ai.features.conciliacion_fiscal.models import (
     FiscalComparison,
     FiscalDiscrepancy,
     FiscalReport,
     Omission,
-    SATRecord,
+    TipoDiscrepancia,
+    TipoOmicion,
+)
+from b2b_ai.features.conciliacion_fiscal.validators import (
+    cross_reference_data,
+    validate_fiscal_amounts,
+    validate_fiscal_period,
 )
 
 
-# ---------------------------------------------------------------------------
-# In-memory store (replaced by DB in production)
-# ---------------------------------------------------------------------------
-_comparisons: Dict[str, FiscalComparison] = {}
-_reports: Dict[str, FiscalReport] = {}
+class FiscalConciliationService:
+    """Core service for fiscal conciliation (ERP vs SAT)."""
 
+    def __init__(self):
+        self._reports: Dict[str, FiscalReport] = {}
+        self._comparisons: Dict[str, FiscalComparison] = {}
 
-# ---------------------------------------------------------------------------
-# Service functions
-# ---------------------------------------------------------------------------
+    # -------------------------------------------------------------------
+    # Compare ERP vs SAT
+    # -------------------------------------------------------------------
 
-def compare_erp_vs_sat(
-    tenant_id: str,
-    month: int,
-    year: int,
-    erp_records: Optional[List[ERPRecord]] = None,
-    sat_records: Optional[List[SATRecord]] = None,
-) -> FiscalComparison:
-    """Cross-reference ERP records with SAT filings for a given period.
+    def compare_erp_vs_sat(
+        self,
+        tenant_id: Optional[str],
+        month: int,
+        year: int,
+        erp_data: Optional[List[dict]] = None,
+        sat_data: Optional[List[dict]] = None,
+    ) -> FiscalComparison:
+        """Compare ERP records against SAT declarations for a period.
 
-    Args:
-        tenant_id: Company/tenant identifier.
-        month: Month (1-12).
-        year: Year (e.g. 2026).
-        erp_records: ERP records to compare. Empty list if none found.
-        sat_records: SAT records to compare. Empty list if none found.
+        Parameters
+        ----------
+        tenant_id : Optional[str]
+            Tenant identifier.
+        month : int
+            Month (1-12).
+        year : int
+            Year.
+        erp_data : Optional[List[dict]]
+            ERP records (uuid, rfc, monto, fecha, concepto).
+        sat_data : Optional[List[dict]]
+            SAT records (uuid, rfc, monto, fecha, concepto).
 
-    Returns:
-        FiscalComparison with totals, omissions, and discrepancies.
-    """
-    if erp_records is None:
-        erp_records = []
-    if sat_records is None:
-        sat_records = []
+        Returns
+        -------
+        FiscalComparison
+        """
+        erp_data = erp_data or []
+        sat_data = sat_data or []
+        periodo = f"{year}-{month:02d}"
 
-    periodo = f"{year:04d}-{month:02d}"
-    erp_total = sum(r.monto for r in erp_records)
-    sat_total = sum(r.monto for r in sat_records)
-    diferencia = abs(erp_total - sat_total)
+        erp_total = sum(float(r.get("monto", 0)) for r in erp_data)
+        sat_total = sum(float(r.get("monto", 0)) for r in sat_data)
 
-    omisiones = detect_omissions(erp_records, sat_records, periodo)
-    discrepancias = detect_discrepancies(erp_records, sat_records)
+        validate_fiscal_amounts(erp_total, sat_total)
 
-    comparison = FiscalComparison(
-        id=str(uuid.uuid4()),
-        tenant_id=tenant_id,
-        periodo=periodo,
-        erp_total=round(erp_total, 2),
-        sat_total=round(sat_total, 2),
-        diferencia=round(diferencia, 2),
-        omisiones=omisiones,
-        discrepancias=discrepancias,
-        erp_records_count=len(erp_records),
-        sat_records_count=len(sat_records),
-        status="pending",
-        created_at=datetime.utcnow(),
-    )
+        # Detect omissions
+        omisiones = self.detect_omissions(erp_data, sat_data, periodo)
 
-    _comparisons[comparison.id] = comparison
-    return comparison
+        # Detect discrepancies
+        discrepancias = self.detect_discrepancies(erp_data, sat_data, periodo)
 
-
-def detect_omissions(
-    erp_records: List[ERPRecord],
-    sat_records: List[SATRecord],
-    periodo: str = "",
-) -> List[Omission]:
-    """Find declarations present in ERP but missing from SAT filings.
-
-    Compares by tipo (concept type). If ERP has records for a concept
-    type but SAT has no corresponding filing, it's flagged as an omission.
-    """
-    omisiones: List[Omission] = []
-
-    # Group ERP records by concept type
-    erp_types: Dict[str, float] = {}
-    for r in erp_records:
-        key = r.concepto.lower()
-        erp_types[key] = erp_types.get(key, 0) + r.monto
-
-    # Group SAT records by type
-    sat_types: set = set()
-    for r in sat_records:
-        sat_types.add(r.tipo.value.lower())
-
-    # Map concept names to declaracion types
-    concept_to_tipo: Dict[str, DeclaracionTipo] = {
-        "diot": DeclaracionTipo.DIOT,
-        "iva": DeclaracionTipo.IVA,
-        "isr": DeclaracionTipo.ISR,
-        "contabilidad_electronica": DeclaracionTipo.CONTABILIDAD_ELECTRONICA,
-        "contabilidad": DeclaracionTipo.CONTABILIDAD_ELECTRONICA,
-    }
-
-    for concepto, monto in erp_types.items():
-        if monto == 0:
-            continue
-        # Check if this concept has a SAT filing
-        mapped_tipo = concept_to_tipo.get(concepto)
-        if mapped_tipo is not None:
-            if mapped_tipo.value.lower() not in sat_types:
-                omisiones.append(
-                    Omission(
-                        tipo=mapped_tipo,
-                        periodo=periodo,
-                        monto=round(abs(monto), 2),
-                        descripcion=f"ERP shows activity for {concepto} but no SAT filing found",
-                    )
-                )
-
-    # If SAT has types not in ERP, also flag
-    for sat_tipo in sat_types:
-        if sat_tipo not in [ct.lower() for ct in concept_to_tipo.keys()]:
-            # SAT type not mapped, skip
-            continue
-
-    return omisiones
-
-
-def detect_discrepancies(
-    erp_records: List[ERPRecord],
-    sat_records: List[SATRecord],
-) -> List[FiscalDiscrepancy]:
-    """Find amount mismatches between ERP and SAT for the same concept.
-
-    Matches ERP concepto to SAT tipo and calculates differences.
-    """
-    discrepancias: List[FiscalDiscrepancy] = []
-
-    # Aggregate ERP by concept
-    erp_by_concept: Dict[str, float] = {}
-    for r in erp_records:
-        key = r.concepto.lower()
-        erp_by_concept[key] = erp_by_concept.get(key, 0) + r.monto
-
-    # Aggregate SAT by type
-    sat_by_type: Dict[str, float] = {}
-    for r in sat_records:
-        key = r.tipo.value.lower()
-        sat_by_type[key] = sat_by_type.get(key, 0) + r.monto
-
-    # Map concepts to SAT types
-    concept_to_sat: Dict[str, str] = {
-        "diot": "diot",
-        "iva": "iva",
-        "isr": "isr",
-        "contabilidad_electronica": "contabilidad_electronica",
-        "contabilidad": "contabilidad_electronica",
-    }
-
-    for concepto, erp_monto in erp_by_concept.items():
-        sat_key = concept_to_sat.get(concepto)
-        if sat_key is None:
-            continue
-        sat_monto = sat_by_type.get(sat_key, 0.0)
-        diff = abs(erp_monto - sat_monto)
-
-        if diff > 0.01:  # Ignore penny differences
-            severity = _calculate_severity(diff, erp_monto)
-            explanation = _suggest_explanation(diff, erp_monto, sat_monto)
-
-            discrepancias.append(
-                FiscalDiscrepancy(
-                    erp_amount=round(erp_monto, 2),
-                    sat_amount=round(sat_monto, 2),
-                    diff=round(diff, 2),
-                    explanation=explanation,
-                    severity=severity,
-                    concepto=concepto,
-                )
-            )
-
-    return discrepancias
-
-
-def generate_fiscal_report(comparison: FiscalComparison) -> FiscalReport:
-    """Generate a summary report from a fiscal comparison."""
-    total_omisiones = len(comparison.omisiones)
-    total_discrepancias = len(comparison.discrepancias)
-    total_diferencia = comparison.diferencia
-
-    # Calculate risk level
-    if total_omisiones == 0 and total_discrepancias == 0:
-        risk_level = "low"
-    elif total_diferencia < 10000 and total_omisiones <= 1:
-        risk_level = "medium"
-    elif total_diferencia < 50000:
-        risk_level = "high"
-    else:
-        risk_level = "critical"
-
-    # Generate recommendations
-    recommendations = _generate_recommendations(
-        comparison.omisiones, comparison.discrepancias, total_diferencia
-    )
-
-    # Build summary
-    summary_parts = [
-        f"Conciliación fiscal para el periodo {comparison.periodo}:",
-        f"ERP total: ${comparison.erp_total:,.2f} MXN",
-        f"SAT total: ${comparison.sat_total:,.2f} MXN",
-        f"Diferencia: ${total_diferencia:,.2f} MXN",
-        f"Omisiones detectadas: {total_omisiones}",
-        f"Discrepancias detectadas: {total_discrepancias}",
-    ]
-    summary = " | ".join(summary_parts)
-
-    report = FiscalReport(
-        comparison_id=comparison.id,
-        tenant_id=comparison.tenant_id,
-        periodo=comparison.periodo,
-        summary=summary,
-        total_omisiones=total_omisiones,
-        total_discrepancias=total_discrepancias,
-        total_diferencia=round(total_diferencia, 2),
-        risk_level=risk_level,
-        recommendations=recommendations,
-        created_at=datetime.utcnow(),
-    )
-
-    _reports[report.comparison_id] = report
-    return report
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _calculate_severity(diff: float, base_amount: float) -> DiscrepancySeverity:
-    """Determine severity based on absolute and relative difference."""
-    if base_amount == 0:
-        return DiscrepancySeverity.HIGH if diff > 0 else DiscrepancySeverity.LOW
-
-    relative = diff / abs(base_amount)
-
-    if relative > 0.10:
-        return DiscrepancySeverity.CRITICAL
-    elif relative > 0.05:
-        return DiscrepancySeverity.HIGH
-    elif relative > 0.02:
-        return DiscrepancySeverity.MEDIUM
-    else:
-        return DiscrepancySeverity.LOW
-
-
-def _suggest_explanation(diff: float, erp: float, sat: float) -> str:
-    """Suggest a plausible explanation for the discrepancy."""
-    if sat == 0:
-        return "SAT no presenta declaración para este concepto"
-    if erp == 0:
-        return "ERP no registra movimientos para este concepto"
-    relative = diff / abs(max(erp, sat)) * 100
-    if relative < 3:
-        return "Diferencia menor — posible redondeo o ajuste contable"
-    elif relative < 10:
-        return "Diferencia moderada — revisar comprobantes y asientos pendientes"
-    else:
-        return "Diferencia significativa — requiere investigación detallada"
-
-
-def _generate_recommendations(
-    omisiones: List[Omission],
-    discrepancias: List[FiscalDiscrepancy],
-    total_diferencia: float,
-) -> List[str]:
-    """Generate actionable recommendations based on findings."""
-    recs: List[str] = []
-
-    if omisiones:
-        tipos = set(o.tipo.value for o in omisiones)
-        recs.append(
-            f"Presentar declaraciones pendientes: {', '.join(tipos)}. "
-            "Verificar multas y recargos acumulados."
+        comparison = FiscalComparison(
+            erp_total=erp_total,
+            sat_total=sat_total,
+            diferencia=erp_total - sat_total,
+            omisiones=omisiones,
+            discrepancias=discrepancias,
+            periodo=periodo,
+            tenant_id=tenant_id,
+            created_at=datetime.now().isoformat(),
         )
 
-    for d in discrepancias:
-        if d.severity in (DiscrepancySeverity.HIGH, DiscrepancySeverity.CRITICAL):
-            recs.append(
-                f"Revisar discrepancia en {d.concepto}: "
-                f"ERP ${d.erp_amount:,.2f} vs SAT ${d.sat_amount:,.2f} "
-                f"(diferencia ${d.diff:,.2f})."
+        self._comparisons[periodo] = comparison
+        return comparison
+
+    # -------------------------------------------------------------------
+    # Detect omissions
+    # -------------------------------------------------------------------
+
+    def detect_omissions(
+        self,
+        erp_data: List[dict],
+        sat_data: List[dict],
+        periodo: str = "",
+    ) -> List[Omission]:
+        """Detect omissions between ERP and SAT data.
+
+        Omissions:
+          - ERP records not in SAT (potential under-reporting)
+          - SAT records not in ERP (potential over-reporting or missing entries)
+        """
+        omissions: List[Omission] = []
+
+        # Build UUID lookup maps
+        erp_by_uuid: Dict[str, dict] = {}
+        for r in erp_data:
+            uuid = r.get("uuid", "")
+            if uuid:
+                erp_by_uuid[uuid] = r
+
+        sat_by_uuid: Dict[str, dict] = {}
+        for r in sat_data:
+            uuid = r.get("uuid", "")
+            if uuid:
+                sat_by_uuid[uuid] = r
+
+        # ERP records not in SAT
+        erp_only = set(erp_by_uuid.keys()) - set(sat_by_uuid.keys())
+        for uuid in erp_only:
+            rec = erp_by_uuid[uuid]
+            omissions.append(Omission(
+                id=f"OM-ERP-{str(_uuid.uuid4())[:8]}",
+                tipo=TipoOmicion.FACTURA_ERP,
+                periodo=periodo,
+                monto=float(rec.get("monto", 0)),
+                rfc=rec.get("rfc"),
+                uuid_cfdi=uuid,
+                detalle=(
+                    f"CFDI '{uuid}' registrado en ERP pero no encontrado en SAT. "
+                    f"RFC: {rec.get('rfc', '?')}, monto: {rec.get('monto', '?')}."
+                ),
+            ))
+
+        # SAT records not in ERP
+        sat_only = set(sat_by_uuid.keys()) - set(erp_by_uuid.keys())
+        for uuid in sat_only:
+            rec = sat_by_uuid[uuid]
+            omissions.append(Omission(
+                id=f"OM-SAT-{str(_uuid.uuid4())[:8]}",
+                tipo=TipoOmicion.FACTURA_SAT,
+                periodo=periodo,
+                monto=float(rec.get("monto", 0)),
+                rfc=rec.get("rfc"),
+                uuid_cfdi=uuid,
+                detalle=(
+                    f"CFDI '{uuid}' registrado en SAT pero no encontrado en ERP. "
+                    f"RFC: {rec.get('rfc', '?')}, monto: {rec.get('monto', '?')}."
+                ),
+            ))
+
+        return omissions
+
+    # -------------------------------------------------------------------
+    # Detect discrepancies
+    # -------------------------------------------------------------------
+
+    def detect_discrepancies(
+        self,
+        erp_data: List[dict],
+        sat_data: List[dict],
+        periodo: str = "",
+    ) -> List[FiscalDiscrepancy]:
+        """Detect discrepancies in matching records between ERP and SAT.
+
+        Checks:
+          - Amount differences
+          - RFC mismatches
+          - Concepto differences
+        """
+        discrepancies: List[FiscalDiscrepancy] = []
+
+        # Build UUID lookup maps
+        erp_by_uuid: Dict[str, dict] = {}
+        for r in erp_data:
+            uuid = r.get("uuid", "")
+            if uuid:
+                erp_by_uuid[uuid] = r
+
+        sat_by_uuid: Dict[str, dict] = {}
+        for r in sat_data:
+            uuid = r.get("uuid", "")
+            if uuid:
+                sat_by_uuid[uuid] = r
+
+        # Only check records present in both
+        common_uuids = set(erp_by_uuid.keys()) & set(sat_by_uuid.keys())
+
+        for uuid in common_uuids:
+            erp_rec = erp_by_uuid[uuid]
+            sat_rec = sat_by_uuid[uuid]
+
+            erp_monto = float(erp_rec.get("monto", 0))
+            sat_monto = float(sat_rec.get("monto", 0))
+
+            # Amount discrepancy
+            if abs(erp_monto - sat_monto) > 0.01:
+                diff = erp_monto - sat_monto
+                discrepancies.append(FiscalDiscrepancy(
+                    id=f"DISC-MONTO-{str(_uuid.uuid4())[:8]}",
+                    tipo=TipoDiscrepancia.MONTO,
+                    erp_amount=erp_monto,
+                    sat_amount=sat_monto,
+                    diff=diff,
+                    explanation=(
+                        f"Monto en ERP ({erp_monto}) difiere de SAT ({sat_monto}). "
+                        f"Diferencia: {diff:.2f}."
+                    ),
+                    rfc=erp_rec.get("rfc"),
+                    periodo=periodo,
+                ))
+
+            # RFC discrepancy
+            erp_rfc = erp_rec.get("rfc", "").strip().upper()
+            sat_rfc = sat_rec.get("rfc", "").strip().upper()
+            if erp_rfc and sat_rfc and erp_rfc != sat_rfc:
+                discrepancies.append(FiscalDiscrepancy(
+                    id=f"DISC-RFC-{str(_uuid.uuid4())[:8]}",
+                    tipo=TipoDiscrepancia.RFC,
+                    erp_amount=erp_monto,
+                    sat_amount=sat_monto,
+                    diff=0.0,
+                    explanation=(
+                        f"RFC en ERP ({erp_rfc}) difiere de SAT ({sat_rfc}) "
+                        f"para CFDI '{uuid}'."
+                    ),
+                    rfc=erp_rfc,
+                    periodo=periodo,
+                ))
+
+            # Concepto discrepancy
+            erp_concepto = erp_rec.get("concepto", "").strip().lower()
+            sat_concepto = sat_rec.get("concepto", "").strip().lower()
+            if erp_concepto and sat_concepto and erp_concepto != sat_concepto:
+                discrepancies.append(FiscalDiscrepancy(
+                    id=f"DISC-CONC-{str(_uuid.uuid4())[:8]}",
+                    tipo=TipoDiscrepancia.CONCEPTO,
+                    erp_amount=erp_monto,
+                    sat_amount=sat_monto,
+                    diff=0.0,
+                    explanation=(
+                        f"Concepto en ERP ('{erp_concepto}') difiere de SAT ('{sat_concepto}') "
+                        f"para CFDI '{uuid}'."
+                    ),
+                    rfc=erp_rec.get("rfc"),
+                    periodo=periodo,
+                ))
+
+        return discrepancies
+
+    # -------------------------------------------------------------------
+    # Generate fiscal report
+    # -------------------------------------------------------------------
+
+    def generate_fiscal_report(
+        self,
+        comparison: FiscalComparison,
+    ) -> FiscalReport:
+        """Generate a consolidated fiscal report from a comparison.
+
+        Includes recommendations based on the types of issues found.
+        """
+        recommendations: List[str] = []
+
+        # Recommendations for omissions
+        erp_only = [o for o in comparison.omisiones if o.tipo == TipoOmicion.FACTURA_ERP]
+        sat_only = [o for o in comparison.omisiones if o.tipo == TipoOmicion.FACTURA_SAT]
+
+        if erp_only:
+            total_erp_only = sum(o.monto for o in erp_only)
+            recommendations.append(
+                f"Se encontraron {len(erp_only)} facturas en ERP no declaradas en SAT "
+                f"(monto total: {total_erp_only:.2f}). Verificar declaración SAT."
             )
 
-    if total_diferencia > 50000:
-        recs.append("La diferencia total supera $50,000 MXN — escalar a revisión fiscal externa.")
+        if sat_only:
+            total_sat_only = sum(o.monto for o in sat_only)
+            recommendations.append(
+                f"Se encontraron {len(sat_only)} facturas en SAT no registradas en ERP "
+                f"(monto total: {total_sat_only:.2f}). Actualizar registros ERP."
+            )
 
-    if not recs:
-        recs.append("Sin acciones requeridas. Los registros concuerdan.")
+        # Recommendations for discrepancies
+        monto_disc = [d for d in comparison.discrepancias if d.tipo == TipoDiscrepancia.MONTO]
+        if monto_disc:
+            total_diff = sum(abs(d.diff) for d in monto_disc)
+            recommendations.append(
+                f"Se encontraron {len(monto_disc)} discrepancias de monto "
+                f"(diferencia total: {total_diff:.2f}). Revisar registros."
+            )
 
-    return recs
+        rfc_disc = [d for d in comparison.discrepancias if d.tipo == TipoDiscrepancia.RFC]
+        if rfc_disc:
+            recommendations.append(
+                f"Se encontraron {len(rfc_disc)} discrepancias de RFC. "
+                "Verificar que los RFC coincidan entre ERP y SAT."
+            )
 
+        if not comparison.omisiones and not comparison.discrepancias:
+            recommendations.append("No se encontraron omisiones ni discrepancias. Los registros están conciliados.")
 
-def get_comparison(comparison_id: str) -> Optional[FiscalComparison]:
-    """Retrieve a comparison by ID."""
-    return _comparisons.get(comparison_id)
+        report_id = f"FR-{comparison.periodo}-{str(_uuid.uuid4())[:8]}"
+        report = FiscalReport(
+            id=report_id,
+            comparison=comparison,
+            total_omisiones=len(comparison.omisiones),
+            total_discrepancias=len(comparison.discrepancias),
+            monto_total_omisiones=sum(o.monto for o in comparison.omisiones),
+            monto_total_discrepancias=sum(abs(d.diff) for d in comparison.discrepancias),
+            recomendaciones=recommendations,
+            created_at=datetime.now().isoformat(),
+        )
 
+        self._reports[report_id] = report
+        return report
 
-def get_report(comparison_id: str) -> Optional[FiscalReport]:
-    """Retrieve a fiscal report by comparison ID."""
-    return _reports.get(comparison_id)
+    # -------------------------------------------------------------------
+    # Get report
+    # -------------------------------------------------------------------
 
+    def get_report(self, report_id: str) -> Optional[FiscalReport]:
+        """Retrieve a fiscal report by ID."""
+        return self._reports.get(report_id)
 
-def resolve_discrepancy(comparison_id: str, discrepancy_index: int) -> bool:
-    """Mark a specific discrepancy as resolved."""
-    comp = _comparisons.get(comparison_id)
-    if comp is None:
+    # -------------------------------------------------------------------
+    # Resolve omission
+    # -------------------------------------------------------------------
+
+    def resolve_omission(
+        self,
+        comparison_periodo: str,
+        omission_id: str,
+    ) -> bool:
+        """Mark an omission as resolved."""
+        comparison = self._comparisons.get(comparison_periodo)
+        if not comparison:
+            return False
+
+        for o in comparison.omisiones:
+            if o.id == omission_id:
+                o.resuelta = True
+                return True
+
         return False
-    if 0 <= discrepancy_index < len(comp.discrepancias):
-        comp.discrepancias.pop(discrepancy_index)
-        comp.status = "resolved" if not comp.discrepancias else "partial"
-        return True
-    return False

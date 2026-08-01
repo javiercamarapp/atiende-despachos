@@ -4,17 +4,23 @@ validators.py — Validation functions for DIOT data.
 
 Validates:
   - RFC format (personas morales 12 chars, físicas 13 chars)
-  - IVA rate validation (16%, 0%, 8%)
+  - IVA rate validation (16%, 8%, 0%)
   - Cross-reference with CFDI data
   - DIOT entry completeness
 """
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from .models import CFDIInvoiceInput, DiotEntry, Inconsistencia
+from .models import (
+    CFDIInvoiceInput,
+    DiotEntry,
+    Inconsistencia,
+    TipoIva,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -24,9 +30,20 @@ from .models import CFDIInvoiceInput, DiotEntry, Inconsistencia
 VALID_IVA_RATES = {0.0, 0.08, 0.16}
 VALID_IVA_RATES_DISPLAY = {"0%", "8%", "16%"}
 
-# RFC pattern
 RFC_PERSONA_MORAL_PATTERN = re.compile(r"^[A-Z&Ñ]{3}\d{6}[A-Z\d]{3}$")
 RFC_PERSONA_FISICA_PATTERN = re.compile(r"^[A-Z&Ñ]{4}\d{6}[A-Z\d]{3}$")
+
+
+# ---------------------------------------------------------------------------
+# IVA rate mapping: TipoIva -> expected decimal rate
+# ---------------------------------------------------------------------------
+
+IVA_RATE_MAP = {
+    TipoIva.GENERAL_16: 0.16,
+    TipoIva.FRONTERA_8: 0.08,
+    TipoIva.EXENTO_0: 0.0,
+    # TASAS_MIXTAS cannot be validated to a single rate
+}
 
 
 # ---------------------------------------------------------------------------
@@ -43,6 +60,10 @@ class ValidationResult:
     valid_entries: int = 0
     total_entries: int = 0
 
+    @property
+    def error_count(self) -> int:
+        return len(self.errors)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "is_valid": self.valid,
@@ -57,27 +78,30 @@ class ValidationResult:
 # Individual validators
 # ---------------------------------------------------------------------------
 
-def validate_rfc(rfc: str) -> Tuple[bool, str]:
-    """Validate a Mexican RFC (Registro Federal de Contribuyentes)."""
+def validate_rfc(rfc: str) -> Optional[str]:
+    """Validate a Mexican RFC.
+
+    Returns ``None`` if valid, or an error message string if invalid.
+    """
     if not rfc or not rfc.strip():
-        return False, "RFC no puede estar vacío."
+        return "RFC no puede estar vacío."
 
     rfc = rfc.strip().upper()
 
     if len(rfc) < 12 or len(rfc) > 13:
-        return False, f"RFC con longitud inválida ({len(rfc)} chars). Se esperaba 12-13."
+        return f"RFC con longitud inválida ({len(rfc)} chars). Se esperaba 12-13."
 
     if len(rfc) == 12:
         if RFC_PERSONA_MORAL_PATTERN.match(rfc):
-            return True, ""
-        return False, f"RFC de persona moral con formato inválido: '{rfc}'."
+            return None
+        return f"RFC de persona moral con formato inválido: '{rfc}'."
 
     if len(rfc) == 13:
         if RFC_PERSONA_FISICA_PATTERN.match(rfc):
-            return True, ""
-        return False, f"RFC de persona física con formato inválido: '{rfc}'."
+            return None
+        return f"RFC de persona física con formato inválido: '{rfc}'."
 
-    return False, f"RFC con longitud inesperada: '{rfc}'."
+    return f"RFC con longitud inesperada: '{rfc}'."
 
 
 def validate_iva_rate(rate: float) -> Tuple[bool, str]:
@@ -112,6 +136,173 @@ def validate_iva_amount(
                 f"Varianza: {variance:.2%}."
             )
     return True, ""
+
+
+# ---------------------------------------------------------------------------
+# Entry-level validators
+# ---------------------------------------------------------------------------
+
+def validate_iva_calculation(entry: DiotEntry) -> Optional[Inconsistencia]:
+    """Validate IVA calculation for a single DIOT entry.
+
+    Returns ``None`` if correct, or an ``Inconsistencia`` with
+    ``tipo="iva_mismatch"`` if the IVA doesn't match the expected rate.
+    Skips entries with ``TASAS_MIXTAS``.
+    """
+    if entry.tipo_iva == TipoIva.TASAS_MIXTAS:
+        return None
+
+    expected_rate = IVA_RATE_MAP.get(entry.tipo_iva)
+    if expected_rate is None:
+        return None
+
+    expected_iva = round(entry.monto_neto * expected_rate, 2)
+    if abs(entry.iva_trasladado - expected_iva) > 0.01:
+        return Inconsistencia(
+            tipo="iva_mismatch",
+            severidad="critical",
+            descripcion=(
+                f"IVA trasladado ({entry.iva_trasladado}) no coincide con "
+                f"esperado ({expected_iva}) para tasa {entry.tipo_iva.value}%"
+            ),
+            monto_esperado=expected_iva,
+            monto_real=entry.iva_trasladado,
+        )
+    return None
+
+
+def validate_all_rfcs(entries: List[DiotEntry]) -> ValidationResult:
+    """Validate RFCs across a list of DIOT entries.
+
+    Checks format validity and detects duplicates.
+    """
+    result = ValidationResult(total_entries=len(entries))
+    rfc_count: Counter = Counter()
+
+    for entry in entries:
+        err = validate_rfc(entry.rfc_tercero)
+        if err:
+            result.inconsistencies.append(Inconsistencia(
+                tipo="rfc_invalido",
+                severity="critical",
+                descripcion=f"RFC '{entry.rfc_tercero}' inválido: {err}",
+            ))
+            result.errors.append(f"RFC '{entry.rfc_tercero}' inválido: {err}")
+        else:
+            result.valid_entries += 1
+
+        rfc_count[entry.rfc_tercero.upper()] += 1
+
+    # Detect duplicates
+    for rfc, count in rfc_count.items():
+        if count > 1:
+            result.inconsistencies.append(Inconsistencia(
+                tipo="rfc_duplicado",
+                severity="warning",
+                descripcion=f"RFC '{rfc}' aparece {count} veces en la DIOT",
+            ))
+
+    result.valid = len(result.errors) == 0
+    return result
+
+
+def validate_all_iva(entries: List[DiotEntry]) -> ValidationResult:
+    """Validate IVA calculations across all entries."""
+    result = ValidationResult(total_entries=len(entries))
+
+    for entry in entries:
+        inc = validate_iva_calculation(entry)
+        if inc:
+            result.inconsistencies.append(inc)
+            result.errors.append(inc.descripcion)
+        else:
+            result.valid_entries += 1
+
+    result.valid = len(result.errors) == 0
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Duplicate UUID detection
+# ---------------------------------------------------------------------------
+
+def detect_duplicate_uuids(invoices: List[CFDIInvoiceInput]) -> List[Inconsistencia]:
+    """Detect duplicate UUIDs in a list of CFDI invoices."""
+    uuid_count: Counter = Counter(inv.uuid for inv in invoices)
+    issues: List[Inconsistencia] = []
+
+    for uuid, count in uuid_count.items():
+        if count > 1:
+            issues.append(Inconsistencia(
+                tipo="uuid_duplicado",
+                severity="critical",
+                descripcion=f"UUID '{uuid}' aparece {count} veces",
+            ))
+
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# CFDI cross-reference
+# ---------------------------------------------------------------------------
+
+def validate_cfdi_cross_reference(
+    entries: List[DiotEntry],
+    invoices: List[CFDIInvoiceInput],
+) -> ValidationResult:
+    """Cross-reference DIOT entries against CFDI invoice data.
+
+    Checks:
+    - UUIDs in entries exist in invoices
+    - Invoices not excluded from entries
+    - monto_neto sums match
+    """
+    result = ValidationResult(total_entries=len(entries), valid_entries=len(entries))
+    invoice_uuids = {inv.uuid for inv in invoices}
+    entry_uuids = set()
+    for e in entries:
+        entry_uuids.update(e.uuids)
+
+    # Check: UUID in entry doesn't exist in invoices
+    for e in entries:
+        for uid in e.uuids:
+            if uid not in invoice_uuids:
+                result.inconsistencies.append(Inconsistencia(
+                    tipo="uuid_no_existe",
+                    severity="critical",
+                    descripcion=f"UUID '{uid}' en entrada no existe en facturas",
+                ))
+                result.errors.append(f"UUID '{uid}' no existe en facturas")
+                result.valid = False
+
+    # Check: invoice UUID not included in any entry
+    for inv in invoices:
+        if inv.uuid not in entry_uuids:
+            result.inconsistencies.append(Inconsistencia(
+                tipo="uuid_sin_incluir",
+                severity="warning",
+                descripcion=f"Factura UUID '{inv.uuid}' no incluida en ninguna entrada DIOT",
+            ))
+
+    # Check: monto_neto sums
+    for e in entries:
+        expected_monto = sum(
+            inv.subtotal * inv.tipo_cambio
+            for inv in invoices
+            if inv.uuid in e.uuids
+        )
+        if expected_monto > 0 and abs(e.monto_neto - expected_monto) > 0.01:
+            result.inconsistencies.append(Inconsistencia(
+                tipo="monto_neto_mismatch",
+                severity="warning",
+                descripcion=(
+                    f"Entrada RFC '{e.rfc_tercero}': monto_neto={e.monto_neto} "
+                    f"vs suma facturas={expected_monto}"
+                ),
+            ))
+
+    result.valid = len(result.errors) == 0
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -172,8 +363,8 @@ def validate_diot_entries(
         # RFC validation
         rfc = entry.get("rfc_tercero", "")
         if rfc:
-            is_valid_rfc, rfc_err = validate_rfc(rfc)
-            if not is_valid_rfc:
+            rfc_err = validate_rfc(rfc)
+            if rfc_err is not None:
                 errors.append(f"{prefix}: {rfc_err}")
                 entry_ok = False
 
@@ -212,15 +403,6 @@ def validate_diot_entries(
         if entry_ok:
             valid_count += 1
 
-    # Cross-reference with invoices if provided
-    if invoices:
-        invoice_rfc_set = set()
-        for inv in invoices:
-            if isinstance(inv, CFDIInvoiceInput):
-                invoice_rfc_set.add(inv.rfc_emisor)
-            elif isinstance(inv, dict):
-                invoice_rfc_set.add(inv.get("rfc_tercero", "").upper())
-
     return ValidationResult(
         valid=len(errors) == 0,
         errors=errors,
@@ -240,7 +422,8 @@ def validate_invoices(
 ) -> ValidationResult:
     """Validate CFDI invoice data before DIOT generation.
 
-    Checks RFC format, amounts, and required fields.
+    Checks RFC format, amounts, required fields, duplicate UUIDs,
+    and IVA consistency.
     """
     errors: List[str] = []
     warnings: List[str] = []
@@ -254,6 +437,10 @@ def validate_invoices(
             errors=["No se proporcionaron facturas para validar."],
             total_entries=0,
         )
+
+    # Check duplicate UUIDs
+    dup_issues = detect_duplicate_uuids(invoices)
+    inconsistencies.extend(dup_issues)
 
     for i, inv in enumerate(invoices, 1):
         prefix = f"Factura #{i}"
@@ -272,12 +459,17 @@ def validate_invoices(
             errors.append(f"{prefix}: campo 'rfc_emisor' es obligatorio.")
             inv_ok = False
         else:
-            ok, err = validate_rfc(rfc)
-            if not ok:
-                errors.append(f"{prefix}: {err}")
+            rfc_err = validate_rfc(rfc)
+            if rfc_err is not None:
+                inconsistencies.append(Inconsistencia(
+                    tipo="rfc_invalido",
+                    severity="critical",
+                    descripcion=f"{prefix}: {rfc_err}",
+                ))
+                errors.append(f"{prefix}: {rfc_err}")
                 inv_ok = False
 
-        # Amounts: subtotal must be >= 0
+        # Amounts
         subtotal = inv_dict.get("subtotal", 0)
         if subtotal < 0:
             errors.append(f"{prefix}: subtotal no puede ser negativo.")
@@ -292,8 +484,28 @@ def validate_invoices(
             errors.append(f"{prefix}: iva_acreditable no puede ser negativo.")
             inv_ok = False
 
+        # IVA consistency check (if subtotal > 0 and iva > 0)
+        if subtotal > 0 and iva_t > 0:
+            effective_rate = round(iva_t / subtotal, 4)
+            if effective_rate not in {0.0, 0.08, 0.16}:
+                valid_rates = [0.0, 0.08, 0.16]
+                closest = min(valid_rates, key=lambda r: abs(r - effective_rate))
+                if abs(closest - effective_rate) > 0.01:
+                    inconsistencies.append(Inconsistencia(
+                        tipo="iva_invoice_mismatch",
+                        severity="warning",
+                        descripcion=(
+                            f"{prefix}: tasa de IVA efectiva {effective_rate:.2%} "
+                            f"no es estándar (0%, 8%, 16%)"
+                        ),
+                    ))
+
         if inv_ok:
             valid_count += 1
+
+    # Merge duplicate UUID inconsistencies as errors
+    for inc in dup_issues:
+        errors.append(f"UUID duplicado: {inc.descripcion}")
 
     return ValidationResult(
         valid=len(errors) == 0,

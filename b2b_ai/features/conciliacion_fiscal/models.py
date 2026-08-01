@@ -33,8 +33,70 @@ class TipoDiscrepancia(str, Enum):
     RFC = "rfc_diferente"
     CONCEPTO = "concepto_diferente"
     IVA = "iva_diferente"
+# ---------------------------------------------------------------------------
+# Backward-compat enums used by tests and legacy service code
+# ---------------------------------------------------------------------------
+
+class DeclaracionTipo(str, Enum):
+    """Tipo de declaración fiscal (used by ERP/SAT cross-reference)."""
+    IVA = "iva"
+    ISR = "isr"
+    DIOT = "diot"
+    CONTABILIDAD_ELECTRONICA = "contabilidad_electronica"
 
 
+class DiscrepancySeverity(str, Enum):
+    """Severity level for fiscal discrepancies."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class ERPRecord(BaseModel):
+    """A record from the ERP system for fiscal cross-reference."""
+    id: str = Field(default="", description="ERP record identifier")
+    concepto: str = Field(default="", description="Concept/type of record")
+    monto: float = Field(default=0.0, ge=0, description="Amount in MXN")
+    periodo: str = Field(default="", description="Period YYYY-MM")
+    rfc: Optional[str] = Field(default=None, description="RFC associated")
+    fecha: Optional[str] = Field(default=None, description="Date YYYY-MM-DD")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "id": "ERP-001",
+                "concepto": "iva",
+                "monto": 50000.0,
+                "periodo": "2026-06",
+            }]
+        }
+    }
+
+
+class SATRecord(BaseModel):
+    """A record from SAT declarations for fiscal cross-reference."""
+    id: str = Field(default="", description="SAT record identifier")
+    tipo: DeclaracionTipo = Field(..., description="Declaration type")
+    monto: float = Field(default=0.0, ge=0, description="Amount in MXN")
+    periodo: str = Field(default="", description="Period YYYY-MM")
+    rfc: Optional[str] = Field(default=None, description="RFC associated")
+    fecha: Optional[str] = Field(default=None, description="Date YYYY-MM-DD")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "id": "SAT-001",
+                "tipo": "iva",
+                "monto": 50000.0,
+                "periodo": "2026-06",
+            }]
+        }
+    }
+
+
+# ---------------------------------------------------------------------------
+# Omission schema
 # ---------------------------------------------------------------------------
 # Omission schema
 # ---------------------------------------------------------------------------

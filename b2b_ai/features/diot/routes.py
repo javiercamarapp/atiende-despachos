@@ -135,12 +135,12 @@ def build_diot_router(
         result = service.validate_diot_data(req.invoices)
 
         return {
-            "ok": result["is_valid"],
-            "message": "Datos válidos." if result["is_valid"] else "Se encontraron errores.",
-            "errors": result["errors"],
-            "warnings": result["warnings"],
-            "valid_entries": result["valid_entries"],
-            "total_entries": result["total_entries"],
+            "ok": result.valid,
+            "message": "Datos válidos." if result.valid else "Se encontraron errores.",
+            "errors": result.errors,
+            "warnings": result.warnings,
+            "valid_entries": result.valid_entries,
+            "total_entries": result.total_entries,
         }
 
     # -----------------------------------------------------------------------

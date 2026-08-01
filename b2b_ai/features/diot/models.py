@@ -22,22 +22,24 @@ from pydantic import BaseModel, Field, field_validator
 
 class OperacionType(str, Enum):
     """Tipo de operación DIOT."""
-    COMPRA = "01"       # Compra
-    DEVOLUCION = "02"   # Devolución de compra
-    GASTOS = "03"       # Gastos
-    INTERESES = "04"    # Intereses
-    OTROS = "05"        # Otros
+    COMPRA = "01"
+    DEVOLUCION = "02"
+    GASTOS_GENERAL = "03"
+    INTERESES = "04"
+    OTROS = "05"
+    ACTIVO_FIJO = "06"
 
 
-# Alias used by service.py
+# Alias used by service.py and tests
 TipoOperacion = OperacionType
 
 
 class TipoIva(str, Enum):
     """Tipo de IVA aplicable."""
-    GENERAL = "16"
-    REDUCIDO = "8"
-    EXENTO = "0"
+    GENERAL_16 = "16"
+    FRONTERA_8 = "8"
+    EXENTO_0 = "0"
+    TASAS_MIXTAS = "mix"
 
 
 class EstatusDIOT(str, Enum):
@@ -60,16 +62,19 @@ class CFDIInvoiceInput(BaseModel):
     uuid: str = Field(..., description="UUID del CFDI")
     rfc_emisor: str = Field(..., description="RFC del emisor")
     nombre_emisor: str = Field(default="", description="Nombre del emisor")
+    fecha: Optional[datetime] = Field(default=None, description="Fecha de la factura")
     subtotal: float = Field(..., description="Subtotal de la factura (sin IVA)")
     iva_trasladado: float = Field(default=0.0, description="IVA trasladado")
     iva_acreditable: float = Field(default=0.0, description="IVA acreditable")
+    total: float = Field(default=0.0, description="Total de la factura")
+    moneda: str = Field(default="MXN", description="Moneda de la factura")
     tipo_cambio: float = Field(default=1.0, description="Tipo de cambio a MXN")
-    tipo_operacion: OperacionType = Field(
-        default=OperacionType.COMPRA,
+    tipo_operacion: TipoOperacion = Field(
+        default=OperacionType.GASTOS_GENERAL,
         description="Tipo de operación DIOT",
     )
     tipo_iva: TipoIva = Field(
-        default=TipoIva.GENERAL,
+        default=TipoIva.GENERAL_16,
         description="Tasa de IVA aplicada",
     )
 
@@ -83,6 +88,8 @@ class Inconsistencia(BaseModel):
     tipo: str = Field(..., description="Tipo de inconsistencia")
     severidad: str = Field(default="warning", description="Severidad: info, warning, critical")
     descripcion: str = Field(default="", description="Descripción de la inconsistencia")
+    monto_esperado: Optional[float] = Field(default=None, description="Monto esperado (para IVA mismatch)")
+    monto_real: Optional[float] = Field(default=None, description="Monto real encontrado")
 
 
 # ---------------------------------------------------------------------------
@@ -99,24 +106,24 @@ class DiotEntry(BaseModel):
         default="",
         description="Nombre o razón social del tercero",
     )
-    tipo_operacion: OperacionType = Field(
+    tipo_operacion: TipoOperacion = Field(
         ...,
-        description="Tipo de operación: 01=Compra, 02=Devolución, 03=Gastos, 04=Intereses, 05=Otros",
+        description="Tipo de operación",
     )
     tipo_iva: TipoIva = Field(
-        default=TipoIva.GENERAL,
+        default=TipoIva.GENERAL_16,
         description="Tasa de IVA del tercero",
     )
     monto_neto: float = Field(
-        ...,
+        default=0.0,
         description="Monto neto de la operación (sin IVA)",
     )
     iva_trasladado: float = Field(
-        ...,
+        default=0.0,
         description="IVA trasladado por el tercero",
     )
     iva_acreditable: float = Field(
-        ...,
+        default=0.0,
         description="IVA acreditable del tercero",
     )
     numero_facturas: int = Field(
@@ -247,7 +254,7 @@ class DiotReport(BaseModel):
             raise ValueError("month debe estar entre 1 y 12")
         return v
 
-    def recompute_summary(self) -> None:
+    def recompute_summary(self) -> DiotSummary:
         """Recalcular el resumen a partir de las entradas."""
         self.summary = DiotSummary(
             total_operaciones=len(self.entries),
@@ -258,3 +265,4 @@ class DiotReport(BaseModel):
         self.summary.diferencias = (
             self.summary.total_iva_trasladado - self.summary.total_iva_acreditable
         )
+        return self.summary
