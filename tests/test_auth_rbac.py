@@ -231,10 +231,10 @@ def test_get_user(um, tenant):
 def test_update_user(um, tenant):
     u = um.create_user("juan@a.mx", "Password123!", tenant, name="Juan")
     updated = um.update_user(u["id"], {"name": "Juan Pérez",
-                                       "password": "nuevapass123"})
+                                       "password": "NuevaPass123!"})
     assert updated["name"] == "Juan Pérez"
     # El nuevo password autentica.
-    assert um.authenticate("juan@a.mx", "nuevapass123", tenant_id=tenant)
+    assert um.authenticate("juan@a.mx", "NuevaPass123!", tenant_id=tenant)
 
 
 def test_update_user_email_duplicado(um, tenant):

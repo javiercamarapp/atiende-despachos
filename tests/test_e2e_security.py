@@ -102,7 +102,7 @@ def test_e2e_http_codes(ctx):
     assert r.status_code == 422
     # 404 xml_path inexistente
     assert c.post("/api/v1/invoices/process", headers=h,
-                  json={"xml_path": "/no/existe.xml"}).status_code == 404
+                  json={"xml_path": "demo-data/no_existe.xml"}).status_code == 404
 
 
 # --------------------------------------------------------------------------- #

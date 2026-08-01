@@ -154,7 +154,7 @@ def test_payloads_invalidos_never_500(clean_client, tmp_path):
 
     # xml_path inexistente -> 404
     r = c.post("/api/v1/invoices/process", headers=h,
-               json={"xml_path": "/no/existe.xml"})
+               json={"xml_path": "demo-data/no_existe.xml"})
     assert r.status_code == 404
 
     # archivo vacío -> 400

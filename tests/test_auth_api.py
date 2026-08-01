@@ -172,10 +172,10 @@ def test_update_me(ctx):
     _register(c, ctx["t1"], "admin@a.mx", "Password123!", name="Admin")
     sess = _login(c, ctx["t1"], "admin@a.mx", "Password123!").json()
     r = c.put("/api/v1/auth/me", headers=_bearer(sess["access_token"]),
-              json={"name": "Nuevo Nombre", "password": "otrapass123"})
+              json={"name": "Nuevo Nombre", "password": "OtraPass123!"})
     assert r.status_code == 200
     assert r.json()["user"]["name"] == "Nuevo Nombre"
-    r2 = _login(c, ctx["t1"], "admin@a.mx", "otrapass123")
+    r2 = _login(c, ctx["t1"], "admin@a.mx", "OtraPass123!")
     assert r2.status_code == 200
 
 
