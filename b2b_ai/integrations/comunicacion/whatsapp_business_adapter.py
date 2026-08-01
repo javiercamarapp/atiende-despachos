@@ -38,7 +38,7 @@ class WhatsAppBusinessAdapter(CommunicationAdapter):
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(
             provider="whatsapp_business",
-            api_key="MockWhatsAppAccessToken123456",
+            api_key="faker_whatsapp_token_DO_NOT_USE",
             whatsapp_business_id="1234567890",
             from_phone="+525512345678",
         )

@@ -38,7 +38,7 @@ class SendGridAdapter(CommunicationAdapter):
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(
             provider="sendgrid",
-            api_key="SG.MockSendGridKey1234567890",
+            api_key="faker_sendgrid_api_key_DO_NOT_USE",
             from_email="noreply@b2b-ai.com",
         )
         super().__init__(config=config)

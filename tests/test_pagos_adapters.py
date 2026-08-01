@@ -823,7 +823,7 @@ class TestPaymentAdapterInterface:
     )
     def test_ensure_connected_before_connect(self, adapter_cls):
         adapter = adapter_cls()
-        with pytest.raises(PaymentAdapterError, match="NOT_CONNECTED"):
+        with pytest.raises(PaymentAdapterError, match="no est.*conectado"):
             adapter._ensure_connected()
 
 

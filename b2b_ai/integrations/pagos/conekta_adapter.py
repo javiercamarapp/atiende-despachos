@@ -40,7 +40,7 @@ class ConektaAdapter(PaymentAdapter):
     def __init__(self, config: Optional[PaymentConfig] = None):
         config = config or PaymentConfig(
             provider="conekta",
-            api_key="key_mock_conekta_privado",
+            api_key="key_faker_conekta_DO_NOT_USE",
         )
         super().__init__(config=config)
 

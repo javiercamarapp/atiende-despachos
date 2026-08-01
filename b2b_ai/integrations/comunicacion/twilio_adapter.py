@@ -38,8 +38,8 @@ class TwilioAdapter(CommunicationAdapter):
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(
             provider="twilio",
-            api_key="AC_MockTwilioAccountSid123456",
-            api_secret="MockTwilioAuthToken7890",
+            api_key="AC_faker_twilio_sid_DO_NOT_USE",
+            api_secret="faker_twilio_auth_token_DO_NOT_USE",
             from_phone="+525512345678",
             from_email="sms@b2b-ai.com",
         )

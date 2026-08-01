@@ -39,7 +39,7 @@ class StripeAdapter(PaymentAdapter):
     def __init__(self, config: Optional[PaymentConfig] = None):
         config = config or PaymentConfig(
             provider="stripe",
-            api_key="sk_test_mock_stripe_key",
+            api_key="sk_test_faker_stripe_key_DO_NOT_USE",
         )
         super().__init__(config=config)
 

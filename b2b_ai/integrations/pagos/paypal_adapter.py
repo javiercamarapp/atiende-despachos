@@ -39,8 +39,8 @@ class PayPalAdapter(PaymentAdapter):
     def __init__(self, config: Optional[PaymentConfig] = None):
         config = config or PaymentConfig(
             provider="paypal",
-            api_key="AYMockClientId1234567890",
-            api_secret="MockClientSecret0987654321",
+            api_key="faker_paypal_client_id_DO_NOT_USE",
+            api_secret="faker_paypal_secret_DO_NOT_USE",
         )
         super().__init__(config=config)
 
