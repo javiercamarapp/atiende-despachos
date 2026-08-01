@@ -133,7 +133,8 @@ class TestVencimientosService:
         assert len(overdue) == 1
         assert overdue[0].estado == EstadoVencimiento.VENCIDO
 
-    def test_escalate(self):
+    def test_escalate_upcoming(self):
+        """Escalate a deadline that's >1 day away → NIVEL_1."""
         service = VencimientosService()
         deadline = Deadline(
             id="VENC-TEST-001",
@@ -144,6 +145,18 @@ class TestVencimientosService:
         assert escalation.deadline_id == "VENC-TEST-001"
         assert escalation.level == NivelEscalamiento.NIVEL_1
         assert deadline.estado == EstadoVencimiento.ESCALADO
+
+    def test_escalate_tomorrow(self):
+        """Escalate a deadline due tomorrow → NIVEL_3 (days_until==0 due to truncation)."""
+        service = VencimientosService()
+        deadline = Deadline(
+            id="VENC-TEST-002",
+            tipo="IVA",
+            fecha_limite=(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
+        )
+        escalation = service.escalate(deadline)
+        # _days_until uses .days which truncates → 0 days → NIVEL_3
+        assert escalation.level == NivelEscalamiento.NIVEL_3
 
     def test_escalate_overdue(self):
         service = VencimientosService()

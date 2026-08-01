@@ -89,3 +89,11 @@ class ProcessingResult(BaseModel):
     tenant_id: str = Field(default="default", description="Tenant ID")
     scan_period: Optional[str] = Field(default=None, description="Scan period (YYYY-MM)")
     created_at: Optional[str] = Field(default=None, description="ISO timestamp")
+
+
+class Attachment(BaseModel):
+    """Un archivo adjunto en un email."""
+    filename: str = Field(..., description="Nombre del archivo")
+    content_type: str = Field(..., description="MIME type del archivo")
+    size: int = Field(default=0, description="Tamaño en bytes")
+    content: Optional[bytes] = Field(default=None, description="Contenido del archivo")

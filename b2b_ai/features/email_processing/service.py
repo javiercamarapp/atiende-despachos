@@ -498,3 +498,31 @@ class EmailProcessingService:
             ),
             "invoices_in_store": len(self._invoices),
         }
+
+
+# ---------------------------------------------------------------------------
+# Standalone function wrappers for backward compatibility
+# ---------------------------------------------------------------------------
+
+def monitor_inbox(tenant_id: str) -> list:
+    """Monitor inbox for new emails with attachments."""
+    svc = EmailProcessingService()
+    return svc.monitor_inbox(tenant_id)
+
+
+def extract_invoices(email: EmailMessage) -> list:
+    """Extract CFDI invoices from email attachments."""
+    svc = EmailProcessingService()
+    return svc.extract_invoices(email)
+
+
+def process_extracted_invoices(invoices: list) -> ProcessingResult:
+    """Process extracted invoices: validate, classify, store."""
+    svc = EmailProcessingService()
+    return svc.process_extracted_invoices(invoices)
+
+
+def notify_user(results: ProcessingResult) -> dict:
+    """Notify user of processing results."""
+    svc = EmailProcessingService()
+    return svc.notify_user(results)

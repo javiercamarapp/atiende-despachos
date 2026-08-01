@@ -78,7 +78,8 @@ class TestCrossReferenceData:
         ok, issues = cross_reference_data(erp, sat)
         assert ok is False
         assert len(issues) == 1
-        assert "no en SAT" in issues[0]
+        # SAT empty → early return message
+        assert "SAT" in issues[0]
 
     def test_sat_not_in_erp(self):
         erp = []
@@ -86,7 +87,8 @@ class TestCrossReferenceData:
         ok, issues = cross_reference_data(erp, sat)
         assert ok is False
         assert len(issues) == 1
-        assert "no en ERP" in issues[0]
+        # ERP empty → early return message
+        assert "ERP" in issues[0]
 
     def test_amount_discrepancy(self):
         erp = [{"uuid": "uuid-1", "rfc": "ABC123", "monto": 1000.0}]

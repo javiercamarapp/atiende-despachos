@@ -516,3 +516,6 @@ class ReportesService:
             + list(self._cash_flows.keys())
             + list(self._profit_losses.keys())
         ))
+
+# Alias for backward compatibility
+ReportesGerencialesService = ReportesService
