@@ -304,6 +304,25 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
 .reveal-delay-3{transition-delay:.3s}
 .reveal-delay-4{transition-delay:.4s}
 
+/* INTEGRATIONS */
+.integrations{background:var(--bg2)}
+.integrations .sec-head{margin-bottom:40px}
+.int-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+.int-category{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px 24px;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s}
+.int-category:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+.int-category h3{font-size:.92rem;font-weight:700;color:var(--ink);margin-bottom:16px;text-transform:uppercase;letter-spacing:.04em}
+.int-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)}
+.int-item:last-child{border-bottom:none}
+.int-item .name{font-size:.92rem;font-weight:500;color:var(--ink)}
+.int-item .check{color:var(--ok);font-weight:700;font-size:.9rem}
+.int-item .soon{font-size:.72rem;font-weight:600;color:var(--muted);background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;white-space:nowrap}
+@media(max-width:720px){
+  .int-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:480px){
+  .int-grid{grid-template-columns:1fr}
+}
+
 /* RESPONSIVE */
 @media(max-width:720px){
   .nav-links{display:none;position:absolute;top:66px;left:0;right:0;flex-direction:column;gap:4px;background:rgba(255,255,255,.98);border-bottom:1px solid var(--line);padding:12px 24px 18px;box-shadow:var(--shadow-sm)}
@@ -694,6 +713,59 @@ footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-s
         <ul><li>IVA desglosado por concepto</li><li>Catálogos SAT actualizados</li><li>Flags de revisión humana</li></ul></div>
       <div class="feature reveal reveal-delay-2"><div class="ico">🏷️</div><h3>Clasificación contable</h3><p>Clasifica el gasto (operativo, inversión, activo fijo, nómina) con confianza y razón explicada.</p></div>
       <div class="feature reveal reveal-delay-3"><div class="ico">🔒</div><h3>Multi-tenant y auditoría</h3><p>Aislamos datos por despacho y registramos cada llamada de cada tool. Trazabilidad total.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- INTEGRATIONS -->
+<section class="integrations" id="integraciones">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag">Integraciones</span>
+      <h2>Se conecta con lo que ya usas</h2>
+      <p>Likida se integra con los ERPs, bancos y sistemas fiscales más usados en México</p>
+    </div>
+    <div class="int-grid">
+      <!-- SAT & Fiscal -->
+      <div class="int-category reveal">
+        <h3>🏛️ SAT & Fiscal</h3>
+        <div class="int-item"><span class="name">CFDI 4.0</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">Cancelación de CFDI</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">DIOT</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">Contabilidad Electrónica</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">Dictamen Fiscal</span><span class="soon">próximo</span></div>
+      </div>
+      <!-- ERPs -->
+      <div class="int-category reveal reveal-delay-1">
+        <h3>💻 ERPs</h3>
+        <div class="int-item"><span class="name">CONTPAQi</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">Aspel</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">QuickBooks</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">Xero</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">Peak</span><span class="soon">próximo</span></div>
+      </div>
+      <!-- Bancos -->
+      <div class="int-category reveal reveal-delay-2">
+        <h3>🏦 Bancos</h3>
+        <div class="int-item"><span class="name">BBVA</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">Banorte</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">Santander</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">HSBC</span><span class="soon">próximo</span></div>
+      </div>
+      <!-- Nómina -->
+      <div class="int-category reveal reveal-delay-3">
+        <h3>👥 Nómina</h3>
+        <div class="int-item"><span class="name">CFDI Nómina 1.2</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">IMSS</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">INFONAVIT</span><span class="check">✓</span></div>
+      </div>
+      <!-- Otros -->
+      <div class="int-category reveal reveal-delay-4" style="grid-column: span 2">
+        <h3>🔗 Otros</h3>
+        <div class="int-item"><span class="name">Excel / Google Sheets</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">Email (Gmail, Outlook)</span><span class="check">✓</span></div>
+        <div class="int-item"><span class="name">WhatsApp Business</span><span class="check">✓</span></div>
+      </div>
     </div>
   </div>
 </section>
