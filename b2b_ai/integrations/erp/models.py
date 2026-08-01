@@ -18,9 +18,18 @@ class ERPType(str, Enum):
     """Tipos de ERP soportados."""
     CONTPAQi_WEB = "contpaqi_web"
     CONTPAQi_DESKTOP = "contpaqi_desktop"
+    CONTPAQi_ONE = "contpaqi_one"
     ASPEL_CLOUD = "aspel_cloud"
     QUICKBOOKS_ONLINE = "quickbooks_online"
+    QUICKBOOKS_DESKTOP = "quickbooks_desktop"
     XERO = "xero"
+    PEAK = "peak"
+    MULTILEG = "multileg"
+    EUROWEB = "euroweb"
+    ABSIS = "absis"
+    FACTOR_D = "factor_d"
+    TAXKO = "taxko"
+    FACTURADIRECTA = "facturadirecta"
     GENERIC = "generic"
 
 
