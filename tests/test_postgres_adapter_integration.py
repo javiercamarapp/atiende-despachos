@@ -722,11 +722,15 @@ class TestGracefulFallback:
     def test_pg_health_check_failure(self):
         """health_check returns ok=False on broken connection."""
         adapter = _make_pg_adapter()
-        # Make __enter__ raise to simulate broken connection
-        broken_conn = MagicMock()
-        broken_conn.__enter__ = Mock(side_effect=Exception("connection refused"))
-        broken_conn.__exit__ = Mock(return_value=False)
-        adapter._local = MagicMock()
+        # Use a real thread-local so _released defaults to False
+        import threading
+        adapter._local = threading.local()
+        # Build a PGConnection whose cursor.execute raises
+        broken_raw = MagicMock()
+        broken_cursor = MagicMock()
+        broken_cursor.execute.side_effect = Exception("connection refused")
+        broken_raw.cursor.return_value = broken_cursor
+        broken_conn = PGConnection(broken_raw)
         adapter._local.conn = broken_conn
         result = adapter.health_check()
         assert result["ok"] is False
