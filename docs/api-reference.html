@@ -1,0 +1,2167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B&amp;B AI Enterprise — API Reference</title>
+<style>
+  :root {
+    --primary: #1a56db;
+    --primary-light: #e8f0fe;
+    --primary-dark: #0d3bb8;
+    --accent: #2563eb;
+    --bg: #ffffff;
+    --bg-alt: #f8fafc;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --success: #16a34a;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --info: #0891b2;
+    --code-bg: #0f172a;
+    --code-text: #e2e8f0;
+    --sidebar-w: 280px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.6;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: var(--sidebar-w);
+    background: var(--bg-alt);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px 0;
+    z-index: 100;
+    transition: transform .3s;
+  }
+  .sidebar-header {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .sidebar-header h2 {
+    font-size: 18px;
+    color: var(--primary);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sidebar-header .version {
+    font-size: 11px;
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
+  .sidebar-header p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .nav-group {
+    padding: 0 12px;
+    margin-bottom: 8px;
+  }
+  .nav-group-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    padding: 8px 8px 4px;
+    font-weight: 700;
+  }
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all .15s;
+  }
+  .nav-link:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+  .nav-link .method {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    min-width: 36px;
+    text-align: center;
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+  .method-get    { background: #dbeafe; color: #1d4ed8; }
+  .method-post   { background: #dcfce7; color: #15803d; }
+  .method-put    { background: #fef3c7; color: #b45309; }
+  .method-patch  { background: #e0e7ff; color: #4338ca; }
+  .method-delete { background: #fee2e2; color: #b91c1c; }
+
+  /* ── Main Content ── */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .topbar h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .topbar .badges { display: flex; gap: 8px; }
+  .badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .badge-blue  { background: var(--primary-light); color: var(--primary); }
+  .badge-green { background: #dcfce7; color: var(--success); }
+
+  .content {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px;
+  }
+
+  /* ── Sections ── */
+  .section {
+    margin-bottom: 64px;
+  }
+  .section-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--primary);
+    display: inline-block;
+  }
+  .section-subtitle {
+    font-size: 15px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+
+  .subsection {
+    margin-bottom: 48px;
+  }
+  .subsection-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .subsection-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    line-height: 1.7;
+  }
+
+  /* ── Endpoint card ── */
+  .endpoint {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: box-shadow .2s;
+  }
+  .endpoint:hover {
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+  .endpoint-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--bg-alt);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .endpoint-header .method-badge {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 5px;
+    text-transform: uppercase;
+    font-family: 'SF Mono', Monaco, monospace;
+    min-width: 52px;
+    text-align: center;
+  }
+  .endpoint-header .path {
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .endpoint-header .summary {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .endpoint-body {
+    padding: 20px;
+  }
+  .endpoint-body h4 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+  .endpoint-body h4:first-child { margin-top: 0; }
+
+  .param-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .param-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--bg-alt);
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .param-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .param-table code {
+    font-size: 12px;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--primary-dark);
+  }
+  .param-required {
+    color: var(--danger);
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .param-optional {
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  /* ── Code blocks ── */
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 16px 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 8px 0 16px;
+  }
+  pre .curl-cmd { color: #94a3b8; }
+  pre .curl-flag { color: #7dd3fc; }
+  pre .curl-string { color: #86efac; }
+  pre .curl-url { color: #fbbf24; }
+  pre .json-key { color: #93c5fd; }
+  pre .json-string { color: #86efac; }
+  pre .json-number { color: #fbbf24; }
+  pre .json-bool { color: #c084fc; }
+
+  .code-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+
+  /* ── Info boxes ── */
+  .info-box {
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    font-size: 14px;
+    line-height: 1.7;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .info-box .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .info-box-blue  { background: #eff6ff; border-left: 4px solid var(--accent); }
+  .info-box-green { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .info-box-yellow { background: #fffbeb; border-left: 4px solid var(--warning); }
+  .info-box-red   { background: #fef2f2; border-left: 4px solid var(--danger); }
+
+  /* ── Tables ── */
+  .error-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 16px 0;
+  }
+  .error-table th {
+    text-align: left;
+    padding: 10px 16px;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .error-table th:first-child { border-radius: 8px 0 0 0; }
+  .error-table th:last-child { border-radius: 0 8px 0 0; }
+  .error-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .error-table tr:nth-child(even) { background: var(--bg-alt); }
+  .error-table code {
+    font-size: 13px;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* ── Auth example ── */
+  .auth-flow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .auth-step {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .auth-step .step-num {
+    width: 32px; height: 32px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  .auth-step h4 { font-size: 14px; margin-bottom: 6px; }
+  .auth-step p { font-size: 12px; color: var(--text-muted); }
+
+  /* ── Tag colors ── */
+  .tag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; margin-right: 4px; }
+  .tag-crm { background: #fce7f3; color: #be185d; }
+  .tag-invoices { background: #dbeafe; color: #1d4ed8; }
+  .tag-collections { background: #fef3c7; color: #92400e; }
+  .tag-billing { background: #d1fae5; color: #065f46; }
+  .tag-reports { background: #e0e7ff; color: #3730a3; }
+  .tag-sat { background: #ccfbf1; color: #0f766e; }
+  .tag-portal { background: #f3e8ff; color: #7c3aed; }
+  .tag-auth { background: #fee2e2; color: #991b1b; }
+  .tag-contabilidad { background: #fef9c3; color: #854d0e; }
+  .tag-reconciliation { background: #ccfbf1; color: #0f766e; }
+  .tag-notifications { background: #e0f2fe; color: #075985; }
+  .tag-billing { background: #dcfce7; color: #166534; }
+  .tag-enterprise { background: #f1f5f9; color: #334155; }
+  .tag-webhooks { background: #fef3c7; color: #92400e; }
+  .tag-outreach { background: #fce7f3; color: #9d174d; }
+  .tag-onboarding { background: #e0e7ff; color: #3730a3; }
+
+  /* ── Mobile ── */
+  .menu-toggle {
+    display: none;
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .menu-toggle { display: block; }
+    .content { padding: 20px; }
+    .topbar { padding: 12px 20px; }
+    .endpoint-header .summary { display: none; }
+  }
+
+  /* ── Scrollbar ── */
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h2>⚡ B&amp;B AI <span class="version">v1.0</span></h2>
+    <p>Enterprise API Reference</p>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Getting Started</div>
+    <a href="#overview" class="nav-link">Overview</a>
+    <a href="#authentication" class="nav-link">Authentication</a>
+    <a href="#rate-limiting" class="nav-link">Rate Limiting</a>
+    <a href="#errors" class="nav-link">Error Codes</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Core API</div>
+    <a href="#leads" class="nav-link"><span class="method method-post">POST</span> Leads</a>
+    <a href="#invoices" class="nav-link"><span class="method method-get">GET</span> Invoices</a>
+    <a href="#stats" class="nav-link"><span class="method method-get">GET</span> Stats</a>
+    <a href="#tools" class="nav-link"><span class="method method-get">GET</span> Tools</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Collections</div>
+    <a href="#collections" class="nav-link"><span class="method method-post">POST</span> Cobranza</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Billing</div>
+    <a href="#billing" class="nav-link"><span class="method method-post">POST</span> Facturación</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Reports</div>
+    <a href="#reports" class="nav-link"><span class="method method-get">GET</span> Reportes PDF</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">SAT Integration</div>
+    <a href="#sat" class="nav-link"><span class="method method-post">POST</span> SAT</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Accounting</div>
+    <a href="#contabilidad" class="nav-link"><span class="method method-get">GET</span> Contabilidad</a>
+    <a href="#reconciliation" class="nav-link"><span class="method method-post">POST</span> Conciliación</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Portal</div>
+    <a href="#portal" class="nav-link"><span class="method method-get">GET</span> Portal</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Auth (JWT)</div>
+    <a href="#auth-jwt" class="nav-link"><span class="method method-post">POST</span> Auth JWT</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Notifications</div>
+    <a href="#notifications" class="nav-link"><span class="method method-post">POST</span> Notificaciones</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Enterprise (v2)</div>
+    <a href="#enterprise" class="nav-link"><span class="method method-get">GET</span> Enterprise v2</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Other</div>
+    <a href="#webhooks" class="nav-link"><span class="method method-post">POST</span> Webhooks</a>
+    <a href="#outreach" class="nav-link"><span class="method method-post">POST</span> Outreach</a>
+    <a href="#onboarding" class="nav-link"><span class="method method-get">GET</span> Onboarding</a>
+    <a href="#system" class="nav-link"><span class="method method-get">GET</span> System</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">OpenAPI</div>
+    <a href="#openapi-spec" class="nav-link">OpenAPI 3.1 Spec</a>
+  </div>
+</aside>
+
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰ Menu</button>
+      <h1>B&amp;B AI Enterprise API</h1>
+    </div>
+    <div class="badges">
+      <span class="badge badge-blue">OpenAPI 3.1</span>
+      <span class="badge badge-green">REST</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══════════ OVERVIEW ══════════ -->
+    <div class="section" id="overview">
+      <h2 class="section-title">Overview</h2>
+      <p class="section-subtitle">The B&amp;B AI Enterprise API powers automated accounting, CFDI processing, collections, billing, and SAT integration for Mexican accounting firms (despachos contables).</p>
+
+      <div class="info-box info-box-blue">
+        <span class="icon">📍</span>
+        <div>
+          <strong>Base URL (Production):</strong><br>
+          <code>https://api.b2b-ai.local/api/v1</code><br><br>
+          <strong>Base URL (Development):</strong><br>
+          <code>http://localhost:8000/api/v1</code>
+        </div>
+      </div>
+
+      <div class="info-box info-box-green">
+        <span class="icon">🔑</span>
+        <div>
+          <strong>Quick Start:</strong> All <code>/api/v1/*</code> endpoints require an API key in the <code>X-API-Key</code> header. The <code>/api/v1/leads</code> endpoint is public (no auth needed).
+        </div>
+      </div>
+
+      <p style="margin-top:16px;font-size:14px;color:var(--text-muted)">
+        The API follows RESTful conventions. Request bodies use JSON. Responses always include a top-level object.
+        Pagination uses <code>limit</code> query parameter (max 1000).
+        Multi-tenant isolation is enforced: your API key can only access your tenant's data.
+      </p>
+    </div>
+
+    <!-- ══════════ AUTHENTICATION ══════════ -->
+    <div class="section" id="authentication">
+      <h2 class="section-title">Authentication</h2>
+      <p class="section-subtitle">Two authentication methods: API Key (service-level) and JWT (user-level for portal).</p>
+
+      <h3 style="font-size:18px;margin-bottom:12px">API Key Authentication</h3>
+      <p style="font-size:14px;margin-bottom:16px">
+        Send your API key in the <code>X-API-Key</code> header with every request. API keys are tied to a specific tenant — you can only access data belonging to that tenant.
+      </p>
+
+      <div class="code-label">Request Header</div>
+<pre>X-API-Key: <span class="curl-string">your-secret-api-key-here</span></pre>
+
+      <div class="code-label">Example: List Invoices</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+     <span class="curl-url">https://api.b2b-ai.local/api/v1/invoices</span></pre>
+
+      <div class="code-label">Response (200)</div>
+<pre>{
+  <span class="json-key">"count"</span>: <span class="json-number">42</span>,
+  <span class="json-key">"tenant_id"</span>: <span class="json-number">1</span>,
+  <span class="json-key">"invoices"</span>: [...]
+}</pre>
+
+      <h3 style="font-size:18px;margin:24px 0 12px">JWT Authentication (Portal)</h3>
+      <p style="font-size:14px;margin-bottom:16px">
+        The client portal uses JWT tokens. First register/login to get tokens, then use the Bearer token.
+      </p>
+
+      <div class="auth-flow">
+        <div class="auth-step">
+          <div class="step-num">1</div>
+          <h4>Register / Login</h4>
+          <p><code>POST /api/v1/auth/login</code> with email + password</p>
+        </div>
+        <div class="auth-step">
+          <div class="step-num">2</div>
+          <h4>Get Tokens</h4>
+          <p>Receive <code>access_token</code> + <code>refresh_token</code></p>
+        </div>
+        <div class="auth-step">
+          <div class="step-num">3</div>
+          <h4>Use Token</h4>
+          <p>Send <code>Authorization: Bearer &lt;token&gt;</code></p>
+        </div>
+        <div class="auth-step">
+          <div class="step-num">4</div>
+          <h4>Refresh</h4>
+          <p><code>POST /api/v1/auth/refresh</code> when expired</p>
+        </div>
+      </div>
+
+      <div class="code-label">JWT Login</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"email": "user@despacho.mx", "password": "secret123", "tenant_id": 1}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/auth/login</span></pre>
+
+      <div class="code-label">Response (200)</div>
+<pre>{
+  <span class="json-key">"user"</span>: {<span class="json-key">"id"</span>: <span class="json-number">1</span>, <span class="json-key">"email"</span>: <span class="json-string">"user@despacho.mx"</span>, <span class="json-key">"role"</span>: <span class="json-string">"admin"</span>},
+  <span class="json-key">"access_token"</span>: <span class="json-string">"eyJhbGciOiJIUzI1NiIs..."</span>,
+  <span class="json-key">"refresh_token"</span>: <span class="json-string">"eyJhbGciOiJIUzI1NiIs..."</span>,
+  <span class="json-key">"tenant_id"</span>: <span class="json-number">1</span>
+}</pre>
+    </div>
+
+    <!-- ══════════ RATE LIMITING ══════════ -->
+    <div class="section" id="rate-limiting">
+      <h2 class="section-title">Rate Limiting</h2>
+      <p class="section-subtitle">Protected endpoints are rate-limited per IP + route on a sliding window.</p>
+
+      <div class="info-box info-box-yellow">
+        <span class="icon">⚡</span>
+        <div>
+          <strong>Default limit:</strong> 300 requests per minute per (IP, route) combination.<br>
+          <strong>Exempt paths:</strong> <code>/health</code>, <code>/metrics</code>, <code>/static</code>, <code>/docs</code>, <code>/openapi.json</code>, <code>/redoc</code>, <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/sw.js</code>, <code>/manifest.json</code>, <code>/favicon.ico</code>
+        </div>
+      </div>
+
+      <p style="font-size:14px;margin:12px 0">
+        Configure via environment: <code>B2B_RATE_LIMIT_PER_MIN=300</code> (default). Set to <code>0</code> or <code>B2B_RATE_LIMIT=off</code> to disable.
+      </p>
+
+      <div class="code-label">Rate Limit Exceeded Response (429)</div>
+<pre>{
+  <span class="json-key">"detail"</span>: <span class="json-string">"Demasiadas peticiones. Intenta en un minuto."</span>
+}</pre>
+
+      <p style="font-size:14px;margin-top:8px">
+        The <code>Retry-After</code> header indicates when you can retry (in seconds).
+      </p>
+    </div>
+
+    <!-- ══════════ ERROR CODES ══════════ -->
+    <div class="section" id="errors">
+      <h2 class="section-title">Error Codes</h2>
+      <p class="section-subtitle">Standard HTTP status codes used across all endpoints.</p>
+
+      <table class="error-table">
+        <thead>
+          <tr><th>Code</th><th>Status</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>200</code></td><td>OK</td><td>Request succeeded. Response body contains the result.</td></tr>
+          <tr><td><code>400</code></td><td>Bad Request</td><td>Invalid request body, missing parameters, or malformed input.</td></tr>
+          <tr><td><code>401</code></td><td>Unauthorized</td><td>Missing or invalid API key / JWT token. Check your <code>X-API-Key</code> header.</td></tr>
+          <tr><td><code>403</code></td><td>Forbidden</td><td>Valid credentials but insufficient permissions (e.g., accessing another tenant's data).</td></tr>
+          <tr><td><code>404</code></td><td>Not Found</td><td>Resource does not exist (invoice, user, report, etc.).</td></tr>
+          <tr><td><code>409</code></td><td>Conflict</td><td>Resource already exists (e.g., duplicate email registration).</td></tr>
+          <tr><td><code>422</code></td><td>Unprocessable Entity</td><td>Validation error: invalid CFDI, bad period format, missing required fields.</td></tr>
+          <tr><td><code>429</code></td><td>Too Many Requests</td><td>Rate limit exceeded. Wait for <code>Retry-After</code> header value.</td></tr>
+          <tr><td><code>500</code></td><td>Internal Error</td><td>Unexpected server error. Contact support if persistent.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="info-box info-box-red">
+        <span class="icon">⚠️</span>
+        <div>
+          <strong>CFDI Processing Errors:</strong> When uploading an invalid CFDI XML, the API returns <code>422</code> with a detail message like <code>"CFDI inválido: ..."</code> explaining the parsing/validation failure.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ LEADS ══════════ -->
+    <div class="section" id="leads">
+      <h2 class="section-title">Leads</h2>
+      <p class="section-subtitle">Capture leads from your landing page. Public endpoint — no API key required.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/leads</span>
+          <span class="summary">Register a lead from landing page</span>
+        </div>
+        <div class="endpoint-body">
+          <h4>Request Body (JSON)</h4>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>nombre</code></td><td>string</td><td><span class="param-required">required</span></td><td>Full name</td></tr>
+              <tr><td><code>email</code></td><td>string</td><td><span class="param-required">required</span></td><td>Email address</td></tr>
+              <tr><td><code>despacho</code></td><td>string</td><td><span class="param-optional">optional</span></td><td>Accounting firm name</td></tr>
+              <tr><td><code>facturas</code></td><td>string</td><td><span class="param-optional">optional</span></td><td>Monthly invoice volume</td></tr>
+              <tr><td><code>mensaje</code></td><td>string</td><td><span class="param-optional">optional</span></td><td>Additional message</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "nombre": "María García",
+    "email": "maria@despacho.mx",
+    "despacho": "Despacho García & Asociados",
+    "facturas": "500+",
+    "mensaje": "Buscamos automatizar facturación"
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/leads</span></pre>
+
+          <div class="code-label">Response (200)</div>
+<pre>{
+  <span class="json-key">"ok"</span>: <span class="json-bool">true</span>,
+  <span class="json-key">"lead_id"</span>: <span class="json-number">42</span>,
+  <span class="json-key">"message"</span>: <span class="json-string">"Lead registrado. Te contactamos en menos de 24h."</span>
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ INVOICES ══════════ -->
+    <div class="section" id="invoices">
+      <h2 class="section-title">Invoices</h2>
+      <p class="section-subtitle">Process, list, and query CFDI invoices. The core of the B&amp;B AI pipeline.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/invoices/process</span>
+          <span class="summary">Process a CFDI XML through the full pipeline</span>
+        </div>
+        <div class="endpoint-body">
+          <p style="font-size:14px;margin-bottom:12px">
+            Accepts CFDI files as <strong>multipart upload</strong> (field <code>xml_file</code>) or JSON with <code>xml_path</code>.
+            Returns validation, classification, ERP poliza, and invoice ID.
+          </p>
+
+          <div class="code-label">curl — Multipart Upload</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-F</span> <span class="curl-string">"xml_file=@factura_electronica.xml"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/invoices/process</span></pre>
+
+          <div class="code-label">Response (200)</div>
+<pre>{
+  <span class="json-key">"result"</span>: {
+    <span class="json-key">"archivo"</span>: <span class="json-string">"factura_electronica.xml"</span>,
+    <span class="json-key">"valido"</span>: <span class="json-bool">true</span>,
+    <span class="json-key">"requires_human_review"</span>: <span class="json-bool">false</span>,
+    <span class="json-key">"categoria"</span>: <span class="json-string">"gasto-operativo"</span>,
+    <span class="json-key">"confianza"</span>: <span class="json-number">0.95</span>,
+    <span class="json-key">"erp_poliza"</span>: <span class="json-string">"P-2026-001"</span>,
+    <span class="json-key">"erp_status"</span>: <span class="json-string">"created"</span>,
+    <span class="json-key">"insertado"</span>: <span class="json-bool">true</span>,
+    <span class="json-key">"total"</span>: <span class="json-number">15250.00</span>,
+    <span class="json-key">"emisor"</span>: <span class="json-string">"PROV850101XY2"</span>,
+    <span class="json-key">"notificacion"</span>: <span class="json-string">"sent"</span>
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/invoices</span>
+          <span class="summary">List invoices with filters</span>
+        </div>
+        <div class="endpoint-body">
+          <h4>Query Parameters</h4>
+          <table class="param-table">
+            <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>tenant_id</code></td><td>int</td><td>—</td><td>Filter by tenant (service key only)</td></tr>
+              <tr><td><code>categoria</code></td><td>string</td><td>—</td><td>Category filter (e.g., "gasto-operativo")</td></tr>
+              <tr><td><code>valido</code></td><td>bool</td><td>—</td><td>Filter by validation status</td></tr>
+              <tr><td><code>fecha_desde</code></td><td>string</td><td>—</td><td>Start date (YYYY-MM-DD)</td></tr>
+              <tr><td><code>fecha_hasta</code></td><td>string</td><td>—</td><td>End date (YYYY-MM-DD)</td></tr>
+              <tr><td><code>limit</code></td><td>int</td><td>100</td><td>Max results (1-1000)</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">"https://api.b2b-ai.local/api/v1/invoices?categoria=gasto-operativo&limit=50"</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/invoices/{invoice_id}</span>
+          <span class="summary">Get invoice detail by ID</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/invoices/42</span></pre>
+
+          <div class="code-label">Response (200)</div>
+<pre>{
+  <span class="json-key">"invoice"</span>: {
+    <span class="json-key">"id"</span>: <span class="json-number">42</span>,
+    <span class="json-key">"folio_fiscal"</span>: <span class="json-string">"a1b2c3d4-e5f6-7890-abcd-ef1234567890"</span>,
+    <span class="json-key">"fecha"</span>: <span class="json-string">"2026-07-15"</span>,
+    <span class="json-key">"emisor_rfc"</span>: <span class="json-string">"PROV850101XY2"</span>,
+    <span class="json-key">"emisor_nombre"</span>: <span class="json-string">"Proveedor XYZ SA de CV"</span>,
+    <span class="json-key">"total"</span>: <span class="json-number">15250.00</span>,
+    <span class="json-key">"iva"</span>: <span class="json-number">2440.00</span>,
+    <span class="json-key">"categoria"</span>: <span class="json-string">"gasto-operativo"</span>,
+    <span class="json-key">"valido"</span>: <span class="json-bool">true</span>,
+    <span class="json-key">"requires_human_review"</span>: <span class="json-bool">false</span>
+  }
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ STATS ══════════ -->
+    <div class="section" id="stats">
+      <h2 class="section-title">Stats &amp; Tools</h2>
+      <p class="section-subtitle">Aggregated metrics and registered tools.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/stats</span>
+          <span class="summary">Aggregated metrics by category</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/stats</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint" id="tools">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/tools</span>
+          <span class="summary">List registered agent tools</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/tools</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ COLLECTIONS ══════════ -->
+    <div class="section" id="collections">
+      <h2 class="section-title">Collections (Cobranza)</h2>
+      <p class="section-subtitle">Automated accounts receivable management — aging analysis, collectability scoring, and payment reminders.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/collections/analyze</span>
+          <span class="summary">Analyze pending receivables</span>
+        </div>
+        <div class="endpoint-body">
+          <p style="font-size:14px;margin-bottom:12px">
+            Classifies invoices by aging bucket (0-30, 31-60, 61-90, 90+ days) and computes collectability scores.
+          </p>
+
+          <h4>Request Body</h4>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>invoices</code></td><td>array</td><td>Array of invoice objects with <code>factura_id</code>, <code>monto</code>, <code>fecha_vencimiento</code></td></tr>
+              <tr><td><code>sync</code></td><td>bool</td><td>Persist to <code>outstanding_invoices</code> table (default: false)</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "invoices": [
+      {"factura_id": "FAC-001", "monto": 50000, "fecha_vencimiento": "2026-06-01"},
+      {"factura_id": "FAC-002", "monto": 25000, "fecha_vencimiento": "2026-07-10"}
+    ],
+    "sync": true
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/collections/analyze</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/collections/send-reminder</span>
+          <span class="summary">Generate payment reminder</span>
+        </div>
+        <div class="endpoint-body">
+          <h4>Request Body</h4>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>invoice</code></td><td>object</td><td>Invoice data (required)</td></tr>
+              <tr><td><code>stage</code></td><td>string</td><td>Reminder stage: "friendly", "warning", "final", "legal"</td></tr>
+              <tr><td><code>channel</code></td><td>string</td><td>"email" (default) or "whatsapp"</td></tr>
+              <tr><td><code>record</code></td><td>bool</td><td>Record event in DB (default: true)</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "invoice": {"factura_id": "FAC-001", "monto": 50000},
+    "stage": "friendly",
+    "channel": "email",
+    "record": true
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/collections/send-reminder</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/collections/aging</span>
+          <span class="summary">Aging report for persisted receivables</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/collections/aging</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/collections/score/{invoice_id}</span>
+          <span class="summary">Collectability score for an invoice</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/collections/score/FAC-001</span></pre>
+
+          <div class="code-label">Response (200)</div>
+<pre>{
+  <span class="json-key">"factura_id"</span>: <span class="json-string">"FAC-001"</span>,
+  <span class="json-key">"monto"</span>: <span class="json-number">50000.0</span>,
+  <span class="json-key">"dias_vencido"</span>: <span class="json-number">62</span>,
+  <span class="json-key">"score"</span>: <span class="json-number">0.45</span>,
+  <span class="json-key">"historial"</span>: []
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ BILLING ══════════ -->
+    <div class="section" id="billing">
+      <h2 class="section-title">Billing (Facturación)</h2>
+      <p class="section-subtitle">Payment processing via Stripe or Conekta — checkout, subscriptions, and plan management.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/billing/plans</span>
+          <span class="summary">List available plans and pricing</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/billing/plans</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/billing/checkout</span>
+          <span class="summary">Initiate checkout and process payment</span>
+        </div>
+        <div class="endpoint-body">
+          <h4>Request Body</h4>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>plan</code></td><td>string</td><td>Plan key (e.g., "starter", "pro")</td></tr>
+              <tr><td><code>email</code></td><td>string</td><td>Customer email</td></tr>
+              <tr><td><code>name</code></td><td>string</td><td>Customer name</td></tr>
+              <tr><td><code>currency</code></td><td>string</td><td>"MXN" (default)</td></tr>
+              <tr><td><code>payment_method_type</code></td><td>string</td><td>"card", "spei", "oxxo"</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "plan": "pro",
+    "email": "admin@despacho.mx",
+    "name": "Despacho García",
+    "currency": "MXN",
+    "payment_method_type": "card"
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/billing/checkout</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/billing/subscription</span>
+          <span class="summary">Create or activate a subscription</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"plan": "pro", "email": "admin@despacho.mx", "name": "Despacho García"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/billing/subscription</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/billing/invoices</span>
+          <span class="summary">List billing invoices for tenant</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/billing/invoices?limit=50</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/billing/webhook</span>
+          <span class="summary">Receive payment provider events</span>
+        </div>
+        <div class="endpoint-body">
+          <p style="font-size:14px">Webhook endpoint for Stripe/Conekta event delivery. Verifies HMAC signature before processing.</p>
+          <div class="code-label">curl Example (test event)</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"event_type": "payment.paid", "data": {"invoice_id": "inv_123"}, "provider": "stripe"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/billing/webhook</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ REPORTS ══════════ -->
+    <div class="section" id="reports">
+      <h2 class="section-title">Reports (Reportes PDF)</h2>
+      <p class="section-subtitle">Generate and download PDF reports — invoices, monthly summaries, reconciliation, anomalies, and tax reports.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/reports/{report_type}/{period}</span>
+          <span class="summary">Generate a PDF report for a period</span>
+        </div>
+        <div class="endpoint-body">
+          <p style="font-size:14px;margin-bottom:12px">
+            Report types: <code>invoices</code>, <code>monthly</code>, <code>reconciliation</code>, <code>anomaly</code>, <code>tax</code>.<br>
+            Period format: <code>YYYY-MM</code> (e.g., <code>2026-07</code>).
+          </p>
+
+          <div class="code-label">curl Examples</div>
+<pre><span class="curl-cmd"># Monthly summary</span>
+<span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reports/monthly/2026-07</span> \
+  <span class="curl-flag">-o</span> <span class="curl-string">resumen_julio.pdf</span>
+
+<span class="curl-cmd"># Tax report</span>
+<span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reports/tax/2026-07</span> \
+  <span class="curl-flag">-o</span> <span class="curl-string">reporte_fiscal.pdf</span>
+
+<span class="curl-cmd"># Anomaly report</span>
+<span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reports/anomaly/2026-07</span> \
+  <span class="curl-flag">-o</span> <span class="curl-string">anomalias.pdf</span></pre>
+
+          <div class="info-box info-box-blue">
+            <span class="icon">💡</span>
+            <div>Response includes <code>X-Report-Id</code> header. Use it to re-download the same report later.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/reports/{report_id}/download</span>
+          <span class="summary">Download a previously generated report</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reports/a1b2c3d4e5f6/download</span> \
+  <span class="curl-flag">-o</span> <span class="curl-string">reporte.pdf</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/reports/custom</span>
+          <span class="summary">Generate a custom report from JSON data</span>
+        </div>
+        <div class="endpoint-body">
+          <h4>Request Body</h4>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>data</code></td><td>object</td><td>Report data (title, kpis, table, chart)</td></tr>
+              <tr><td><code>template</code></td><td>string</td><td>Template name: "custom_report", "monthly", etc.</td></tr>
+              <tr><td><code>as_html</code></td><td>bool</td><td>Return HTML instead of PDF (default: false)</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "data": {"title": "Reporte Ejecutivo Q3", "period": "2026-Q3"},
+    "template": "custom_report"
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reports/custom</span> \
+  <span class="curl-flag">-o</span> <span class="curl-string">ejecutivo.pdf</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ SAT ══════════ -->
+    <div class="section" id="sat">
+      <h2 class="section-title">SAT Integration</h2>
+      <p class="section-subtitle">Download, verify, and schedule CFDI operations with Mexico's SAT (tax authority). Mock transport — no real e.firma required.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/sat/download</span>
+          <span class="summary">Bulk download CFDI by date range</span>
+        </div>
+        <div class="endpoint-body">
+          <h4>Request Body</h4>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>rfc</code></td><td>string</td><td>RFC del contribuyente (optional if configured)</td></tr>
+              <tr><td><code>ciec</code></td><td>string</td><td>CIEC password (optional if configured)</td></tr>
+              <tr><td><code>fecha_inicio</code></td><td>string</td><td>Start date (YYYY-MM-DD)</td></tr>
+              <tr><td><code>fecha_fin</code></td><td>string</td><td>End date (YYYY-MM-DD)</td></tr>
+              <tr><td><code>tipo</code></td><td>string</td><td>"emitidas" (default) or "recibidas"</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "fecha_inicio": "2026-01-01",
+    "fecha_fin": "2026-07-31",
+    "tipo": "emitidas"
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/sat/download</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/sat/verify</span>
+          <span class="summary">Verify CFDI status and tax chain</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"folio_fiscal": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/sat/verify</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/sat/status</span>
+          <span class="summary">SAT session and scheduler status</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/sat/status</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/sat/schedule</span>
+          <span class="summary">Schedule daily download / weekly verification</span>
+        </div>
+        <div class="endpoint-body">
+          <h4>Request Body</h4>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>rfc</code></td><td>string</td><td>RFC (optional if configured)</td></tr>
+              <tr><td><code>ciec</code></td><td>string</td><td>CIEC password (optional if configured)</td></tr>
+              <tr><td><code>frequency</code></td><td>string</td><td>"daily", "weekly", or "both"</td></tr>
+              <tr><td><code>tipo</code></td><td>string</td><td>"emitidas" or "recibidas"</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"frequency": "daily", "tipo": "emitidas"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/sat/schedule</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ CONTABILIDAD ══════════ -->
+    <div class="section" id="contabilidad">
+      <h2 class="section-title">Contabilidad Electrónica</h2>
+      <p class="section-subtitle">Chart of accounts, journal entries, trial balance, and SAT electronic accounting packages.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/contabilidad/catalogo</span>
+          <span class="summary">Import chart of accounts</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "rfc": "DESP820101AB1",
+    "cuentas": [
+      {"codigo": "100.01.01", "descripcion": "Caja", "nivel": 4, "naturaleza": "deudora"},
+      {"codigo": "200.01.01", "descripcion": "Proveedores", "nivel": 4, "naturaleza": "acreedora"}
+    ]
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/contabilidad/catalogo</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/contabilidad/catalogo</span>
+          <span class="summary">List chart of accounts</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/contabilidad/catalogo</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/contabilidad/asientos</span>
+          <span class="summary">Record a journal entry</span>
+        </div>
+        <div class="endpoint-body">
+          <h4>Request Body</h4>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>fecha</code></td><td>string</td><td>Entry date (YYYY-MM-DD)</td></tr>
+              <tr><td><code>cuenta_debito</code></td><td>string</td><td>Debit account code</td></tr>
+              <tr><td><code>cuenta_credito</code></td><td>string</td><td>Credit account code</td></tr>
+              <tr><td><code>monto</code></td><td>string</td><td>Amount (> 0)</td></tr>
+              <tr><td><code>descripcion</code></td><td>string</td><td>Description</td></tr>
+              <tr><td><code>factura_id</code></td><td>string</td><td>Related invoice ID (optional)</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "fecha": "2026-07-15",
+    "cuenta_debito": "500.01.01",
+    "cuenta_credito": "200.01.01",
+    "monto": "15250.00",
+    "descripcion": "Servicios profesionales proveedor XYZ"
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/contabilidad/asientos</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/contabilidad/balanza/{periodo}</span>
+          <span class="summary">Generate trial balance for month</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/contabilidad/balanza/2026-07</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/contabilidad/balanza/{periodo}</span>
+          <span class="summary">Download trial balance as XML</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/contabilidad/balanza/2026-07?rfc=DESP820101AB1</span> \
+  <span class="curl-flag">-o</span> <span class="curl-string">balanza_julio.xml</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/contabilidad/electronica/{periodo}</span>
+          <span class="summary">Generate electronic accounting package</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"rfc": "DESP820101AB1", "razon_social": "Despacho B&B"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/contabilidad/electronica/2026-07</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/contabilidad/electronica/{periodo}/download</span>
+          <span class="summary">Download electronic accounting XML for SAT</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">"https://api.b2b-ai.local/api/v1/contabilidad/electronica/2026-07/download?rfc=DESP820101AB1"</span> \
+  <span class="curl-flag">-o</span> <span class="curl-string">contabilidad_electronica.xml</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ RECONCILIATION ══════════ -->
+    <div class="section" id="reconciliation">
+      <h2 class="section-title">Bank Reconciliation (Conciliación)</h2>
+      <p class="section-subtitle">Upload bank statements, auto-match transactions with invoices, and generate reconciliation reports.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/reconciliation/upload</span>
+          <span class="summary">Upload a bank statement (CSV/PDF)</span>
+        </div>
+        <div class="endpoint-body">
+          <p style="font-size:14px;margin-bottom:12px">
+            Supported banks: <code>bbva</code>, <code>banorte</code>, <code>santander</code>, <code>hsbc</code>, <code>generico</code>
+          </p>
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-F</span> <span class="curl-string">"file=@estado_cuenta_bbva.csv"</span> \
+  <span class="curl-flag">-F</span> <span class="curl-string">"bank=bbva"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reconciliation/upload</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/reconciliation/matches</span>
+          <span class="summary">Auto-calculated matches with confidence scores</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reconciliation/matches</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/reconciliation/confirm</span>
+          <span class="summary">Manually confirm a transaction-invoice match</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"transaction_id": "TXN-001", "invoice_id": "INV-42"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reconciliation/confirm</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/reconciliation/report</span>
+          <span class="summary">Reconciliation summary report</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reconciliation/report</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/reconcile/run</span>
+          <span class="summary">Execute bank reconciliation (legacy)</span>
+        </div>
+        <div class="endpoint-body">
+          <h4>Request Body</h4>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>invoices</code></td><td>array</td><td>Invoice data for matching</td></tr>
+              <tr><td><code>bank_transactions</code></td><td>array</td><td>Bank transaction data</td></tr>
+              <tr><td><code>date_tolerance_days</code></td><td>int</td><td>Date tolerance (default: 3)</td></tr>
+            </tbody>
+          </table>
+
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "invoices": [{"folio_fiscal": "abc-123", "total": 15250, "fecha": "2026-07-15"}],
+    "bank_transactions": [{"monto": 15250, "fecha": "2026-07-17", "ref": "SPEI-001"}],
+    "date_tolerance_days": 3
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/reconcile/run</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ PORTAL ══════════ -->
+    <div class="section" id="portal">
+      <h2 class="section-title">Client Portal</h2>
+      <p class="section-subtitle">Server-rendered HTML pages for client self-service. Uses cookie-based sessions and JSON APIs.</p>
+
+      <div class="info-box info-box-blue">
+        <span class="icon">🌐</span>
+        <div>
+          The portal uses two auth methods: <strong>cookie-based sessions</strong> (HTML pages) and <strong>JWT Bearer tokens</strong> (JSON API endpoints). Both authenticate against the same user database.
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/portal/auth/login</span>
+          <span class="summary">Authenticate and get portal session</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"email": "cliente@despacho.mx", "password": "secret123"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/portal/auth/login</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/portal/invoices.json</span>
+          <span class="summary">List invoices (JSON API)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"Authorization: Bearer eyJhbGci..."</span> \
+  <span class="curl-url">https://api.b2b-ai.local/portal/invoices.json</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/portal/invoices/upload</span>
+          <span class="summary">Upload invoices via browser</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Authorization: Bearer eyJhbGci..."</span> \
+  <span class="curl-flag">-F</span> <span class="curl-string">"xml_file=@factura1.xml"</span> \
+  <span class="curl-flag">-F</span> <span class="curl-string">"xml_file=@factura2.xml"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/portal/invoices/upload</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/portal/invoices/{job_or_id}/status</span>
+          <span class="summary">Check processing status</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"Authorization: Bearer eyJhbGci..."</span> \
+  <span class="curl-url">https://api.b2b-ai.local/portal/invoices/job-abc123/status</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/portal/dashboard/stats</span>
+          <span class="summary">Portal dashboard metrics</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"Authorization: Bearer eyJhbGci..."</span> \
+  <span class="curl-url">https://api.b2b-ai.local/portal/dashboard/stats</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/portal/invoices/export.csv</span>
+          <span class="summary">Export invoices to CSV</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"Authorization: Bearer eyJhbGci..."</span> \
+  <span class="curl-url">https://api.b2b-ai.local/portal/invoices/export.csv</span> \
+  <span class="curl-flag">-o</span> <span class="curl-string">facturas.csv</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ AUTH JWT ══════════ -->
+    <div class="section" id="auth-jwt">
+      <h2 class="section-title">Auth (JWT + RBAC)</h2>
+      <p class="section-subtitle">Multi-tenant user management with JWT tokens and role-based access control.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/auth/register</span>
+          <span class="summary">Register a new user</span>
+        </div>
+        <div class="endpoint-body">
+          <p style="font-size:14px;margin-bottom:12px">
+            First user of a tenant is automatically set as <code>admin</code>. Subsequent registrations require an authenticated admin.
+          </p>
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "email": "nuevo@despacho.mx",
+    "password": "securePass123",
+    "tenant_id": 1,
+    "role": "contador",
+    "name": "Juan Pérez"
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/auth/register</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/auth/login</span>
+          <span class="summary">Login → JWT tokens</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"email": "nuevo@despacho.mx", "password": "securePass123", "tenant_id": 1}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/auth/login</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/auth/me</span>
+          <span class="summary">Get current user info</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"Authorization: Bearer eyJhbGci..."</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/auth/me</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/tenants/{tenant_id}/users</span>
+          <span class="summary">List tenant users (admin only)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"Authorization: Bearer eyJhbGci..."</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/tenants/1/users</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/tenants/{tenant_id}/users</span>
+          <span class="summary">Create user in tenant (admin only)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Authorization: Bearer eyJhbGci..."</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"email": "analista@despacho.mx", "password": "pass123", "name": "Ana López", "role": "analista"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/tenants/1/users</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-put">PUT</span>
+          <span class="path">/api/v1/tenants/{tenant_id}/users/{user_id}/role</span>
+          <span class="summary">Change user role (admin only)</span>
+        </div>
+        <div class="endpoint-body">
+          <p style="font-size:14px;margin-bottom:12px">Roles: <code>admin</code>, <code>contador</code>, <code>analista</code>, <code>viewer</code></p>
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X PUT</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Authorization: Bearer eyJhbGci..."</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"role": "admin"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/tenants/1/users/42/role</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ NOTIFICATIONS ══════════ -->
+    <div class="section" id="notifications">
+      <h2 class="section-title">Notifications</h2>
+      <p class="section-subtitle">WhatsApp and email notifications — send, configure, and track delivery.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/notifications/send</span>
+          <span class="summary">Send WhatsApp notification</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "recipient": "+525512345678",
+    "message": "Tu factura ha sido procesada exitosamente.",
+    "type": "whatsapp"
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/notifications/send</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/notifications/email</span>
+          <span class="summary">Send email notification</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "to": "cliente@despacho.mx",
+    "subject": "Resumen mensual de facturas",
+    "body": "Se procesaron 42 facturas por un total de $580,000 MXN."
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/notifications/email</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/notifications/history</span>
+          <span class="summary">Notification delivery history</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/notifications/history?limit=50</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/notifications/config</span>
+          <span class="summary">Configure WhatsApp for tenant</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{
+    "recipient": "+525512345678",
+    "whatsapp_token": "your-meta-token",
+    "whatsapp_phone_number_id": "123456789",
+    "notif_channel": "whatsapp"
+  }'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/notifications/config</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ ENTERPRISE V2 ══════════ -->
+    <div class="section" id="enterprise">
+      <h2 class="section-title">Enterprise (API v2)</h2>
+      <p class="section-subtitle">Advanced features: batch processing, analytics, data export, tenant management, and data retention.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v2/batch</span>
+          <span class="summary">Process up to 1000 CFDI in batch</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-F</span> <span class="curl-string">"xml_file=@factura1.xml"</span> \
+  <span class="curl-flag">-F</span> <span class="curl-string">"xml_file=@factura2.xml"</span> \
+  <span class="curl-flag">-F</span> <span class="curl-string">"xml_file=@factura3.xml"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v2/batch</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v2/batch/{job_id}</span>
+          <span class="summary">Check batch job status</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v2/batch/job-abc123</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v2/analytics</span>
+          <span class="summary">Advanced tenant analytics</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v2/analytics</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v2/usage</span>
+          <span class="summary">Tenant usage (calls, invoices)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v2/usage</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v2/export</span>
+          <span class="summary">Export data to CSV/XLSX/PDF</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"format": "xlsx", "resource": "invoices", "period": "2026-07"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v2/export</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v2/audit</span>
+          <span class="summary">Full audit trail</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v2/audit?limit=100</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v2/tenants</span>
+          <span class="summary">List tenants with usage (admin)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v2/tenants</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v2/retention/purge</span>
+          <span class="summary">Apply data retention policy (admin)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v2/retention/purge</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ WEBHOOKS ══════════ -->
+    <div class="section" id="webhooks">
+      <h2 class="section-title">Webhooks</h2>
+      <p class="section-subtitle">Inbound and outbound webhook management — email processing, result delivery, and retry.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/webhooks/email</span>
+          <span class="summary">Receive invoices via email (mock Mailgun/SendGrid)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"sender": "proveedor@empresa.mx", "attachments": ["factura.xml"]}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/webhooks/email</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/webhooks/subscriptions</span>
+          <span class="summary">Register webhook URL for tenant</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"url": "https://mi-sistema.com/webhook/b2b-ai", "events": ["invoice.processed", "invoice.anomaly"]}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/webhooks/subscriptions</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/webhooks/notify</span>
+          <span class="summary">Deliver invoice result to tenant webhook</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"invoice_id": 42, "event": "invoice.processed"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/webhooks/notify</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ OUTREACH ══════════ -->
+    <div class="section" id="outreach">
+      <h2 class="section-title">Outreach</h2>
+      <p class="section-subtitle">Automated B2B outbound email campaigns — leads, scoring, and tracking.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/outreach/campaigns</span>
+          <span class="summary">Launch an email campaign</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"name": "Julio 2026 - Despachos", "template": "onboarding", "leads": [1,2,3]}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/outreach/campaigns</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="path">/api/v1/outreach/send</span>
+          <span class="summary">Send a single outreach email</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X POST</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"to": "prospecto@despacho.mx", "subject": "Automatiza tu facturación", "body": "..."}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/outreach/send</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/outreach/leads</span>
+          <span class="summary">List outreach leads</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/outreach/leads</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/outreach/lead-score/{lead_id}</span>
+          <span class="summary">Lead engagement score</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/outreach/lead-score/42</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ ONBOARDING ══════════ -->
+    <div class="section" id="onboarding">
+      <h2 class="section-title">Onboarding</h2>
+      <p class="section-subtitle">Wizard-based tenant onboarding — step-by-step setup with readiness scoring.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/onboarding/steps</span>
+          <span class="summary">List all onboarding wizard steps</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/onboarding/steps</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-put">PUT</span>
+          <span class="path">/api/v1/onboarding/step/{step}</span>
+          <span class="summary">Submit an onboarding step</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-X PUT</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-flag">-H</span> <span class="curl-string">"Content-Type: application/json"</span> \
+  <span class="curl-flag">-d</span> <span class="curl-string">'{"name": "Despacho García", "rfc": "DESP820101AB1", "erp_type": "contpaqi"}'</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/onboarding/step/company</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/api/v1/onboarding/status</span>
+          <span class="summary">Onboarding progress + readiness score</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-flag">-H</span> <span class="curl-string">"X-API-Key: your-api-key"</span> \
+  <span class="curl-url">https://api.b2b-ai.local/api/v1/onboarding/status</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ SYSTEM ══════════ -->
+    <div class="section" id="system">
+      <h2 class="section-title">System &amp; Monitoring</h2>
+      <p class="section-subtitle">Health checks, metrics, and operational endpoints. All public and rate-limit exempt.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/health</span>
+          <span class="summary">Basic health check</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">Response (200)</div>
+<pre>{
+  <span class="json-key">"status"</span>: <span class="json-string">"ok"</span>,
+  <span class="json-key">"service"</span>: <span class="json-string">"b2b-ai"</span>,
+  <span class="json-key">"version"</span>: <span class="json-string">"1.0.0"</span>,
+  <span class="json-key">"backend"</span>: <span class="json-string">"sqlite"</span>,
+  <span class="json-key">"invoices"</span>: <span class="json-number">1247</span>,
+  <span class="json-key">"tenants"</span>: <span class="json-number">12</span>,
+  <span class="json-key">"uptime_seconds"</span>: <span class="json-number">86400</span>
+}</pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/health/detailed</span>
+          <span class="summary">Detailed health (DB, Redis, disk, memory)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-url">https://api.b2b-ai.local/health/detailed</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/metrics</span>
+          <span class="summary">Operational metrics</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-url">https://api.b2b-ai.local/metrics</span></pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="path">/metrics/prometheus</span>
+          <span class="summary">Prometheus metrics (text format)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-label">curl Example</div>
+<pre><span class="curl-cmd">curl</span> <span class="curl-url">https://api.b2b-ai.local/metrics/prometheus</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ OPENAPI SPEC ══════════ -->
+    <div class="section" id="openapi-spec">
+      <h2 class="section-title">OpenAPI 3.1 Specification</h2>
+      <p class="section-subtitle">The complete machine-readable API specification.</p>
+
+      <div class="info-box info-box-green">
+        <span class="icon">📄</span>
+        <div>
+          Download the full OpenAPI 3.1 spec: <a href="openapi.json" style="color:var(--primary);font-weight:600">openapi.json</a><br>
+          Auto-generated Swagger UI: <a href="/docs" style="color:var(--primary);font-weight:600">/docs</a> &nbsp;|&nbsp;
+          ReDoc: <a href="/redoc" style="color:var(--primary);font-weight:600">/redoc</a>
+        </div>
+      </div>
+
+      <div class="code-label">Quick Import into Postman</div>
+<pre>1. Open Postman → Import → Link
+2. Paste: <span class="curl-url">https://api.b2b-ai.local/openapi.json</span>
+3. Postman auto-generates the full collection</pre>
+
+      <div class="code-label">Generate Client SDK</div>
+<pre><span class="curl-cmd"># Python</span>
+pip install openapi-python-client
+openapi-python-client generate --url https://api.b2b-ai.local/openapi.json
+
+<span class="curl-cmd"># TypeScript</span>
+npx @openapitools/openapi-generator-cli generate \
+  -i https://api.b2b-ai.local/openapi.json \
+  -g typescript-fetch -o ./sdk</pre>
+    </div>
+
+    <!-- ══════════ FOOTER ══════════ -->
+    <div style="text-align:center;padding:40px 0;border-top:1px solid var(--border);margin-top:40px">
+      <p style="font-size:14px;color:var(--text-muted)">
+        B&amp;B AI Enterprise API Reference &mdash; v1.0<br>
+        <a href="mailto:ventas@b2b-ai.local" style="color:var(--primary)">ventas@b2b-ai.local</a>
+      </p>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// Close sidebar on mobile when clicking a link
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', () => {
+    if (window.innerWidth <= 900) {
+      document.getElementById('sidebar').classList.remove('open');
+    }
+  });
+});
+</script>
+
+</body>
+</html>

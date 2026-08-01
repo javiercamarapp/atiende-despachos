@@ -95,7 +95,8 @@ class TestParser:
     Version="4.0" Serie="D" Folio="1" Fecha="2026-07-01T10:00:00"
     FormaPago="03" MetodoPago="PUE" Moneda="MXN"
     TipoDeComprobante="I" Exportacion="01"
-    LugarExpedicion="06600" SubTotal="1000.00" Total="1160.00">
+    LugarExpedicion="06600" SubTotal="1000.00" Total="1160.00"
+    Sello="ABC123DEF456" NoCertificado="30001000000500003418" Certificado="MIIFuz...">
   <cfdi:Emisor Rfc="ABC850101AB1" Nombre="Empresa SA" RegimenFiscal="601"/>
   <cfdi:Receptor Rfc="XYZ010101AAA" Nombre="Cliente SA" DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="G03"/>
   <cfdi:Conceptos>
@@ -506,7 +507,7 @@ class TestValidator:
 
     def test_nomina_sin_percepciones_warning(self):
         d = self._valid_datos()
-        d["nomina"] = {}
+        d["nomina"] = {"tipo_nomina": "O"}  # non-empty but no total_percepciones
         r = validate_cfdi(d)
         assert any("TotalPercepciones" in w for w in r["warnings"])
 
