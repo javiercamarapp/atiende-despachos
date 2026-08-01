@@ -431,6 +431,10 @@ def _safe_float(v: Any) -> float:
     """Convert to float tolerantly."""
     if v is None or v == "":
         return 0.0
+    # Booleans must be handled before str() conversion because
+    # str(True) == "True" which float() cannot parse.
+    if isinstance(v, bool):
+        return 1.0 if v else 0.0
     try:
         return float(str(v).replace(",", "").replace("$", "").strip())
     except (TypeError, ValueError):

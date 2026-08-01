@@ -1458,3 +1458,46 @@ class TestRegressionBugfixes:
         data = {"count": 1, "entity_type": "volume", "entity_id": "vol-zero-test"}
         alerts = evaluate_rules(data, rules=[rule])
         assert len(alerts) == 1
+
+
+# ---------------------------------------------------------------------------
+# Regression: Pydantic id empty-string → None
+# ---------------------------------------------------------------------------
+
+class TestEmptyIdConversion:
+    """Regression: passing id="" to AlertRule or Alert must yield id=None,
+    never a blank-string ID in the resulting entity."""
+
+    def test_alert_rule_empty_id_becomes_none(self):
+        rule = AlertRule(id="", name="test", type=AlertType.THRESHOLD)
+        assert rule.id is None
+
+    def test_alert_empty_id_becomes_none(self):
+        alert = Alert(id="")
+        assert alert.id is None
+
+    def test_alert_rule_valid_id_preserved(self):
+        rule = AlertRule(id="rule-123", name="test", type=AlertType.THRESHOLD)
+        assert rule.id == "rule-123"
+
+    def test_alert_valid_id_preserved(self):
+        alert = Alert(id="alert-456")
+        assert alert.id == "alert-456"
+
+    def test_alert_rule_none_id_stays_none(self):
+        rule = AlertRule(name="test", type=AlertType.THRESHOLD)
+        assert rule.id is None
+
+    def test_alert_none_id_stays_none(self):
+        alert = Alert()
+        assert alert.id is None
+
+    def test_alert_rule_empty_name_field_unaffected(self):
+        """name is NOT covered by the id validator — empty string stays."""
+        rule = AlertRule(id="r1", name="", type=AlertType.THRESHOLD)
+        assert rule.name == ""
+
+    def test_alert_empty_rule_id_field_unchanged(self):
+        """rule_id on Alert is NOT covered by the validator."""
+        alert = Alert(id="a1", rule_id="")
+        assert alert.rule_id == ""

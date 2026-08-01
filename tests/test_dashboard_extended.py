@@ -1015,3 +1015,34 @@ class TestPaginationEdgeCases:
         result = svc.get_client_list(search="ZZZZZ_NOTEXIST")
         assert result["total"] == 0
         assert result["clients"] == []
+
+
+# ---------------------------------------------------------------------------
+# Regression: _safe_float bool handling
+# ---------------------------------------------------------------------------
+
+class TestSafeFloatBoolHandling:
+    """Regression: _safe_float must convert booleans to 0.0/1.0,
+    not raise ValueError (str(True) == "True" which float() rejects)."""
+
+    def test_bool_true_returns_1_0(self):
+        assert _safe_float(True) == 1.0
+
+    def test_bool_false_returns_0_0(self):
+        assert _safe_float(False) == 0.0
+
+    def test_bool_is_exactly_float(self):
+        result = _safe_float(True)
+        assert isinstance(result, float)
+        assert result == 1.0
+
+    def test_none_still_returns_0_0(self):
+        assert _safe_float(None) == 0.0
+
+    def test_empty_string_still_returns_0_0(self):
+        assert _safe_float("") == 0.0
+
+    def test_normal_numbers_unaffected(self):
+        assert _safe_float(42) == 42.0
+        assert _safe_float("3.14") == 3.14
+        assert _safe_float("$1,000") == 1000.0

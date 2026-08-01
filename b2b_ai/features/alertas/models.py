@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +117,14 @@ class AlertRule(BaseModel):
     )
     created_at: Optional[str] = Field(default=None, description="Creation timestamp")
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def _empty_id_to_none(cls, v: Any) -> Any:
+        """Convert empty-string IDs to None so entities never carry blank IDs."""
+        if v == "":
+            return None
+        return v
+
 
 class Alert(BaseModel):
     """A single alert instance produced by the engine."""
@@ -175,6 +183,14 @@ class Alert(BaseModel):
         default=None,
         description="User who dismissed the alert",
     )
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _empty_id_to_none(cls, v: Any) -> Any:
+        """Convert empty-string IDs to None so alerts never carry blank IDs."""
+        if v == "":
+            return None
+        return v
 
 
 class AlertConfig(BaseModel):
