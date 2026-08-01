@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Módulo de integración ERP — CONTPAQi, Aspel, QuickBooks, Xero, Peak, Multileg, Euroweb, Absis, Factor D, Taxko, FacturaDirecta."""
+"""Modulo de integracion ERP — CONTPAQi, Aspel, QuickBooks, Xero, Peak, Multileg, Euroweb, Absis, Factor D, Taxko, FacturaDirecta."""
 
 from b2b_ai.integrations.erp.adapter import ERPAdapter, ERPAdapterError
+from b2b_ai.integrations.erp.http_client import (
+    ERPAPIError, ERPAuthError, ERPConnectionError, make_request,
+)
 from b2b_ai.integrations.erp.contpaqi_web import CONTPAQiWebAdapter
 from b2b_ai.integrations.erp.contpaqi_desktop import CONTPAQiDesktopAdapter
 from b2b_ai.integrations.erp.aspel_cloud import AspelCloudAdapter
@@ -30,6 +33,10 @@ from b2b_ai.integrations.erp.models import (
 __all__ = [
     "ERPAdapter",
     "ERPAdapterError",
+    "ERPAPIError",
+    "ERPAuthError",
+    "ERPConnectionError",
+    "make_request",
     "CONTPAQiWebAdapter",
     "CONTPAQiDesktopAdapter",
     "AspelCloudAdapter",
