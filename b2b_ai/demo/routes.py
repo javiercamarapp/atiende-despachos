@@ -10,6 +10,13 @@ Mount with::
 
     from b2b_ai.demo.routes import mount_demo_routes
     mount_demo_routes(app)
+
+New endpoints for enterprise sales:
+    GET  /api/demo/firm          — Full firm data (50 clients, 500 CFDIs)
+    GET  /api/demo/firm/clients  — Client list with details
+    GET  /api/demo/firm/roi      — ROI metrics and KPIs
+    GET  /api/demo/firm/report   — Generate/download PDF report
+    GET  /api/demo/firm/summary  — Executive summary JSON
 """
 from __future__ import annotations
 
@@ -36,6 +43,21 @@ def is_demo_mode() -> bool:
     return os.environ.get("DEMO_MODE", "").strip().lower() in ("1", "true", "yes")
 
 
+# ---------------------------------------------------------------------------
+# Lazy-loaded firm data cache (generated once per session)
+# ---------------------------------------------------------------------------
+_firm_data_cache = None
+
+
+def _get_firm_data():
+    """Generate or return cached firm demo data."""
+    global _firm_data_cache
+    if _firm_data_cache is None:
+        from b2b_ai.demo.firm_generator import generate_demo_firm
+        _firm_data_cache = generate_demo_firm(month="2026-07", seed=42)
+    return _firm_data_cache
+
+
 def mount_demo_routes(app) -> None:
     """Mount all demo routes on the FastAPI app."""
     router = APIRouter(prefix="/api/demo", tags=["demo"])
@@ -57,6 +79,7 @@ def mount_demo_routes(app) -> None:
     @router.get("/status")
     def demo_status():
         """Processing stats in demo mode."""
+        firm = _get_firm_data()
         return {
             "status": "running",
             "mode": "demo",
@@ -66,6 +89,8 @@ def mount_demo_routes(app) -> None:
             "last_processed_at": datetime.now().isoformat(),
             "available_xmls": len(DEMO_CFDI_SAMPLES),
             "results_count": len(DEMO_INVOICES),
+            "firm_clients": len(firm["clients"]),
+            "firm_cfdis": len(firm["cfdis"]),
         }
 
     # ------------------------------------------------------------------ #
@@ -331,6 +356,189 @@ def mount_demo_routes(app) -> None:
                     {"code": "COM", "name": "Comunicaciones y marketing"},
                 ],
             },
+        }
+
+    # ================================================================== #
+    # ENTERPRISE SALES ENDPOINTS (New)
+    # ================================================================== #
+
+    @router.get("/firm", summary="Datos completos de la firma demo.")
+    def demo_firm():
+        """Return full firm data: 50 clients, 500 CFDIs, anomalies, ROI.
+
+        This is the main endpoint for the enterprise sales demo.
+        Returns everything a prospect needs to understand the product.
+        """
+        firm = _get_firm_data()
+        return {
+            "firm": firm["firm"],
+            "client_count": len(firm["clients"]),
+            "cfdi_count": len(firm["cfdis"]),
+            "anomaly_count": len(firm["anomalies"]),
+            "nomina_count": len(firm["nominas"]),
+            "month": firm["month"],
+            "generated_at": firm["generated_at"],
+        }
+
+    @router.get("/firm/clients", summary="Lista de clientes de la firma demo.")
+    def demo_firm_clients(
+        limit: int = Query(default=50, le=100),
+        tamano: Optional[str] = Query(default=None, description="Filtrar por tamaño: pequena, mediana, grande"),
+    ):
+        """Return mock client list for the accounting firm.
+
+        Each client includes: name, RFC, city, industry, size,
+        expected monthly invoices, and monthly subscription fee.
+        """
+        firm = _get_firm_data()
+        clients = firm["clients"][:limit]
+        if tamano:
+            clients = [c for c in clients if c["tamano"] == tamano]
+        return {
+            "count": len(clients),
+            "clients": clients,
+        }
+
+    @router.get("/firm/clients/{client_id}", summary="Detalle de un cliente demo.")
+    def demo_firm_client_detail(client_id: int):
+        """Return a single client with their CFDIs and metrics."""
+        firm = _get_firm_data()
+        client = next((c for c in firm["clients"] if c["id"] == client_id), None)
+        if not client:
+            raise HTTPException(404, "Cliente no encontrado (demo).")
+
+        client_cfdis = [c for c in firm["cfdis"] if c["client_id"] == client_id]
+        total_monto = sum(float(c["total"]) for c in client_cfdis)
+
+        return {
+            "client": client,
+            "cfdis_count": len(client_cfdis),
+            "monto_total": round(total_monto, 2),
+            "anomalies": [a for a in firm["anomalies"] if a.get("client") == client["nombre"]],
+        }
+
+    @router.get("/firm/cfdi", summary="CFDIs de la firma demo.")
+    def demo_firm_cfdis(
+        limit: int = Query(default=100, le=1000),
+        client_id: Optional[int] = Query(default=None),
+        tipo: Optional[str] = Query(default=None),
+    ):
+        """Return generated CFDIs with optional filters.
+
+        Returns a sample of the ~500 CFDIs generated for the demo firm.
+        """
+        firm = _get_firm_data()
+        cfdis = firm["cfdis"]
+        if client_id:
+            cfdis = [c for c in cfdis if c["client_id"] == client_id]
+        if tipo:
+            cfdis = [c for c in cfdis if c["tipo"].lower() == tipo.lower()]
+        return {
+            "count": len(cfdis[:limit]),
+            "total_in_firm": len(firm["cfdis"]),
+            "cfdis": cfdis[:limit],
+        }
+
+    @router.get("/firm/roi", summary="Métricas de ROI de la firma demo.")
+    def demo_firm_roi():
+        """Return ROI metrics, KPIs, and comparative analysis.
+
+        Key metrics:
+        - Hours saved per month (automation vs manual)
+        - Cost savings in MXN
+        - ROI percentage
+        - Payback period
+        - Quality improvement (error rate reduction)
+        """
+        firm = _get_firm_data()
+        return firm["roi_metrics"]
+
+    @router.get("/firm/summary", summary="Resumen ejecutivo de la firma demo.")
+    def demo_firm_summary():
+        """Return executive summary for presentations.
+
+        Includes: KPI cards, top clients, financial overview,
+        and recommendation text suitable for a pitch deck.
+        """
+        from b2b_ai.demo.firm_generator import build_executive_summary
+        firm = _get_firm_data()
+        return build_executive_summary(firm)
+
+    @router.get("/firm/anomalies", summary="Anomalías de la firma demo.")
+    def demo_firm_anomalies(
+        severity: Optional[str] = Query(default=None),
+    ):
+        """Return detected anomalies with optional severity filter."""
+        firm = _get_firm_data()
+        anomalies = firm["anomalies"]
+        if severity:
+            anomalies = [a for a in anomalies if a["severity"] == severity]
+        return {
+            "count": len(anomalies),
+            "anomalies": anomalies,
+        }
+
+    @router.get("/firm/nominas", summary="Nómina de la firma demo.")
+    def demo_firm_nominas():
+        """Return mock payroll data for the firm's employees."""
+        firm = _get_firm_data()
+        return {
+            "periodo": firm["month"],
+            "empleados": len(firm["nominas"]),
+            "nominas": firm["nominas"],
+        }
+
+    @router.get("/firm/report-pdf", summary="Genera reporte PDF de ROI.")
+    def demo_firm_report_pdf():
+        """Generate and return the ROI PDF report.
+
+        The PDF includes:
+        - Executive summary with KPI cards
+        - Detailed ROI metrics (savings, quality, investment)
+        - Top clients table
+        - Anomaly detection results
+        - Conclusions and recommendations
+
+        Returns the PDF as a file download.
+        """
+        import tempfile
+        from fastapi.responses import FileResponse
+
+        firm = _get_firm_data()
+        output_dir = tempfile.mkdtemp(prefix="bbai_report_")
+
+        try:
+            from b2b_ai.demo.report_pdf import generate_roi_report
+            from b2b_ai.demo.firm_generator import build_executive_summary
+
+            summary = build_executive_summary(firm)
+            pdf_path = generate_roi_report(firm, output_dir, summary)
+
+            return FileResponse(
+                path=pdf_path,
+                filename="B&B_AI_Reporte_ROI_Demo.pdf",
+                media_type="application/pdf",
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error generando reporte PDF: {str(e)}",
+            )
+
+    @router.get("/firm/top-proveedores", summary="Top proveedores de la firma demo.")
+    def demo_firm_top_proveedores():
+        """Return top providers by invoice count and amount."""
+        firm = _get_firm_data()
+        return {
+            "proveedores": firm["top_proveedores"],
+        }
+
+    @router.get("/firm/top-giros", summary="Distribución por giro económico.")
+    def demo_firm_top_giros():
+        """Return distribution by economic sector."""
+        firm = _get_firm_data()
+        return {
+            "giros": firm["top_giros"],
         }
 
     app.include_router(router)
