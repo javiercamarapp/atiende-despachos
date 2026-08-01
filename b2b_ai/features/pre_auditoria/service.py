@@ -241,6 +241,45 @@ def generate_audit_report(findings: list[AuditFinding],
     )
 
 
+def check_69b_efos(invoices: list[dict]) -> list[AuditFinding]:
+    """Verifica si algún emisor de CFDI está en la lista definitiva del 69-B CFF.
+
+    CFF art. 69-B: las operaciones amparadas por comprobantes de
+    contribuyentes en la lista definitiva NO producen efecto fiscal
+    alguno (no deducible, IVA no acreditable), salvo acreditamiento
+    de materialidad.
+
+    Recibe una lista de invoices con al menos 'emisor_rfc'.
+    Retorna hallazgos por cada emisor en la lista 69-B.
+    """
+    from b2b_ai.sat.efos_69b import EFOSChecker
+    findings = []
+    checker = EFOSChecker()
+
+    for inv in invoices:
+        emisor_rfc = (inv.get("emisor_rfc") or "").strip().upper()
+        if not emisor_rfc:
+            continue
+        result = checker.check_rfc(emisor_rfc)
+        if result.get("en_lista_69b"):
+            findings.append(AuditFinding(
+                category="emisor_69b_efos",
+                severity=Severity.CRITICAL,
+                description=(
+                    f"El emisor RFC '{emisor_rfc}' está en la lista definitiva "
+                    "del art. 69-B CFF (EFOS). Las operaciones amparadas por "
+                    "sus comprobantes no producen efecto fiscal (no deducible, "
+                    "IVA no acreditable) salvo acreditamiento de materialidad."
+                ),
+                recommendation=(
+                    "Verificar materialidad de la operación (CFF art. 69-B "
+                    "tercer y cuarto párrafo). Si no se acredita, la "
+                    "deducción y el acreditamiento son inexistentes."
+                ),
+            ))
+    return findings
+
+
 def run_pre_audit(tenant_id: int,
                    period: str,
                    invoices: Optional[list[dict]] = None,
@@ -273,6 +312,10 @@ def run_pre_audit(tenant_id: int,
     # 3) Compliance CFF
     if cff_data:
         all_findings.extend(check_cff_compliance(cff_data))
+
+    # 4) Verificación 69-B EFOS (CFF art. 69-B)
+    if invoices:
+        all_findings.extend(check_69b_efos(invoices))
 
     report = generate_audit_report(
         findings=all_findings,

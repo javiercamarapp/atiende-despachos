@@ -135,6 +135,10 @@ class Database:
     def _pg_conn(self):
         """Conexión PostgreSQL del hilo actual, checada del pool compartido."""
         conn = getattr(self._local, "conn", None)
+        # Detect stale connection released by __exit__ or close()
+        if conn is not None and getattr(conn, "_released", False):
+            self._local.conn = None
+            conn = None
         if conn is None:
             pool = _get_pg_pool(self.path)
             conn = pool.connection()

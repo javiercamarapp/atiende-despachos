@@ -489,6 +489,52 @@ class DeclaracionesService(ManualProcessMixin):
         """
         return self._apply_isr_table(ingresos, ISR_TABLE_ANNUAL)
 
+    def calculate_dual_isr(
+        self,
+        ingresos_anuales: float,
+        deducciones_anuales: float = 0.0,
+        pagos_provisionales_acumulados: float = 0.0,
+    ) -> Dict[str, Any]:
+        """Calcula ISR dual: provisional mensual + definitivo anual.
+
+        CFF Art. 81-86: El contribuyente que perciba ingresos por salarios
+        está obligado a presentar declaración anual (Art. 96 LISR).
+
+        El ISR anual definitivo = ISR anual sobre ingresos anuales gravables
+        menos la suma de ISR provisional mensual ya retenido por el patrón.
+
+        Args:
+            ingresos_anuales: Ingresos anuales gravables
+            deducciones_anuales: Deducciones personales anuales
+            pagos_provisionales_acumulados: Suma de provisionales mensuales
+
+        Returns:
+            Dict con isr_anual_total, isr_provisional_acumulado,
+            isr_definitivo, saldo_a_favor, saldo_contra
+        """
+        utilidad = round(ingresos_anuales - deducciones_anuales, 2)
+        isr_anual = self._calculate_isr_annual(max(0, utilidad))
+
+        isr_definitivo = round(max(0, isr_anual - pagos_provisionales_acumulados), 2)
+
+        saldo_favor = 0.0
+        saldo_contra = 0.0
+        if pagos_provisionales_acumulados > isr_anual:
+            saldo_favor = round(pagos_provisionales_acumulados - isr_anual, 2)
+        elif isr_anual > pagos_provisionales_acumulados:
+            saldo_contra = isr_definitivo
+
+        return {
+            "isr_anual_total": round(isr_anual, 2),
+            "isr_provisional_acumulado": round(pagos_provisionales_acumulados, 2),
+            "isr_definitivo": round(isr_definitivo, 2),
+            "utilidad": utilidad,
+            "saldo_a_favor": saldo_favor,
+            "saldo_contra": saldo_contra,
+            "referencia_legal": "CFF Art. 81-86, LISR Art. 96",
+            "requires_human_review": saldo_contra > 0,
+        }
+
     def _apply_isr_table(
         self,
         taxable_income: float,
