@@ -17,7 +17,8 @@ class TestDec:
     def test_commas(self):
         # _dec in report.py doesn't strip commas (only the reconcile module does)
         # "1,234.56" fails Decimal conversion -> returns 0
-        assert _dec("1234.56") == 1234.56
+        from decimal import Decimal
+        assert _dec("1234.56") == Decimal("1234.56")
 
 
 class TestPeriodo:
