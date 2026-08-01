@@ -1217,6 +1217,16 @@ def create_app(db=None):
         app.mount("/static", StaticFiles(directory=LANDING_DIR),
                   name="landing-static")
 
+    # ------------------------------------------------------------------ #
+    # Demo mode — cuando DEMO_MODE=true, montar rutas mock para prospects
+    # ------------------------------------------------------------------ #
+    from b2b_ai.demo.routes import is_demo_mode, mount_demo_routes
+    if is_demo_mode():
+        mount_demo_routes(app)
+        import logging as _demo_logging
+        _demo_logging.getLogger("b2b_ai").info(
+            "🎭 Demo mode ACTIVO — /api/demo/* mock endpoints habilitados.")
+
     return app
 
 
