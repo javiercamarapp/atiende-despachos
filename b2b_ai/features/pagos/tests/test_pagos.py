@@ -28,14 +28,6 @@ def _pagos_xml(forma_pago="03", moneda="MXN", monto="5000",
 
     rfc_ord = rfc_ordenante or cfdi_rfc
 
-    dr_block = ""
-    if con_docto:
-        dr_block = f'''
-      <pagos:DoctoRelacionado IdDocumento="a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-        MonedaDR="MXN" MetodoDePagoDR="PUE"
-        ImpSaldoAnt="{saldo_ant}" ImpPagado="{imp_pagado}" ImpSaldoInsoluto="{saldo_insoluto}"
-        ObjetoImpDR="01"/>'''
-
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4">',
@@ -44,12 +36,21 @@ def _pagos_xml(forma_pago="03", moneda="MXN", monto="5000",
         '    <pagos:Pagos xmlns:pagos="http://www.sat.gob.mx/pagos" Version="1.1">',
         f'      <pagos:Pago FechaPago="2025-01-15" FormaPagoP="{forma_pago}"',
         f'        MonedaP="{moneda}" Monto="{monto}"{tc_line}',
-        f'        RfcEmisorCtaOrd="{rfc_ord}"/>',
-        dr_block,
+        f'        RfcEmisorCtaOrd="{rfc_ord}">',
+    ]
+    if con_docto:
+        lines.append(
+            f'        <pagos:DoctoRelacionado IdDocumento="a1b2c3d4-e5f6-7890-abcd-ef1234567890"'
+            f' MonedaDR="MXN" MetodoDePagoDR="PUE"'
+            f' ImpSaldoAnt="{saldo_ant}" ImpPagado="{imp_pagado}" ImpSaldoInsoluto="{saldo_insoluto}"'
+            f' ObjetoImpDR="01"/>'
+        )
+    lines.extend([
+        '      </pagos:Pago>',
         '    </pagos:Pagos>',
         '  </cfdi:Complemento>',
         '</cfdi:Comprobante>',
-    ]
+    ])
     return "\n".join(lines).encode()
 
 
@@ -169,7 +170,6 @@ class TestPagosValidators:
 
     def test_tipo_cadena_pago_valid(self):
         data = parse_pagos_bytes(_pagos_xml())
-        # Set tipo_cad_pago on the pago
         data.pagos[0].tipo_cad_pago = "01"
         errors = validate_tipo_cadena_pago(data)
         assert errors == []

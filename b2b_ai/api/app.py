@@ -112,7 +112,7 @@ from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
                                  encrypt_field, decrypt_field)
 from b2b_ai.auth.api import build_auth_router
-from b2b_ai.auth.middleware import check_jwt_config
+from b2b_ai.auth.middleware import check_jwt_config, _is_dev_env
 from b2b_ai.monitoring.logger import (get_logger as get_structured_logger,
                                       request_context)
 from b2b_ai.monitoring.metrics import metrics as prom_metrics
@@ -453,7 +453,7 @@ def create_app(db=None):
     # Without it, encrypt_field() degrades to plaintext — acceptable in dev
     # but a serious risk in production where PII / secrets are stored.
     _enc_key = os.environ.get("B2B_ENCRYPTION_KEY", "").strip()
-    if not _enc_key or len(_enc_key) < 16:
+    if (not _enc_key or len(_enc_key) < 16) and not _is_dev_env():
         raise RuntimeError(
             "B2B_ENCRYPTION_KEY is not set or too short (< 16 chars). "
             "AES-GCM encryption at rest requires this key. "
@@ -658,9 +658,9 @@ def create_app(db=None):
                                  media_type="text/plain; version=0.0.4; charset=utf-8")
 
     @app.get("/health/detailed")
-    def health_detailed():
+    def health_detailed(auth_info: dict = Depends(require_api_key)):
         """Estado detallado del servicio: DB, Redis, disco, memoria, uptime.
-        Público y exento de rate-limit. `status` es "ok" o "degraded"; los
+        Requiere API key. `status` es "ok" o "degraded"; los
         componentes en falla se listan en `degraded_components`."""
         prom_metrics.set_tenant_usage(db.get_all_usage())
         return build_health_detailed(db, actual_backend="postgresql" if db._is_pg else "sqlite")

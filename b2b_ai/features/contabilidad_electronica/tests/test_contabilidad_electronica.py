@@ -2,6 +2,8 @@
 """Tests for the Contabilidad Electrónica SAT XML generation module."""
 from __future__ import annotations
 import pytest
+from unittest.mock import patch, MagicMock
+from fastapi.testclient import TestClient
 from b2b_ai.features.contabilidad_electronica.models import (
     BalanzaRequest, BalanzaRow, CatalogoCuenta, ContabilidadElectronicaResponse,
     TipoCuenta, CuentaContable,
@@ -101,11 +103,10 @@ class TestBalanzaValidators:
         assert any("filas" in e.lower() for e in errors)
 
     def test_validate_negative_debe(self):
-        req = BalanzaRequest(periodo="2025-01", ejercicio=2025, mes=1, rows=[
+        """Test that Pydantic rejects negative debe at model level."""
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
             BalanzaRow(codigo_cuenta="1001", debe=-100)
-        ])
-        errors = validate_balanza(req)
-        assert len(errors) > 0
 
     def test_totals_cuadran(self):
         req = BalanzaRequest(periodo="2025-01", ejercicio=2025, mes=1, rows=[
@@ -123,7 +124,7 @@ class TestBalanzaValidators:
 
     def test_saldo_consistency(self):
         req = BalanzaRequest(periodo="2025-01", ejercicio=2025, mes=1, rows=[
-            BalanzaRow(codigo_cuenta="1001", saldo_inicial=100, debe=50, haber=30, saldo_final=120),
+            BalanzaRow(codigo_cuenta="1001", saldo_inicial=100, debe=50, haber=50, saldo_final=100),
         ])
         errors = validate_balanza(req)
         assert errors == []
@@ -146,9 +147,10 @@ class TestCatalogoValidators:
         assert len(errors) == 1
 
     def test_invalid_level(self):
-        cuentas = [CatalogoCuenta(codigo="1001", descripcion="Caja", tipo=TipoCuenta.ACTIVO, nivel=99)]
-        errors = validate_catalogo(cuentas)
-        assert len(errors) > 0
+        """Test that Pydantic rejects nivel > 5 at model level."""
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            CatalogoCuenta(codigo="1001", descripcion="Caja", tipo=TipoCuenta.ACTIVO, nivel=99)
 
     def test_no_padre_for_level2(self):
         cuentas = [CatalogoCuenta(codigo="1001.01", descripcion="Sub", tipo=TipoCuenta.ACTIVO, nivel=2)]

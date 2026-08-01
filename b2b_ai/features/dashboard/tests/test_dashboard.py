@@ -2,6 +2,7 @@
 """Tests for the Admin Dashboard module."""
 from __future__ import annotations
 import pytest
+from fastapi.testclient import TestClient
 from b2b_ai.features.dashboard.models import (
     ClientSummary, DailyMetric, DashboardOverview, RevenueReport,
     SystemHealth, UsageMetrics,
@@ -103,7 +104,10 @@ class TestDashboardService:
         return db
 
     def test_overview(self):
-        svc = DashboardService(self._mock_db())
+        db = self._mock_db()
+        # Make count_audit(tool_name="error") return 0 so status is healthy
+        db.count_audit.side_effect = lambda tool_name=None: 0 if tool_name else 100
+        svc = DashboardService(db)
         ov = svc.get_dashboard_overview()
         assert ov.total_clients == 2
         assert ov.system_status == "healthy"
@@ -126,7 +130,9 @@ class TestDashboardService:
         assert detail["name"] == "Client A"
 
     def test_client_detail_not_found(self):
-        svc = DashboardService(self._mock_db())
+        db = self._mock_db()
+        db.get_tenant_by_id.return_value = None
+        svc = DashboardService(db)
         assert svc.get_client_detail(999) is None
 
     def test_health(self):
