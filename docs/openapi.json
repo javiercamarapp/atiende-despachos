@@ -6442,47 +6442,21 @@
         ]
       }
     },
-    "/api/v1/reports/{report_type}/{period}": {
+    "/api/v1/reports/{report_id}/download": {
       "get": {
         "tags": [
           "reports"
         ],
-        "summary": "Genera un reporte PDF del periodo (tipo en invoices|monthly|reconciliation|anomaly|tax).",
-        "description": "Genera y devuelve el PDF de un reporte. Cabecera X-Report-Id.",
-        "operationId": "get_report_api_v1_reports__report_type___period__get",
+        "summary": "Descarga un reporte previamente generado por id.",
+        "operationId": "download_report_api_v1_reports__report_id__download_get",
         "parameters": [
           {
-            "name": "report_type",
+            "name": "report_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Report Type"
-            }
-          },
-          {
-            "name": "period",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Period"
-            }
-          },
-          {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Tenant Id"
+              "title": "Report Id"
             }
           },
           {
@@ -6529,21 +6503,47 @@
         ]
       }
     },
-    "/api/v1/reports/{report_id}/download": {
+    "/api/v1/reports/{report_type}/{period}": {
       "get": {
         "tags": [
           "reports"
         ],
-        "summary": "Descarga un reporte previamente generado por id.",
-        "operationId": "download_report_api_v1_reports__report_id__download_get",
+        "summary": "Genera un reporte PDF del periodo (tipo en invoices|monthly|reconciliation|anomaly|tax).",
+        "description": "Genera y devuelve el PDF de un reporte. Cabecera X-Report-Id.",
+        "operationId": "get_report_api_v1_reports__report_type___period__get",
         "parameters": [
           {
-            "name": "report_id",
+            "name": "report_type",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Report Id"
+              "title": "Report Type"
+            }
+          },
+          {
+            "name": "period",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
             }
           },
           {

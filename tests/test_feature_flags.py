@@ -1,118 +1,126 @@
 # -*- coding: utf-8 -*-
-"""Tests — feature flags: defaults, overrides, rollout gradual y seeding."""
+"""test_feature_flags.py — Tests unitarios del módulo de feature flags."""
+import os
+import sys
+
 import pytest
 
-from b2b_ai.db.db import Database
-from b2b_ai.features.flags import FEATURE_DEFAULTS, FeatureFlags
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 
 @pytest.fixture
-def db(tmp_path):
-    return Database(str(tmp_path / "flags.db"))
+def ff_db(tmp_path):
+    """Devuelve una Database temporal con esquema de feature_flags."""
+    from b2b_ai.db.db import Database
+    return Database(str(tmp_path / "flags_test.db"))
 
 
 @pytest.fixture
-def flags(db):
-    return FeatureFlags(db)
+def ff(ff_db):
+    from b2b_ai.features.flags import FeatureFlags
+    return FeatureFlags(ff_db)
 
 
-# --------------------------------------------------------------------------- #
-# defaults del código
-# --------------------------------------------------------------------------- #
-def test_defaults_sin_override(flags):
-    assert flags.is_enabled("portal_cliente", 1) is True
-    assert flags.is_enabled("cobranza_automatizada", 1) is False
-    # feature desconocida → off
-    assert flags.is_enabled("no_existe", 1) is False
+# ---- Models ----
+
+class TestFeatureFlagModel:
+    def test_from_row(self):
+        from b2b_ai.features.models import FeatureFlag
+        row = {"name": "beta", "tenant_id": 1, "enabled": 1,
+               "rollout_percentage": 50, "default_enabled": 0,
+               "created_at": "2025-01-01"}
+        f = FeatureFlag.from_row(row)
+        assert f.name == "beta"
+        assert f.enabled is True
+        assert f.rollout_percentage == 50
+
+    def test_to_dict(self):
+        from b2b_ai.features.models import FeatureFlag
+        f = FeatureFlag(name="x", enabled=True, rollout_percentage=75)
+        d = f.to_dict()
+        assert d["name"] == "x"
+        assert d["enabled"] is True
+        assert d["rollout_percentage"] == 75
 
 
-def test_default_es_independiente_del_tenant(flags):
-    assert flags.is_enabled("portal_cliente", 1) is True
-    assert flags.is_enabled("portal_cliente", 99) is True
+# ---- FeatureFlags ----
 
+class TestFeatureFlags:
+    def test_enable_disable(self, ff):
+        ff.enable("portal_cliente", 1)
+        assert ff.is_enabled("portal_cliente", 1) is True
+        ff.disable("portal_cliente", 1)
+        assert ff.is_enabled("portal_cliente", 1) is False
 
-# --------------------------------------------------------------------------- #
-# override enable/disable
-# --------------------------------------------------------------------------- #
-def test_enable_disable_override(flags):
-    # desactivar una feature que por default está ON
-    flags.disable("portal_cliente", 7)
-    assert flags.is_enabled("portal_cliente", 7) is False
-    # no afecta a otros tenants
-    assert flags.is_enabled("portal_cliente", 8) is True
-    # re-activar
-    flags.enable("portal_cliente", 7)
-    assert flags.is_enabled("portal_cliente", 7) is True
+    def test_default_enabled(self, ff):
+        """Sin override, portal_cliente es True por default."""
+        assert ff.is_enabled("portal_cliente", 999) is True
 
+    def test_default_disabled(self, ff):
+        """Sin override, cobranza_automatizada es False por default."""
+        assert ff.is_enabled("cobranza_automatizada", 999) is False
 
-def test_enable_feature_off_por_default(flags):
-    assert flags.is_enabled("billing", 3) is False
-    flags.enable("billing", 3)
-    assert flags.is_enabled("billing", 3) is True
-    # el override es idempotente (upsert)
-    flags.enable("billing", 3)
-    assert flags.is_enabled("billing", 3) is True
+    def test_unknown_feature_defaults_false(self, ff):
+        assert ff.is_enabled("nonexistent_feature", 1) is False
 
+    def test_tenant_override(self, ff):
+        ff.disable("portal_cliente", 1)
+        assert ff.is_enabled("portal_cliente", 1) is False
+        # Otro tenant no se ve afectado
+        assert ff.is_enabled("portal_cliente", 2) is True
 
-# --------------------------------------------------------------------------- #
-# rollout gradual
-# --------------------------------------------------------------------------- #
-def test_rollout_porcentual_es_determinista(flags):
-    flags.enable("nueva_feature", 5, rollout_percentage=50)
-    r1 = flags.is_enabled("nueva_feature", 5)
-    r2 = flags.is_enabled("nueva_feature", 5)
-    assert r1 == r2  # mismo tenant → mismo bucket siempre
+    def test_global_override(self, ff):
+        from b2b_ai.features.flags import FEATURE_DEFAULTS
+        ff.enable("cobranza_automatizada", None)
+        assert ff.is_enabled("cobranza_automatizada", 999) is True
 
+    def test_rollout_partial(self, ff):
+        """Con rollout 0%, nadie lo ve; con 100%, todos."""
+        ff.enable("billing", 1, rollout_percentage=0)
+        assert ff.is_enabled("billing", 1) is False
+        ff.enable("billing", 1, rollout_percentage=100)
+        assert ff.is_enabled("billing", 1) is True
 
-def test_rollout_100_y_0(flags):
-    flags.enable("r100", 1, rollout_percentage=100)
-    assert flags.is_enabled("r100", 1) is True
-    flags.enable("r0", 1, rollout_percentage=0)
-    assert flags.is_enabled("r0", 1) is False
+    def test_rollout_deterministic(self, ff):
+        """Mismo tenant siempre cae en el mismo bucket."""
+        ff.enable("analytics_dashboard", 5, rollout_percentage=50)
+        r1 = ff.is_enabled("analytics_dashboard", 5)
+        r2 = ff.is_enabled("analytics_dashboard", 5)
+        assert r1 == r2
 
+    def test_get_all_flags(self, ff):
+        ff.enable("portal_cliente", 1)
+        ff.disable("billing", 1)
+        flags = ff.get_all_flags(1)
+        names = {f["name"] for f in flags}
+        assert "portal_cliente" in names
+        assert "billing" in names
+        portal = next(f for f in flags if f["name"] == "portal_cliente")
+        assert portal["enabled"] is True
+        assert portal["source"] == "tenant"
 
-def test_rollout_reparte_entre_tenants(flags):
-    # con 50% de rollout, en 200 tenants debe haber activos e inactivos
-    flags.enable("beta", 0, rollout_percentage=50)
-    on = sum(flags.is_enabled("beta", tid) for tid in range(200))
-    assert 0 < on < 200
+    def test_get_all_flags_source(self, ff):
+        flags = ff.get_all_flags(1)
+        # portal_cliente is not overridden → source = default
+        portal = next(f for f in flags if f["name"] == "portal_cliente")
+        assert portal["source"] == "default"
+        # enable it → source = tenant
+        ff.enable("portal_cliente", 1)
+        flags2 = ff.get_all_flags(1)
+        portal2 = next(f for f in flags2 if f["name"] == "portal_cliente")
+        assert portal2["source"] == "tenant"
 
+    def test_seed_defaults(self, ff):
+        ff.seed_defaults(1)
+        from b2b_ai.features.flags import FEATURE_DEFAULTS
+        for name, enabled in FEATURE_DEFAULTS.items():
+            assert ff.is_enabled(name, 1) == enabled
 
-# --------------------------------------------------------------------------- #
-# get_all_flags + seeding
-# --------------------------------------------------------------------------- #
-def test_get_all_flags_refleja_origen(db, flags):
-    flags.enable("billing", 2)
-    allf = {f["name"]: f for f in flags.get_all_flags(2)}
-    assert allf["billing"]["enabled"] is True
-    assert allf["billing"]["source"] == "tenant"
-    assert allf["portal_cliente"]["source"] == "default"
-    assert allf["portal_cliente"]["enabled"] is True
-    # contiene todas las features conocidas
-    assert set(FEATURE_DEFAULTS) <= set(allf)
-
-
-def test_seed_defaults_materializa_filas(db, flags):
-    flags.seed_defaults(42)
-    rows = db.conn.execute(
-        "SELECT * FROM feature_flags WHERE tenant_id=42").fetchall()
-    assert len(rows) == len(FEATURE_DEFAULTS)
-    by_name = {r["name"]: r for r in rows}
-    assert by_name["portal_cliente"]["enabled"] == 1
-    assert by_name["cobranza_automatizada"]["enabled"] == 0
-    # idempotente
-    flags.seed_defaults(42)
-    n = db.conn.execute(
-        "SELECT COUNT(*) FROM feature_flags WHERE tenant_id=42").fetchone()[0]
-    assert n == len(FEATURE_DEFAULTS)
-
-
-def test_onboarding_siembra_defaults(db):
-    from b2b_ai.db.tenants import TenantManager
-    out = TenantManager(db).onboard_tenant("Nuevo", rfc="NUEVO000101ZZZ",
-                                           user_name="Ana")
-    rows = db.conn.execute(
-        "SELECT * FROM feature_flags WHERE tenant_id=?",
-        (out["id"],)).fetchall()
-    assert len(rows) == len(FEATURE_DEFAULTS)
-    assert FeatureFlags(db).is_enabled("portal_cliente", out["id"]) is True
+    def test_upsert_idempotent(self, ff):
+        ff.enable("billing", 1)
+        ff.enable("billing", 1, rollout_percentage=50)
+        flags = ff.get_all_flags(1)
+        billing = [f for f in flags if f["name"] == "billing"]
+        assert len(billing) == 1

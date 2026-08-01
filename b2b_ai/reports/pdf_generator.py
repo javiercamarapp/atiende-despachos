@@ -81,7 +81,8 @@ def _dec(v: Any) -> float:
 def mxn(amount: Any) -> str:
     """Formatea un monto como moneda MXN: "$1,234,567.89 MXN"."""
     try:
-        val = float(amount)
+        # Tolera separadores de miles y símbolo $ (texto legible).
+        val = float(str(amount).replace(",", "").replace("$", "").strip())
     except (TypeError, ValueError):
         val = 0.0
     neg = val < 0

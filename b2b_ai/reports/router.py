@@ -133,6 +133,23 @@ def build_reports_router(db: Any, require_api_key: Optional[Any] = None,
     router = APIRouter(prefix="/reports", tags=["reports"])
     gen = PDFGenerator(db=db)
 
+    # Nota: la ruta de descarga se registra ANTES que /{report_type}/{period}
+    # para que /reports/{id}/download no sea capturada por el patrón de dos
+    # segmentos ({report_type}/{period} con period="download").
+    @router.get("/{report_id}/download",
+                summary="Descarga un reporte previamente generado por id.")
+    def download_report(report_id: str,
+                        auth_info: dict = Depends(auth_dep)):
+        with _REGISTRY_LOCK:
+            entry = _REGISTRY.get(report_id)
+        if entry is None:
+            raise HTTPException(404, "Reporte no encontrado.")
+        # Aislamiento: solo el tenant dueño (si aplica) puede descargar.
+        caller_tid = (auth_info or {}).get("tenant_id")
+        if caller_tid is not None and entry["tenant_id"] not in (None, caller_tid):
+            raise HTTPException(403, "No autorizado para este reporte.")
+        return _pdf_response(entry["bytes"], entry["filename"], entry["id"])
+
     @router.get("/{report_type}/{period}",
                 summary="Genera un reporte PDF del periodo (tipo en "
                         "invoices|monthly|reconciliation|anomaly|tax).")
@@ -152,20 +169,6 @@ def build_reports_router(db: Any, require_api_key: Optional[Any] = None,
         pdf_bytes, filename = _build_report(report_type, period, tid, gen)
         rid = _register(report_type, tid, period, filename, pdf_bytes)
         return _pdf_response(pdf_bytes, filename, rid)
-
-    @router.get("/{report_id}/download",
-                summary="Descarga un reporte previamente generado por id.")
-    def download_report(report_id: str,
-                        auth_info: dict = Depends(auth_dep)):
-        with _REGISTRY_LOCK:
-            entry = _REGISTRY.get(report_id)
-        if entry is None:
-            raise HTTPException(404, "Reporte no encontrado.")
-        # Aislamiento: solo el tenant dueño (si aplica) puede descargar.
-        caller_tid = (auth_info or {}).get("tenant_id")
-        if caller_tid is not None and entry["tenant_id"] not in (None, caller_tid):
-            raise HTTPException(403, "No autorizado para este reporte.")
-        return _pdf_response(entry["bytes"], entry["filename"], entry["id"])
 
     @router.post("/custom",
                  summary="Genera un reporte personalizado a partir de JSON "

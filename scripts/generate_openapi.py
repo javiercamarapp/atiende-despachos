@@ -49,6 +49,12 @@ for _mod in _REBUILD_MODULES:
             except Exception:
                 pass
 
+# Env de seguridad que la app exige en arranque. El generador es una
+# herramienta de documentación (no firma tokens reales), así que usa un
+# valor dev-only si el entorno no trae el real.
+import os as _os
+_os.environ.setdefault("B2B_JWT_SECRET", "dev-openapi-generation-only")
+
 # --- 2) Dump del OpenAPI real ----------------------------------------------
 from b2b_ai.api.app import create_app  # noqa: E402
 

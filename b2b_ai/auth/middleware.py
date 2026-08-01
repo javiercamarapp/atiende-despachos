@@ -7,8 +7,8 @@ Sin dependencias externas: los JWT se firman con HMAC-SHA256 (HS256) usando
 la librería estándar (hmac / base64 / hashlib), consistente con el estilo del
 resto del auth de B&B AI (comparaciones en tiempo constante con hmac).
 
-Secret: se lee de `B2B_JWT_SECRET`. Si no está configurado se usa un secreto
-de desarrollo (advertencia clara: NO usar en producción).
+Secret: se lee de `B2B_JWT_SECRET`. La variable es **obligatoria**;
+si no está configurada se lanza RuntimeError al arrancar.
 
 Dependencias FastAPI expuestas por `JWTAuth`:
   - require_auth            : valida el Bearer token y devuelve el contexto
@@ -36,15 +36,22 @@ ACCESS_TTL = int(os.environ.get("B2B_JWT_ACCESS_TTL", "1800"))      # 30 min
 REFRESH_TTL = int(os.environ.get("B2B_JWT_REFRESH_TTL", "604800"))  # 7 días
 RESET_TTL = int(os.environ.get("B2B_JWT_RESET_TTL", "3600"))        # 1 hora
 
-_ENV_SECRET = "B2B_JWT_SECRET"
-# Secreto de desarrollo si no se configura. En producción SIEMPRE hay que
-# definir B2B_JWT_SECRET (ver .env.production.example).
-_DEV_SECRET = "b2b-ai-dev-jwt-secret-no-usable-en-produccion"
+_JWT_KEY_NAME = "B2B_JWT_SECRET"
 
 
 def jwt_secret() -> str:
-    """Secret de firma: B2B_JWT_SECRET o el de desarrollo."""
-    return os.environ.get(_ENV_SECRET, "") or _DEV_SECRET
+    """Secret de firma: B2B_JWT_SECRET (requerido).
+
+    Raises RuntimeError at startup if the variable is not set, so no
+    request can ever be signed with a weak or predictable secret.
+    """
+    secret = os.environ.get(_JWT_KEY_NAME, "")
+    if not secret:
+        raise RuntimeError(
+            "B2B_JWT_SECRET no está definido.  Configura la variable de "
+            "entorno B2B_JWT_SECRET antes de arrancar la aplicación."
+        )
+    return secret
 
 
 class JWTError(Exception):
