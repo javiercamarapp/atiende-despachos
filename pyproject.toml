@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7", "httpx>=0.24"]
+test = ["pytest>=7", "pytest-asyncio>=0.21", "httpx>=0.24"]
 
 [project.scripts]
 bb-ai = "b2b_ai.cli:main"
