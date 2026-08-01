@@ -67,6 +67,7 @@ class InvoiceStatus(BaseModel):
     requires_human_review: bool = Field(default=False, description="Requires human review")
     human_review_reason: Optional[str] = Field(default=None, description="Reason for human review")
     referencia_legal: Optional[str] = Field(default=None, description="Legal reference (CFF Art)")
+    supuesto: Optional[str] = Field(default=None, description="Supuesto de aplicación")
     escalation_path: Optional[str] = Field(default=None, description="Escalation path")
 
     @field_validator("cfdi_id")
