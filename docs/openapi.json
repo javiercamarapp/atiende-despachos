@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "B&B AI — API",
+    "title": "B&B AI \u2014 API",
     "description": "Agente contable IA enterprise para despachos contables. Endpoints /api/v1/* requieren API key en el header X-API-Key.",
     "contact": {
       "name": "B&B AI",
@@ -23,14 +23,13 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/metrics": {
       "get": {
         "summary": "Metrics Endpoint",
-        "description": "Métricas operativas básicas (request count, latencia por ruta,\ncódigos de estado). Público y exento de rate-limit para monitoreo.\nCada worker uvicorn reporta sus métricas de proceso.",
+        "description": "M\u00e9tricas operativas b\u00e1sicas (request count, latencia por ruta,\nc\u00f3digos de estado). P\u00fablico y exento de rate-limit para monitoreo.\nCada worker uvicorn reporta sus m\u00e9tricas de proceso.",
         "operationId": "metrics_endpoint_metrics_get",
         "responses": {
           "200": {
@@ -41,14 +40,13 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/metrics/prometheus": {
       "get": {
         "summary": "Metrics Prometheus",
-        "description": "Métricas en formato Prometheus text exposition (operativas, de\nnegocio y custom por tenant). Público, exento de rate-limit y de CORS\npara que Prometheus pueda scrapearlo sin auth.",
+        "description": "M\u00e9tricas en formato Prometheus text exposition (operativas, de\nnegocio y custom por tenant). P\u00fablico, exento de rate-limit y de CORS\npara que Prometheus pueda scrapearlo sin auth.",
         "operationId": "metrics_prometheus_metrics_prometheus_get",
         "responses": {
           "200": {
@@ -59,14 +57,13 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/health/detailed": {
       "get": {
         "summary": "Health Detailed",
-        "description": "Estado detallado del servicio: DB, Redis, disco, memoria, uptime.\nPúblico y exento de rate-limit. `status` es \"ok\" o \"degraded\"; los\ncomponentes en falla se listan en `degraded_components`.",
+        "description": "Estado detallado del servicio: DB, Redis, disco, memoria, uptime.\nP\u00fablico y exento de rate-limit. `status` es \"ok\" o \"degraded\"; los\ncomponentes en falla se listan en `degraded_components`.",
         "operationId": "health_detailed_health_detailed_get",
         "responses": {
           "200": {
@@ -77,8 +74,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/api/v1/invoices/process": {
@@ -87,7 +83,7 @@
           "invoices"
         ],
         "summary": "Procesa un CFDI (XML) por el pipeline completo.",
-        "description": "Recibe el XML de un CFDI — como subida multipart (campo xml_file)\no como JSON con xml_path — y devuelve el resultado del pipeline:\nvalidación, clasificación, póliza ERP y el id de la factura en la DB.",
+        "description": "Recibe el XML de un CFDI \u2014 como subida multipart (campo xml_file)\no como JSON con xml_path \u2014 y devuelve el resultado del pipeline:\nvalidaci\u00f3n, clasificaci\u00f3n, p\u00f3liza ERP y el id de la factura en la DB.",
         "operationId": "process_invoice_api_v1_invoices_process_post",
         "parameters": [
           {
@@ -126,12 +122,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/invoices": {
@@ -270,12 +261,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/invoices/{invoice_id}": {
@@ -331,12 +317,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/stats": {
@@ -344,7 +325,7 @@
         "tags": [
           "stats"
         ],
-        "summary": "Métricas agregadas (totales y por categoría).",
+        "summary": "M\u00e9tricas agregadas (totales y por categor\u00eda).",
         "operationId": "stats_api_v1_stats_get",
         "parameters": [
           {
@@ -383,12 +364,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/tools": {
@@ -435,12 +411,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/leads": {
@@ -448,25 +419,14 @@
         "tags": [
           "crm"
         ],
-        "summary": "Alta de lead desde la landing (público).",
-        "description": "Registra un lead de la landing. Endpoint público (no requiere key).",
+        "summary": "Alta de lead desde la landing (p\u00fablico).",
+        "description": "Registra un lead de la landing. Endpoint p\u00fablico (no requiere key).",
         "operationId": "create_lead_api_v1_leads_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/LeadRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "nombre": "María González",
-                    "email": "maria@despacho.com",
-                    "despacho": "Despacho Contable XYZ",
-                    "facturas": "400/mes",
-                    "mensaje": "Quiero automatizar mi contabilidad"
-                  }
-                }
               }
             }
           },
@@ -491,12 +451,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/reconcile/run": {
@@ -504,8 +459,8 @@
         "tags": [
           "reconcile"
         ],
-        "summary": "Ejecuta una conciliación bancaria.",
-        "description": "Cruza facturas contra movimientos bancarios (monto+fecha+referencia)\ny devuelve el reporte completo de conciliación.",
+        "summary": "Ejecuta una conciliaci\u00f3n bancaria.",
+        "description": "Cruza facturas contra movimientos bancarios (monto+fecha+referencia)\ny devuelve el reporte completo de conciliaci\u00f3n.",
         "operationId": "run_reconcile_api_v1_reconcile_run_post",
         "parameters": [
           {
@@ -531,29 +486,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ReconcileRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "invoices": [
-                      {
-                        "folio_fiscal": "A1B2C3",
-                        "fecha": "2026-07-30",
-                        "total": 12000.0,
-                        "emisor": "XAXX010101000"
-                      }
-                    ],
-                    "bank_transactions": [
-                      {
-                        "fecha": "2026-07-30",
-                        "monto": 12000.0,
-                        "descripcion": "Transferencia",
-                        "ref": "A1B2C3"
-                      }
-                    ],
-                    "date_tolerance_days": 3
-                  }
-                }
               }
             }
           }
@@ -577,12 +509,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/accounting/catalog": {
@@ -590,7 +517,7 @@
         "tags": [
           "accounting"
         ],
-        "summary": "Catálogo de cuentas (CUC).",
+        "summary": "Cat\u00e1logo de cuentas (CUC).",
         "operationId": "accounting_catalog_api_v1_accounting_catalog_get",
         "parameters": [
           {
@@ -629,12 +556,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/accounting/balance": {
@@ -642,7 +564,7 @@
         "tags": [
           "accounting"
         ],
-        "summary": "Balanza de comprobación desde facturas de la DB.",
+        "summary": "Balanza de comprobaci\u00f3n desde facturas de la DB.",
         "operationId": "accounting_balance_api_v1_accounting_balance_get",
         "parameters": [
           {
@@ -697,12 +619,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/accounting/sat/send": {
@@ -710,8 +627,8 @@
         "tags": [
           "accounting"
         ],
-        "summary": "Envía la balanza al SAT (MOCK).",
-        "description": "Presenta la balanza de comprobación al SAT en modo MOCK (acuse\nsimulado). La presentación real requiere e.firma del contribuyente.",
+        "summary": "Env\u00eda la balanza al SAT (MOCK).",
+        "description": "Presenta la balanza de comprobaci\u00f3n al SAT en modo MOCK (acuse\nsimulado). La presentaci\u00f3n real requiere e.firma del contribuyente.",
         "operationId": "accounting_sat_api_v1_accounting_sat_send_post",
         "parameters": [
           {
@@ -796,12 +713,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/payroll/calculate": {
@@ -809,7 +721,7 @@
         "tags": [
           "payroll"
         ],
-        "summary": "Calcula una nómina (ISR, IMSS, INFONAVIT) y opcional nómina CFDI.",
+        "summary": "Calcula una n\u00f3mina (ISR, IMSS, INFONAVIT) y opcional n\u00f3mina CFDI.",
         "operationId": "payroll_calculate_api_v1_payroll_calculate_post",
         "parameters": [
           {
@@ -835,26 +747,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PayrollRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "empleado": {
-                      "nombre": "Juan Pérez",
-                      "rfc": "PEJA850101XXX"
-                    },
-                    "emisor": {
-                      "rfc": "DESP820101AB1",
-                      "nombre": "Despacho Contable B&B",
-                      "regimen_fiscal": "601"
-                    },
-                    "periodo": {
-                      "sueldo_bruto": 25000.0,
-                      "dias_pagados": 30
-                    },
-                    "generar_cfdi": false
-                  }
-                }
               }
             }
           }
@@ -878,12 +770,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/collections/analyze": {
@@ -891,8 +778,8 @@
         "tags": [
           "collections"
         ],
-        "summary": "Analiza la cartera pendiente (clasifica por antigüedad y calcula score).",
-        "description": "Recibe la cartera de cuentas por cobrar y la clasifica por\nantigüedad (0-30, 31-60, 61-90, 90+), calculando el score de\ncobrabilidad por factura. Si `sync` es True, persiste la cartera en la\ntabla `outstanding_invoices`.",
+        "summary": "Analiza la cartera pendiente (clasifica por antig\u00fcedad y calcula score).",
+        "description": "Recibe la cartera de cuentas por cobrar y la clasifica por\nantig\u00fcedad (0-30, 31-60, 61-90, 90+), calculando el score de\ncobrabilidad por factura. Si `sync` es True, persiste la cartera en la\ntabla `outstanding_invoices`.",
         "operationId": "collections_analyze_api_v1_collections_analyze_post",
         "parameters": [
           {
@@ -918,20 +805,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CollectionsAnalyzeRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "invoices": [
-                      {
-                        "factura_id": "F-1001",
-                        "monto": 8500.0,
-                        "fecha_vencimiento": "2026-06-15"
-                      }
-                    ],
-                    "sync": true
-                  }
-                }
               }
             }
           }
@@ -955,12 +828,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/collections/send-reminder": {
@@ -969,7 +837,7 @@
           "collections"
         ],
         "summary": "Genera (y opcionalmente registra) un recordatorio.",
-        "description": "Genera el contenido del recordatorio para la etapa y canal dados.\nNO envía mensajes reales. Si `record` es True, registra el intento en\n`collection_events` con timestamp.",
+        "description": "Genera el contenido del recordatorio para la etapa y canal dados.\nNO env\u00eda mensajes reales. Si `record` es True, registra el intento en\n`collection_events` con timestamp.",
         "operationId": "collections_send_reminder_api_v1_collections_send_reminder_post",
         "parameters": [
           {
@@ -995,21 +863,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CollectionsSendReminderRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "invoice": {
-                      "factura_id": "F-1001",
-                      "monto": 8500.0,
-                      "cliente": "Comercial Ruiz",
-                      "fecha_vencimiento": "2026-06-15"
-                    },
-                    "stage": "cortesia",
-                    "channel": "email",
-                    "record": true
-                  }
-                }
               }
             }
           }
@@ -1033,12 +886,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/collections/aging": {
@@ -1046,8 +894,8 @@
         "tags": [
           "collections"
         ],
-        "summary": "Reporte de antigüedad de la cartera.",
-        "description": "Reporte de antigüedad de la cartera persistida en\n`outstanding_invoices` (requiere haber hecho un analyze con sync=True).",
+        "summary": "Reporte de antig\u00fcedad de la cartera.",
+        "description": "Reporte de antig\u00fcedad de la cartera persistida en\n`outstanding_invoices` (requiere haber hecho un analyze con sync=True).",
         "operationId": "collections_aging_api_v1_collections_aging_get",
         "parameters": [
           {
@@ -1086,12 +934,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/collections/score/{invoice_id}": {
@@ -1148,12 +991,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/contabilidad/catalogo": {
@@ -1161,8 +999,8 @@
         "tags": [
           "contabilidad"
         ],
-        "summary": "Importa/crea el catálogo de cuentas del SAT.",
-        "description": "Carga el catálogo de cuentas del tenant. Acepta la lista de cuentas\nen el body (cuentas=[{codigo, descripcion, nivel, naturaleza}]). Si no\nviene, se usa el catálogo SAT por defecto. Reemplaza el anterior.",
+        "summary": "Importa/crea el cat\u00e1logo de cuentas del SAT.",
+        "description": "Carga el cat\u00e1logo de cuentas del tenant. Acepta la lista de cuentas\nen el body (cuentas=[{codigo, descripcion, nivel, naturaleza}]). Si no\nviene, se usa el cat\u00e1logo SAT por defecto. Reemplaza el anterior.",
         "operationId": "contabilidad_catalogo_post_api_v1_contabilidad_catalogo_post",
         "parameters": [
           {
@@ -1188,21 +1026,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CatalogoRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "rfc": "XAXX010101000",
-                    "cuentas": [
-                      {
-                        "codigo": "1000",
-                        "descripcion": "Caja",
-                        "nivel": 1,
-                        "naturaleza": "deudora"
-                      }
-                    ]
-                  }
-                }
               }
             }
           }
@@ -1226,18 +1049,13 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       },
       "get": {
         "tags": [
           "contabilidad"
         ],
-        "summary": "Lista el catálogo de cuentas del tenant.",
+        "summary": "Lista el cat\u00e1logo de cuentas del tenant.",
         "operationId": "contabilidad_catalogo_get_api_v1_contabilidad_catalogo_get",
         "parameters": [
           {
@@ -1276,12 +1094,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/contabilidad/asientos": {
@@ -1315,18 +1128,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AsientoRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "fecha": "2026-07-31",
-                    "cuenta_debito": "1000",
-                    "cuenta_credito": "2000",
-                    "monto": "15000.00",
-                    "descripcion": "Registro de factura",
-                    "factura_id": ""
-                  }
-                }
               }
             }
           }
@@ -1350,12 +1151,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/contabilidad/balanza/{periodo}": {
@@ -1363,7 +1159,7 @@
         "tags": [
           "contabilidad"
         ],
-        "summary": "Genera la balanza de comprobación del mes.",
+        "summary": "Genera la balanza de comprobaci\u00f3n del mes.",
         "operationId": "contabilidad_balanza_post_api_v1_contabilidad_balanza__periodo__post",
         "parameters": [
           {
@@ -1411,18 +1207,13 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       },
       "get": {
         "tags": [
           "contabilidad"
         ],
-        "summary": "Descarga la balanza de comprobación en XML (SAT).",
+        "summary": "Descarga la balanza de comprobaci\u00f3n en XML (SAT).",
         "operationId": "contabilidad_balanza_get_api_v1_contabilidad_balanza__periodo__get",
         "parameters": [
           {
@@ -1480,12 +1271,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/contabilidad/electronica/{periodo}": {
@@ -1493,7 +1279,7 @@
         "tags": [
           "contabilidad"
         ],
-        "summary": "Genera el paquete de contabilidad electrónica del mes.",
+        "summary": "Genera el paquete de contabilidad electr\u00f3nica del mes.",
         "operationId": "contabilidad_electronica_post_api_v1_contabilidad_electronica__periodo__post",
         "parameters": [
           {
@@ -1551,12 +1337,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/contabilidad/electronica/{periodo}/download": {
@@ -1564,7 +1345,7 @@
         "tags": [
           "contabilidad"
         ],
-        "summary": "Descarga el XML listo para el SAT (catálogo + balanza).",
+        "summary": "Descarga el XML listo para el SAT (cat\u00e1logo + balanza).",
         "operationId": "contabilidad_electronica_download_api_v1_contabilidad_electronica__periodo__download_get",
         "parameters": [
           {
@@ -1622,12 +1403,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/dashboard": {
@@ -1635,7 +1411,7 @@
         "tags": [
           "dashboard"
         ],
-        "summary": "Dashboard web con métricas en vivo.",
+        "summary": "Dashboard web con m\u00e9tricas en vivo.",
         "operationId": "dashboard_api_v1_dashboard_get",
         "parameters": [
           {
@@ -1676,12 +1452,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/dashboard/data": {
@@ -1728,12 +1499,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/dashboard/summary": {
@@ -1798,12 +1564,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/dashboard/monthly": {
@@ -1811,7 +1572,7 @@
         "tags": [
           "dashboard"
         ],
-        "summary": "Facturas, montos y anomalías agrupados por mes.",
+        "summary": "Facturas, montos y anomal\u00edas agrupados por mes.",
         "operationId": "dashboard_monthly_api_v1_dashboard_monthly_get",
         "parameters": [
           {
@@ -1898,12 +1659,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/dashboard/by-provider": {
@@ -1978,12 +1734,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/dashboard/anomalies": {
@@ -1991,7 +1742,7 @@
         "tags": [
           "dashboard"
         ],
-        "summary": "Anomalías detectadas por severidad y tipo.",
+        "summary": "Anomal\u00edas detectadas por severidad y tipo.",
         "operationId": "dashboard_anomalies_api_v1_dashboard_anomalies_get",
         "parameters": [
           {
@@ -2046,12 +1797,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/dashboard/reconciliation": {
@@ -2059,7 +1805,7 @@
         "tags": [
           "dashboard"
         ],
-        "summary": "Estado de la conciliación bancaria.",
+        "summary": "Estado de la conciliaci\u00f3n bancaria.",
         "operationId": "dashboard_reconciliation_api_v1_dashboard_reconciliation_get",
         "parameters": [
           {
@@ -2114,12 +1860,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/dashboard/kpi": {
@@ -2127,7 +1868,7 @@
         "tags": [
           "dashboard"
         ],
-        "summary": "Métricas clave (tiempo, error, % automático).",
+        "summary": "M\u00e9tricas clave (tiempo, error, % autom\u00e1tico).",
         "operationId": "dashboard_kpi_api_v1_dashboard_kpi_get",
         "parameters": [
           {
@@ -2182,12 +1923,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/tenants": {
@@ -2196,7 +1932,7 @@
           "tenants"
         ],
         "summary": "Onboarding de un nuevo cliente (tenant).",
-        "description": "Crea un tenant + su configuración + API key de onboarding.",
+        "description": "Crea un tenant + su configuraci\u00f3n + API key de onboarding.",
         "operationId": "onboard_tenant_api_api_v1_tenants_post",
         "parameters": [
           {
@@ -2222,20 +1958,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TenantOnboardRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "name": "Despacho Demo S.C.",
-                    "rfc": "DESP820101AB1",
-                    "erp_type": "contpaqi",
-                    "plantilla_contable": "SAT",
-                    "notif_channel": "email",
-                    "webhook_url": "https://cliente.example.com/hooks/b2b",
-                    "user_name": "María",
-                    "user_email": "maria@despacho.com"
-                  }
-                }
               }
             }
           }
@@ -2259,12 +1981,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/webhooks/email": {
@@ -2298,21 +2015,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EmailInbound"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "from": "proveedor@x.com",
-                    "subject": "Factura CFDI",
-                    "text": "Adjunto factura",
-                    "attachments": [
-                      {
-                        "filename": "factura.xml",
-                        "content_base64": "<base64 del XML>"
-                      }
-                    ]
-                  }
-                }
               }
             }
           }
@@ -2336,12 +2038,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/webhooks/notify": {
@@ -2375,14 +2072,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/NotifyRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "event": "invoice_processed",
-                    "invoice_id": 42
-                  }
-                }
               }
             }
           }
@@ -2406,12 +2095,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/webhooks/subscriptions": {
@@ -2445,13 +2129,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/Subscription"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "url": "https://cliente.example.com/hooks/b2b"
-                  }
-                }
               }
             }
           }
@@ -2475,12 +2152,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       },
       "get": {
         "tags": [
@@ -2525,12 +2197,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/webhooks/retry": {
@@ -2577,12 +2244,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/batch": {
@@ -2616,19 +2278,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BatchRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "paths": [
-                      "/data/cfdi/1.xml",
-                      "/data/cfdi/2.xml"
-                    ],
-                    "folder": "",
-                    "async": false,
-                    "webhook": true
-                  }
-                }
               }
             }
           }
@@ -2652,12 +2301,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/batch/{job_id}": {
@@ -2713,12 +2357,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/analytics": {
@@ -2813,12 +2452,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/webhooks": {
@@ -2852,17 +2486,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/WebhookRegister"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "url": "https://cliente.example.com/hooks/b2b",
-                    "events": [
-                      "invoice_processed",
-                      "batch_completed"
-                    ]
-                  }
-                }
               }
             }
           }
@@ -2886,12 +2509,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       },
       "get": {
         "tags": [
@@ -2952,12 +2570,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/webhooks/{subscription_id}": {
@@ -2965,7 +2578,7 @@
         "tags": [
           "enterprise"
         ],
-        "summary": "Elimina una suscripción de webhook.",
+        "summary": "Elimina una suscripci\u00f3n de webhook.",
         "operationId": "delete_webhook_api_v2_webhooks__subscription_id__delete",
         "parameters": [
           {
@@ -3013,12 +2626,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/audit": {
@@ -3026,7 +2634,7 @@
         "tags": [
           "enterprise"
         ],
-        "summary": "Log completo de auditoría por tenant.",
+        "summary": "Log completo de auditor\u00eda por tenant.",
         "operationId": "audit_api_v2_audit_get",
         "parameters": [
           {
@@ -3168,12 +2776,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/export": {
@@ -3207,19 +2810,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ExportRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "format": "csv",
-                    "scope": "invoices",
-                    "title": "Export",
-                    "periodo": null,
-                    "desde": null,
-                    "hasta": null,
-                    "limit": 1000
-                  }
-                }
               }
             }
           }
@@ -3243,12 +2833,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/usage": {
@@ -3295,12 +2880,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/health": {
@@ -3347,12 +2927,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/tenants": {
@@ -3399,12 +2974,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       },
       "post": {
         "tags": [
@@ -3455,18 +3025,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TenantConfigRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "config": {
-                      "erp_type": "aspel",
-                      "plantilla_contable": "SAT",
-                      "notif_channel": "whatsapp",
-                      "policy_human_review": true
-                    }
-                  }
-                }
               }
             }
           }
@@ -3490,12 +3048,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/tenants/{tid}/block": {
@@ -3551,12 +3104,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/tenants/{tid}/unblock": {
@@ -3612,12 +3160,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/tenants/{tid}": {
@@ -3683,12 +3226,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/tenants/{tid}/usage": {
@@ -3744,12 +3282,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v2/retention/purge": {
@@ -3757,8 +3290,8 @@
         "tags": [
           "enterprise"
         ],
-        "summary": "Aplica la política de retención de datos (admin).",
-        "description": "Ejecuta enforce_retention(days): borra audit_log, webhooks,\nnotificaciones y sesiones del portal más viejos que `days` días.\nSolo para la key de servicio (tenant_id=None). Las facturas\n(datos fiscales) NO se tocan.",
+        "summary": "Aplica la pol\u00edtica de retenci\u00f3n de datos (admin).",
+        "description": "Ejecuta enforce_retention(days): borra audit_log, webhooks,\nnotificaciones y sesiones del portal m\u00e1s viejos que `days` d\u00edas.\nSolo para la key de servicio (tenant_id=None). Las facturas\n(datos fiscales) NO se tocan.",
         "operationId": "admin_retention_purge_api_v2_retention_purge_post",
         "parameters": [
           {
@@ -3813,12 +3346,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/portal/settings": {
@@ -3857,12 +3385,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/portal/notifications": {
@@ -3905,12 +3428,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/portal/auth/login": {
@@ -3919,22 +3437,13 @@
           "portal"
         ],
         "summary": "Portal Login",
-        "description": "Autentica un cliente por email+password (bcrypt) y devuelve un\ntoken de sesión multi-tenant.",
+        "description": "Autentica un cliente por email+password (bcrypt) y devuelve un\ntoken de sesi\u00f3n multi-tenant.",
         "operationId": "portal_login_portal_auth_login_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PortalLogin"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "email": "cliente@despacho.com",
-                    "password": "secret",
-                    "tenant_id": null
-                  }
-                }
               }
             }
           },
@@ -3959,8 +3468,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/portal/auth/magic-link": {
@@ -3969,7 +3477,7 @@
           "portal"
         ],
         "summary": "Portal Magic Link",
-        "description": "Emite una sesión sin password y la 'envía' por email (mock para el\nMVP: se registra en notifications y se devuelve dev_token para que el\nSPA continúe en desarrollo).",
+        "description": "Emite una sesi\u00f3n sin password y la 'env\u00eda' por email (mock para el\nMVP: se registra en notifications y se devuelve dev_token para que el\nSPA contin\u00fae en desarrollo).",
         "operationId": "portal_magic_link_portal_auth_magic_link_post",
         "requestBody": {
           "content": {
@@ -4000,8 +3508,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/portal/auth/confirm": {
@@ -4010,7 +3517,7 @@
           "portal"
         ],
         "summary": "Portal Confirm",
-        "description": "Valida un token (magic link) y devuelve la sesión activa.",
+        "description": "Valida un token (magic link) y devuelve la sesi\u00f3n activa.",
         "operationId": "portal_confirm_portal_auth_confirm_post",
         "requestBody": {
           "content": {
@@ -4041,8 +3548,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/portal/auth/logout": {
@@ -4105,12 +3611,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/portal/auth/me": {
@@ -4173,12 +3674,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/portal/invoices.json": {
@@ -4334,12 +3830,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/portal/invoices/{job_or_id}/status": {
@@ -4412,12 +3903,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/portal/invoices/upload": {
@@ -4481,12 +3967,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/portal/invoices/export.csv": {
@@ -4598,12 +4079,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/portal/dashboard/stats": {
@@ -4612,7 +4088,7 @@
           "portal"
         ],
         "summary": "Portal Stats",
-        "description": "Métricas del tenant autenticado.",
+        "description": "M\u00e9tricas del tenant autenticado.",
         "operationId": "portal_stats_portal_dashboard_stats_get",
         "parameters": [
           {
@@ -4667,12 +4143,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/auth/register": {
@@ -4729,8 +4200,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/api/v1/auth/login": {
@@ -4738,22 +4208,13 @@
         "tags": [
           "auth"
         ],
-        "summary": "Login email+password → tokens JWT.",
+        "summary": "Login email+password \u2192 tokens JWT.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/LoginBody"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "email": "admin@despacho.com",
-                    "password": "secret",
-                    "tenant_id": 1
-                  }
-                }
               }
             }
           },
@@ -4778,8 +4239,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/api/v1/auth/refresh": {
@@ -4787,7 +4247,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Refresca la sesión con un refresh token.",
+        "summary": "Refresca la sesi\u00f3n con un refresh token.",
         "operationId": "refresh_api_v1_auth_refresh_post",
         "requestBody": {
           "content": {
@@ -4818,12 +4278,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/auth/me": {
@@ -4870,12 +4325,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ]
+        }
       },
       "put": {
         "tags": [
@@ -4930,12 +4380,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/tenants/{tenant_id}/users": {
@@ -4991,12 +4436,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       },
       "post": {
         "tags": [
@@ -5060,12 +4500,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/tenants/{tenant_id}/users/{user_id}/role": {
@@ -5140,12 +4575,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/notifications/send": {
@@ -5153,7 +4583,7 @@
         "tags": [
           "notifications"
         ],
-        "summary": "Encola/envía una notificación WhatsApp.",
+        "summary": "Encola/env\u00eda una notificaci\u00f3n WhatsApp.",
         "operationId": "send_notification_api_v1_notifications_send_post",
         "parameters": [
           {
@@ -5179,17 +4609,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/NotificationSendRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "recipient": "+5215512345678",
-                    "message": "Tu factura F-1001 está por vencer.",
-                    "template": null,
-                    "type": "whatsapp",
-                    "schedule_at": null
-                  }
-                }
               }
             }
           }
@@ -5213,12 +4632,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/notifications/history": {
@@ -5277,12 +4691,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/notifications/config": {
@@ -5290,7 +4699,7 @@
         "tags": [
           "notifications"
         ],
-        "summary": "Guarda configuración de WhatsApp del tenant.",
+        "summary": "Guarda configuraci\u00f3n de WhatsApp del tenant.",
         "operationId": "notification_config_api_v1_notifications_config_post",
         "parameters": [
           {
@@ -5339,12 +4748,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/notifications/email": {
@@ -5352,7 +4756,7 @@
         "tags": [
           "notifications"
         ],
-        "summary": "Envía un email (SMTP) o lo encola.",
+        "summary": "Env\u00eda un email (SMTP) o lo encola.",
         "operationId": "send_email_api_v1_notifications_email_post",
         "parameters": [
           {
@@ -5401,12 +4805,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/notifications/preferences": {
@@ -5414,7 +4813,7 @@
         "tags": [
           "notifications"
         ],
-        "summary": "Guarda preferencias de notificación del tenant.",
+        "summary": "Guarda preferencias de notificaci\u00f3n del tenant.",
         "operationId": "notification_preferences_api_v1_notifications_preferences_put",
         "parameters": [
           {
@@ -5463,12 +4862,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/reconciliation/upload": {
@@ -5477,7 +4871,7 @@
           "reconciliation"
         ],
         "summary": "Sube un estado de cuenta (CSV/PDF) y lo carga.",
-        "description": "Sube el estado de cuenta como multipart (campo `file`) e indica el\nbanco (campo `bank`): bbva, banorte, santander, hsbc o generico.\nParsea los movimientos y los carga en la sesión del tenant.",
+        "description": "Sube el estado de cuenta como multipart (campo `file`) e indica el\nbanco (campo `bank`): bbva, banorte, santander, hsbc o generico.\nParsea los movimientos y los carga en la sesi\u00f3n del tenant.",
         "operationId": "upload_statement_api_v1_reconciliation_upload_post",
         "parameters": [
           {
@@ -5526,12 +4920,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/reconciliation/matches": {
@@ -5539,7 +4928,7 @@
         "tags": [
           "reconciliation"
         ],
-        "summary": "Cruces automáticos calculados (con confidence).",
+        "summary": "Cruces autom\u00e1ticos calculados (con confidence).",
         "description": "Recalcula (si `refresh=True`) y devuelve los cruces con su\nconfidence score 0-100. Cruza contra las facturas del tenant en DB.",
         "operationId": "matches_api_v1_reconciliation_matches_get",
         "parameters": [
@@ -5589,12 +4978,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/reconciliation/confirm": {
@@ -5602,8 +4986,8 @@
         "tags": [
           "reconciliation"
         ],
-        "summary": "Confirma manualmente un cruce transacción-factura.",
-        "description": "Confirma que la transacción `transaction_id` concilia la factura\n`invoice_id`. El cruce queda marcado method=manual, confidence=100.",
+        "summary": "Confirma manualmente un cruce transacci\u00f3n-factura.",
+        "description": "Confirma que la transacci\u00f3n `transaction_id` concilia la factura\n`invoice_id`. El cruce queda marcado method=manual, confidence=100.",
         "operationId": "confirm_api_v1_reconciliation_confirm_post",
         "parameters": [
           {
@@ -5652,12 +5036,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/reconciliation/report": {
@@ -5665,8 +5044,8 @@
         "tags": [
           "reconciliation"
         ],
-        "summary": "Reporte de conciliación de la sesión actual.",
-        "description": "Genera el reporte agregado de conciliación (conciliados,\npendientes, tasas, por método) para el tenant.",
+        "summary": "Reporte de conciliaci\u00f3n de la sesi\u00f3n actual.",
+        "description": "Genera el reporte agregado de conciliaci\u00f3n (conciliados,\npendientes, tasas, por m\u00e9todo) para el tenant.",
         "operationId": "report_api_v1_reconciliation_report_get",
         "parameters": [
           {
@@ -5705,12 +5084,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/billing/checkout": {
@@ -5744,18 +5118,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CheckoutRequest"
-              },
-              "examples": {
-                "json": {
-                  "value": {
-                    "plan": "starter",
-                    "email": "cliente@despacho.com",
-                    "name": "Cliente",
-                    "payment_method_id": "pm_xxx",
-                    "payment_method_type": "card",
-                    "currency": "MXN"
-                  }
-                }
               }
             }
           }
@@ -5779,12 +5141,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/billing/subscription": {
@@ -5792,7 +5149,7 @@
         "tags": [
           "billing"
         ],
-        "summary": "Crea/activa una suscripción a un plan.",
+        "summary": "Crea/activa una suscripci\u00f3n a un plan.",
         "operationId": "subscribe_api_v1_billing_subscription_post",
         "parameters": [
           {
@@ -5841,12 +5198,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/billing/invoices": {
@@ -5904,12 +5256,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/billing/plans": {
@@ -5956,12 +5303,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/billing/webhook": {
@@ -5970,7 +5312,7 @@
           "billing"
         ],
         "summary": "Recibe eventos del proveedor de pagos.",
-        "description": "Procesa un evento de webhook del proveedor.\n\nEl payload indica el proveedor y el tipo de evento. La firma se debe\nverificar en el proxy/edge (Stripe-Signature, Conekta-Signature)\nantes de confiar en el cuerpo; este endpoint marca facturas como\npagadas cuando el evento lo indica (`mark_paid`).",
+        "description": "Procesa un evento de webhook del proveedor.\n\nVerifica la firma HMAC del webhook antes de procesar. La firma se\nextrae del header correspondiente al proveedor (Stripe-Signature,\nConekta-Signature). Si no hay secret configurado (modo demo), se\npermite sin verificaci\u00f3n.",
         "operationId": "webhook_api_v1_billing_webhook_post",
         "parameters": [
           {
@@ -6019,12 +5361,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/onboarding/status": {
@@ -6071,20 +5408,154 @@
               }
             }
           }
-        },
-        "security": [
+        }
+      }
+    },
+    "/api/v1/onboarding/steps": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Lista de definiciones de todos los pasos del wizard.",
+        "operationId": "onboarding_steps_api_v1_onboarding_steps_get",
+        "parameters": [
           {
-            "ApiKeyAuth": []
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
           }
-        ]
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/onboarding/plans": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Opciones de planes de facturaci\u00f3n con precios.",
+        "operationId": "onboarding_plans_api_v1_onboarding_plans_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/onboarding/erp-options": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Opciones de ERP disponibles.",
+        "operationId": "onboarding_erp_options_api_v1_onboarding_erp_options_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/onboarding/step/{step}": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Lee los datos de un paso espec\u00edfico.",
+        "operationId": "onboarding_get_step_api_v1_onboarding_step__step__get",
+        "parameters": [
+          {
+            "name": "step",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Step"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "put": {
         "tags": [
           "onboarding"
         ],
-        "summary": "Envía y valida un paso del wizard.",
+        "summary": "Env\u00eda y valida un paso del wizard.",
         "operationId": "onboarding_step_api_v1_onboarding_step__step__put",
         "parameters": [
           {
@@ -6144,12 +5615,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/onboarding/complete": {
@@ -6157,7 +5623,7 @@
         "tags": [
           "onboarding"
         ],
-        "summary": "Cierra el onboarding y crea usuarios.",
+        "summary": "Cierra el onboarding (valida que todos los pasos est\u00e9n completos).",
         "operationId": "onboarding_complete_api_v1_onboarding_complete_post",
         "parameters": [
           {
@@ -6196,12 +5662,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/sat/download": {
@@ -6258,12 +5719,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/sat/verify": {
@@ -6320,12 +5776,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/sat/status": {
@@ -6333,7 +5784,7 @@
         "tags": [
           "sat"
         ],
-        "summary": "Estado de sesión y scheduler SAT.",
+        "summary": "Estado de sesi\u00f3n y scheduler SAT.",
         "operationId": "sat_status_api_v1_sat_status_get",
         "parameters": [
           {
@@ -6372,12 +5823,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/sat/schedule": {
@@ -6385,7 +5831,7 @@
         "tags": [
           "sat"
         ],
-        "summary": "Programa descarga diaria / verificación semanal.",
+        "summary": "Programa descarga diaria / verificaci\u00f3n semanal.",
         "operationId": "sat_schedule_api_v1_sat_schedule_post",
         "parameters": [
           {
@@ -6434,12 +5880,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/reports/{report_id}/download": {
@@ -6495,12 +5936,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/reports/{report_type}/{period}": {
@@ -6582,12 +6018,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/reports/custom": {
@@ -6644,12 +6075,628 @@
               }
             }
           }
-        },
-        "security": [
+        }
+      }
+    },
+    "/api/v1/outreach/leads": {
+      "post": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "Create Lead",
+        "description": "Crear un lead para outreach.",
+        "operationId": "create_lead_api_v1_outreach_leads_post",
+        "parameters": [
           {
-            "ApiKeyAuth": []
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
           }
-        ]
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeadCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "List Leads",
+        "description": "Listar leads de outreach.",
+        "operationId": "list_leads_api_v1_outreach_leads_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outreach/campaigns": {
+      "post": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "Launch Campaign",
+        "description": "Lanzar campa\u00f1a de outreach.",
+        "operationId": "launch_campaign_api_v1_outreach_campaigns_post",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outreach/campaigns/{campaign_id}/pause": {
+      "post": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "Pause Campaign",
+        "description": "Pausar campa\u00f1a.",
+        "operationId": "pause_campaign_api_v1_outreach_campaigns__campaign_id__pause_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outreach/campaigns/{campaign_id}/resume": {
+      "post": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "Resume Campaign",
+        "description": "Reanudar campa\u00f1a.",
+        "operationId": "resume_campaign_api_v1_outreach_campaigns__campaign_id__resume_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outreach/send": {
+      "post": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "Send Email",
+        "description": "Enviar email individual.",
+        "operationId": "send_email_api_v1_outreach_send_post",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailSend"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outreach/track/open": {
+      "post": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "Track Open",
+        "description": "Trackear apertura de email.",
+        "operationId": "track_open_api_v1_outreach_track_open_post",
+        "parameters": [
+          {
+            "name": "lead_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lead Id"
+            }
+          },
+          {
+            "name": "email_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Email Id"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outreach/track/click": {
+      "post": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "Track Click",
+        "description": "Trackear click en link.",
+        "operationId": "track_click_api_v1_outreach_track_click_post",
+        "parameters": [
+          {
+            "name": "lead_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lead Id"
+            }
+          },
+          {
+            "name": "email_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Email Id"
+            }
+          },
+          {
+            "name": "link_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Link Id"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outreach/stats/{campaign_id}": {
+      "get": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "Campaign Stats",
+        "description": "Estad\u00edsticas de campa\u00f1a.",
+        "operationId": "campaign_stats_api_v1_outreach_stats__campaign_id__get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outreach/lead-score/{lead_id}": {
+      "get": {
+        "tags": [
+          "outreach"
+        ],
+        "summary": "Lead Score",
+        "description": "Score de un lead.",
+        "operationId": "lead_score_api_v1_outreach_lead_score__lead_id__get",
+        "parameters": [
+          {
+            "name": "lead_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lead Id"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/tools": {
@@ -6693,12 +6740,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/invoices": {
@@ -6769,12 +6811,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/stats": {
@@ -6818,12 +6855,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     },
     "/process": {
@@ -6877,12 +6909,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
+        }
       }
     }
   },
@@ -6925,7 +6952,7 @@
           "monto"
         ],
         "title": "AsientoRequest",
-        "description": "Alta de un asiento contable (contabilidad electrónica)."
+        "description": "Alta de un asiento contable (contabilidad electr\u00f3nica)."
       },
       "BatchRequest": {
         "properties": {
@@ -6960,7 +6987,7 @@
         },
         "type": "object",
         "title": "BatchRequest",
-        "description": "Lote de CFDI para procesamiento masivo (≤1000)."
+        "description": "Lote de CFDI. Acepta rutas a XML o una carpeta. `async_` (alias\n\"async\") ejecuta el lote en background y devuelve un job para polling."
       },
       "Body_upload_statement_api_v1_reconciliation_upload_post": {
         "properties": {
@@ -6980,6 +7007,32 @@
           "file"
         ],
         "title": "Body_upload_statement_api_v1_reconciliation_upload_post"
+      },
+      "CampaignCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sequence_id": {
+            "type": "integer",
+            "title": "Sequence Id",
+            "default": 1
+          },
+          "lead_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Lead Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "lead_ids"
+        ],
+        "title": "CampaignCreate"
       },
       "CatalogoRequest": {
         "properties": {
@@ -7003,7 +7056,7 @@
         },
         "type": "object",
         "title": "CatalogoRequest",
-        "description": "Carga del catálogo de cuentas del SAT (contabilidad electrónica)."
+        "description": "Carga del cat\u00e1logo de cuentas del SAT (contabilidad electr\u00f3nica)."
       },
       "ChangeRoleBody": {
         "properties": {
@@ -7169,7 +7222,7 @@
         },
         "type": "object",
         "title": "ContabilidadRequest",
-        "description": "Parámetros para generar el paquete de contabilidad electrónica."
+        "description": "Par\u00e1metros para generar el paquete de contabilidad electr\u00f3nica."
       },
       "CreateUserBody": {
         "properties": {
@@ -7279,8 +7332,53 @@
           }
         },
         "type": "object",
-        "title": "EmailInbound",
-        "description": "Payload de email entrante (mock Mailgun/SendGrid)."
+        "title": "EmailInbound"
+      },
+      "EmailSend": {
+        "properties": {
+          "lead_id": {
+            "type": "integer",
+            "title": "Lead Id"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lead_id"
+        ],
+        "title": "EmailSend"
       },
       "EmailSendRequest": {
         "properties": {
@@ -7421,8 +7519,7 @@
           }
         },
         "type": "object",
-        "title": "ExportRequest",
-        "description": "Parámetros de exportación CSV/XLSX/PDF."
+        "title": "ExportRequest"
       },
       "HTTPValidationError": {
         "properties": {
@@ -7436,6 +7533,77 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "LeadCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "company": {
+            "type": "string",
+            "title": "Company"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "default": ""
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "default": ""
+          },
+          "linkedin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linkedin",
+            "default": ""
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "company"
+        ],
+        "title": "LeadCreate"
       },
       "LeadRequest": {
         "properties": {
@@ -7468,8 +7636,7 @@
           "nombre",
           "email"
         ],
-        "title": "LeadRequest",
-        "description": "Lead de la landing (público, sin API key)."
+        "title": "LeadRequest"
       },
       "LoginBody": {
         "properties": {
@@ -7498,8 +7665,7 @@
           "email",
           "password"
         ],
-        "title": "LoginBody",
-        "description": "Login email+password."
+        "title": "LoginBody"
       },
       "NotificationConfigRequest": {
         "properties": {
@@ -7688,7 +7854,7 @@
           "cash"
         ],
         "title": "PaymentMethodType",
-        "description": "Tipos de método de pago soportados (Conekta amplía con MX)."
+        "description": "Tipos de m\u00e9todo de pago soportados (Conekta ampl\u00eda con MX)."
       },
       "PayrollRequest": {
         "properties": {
@@ -7719,8 +7885,7 @@
           "empleado",
           "periodo"
         ],
-        "title": "PayrollRequest",
-        "description": "Datos para cálculo de nómina."
+        "title": "PayrollRequest"
       },
       "PortalLogin": {
         "properties": {
@@ -7824,8 +7989,7 @@
           }
         },
         "type": "object",
-        "title": "ProcessRequest",
-        "description": "Cuerpo JSON para POST /api/v1/invoices/process (alternativa a multipart)."
+        "title": "ProcessRequest"
       },
       "Provider": {
         "type": "string",
@@ -7857,8 +8021,7 @@
           }
         },
         "type": "object",
-        "title": "ReconcileRequest",
-        "description": "Datos para conciliación bancaria."
+        "title": "ReconcileRequest"
       },
       "RefreshBody": {
         "properties": {
@@ -7871,8 +8034,7 @@
         "required": [
           "refresh_token"
         ],
-        "title": "RefreshBody",
-        "description": "Refresh de tokens."
+        "title": "RefreshBody"
       },
       "RegisterBody": {
         "properties": {
@@ -7905,8 +8067,7 @@
           "password",
           "tenant_id"
         ],
-        "title": "RegisterBody",
-        "description": "Alta de usuario (bootstrap del 1er admin o admin del tenant)."
+        "title": "RegisterBody"
       },
       "SATDownloadRequest": {
         "properties": {
@@ -8219,7 +8380,7 @@
           "event_type"
         ],
         "title": "WebhookPayload",
-        "description": "Envoltorio genérico para eventos de webhook de proveedores."
+        "description": "Envoltorio gen\u00e9rico para eventos de webhook de proveedores."
       },
       "WebhookRegister": {
         "properties": {
@@ -8240,38 +8401,8 @@
         "required": [
           "url"
         ],
-        "title": "WebhookRegister",
-        "description": "Registro de suscripción de webhook por evento."
-      }
-    },
-    "securitySchemes": {
-      "ApiKeyAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-API-Key",
-        "description": "API key del tenant (tabla api_keys) o la key de servicio (env B2B_API_KEY). Header X-API-Key."
-      },
-      "BearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "opaque",
-        "description": "Token del Portal del cliente (POST /portal/auth/login)."
-      },
-      "JWTAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "JWT access token de auth enterprise (POST /api/v1/auth/login)."
+        "title": "WebhookRegister"
       }
     }
-  },
-  "servers": [
-    {
-      "url": "https://api.b2b-ai.local",
-      "description": "Producción"
-    },
-    {
-      "url": "http://localhost:8000",
-      "description": "Local (uvicorn)"
-    }
-  ]
+  }
 }

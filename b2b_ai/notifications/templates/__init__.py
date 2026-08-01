@@ -152,6 +152,7 @@ _HTML_SUBJECTS = {
     "weekly_report": "Reporte semanal {periodo}",
     "anomaly_detected": "⚠ Alerta de anomalía: {tipo}",
     "subscription_renewal": "Tu suscripción {plan} se renueva el {fecha}",
+    "collection_reminder": "Recordatorio de cobro — {cliente} — ${monto}",
 }
 
 _HTML_PLACEHOLDER = _re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
