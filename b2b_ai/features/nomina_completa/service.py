@@ -209,11 +209,17 @@ def generate_cfdi_nomina(payroll_data: dict) -> dict:
 
     En producción, esto generaría un XML real con Timbrado SAT.
     """
+    import calendar
     uuid_cfdi = str(uuid.uuid4())
     emisor = payroll_data.get("emisor", {})
     receptor = payroll_data.get("receptor", {})
     period = payroll_data.get("period", {})
     taxes = payroll_data.get("taxes", {})
+
+    year = period.get('year', 2026)
+    month = period.get('month', 1)
+    # Calcular último día del mes correctamente (considera febrero bisiesto)
+    last_day = calendar.monthrange(year, month)[1]
 
     return {
         "Version": "4.0",
@@ -245,7 +251,7 @@ def generate_cfdi_nomina(payroll_data: dict) -> dict:
                 "TipoNomina": "O",
                 "FechaPago": f"{period.get('year', 2026)}-{period.get('month', 1):02d}-01",
                 "FechaInicialPago": f"{period.get('year', 2026)}-{period.get('month', 1):02d}-01",
-                "FechaFinalPago": f"{period.get('year', 2026)}-{period.get('month', 1):02d}-28",
+                "FechaFinalPago": f"{year:04d}-{month:02d}-{last_day:02d}",
                 "NumDiasPagados": str(period.get("dias_pagados", 30)),
                 "Percepciones": {
                     "TotalSueldos": str(round(payroll_data.get("subtotal", 0), 2)),

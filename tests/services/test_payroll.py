@@ -6,7 +6,7 @@ from b2b_ai.services.payroll import (
     calc_isr, calc_imss, calc_infonavit, calc_ptu,
     calc_aguinaldo, dias_vacaciones, calc_vacaciones,
     calc_prima_vacacional, calculate_payroll,
-    TARIFA_ISR_2025_MENSUAL, RATES,
+    TARIFA_ISR_2024_MENSUAL, RATES,
 )
 
 

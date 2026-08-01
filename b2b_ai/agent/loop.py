@@ -153,9 +153,15 @@ class AgentLoop:
         paso("validar", True)
 
         # 3) Clasificar (LLM con fallback a reglas)
-        # SECURITY: Filter nomina data before sending to external LLM.
-        # LFPDPPP: worker PII (CURP, salary, deductions) must not leave Mexico.
-        datos_para_llm = {k: v for k, v in datos.items() if k != "nomina"}
+        # SECURITY/LFPDPPP-06: Filter nomina data AND mask PII before
+        # sending to external LLMs. Worker data (CURP, salary, deductions)
+        # must not leave Mexico without consent.
+        _SENSITIVE_KEYS = {"nomina", "curp", "rfc_receptor", "rfc_emisor"}
+        datos_para_llm = {
+            k: _mask_pii(v) if isinstance(v, str) else v
+            for k, v in datos.items()
+            if k not in _SENSITIVE_KEYS
+        }
         clasif = self.llm.classify_invoice(datos_para_llm)
         self._llm_log(tenant_id, "classify", clasif)
         paso("clasificar", True,

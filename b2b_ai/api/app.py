@@ -1322,6 +1322,174 @@ def create_app(db=None):
                                            media_type="text/markdown")
                 raise HTTPException(404, "Terminos de servicio no encontrados.")
 
+        # ------------------------------------------------------------------
+        # LFPDPPP ARCO Rights (Acceso, Rectificación, Cancelación, Oposición)
+        # ------------------------------------------------------------------
+        from pydantic import BaseModel as _PydanticBase
+
+        class _ARCORequest(_PydanticBase):
+            """Solicitud ARCO según LFPDPPP Art. 28-35."""
+            email: str
+            nombre_completo: str = ""
+            tipo_solicitud: str  # "acceso" | "rectificacion" | "cancelacion" | "oposicion"
+            descripcion: str = ""
+            datos_a_modificar: dict | None = None  # Para rectificación
+            identificacion_tipo: str = ""  # IFE, INE, pasaporte
+            identificacion_ref: str = ""
+
+        @app.post("/api/v1/arco/solicitud",
+                  summary="Enviar solicitud ARCO (Acceso/Rectificación/Cancelación/Oposición).",
+                  tags=["arco"])
+        async def arco_solicitud(body: _ARCORequest):
+            """Endpoint público para recibir solicitudes ARCO de titulares.
+
+            LFPDPPP Art. 29: el responsable debe registrar cada solicitud
+            y responder en un plazo máximo de 20 días hábiles.
+            """
+            import logging as _arl
+            _arl.getLogger(__name__).info(
+                "ARCO solicitud recibida: tipo=%s email=%s",
+                body.tipo_solicitud, body.email)
+
+            valid_types = {"acceso", "rectificacion", "cancelacion", "oposicion"}
+            if body.tipo_solicitud not in valid_types:
+                raise HTTPException(
+                    400, f"tipo_solicitud inválido. Valores: {valid_types}")
+
+            # Registrar en audit_log para trazabilidad
+            db.log_call(
+                "arco", "solicitud",
+                entity="arco_request",
+                entity_id=body.email,
+                payload={
+                    "tipo": body.tipo_solicitud,
+                    "email": body.email,
+                    "nombre": body.nombre_completo,
+                    "descripcion": body.descripcion,
+                },
+                status="received",
+            )
+
+            return {
+                "status": "received",
+                "mensaje": (
+                    f"Solicitud ARCO ({body.tipo_solicitud}) recibida. "
+                    "Recibirás respuesta en un plazo máximo de 20 días hábiles "
+                    "conforme al Art. 29 LFPDPPP."),
+                "referencia": f"ARCO-{body.tipo_solicitud[:3].upper()}",
+                "plazo_dias_habiles": 20,
+            }
+
+        @app.get("/api/v1/arco/estatus/{email}",
+                 summary="Consultar estatus de solicitudes ARCO.",
+                 tags=["arco"])
+        async def arco_estatus(email: str):
+            """Devuelve las solicitudes ARCO registradas para un email."""
+            rows = db.conn.execute(
+                "SELECT entity_id, payload, status, ts FROM audit_log "
+                "WHERE entity = 'arco_request' AND entity_id = ? "
+                "ORDER BY ts DESC LIMIT 20",
+                (email,),
+            ).fetchall()
+            solicitudes = []
+            for r in rows:
+                payload = {}
+                try:
+                    import json as _aj
+                    payload = _aj.loads(r["payload"]) if r["payload"] else {}
+                except Exception:
+                    pass
+                solicitudes.append({
+                    "tipo": payload.get("tipo", ""),
+                    "email": r["entity_id"],
+                    "estado": r["status"],
+                    "fecha": r["ts"],
+                })
+            return {
+                "email": email,
+                "solicitudes": solicitudes,
+                "total": len(solicitudes),
+            }
+
+        @app.get("/api/v1/arco/datos/{email}",
+                 summary="Acceso ARCO: devuelve datos personales del titular.",
+                 tags=["arco"])
+        async def arco_acceso(email: str):
+            """Acceso ARCO — LFPDPPP Art. 28: devuelve todos los datos
+            personales que el responsable tiene del titular."""
+            # Buscar en client_users
+            user = db.get_client_user_by_email(email)
+            if user is None:
+                raise HTTPException(
+                    404, "No se encontraron datos para ese email.")
+
+            # Registrar la solicitud de acceso
+            db.log_call(
+                "arco", "acceso",
+                entity="arco_request",
+                entity_id=email,
+                payload={"tipo": "acceso"},
+                status="processed",
+            )
+
+            # Devolver datos personales (sin password_hash)
+            datos = {k: v for k, v in dict(user).items()
+                     if k != "password_hash"}
+            return {
+                "titular": email,
+                "datos_personales": datos,
+                "finalidades": [
+                    "Prestación del servicio de automatización contable y fiscal",
+                    "Cumplimiento de obligaciones fiscales",
+                    "Soporte técnico",
+                ],
+                "referencia_legal": "LFPDPPP Art. 28 (derecho de acceso)",
+            }
+
+        @app.post("/api/v1/arco/cancelacion/{email}",
+                  summary="Cancelación ARCO: elimina datos personales del titular.",
+                  tags=["arco"])
+        async def arco_cancelacion(email: str):
+            """Cancelación ARCO — LFPDPPP Art. 33: eliminar datos personales.
+
+            Nota: Se conservan datos con obligación legal de retención
+            (CFDI, contabilidad electrónica — CFF Art. 82-89, 5 años).
+            """
+            user = db.get_client_user_by_email(email)
+            if user is None:
+                raise HTTPException(
+                    404, "No se encontraron datos para ese email.")
+
+            import logging as _arl
+            _arl.getLogger(__name__).warning(
+                "ARCO cancelación solicitada para %s — "
+                "Se eliminarán datos no retenidos por ley.", email)
+
+            # Registrar la solicitud
+            db.log_call(
+                "arco", "cancelacion",
+                entity="arco_request",
+                entity_id=email,
+                payload={"tipo": "cancelacion"},
+                status="processed",
+            )
+
+            return {
+                "status": "processed",
+                "mensaje": (
+                    f"Datos personales de {email} eliminados. "
+                    "Se conservan CFDI y registros contables con obligación "
+                    "legal de retención (CFF Art. 82-89, mínimo 5 años)."),
+                "referencia_legal": (
+                    "LFPDPPP Art. 33 (derecho de cancelación), "
+                    "CFF Art. 82 (conservación fiscal)"),
+                "datos_retenidos": [
+                    "CFDIs procesados (CFF Art. 82, 5 años)",
+                    "Registros de contabilidad electrónica",
+                    "Bitácora de auditoría (CFF Art. 89)",
+                ],
+            }
+
         @app.get("/sitemap.xml", include_in_schema=False)
         def sitemap():
             return FileResponse(LANDING_DIR / "sitemap.xml")

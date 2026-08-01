@@ -693,6 +693,16 @@ MIGRATIONS = [
             ON collection_config(tenant_id);
         """,
     },
+    {
+        "version": 15,
+        "name": "privacy_consent",
+        "sql": """
+        -- LFPDPPP Art. 8: Consentimiento de privacidad. Registra cuándo el
+        -- titular aceptó el aviso de privacidad. Columna nullable para
+        -- migrar usuarios existentes sin romper reads.
+        ALTER TABLE client_users ADD COLUMN accepted_privacy_at TIMESTAMP;
+        """,
+    },
 ]
 
 

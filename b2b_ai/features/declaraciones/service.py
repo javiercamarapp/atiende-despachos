@@ -229,7 +229,8 @@ class DeclaracionesService(ManualProcessMixin):
             ingresos = float(data.get("ingresos", 0))
             deducciones = float(data.get("deducciones", 0))
             utilidad = round(ingresos - deducciones, 2)
-            isr_calculated = self._calculate_isr_monthly(ingresos)
+            # CFF Art. 113: ISR provisional se calcula sobre utilidad (ingresos - deducciones)
+            isr_calculated = self._calculate_isr_monthly(max(0, utilidad))
             pagos_provisionales = float(data.get("pagos_provisionales", 0))
 
             isr_data = IsrData(
@@ -274,6 +275,8 @@ class DeclaracionesService(ManualProcessMixin):
         # Store
         self._declaraciones[decl_id] = declaracion
         self._deadlines[deadline_id] = deadline
+
+        self.log_audit(user=tenant_id, action="generate_provisional_isr", module="declaraciones", result="success", tenant_id=tenant_id)
 
         return declaracion
 
@@ -321,7 +324,8 @@ class DeclaracionesService(ManualProcessMixin):
             ingresos = float(data.get("ingresos", 0))
             deducciones = float(data.get("deducciones", 0))
             utilidad = round(ingresos - deducciones, 2)
-            isr_calculated = self._calculate_isr_annual(ingresos)
+            # CFF Art. 113: ISR anual se calcula sobre utilidad (ingresos - deducciones)
+            isr_calculated = self._calculate_isr_annual(max(0, utilidad))
             pagos_provisionales = float(data.get("pagos_provisionales", 0))
 
             isr_data = IsrData(
@@ -363,6 +367,8 @@ class DeclaracionesService(ManualProcessMixin):
         # Store
         self._declaraciones[decl_id] = declaracion
         self._deadlines[deadline_id] = deadline
+
+        self.log_audit(user=tenant_id, action="generate_annual_isr", module="declaraciones", result="success", tenant_id=tenant_id)
 
         return declaracion
 
@@ -548,15 +554,29 @@ class DeclaracionesService(ManualProcessMixin):
 
         Returns:
             ISR amount
+
+        Note: Uses < for upper bound to avoid gaps between bracket boundaries.
+        For exact boundary values (e.g., 312.41), the income falls in the
+        bracket where it is <= upper. The next bracket starts at upper + 0.01.
         """
         if taxable_income <= 0:
             return 0.0
 
-        for lower, upper, fixed, rate in table:
-            if lower <= taxable_income <= upper:
-                excess = taxable_income - lower
-                isr = fixed + (excess * rate)
-                return round(isr, 2)
+        for i, (lower, upper, fixed, rate) in enumerate(table):
+            # For the last bracket (inf), use <= ; for others, use < upper to
+            # avoid the tiny gap between consecutive brackets.
+            if i < len(table) - 1:
+                next_lower = table[i + 1][0]
+                if lower <= taxable_income < next_lower:
+                    excess = taxable_income - lower
+                    isr = fixed + (excess * rate)
+                    return round(isr, 2)
+            else:
+                # Last bracket: no upper bound
+                if taxable_income >= lower:
+                    excess = taxable_income - lower
+                    isr = fixed + (excess * rate)
+                    return round(isr, 2)
 
         # Should not reach here, but fallback
         return 0.0

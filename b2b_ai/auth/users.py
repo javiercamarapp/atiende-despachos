@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import bcrypt
@@ -127,7 +128,8 @@ class UserManager:
                 "El email ya está registrado en este tenant.")
         pw_hash = _hash_password(password)
         user_id = self.db.create_client_user(
-            tenant_id, email, pw_hash, name or email, role=normalized)
+            tenant_id, email, pw_hash, name or email, role=normalized,
+            accepted_privacy_at=datetime.now(timezone.utc).isoformat())
         return _public_user(self.db.get_client_user(user_id))
 
     # ---- Autenticación ---------------------------------------------------

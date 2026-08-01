@@ -1412,12 +1412,18 @@ class Database:
 
     # ---- Portal del cliente (FASE 5) -----------------------------------
     def create_client_user(self, tenant_id, email, password_hash, name="",
-                           role="cliente"):
-        """Crea un usuario del portal de cliente. Devuelve el id."""
+                           role="cliente", accepted_privacy_at=None):
+        """Crea un usuario del portal de cliente. Devuelve el id.
+
+        ``accepted_privacy_at`` — timestamp ISO-8601 de la aceptación del
+        aviso de privacidad (LFPDPPP Art. 8).  Se almacena como evidencia
+        de consentimiento; nullable para usuarios migrados sin ese dato.
+        """
         cur = self.conn.execute(
             "INSERT INTO client_users(tenant_id, email, password_hash, name, "
-            "role) VALUES (?,?,?,?,?)",
-            (tenant_id, email, password_hash, name, role))
+            "role, accepted_privacy_at) VALUES (?,?,?,?,?,?)",
+            (tenant_id, email, password_hash, name, role,
+             accepted_privacy_at))
         self.conn.commit()
         return cur.lastrowid
 
