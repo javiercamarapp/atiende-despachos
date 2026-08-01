@@ -1,61 +1,46 @@
 # -*- coding: utf-8 -*-
 """
-quickbooks.py — Conector ERP QuickBooks Online (mock + interfaz real).
+quickbooks.py — Backward-compatibility shim for QuickBooks ERP integration.
 
-Implementa ERPInterface y AbstractERPConnector para integración con QuickBooks
-Online (QBO) vía la QuickBooks API REST (OAuth 2.0). QuickBooks es el ERP
-cloud más usado en México para despachos contables pequeños/medianos.
+DEPRECATED: Use b2b_ai.integrations.erp.quickbooks.QuickBooksOnlineAdapter instead.
+This module re-exports QuickBooksOnlineAdapter and provides QuickBooksConnector
+as a legacy wrapper for backward compatibility with existing tests and consumers
+that use the ERPInterface / AbstractERPConnector contract.
 
-Modos de operación:
-  - Mock (default): opera en memoria, no necesita credenciales. Ideal para
-    tests, demos y desarrollo.
-  - Real: requiere QBO_COMPANY_ID + QBO_ACCESS_TOKEN (OAuth 2.0 Bearer).
-    Cuando existan credenciales, los métodos hacen llamadas REST reales a
-    https://quickbooks.api.intuit.com/v3/company/{companyId}/...
+Migration path:
+    # OLD (deprecated):
+    from b2b_ai.erp.quickbooks import QuickBooksConnector
+    q = QuickBooksConnector(mock=True)
 
-Supuestos documentados:
-  - QuickBooks Online API v3 (REST, JSON).
-  - Auth: OAuth 2.0 Bearer token (el refresh/obtención del token está fuera
-    de este módulo — se asume que el deploy provee un access_token válido).
-  - Pólizas → JournalEntry en QBO.
-  - Catálogo de cuentas → Account en QBO.
-  - Cada operación lleva audit_ref para trazabilidad.
-  - Esta máquina PREPARA el registro; el profesional determina y firma.
-
-Referencia legal:
-  - CFF Arts. 28, 30 y 33 (contabilidad electrónica / pólizas).
-  - QBO no reemplaza la obligación de contabilidad electrónica ante el SAT.
+    # NEW (recommended):
+    from b2b_ai.integrations.erp.quickbooks import QuickBooksOnlineAdapter
+    adapter = QuickBooksOnlineAdapter()
+    adapter.connect()
 """
 from __future__ import annotations
 
-import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from b2b_ai.erp.base import ERPInterface
 from b2b_ai.erp.connector import AbstractERPConnector, _dec, cuentas_para_categoria
 
+# Re-export production adapter for consumers migrating to the new interface
+from b2b_ai.integrations.erp.quickbooks import QuickBooksOnlineAdapter  # noqa: F401
 
-# ---------------------------------------------------------------------------
-# QuickBooks Online API constants
-# ---------------------------------------------------------------------------
 QBO_API_BASE = "https://quickbooks.api.intuit.com/v3"
 QBO_MOCK_MODE = os.environ.get("QBO_MOCK_MODE", "1") == "1"
 
 
 class QuickBooksConnector(AbstractERPConnector, ERPInterface):
-    """Conector ERP para QuickBooks Online.
+    """Legacy connector for QuickBooks Online — wraps mock logic.
 
-    Implementa AbstractERPConnector (create_voucher / get_account_catalog /
-    check_connection) y ERPInterface (register_invoice / get_invoice / health)
-    para máxima compatibilidad con el resto del stack.
-
-    En modo mock (default), opera en memoria. Para modo real, configura:
-      QBO_MOCK_MODE=0
-      QBO_COMPANY_ID=<tu_company_id>
-      QBO_ACCESS_TOKEN=<oauth2_bearer_token>
+    .. deprecated::
+        Use :class:`b2b_ai.integrations.erp.quickbooks.QuickBooksOnlineAdapter`
+        for production use. This class is retained only for backward compatibility
+        with the ERPInterface / AbstractERPConnector contract.
     """
 
     backend = "QuickBooks Online"
@@ -75,7 +60,7 @@ class QuickBooksConnector(AbstractERPConnector, ERPInterface):
         {"codigo": "3020", "descripcion": "Resultados acumulados", "tipo": "acreedora", "qbo_type": "Equity"},
         {"codigo": "4010", "descripcion": "Ingresos por servicios", "tipo": "acreedora", "qbo_type": "Income"},
         {"codigo": "4020", "descripcion": "Ingresos por ventas", "tipo": "acreedora", "qbo_type": "Income"},
-        {"codigo": "5010", "descripcion": "Costo de servicios", "tipo": "deudora", "qbo_type": "Cost ofGoodsSold"},
+        {"codigo": "5010", "descripcion": "Costo de servicios", "tipo": "deudora", "qbo_type": "CostOfGoodsSold"},
         {"codigo": "6100", "descripcion": "Gastos por clasificar", "tipo": "deudora", "qbo_type": "Expense"},
         {"codigo": "6110", "descripcion": "Sueldos y salarios", "tipo": "deudora", "qbo_type": "Expense"},
         {"codigo": "6131", "descripcion": "Gastos generales", "tipo": "deudora", "qbo_type": "Expense"},
@@ -101,31 +86,11 @@ class QuickBooksConnector(AbstractERPConnector, ERPInterface):
         self._accounts_cache: list[dict] | None = None
 
     # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    def _qbo_headers(self) -> dict:
-        """Headers para llamadas QBO REST API."""
-        return {
-            "Authorization": f"Bearer {self.access_token}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
-
-    def _qbo_url(self, endpoint: str) -> str:
-        """Construye URL base para QBO API v3."""
-        return f"{QBO_API_BASE}/company/{self.company_id}/{endpoint}"
-
-    # ------------------------------------------------------------------
     # AbstractERPConnector (Phase 2 contract)
     # ------------------------------------------------------------------
 
     def create_voucher(self, voucher: dict) -> dict:
-        """Crea un JournalEntry (póliza) en QuickBooks Online.
-
-        En modo mock: registra en memoria con el mismo formato que CONTPAQi.
-        En modo real: POST .../journalentry con OAuth 2.0 Bearer.
-        """
+        """Crea un JournalEntry (póliza) en QuickBooks Online."""
         folio = voucher.get("folio_fiscal") or voucher.get("concepto")
         if not folio:
             return {
@@ -154,46 +119,24 @@ class QuickBooksConnector(AbstractERPConnector, ERPInterface):
             "status": "registrada",
         }
 
-        if self._mock:
-            self._polizas[folio] = entry
-            return {
-                "ok": True,
-                "poliza": poliza_id,
-                "cuenta_cargo": cargo,
-                "cuenta_abono": abono,
-                "status": "registrada",
-                "audit_ref": self._audit_ref("QBO"),
-                "message": f"Póliza {poliza_id} registrada en QuickBooks Online (mock).",
-            }
-
-        # Real mode: POST JournalEntry to QBO API
-        # (In a real deployment, this would make an HTTP call)
-        # For now, fall back to mock behavior with a warning
         self._polizas[folio] = entry
+        status_msg = "registrada" if self._mock else "registrada (mock — real API requires OAuth token refresh)"
         return {
             "ok": True,
             "poliza": poliza_id,
             "cuenta_cargo": cargo,
             "cuenta_abono": abono,
-            "status": "registrada (mock — real API requires OAuth token refresh)",
+            "status": status_msg,
             "audit_ref": self._audit_ref("QBO"),
-            "message": f"Póliza {poliza_id} registrada en QuickBooks Online (mock fallback). "
-                       "Configure QBO_ACCESS_TOKEN for real API calls.",
+            "message": f"Póliza {poliza_id} registrada en QuickBooks Online (mock).",
         }
 
     def get_account_catalog(self) -> list:
-        """Catálogo de cuentas del ERP (lista de dicts con código, descripción, tipo)."""
+        """Catálogo de cuentas del ERP."""
         if self._accounts_cache is not None:
             return self._accounts_cache
-
-        if self._mock:
-            self._accounts_cache = list(self._CATALOGO)
-            return self._accounts_cache
-
-        # Real mode: GET .../query?q=SELECT * FROM Account
-        # Placeholder — when real API is available, implement HTTP call
         self._accounts_cache = list(self._CATALOGO)
-        return list(self._CATALOGO)
+        return self._accounts_cache
 
     def check_connection(self) -> dict:
         """Verifica la conexión con QuickBooks Online."""
@@ -205,8 +148,6 @@ class QuickBooksConnector(AbstractERPConnector, ERPInterface):
                 "audited_at": self._now(),
                 "detail": "QuickBooks Online API simulada operativa (sin conexión real).",
             }
-
-        # Real mode: could do a GET CompanyInfo to verify
         return {
             "ok": bool(self.company_id and self.access_token),
             "backend": self.backend,
@@ -220,7 +161,7 @@ class QuickBooksConnector(AbstractERPConnector, ERPInterface):
         }
 
     # ------------------------------------------------------------------
-    # ERPInterface (legacy contract — register_invoice / get_invoice / health)
+    # ERPInterface (legacy contract)
     # ------------------------------------------------------------------
 
     def register_invoice(self, invoice: dict) -> dict:
@@ -245,67 +186,37 @@ class QuickBooksConnector(AbstractERPConnector, ERPInterface):
         }
 
     # ------------------------------------------------------------------
-    # QBO-specific: Bill, Invoice, Vendor helpers
+    # QBO-specific helpers (legacy interface)
     # ------------------------------------------------------------------
 
     def create_bill(self, vendor_name: str, line_items: list[dict],
                     due_date: str | None = None) -> dict:
-        """Crea un Bill (factura de proveedor) en QBO.
-
-        line_items: [{description, amount, account_ref}]
-        """
+        """Crea un Bill (factura de proveedor) en QBO."""
         bill_id = "QBO-BILL-" + uuid.uuid4().hex[:8].upper()
         total = sum(_dec(item.get("amount", 0)) for item in line_items)
-
-        if self._mock:
-            return {
-                "ok": True,
-                "bill_id": bill_id,
-                "vendor": vendor_name,
-                "total": total,
-                "due_date": due_date or "",
-                "status": "draft",
-                "message": f"Bill {bill_id} creado para {vendor_name} (mock).",
-            }
-
         return {
             "ok": True,
             "bill_id": bill_id,
             "vendor": vendor_name,
             "total": total,
             "due_date": due_date or "",
-            "status": "draft (mock — real API requires OAuth token)",
-            "message": f"Bill {bill_id} creado para {vendor_name} (mock fallback).",
+            "status": "draft",
+            "message": f"Bill {bill_id} creado para {vendor_name} (mock).",
         }
 
     def create_invoice(self, customer_name: str, line_items: list[dict],
                        due_date: str | None = None) -> dict:
-        """Crea una Invoice (factura de venta) en QBO.
-
-        line_items: [{description, amount, account_ref}]
-        """
+        """Crea una Invoice (factura de venta) en QBO."""
         invoice_id = "QBO-INV-" + uuid.uuid4().hex[:8].upper()
         total = sum(_dec(item.get("amount", 0)) for item in line_items)
-
-        if self._mock:
-            return {
-                "ok": True,
-                "invoice_id": invoice_id,
-                "customer": customer_name,
-                "total": total,
-                "due_date": due_date or "",
-                "status": "draft",
-                "message": f"Invoice {invoice_id} creado para {customer_name} (mock).",
-            }
-
         return {
             "ok": True,
             "invoice_id": invoice_id,
             "customer": customer_name,
             "total": total,
             "due_date": due_date or "",
-            "status": "draft (mock — real API requires OAuth token)",
-            "message": f"Invoice {invoice_id} creado para {customer_name} (mock fallback).",
+            "status": "draft",
+            "message": f"Invoice {invoice_id} creado para {customer_name} (mock).",
         }
 
     def list_vendors(self, max_results: int = 100) -> list[dict]:
@@ -315,7 +226,6 @@ class QuickBooksConnector(AbstractERPConnector, ERPInterface):
                 {"id": "1", "name": "Proveedor Demo A", "balance": 0},
                 {"id": "2", "name": "Proveedor Demo B", "balance": 15000},
             ]
-        # Real mode: GET .../query?q=SELECT * FROM Vendor MAXRESULTS {max}
         return []
 
     def list_customers(self, max_results: int = 100) -> list[dict]:

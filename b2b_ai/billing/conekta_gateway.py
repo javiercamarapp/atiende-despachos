@@ -453,13 +453,16 @@ class ConektaGateway:
         Returns:
             PaymentResult con instrucciones de pago si aplica.
         """
-        # Validate method
+        # Validate method — accepts both str and PaymentMethodType
+        method_value = method.value if hasattr(method, "value") else str(method)
         valid_methods = {m.value for m in PaymentMethodType}
-        if method.value not in valid_methods:
+        if method_value not in valid_methods:
             raise PaymentError(
-                f"Método de pago no soportado: {method.value}",
+                f"Método de pago no soportado: {method_value}",
                 Provider.CONEKTA, code="unsupported_payment_method",
             )
+        # Normalize to enum
+        method = PaymentMethodType(method_value)
 
         if self._mock:
             return self._mock_charge(amount, currency, method)
