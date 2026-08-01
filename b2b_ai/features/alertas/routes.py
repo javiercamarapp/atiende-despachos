@@ -128,9 +128,27 @@ def build_alertas_router(
         offset: int = Query(default=0, ge=0, description="Offset for pagination"),
     ) -> dict:
         tenant = _scope(auth_info)
-        sev = AlertSeverity(severity) if severity else None
-        typ = AlertType(type) if type else None
-        stat = AlertStatus(status) if status else None
+        try:
+            sev = AlertSeverity(severity) if severity else None
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid severity value. Must be one of: {', '.join(s.value for s in AlertSeverity)}",
+            )
+        try:
+            typ = AlertType(type) if type else None
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid type value. Must be one of: {', '.join(t.value for t in AlertType)}",
+            )
+        try:
+            stat = AlertStatus(status) if status else None
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid status value. Must be one of: {', '.join(s.value for s in AlertStatus)}",
+            )
         alerts = shared_store.list_alerts(
             tenant_id=tenant,
             severity=sev,

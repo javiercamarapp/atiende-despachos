@@ -888,16 +888,18 @@ class TestRoutesInvalidInput:
         assert r.status_code in (401, 403, 200)
 
     def test_invalid_severity_filter(self, client):
-        """Invalid severity raises unhandled ValueError in route (no validation)."""
+        """Invalid severity returns 422 with descriptive message."""
         c, db = client
-        with pytest.raises((ValueError, Exception)):
-            c.get("/api/v1/alerts?severity=invalid", headers=_auth())
+        r = c.get("/api/v1/alerts?severity=invalid", headers=_auth())
+        assert r.status_code == 422
+        assert "Invalid severity value" in r.json()["detail"]
 
     def test_invalid_type_filter(self, client):
-        """Invalid type raises unhandled ValueError in route (no validation)."""
+        """Invalid type returns 422 with descriptive message."""
         c, db = client
-        with pytest.raises((ValueError, Exception)):
-            c.get("/api/v1/alerts?type=invalid", headers=_auth())
+        r = c.get("/api/v1/alerts?type=invalid", headers=_auth())
+        assert r.status_code == 422
+        assert "Invalid type value" in r.json()["detail"]
 
     def test_pagination_limit_too_large(self, client):
         c, db = client
@@ -1411,3 +1413,48 @@ class TestExtractValueExtended:
 
     def test_extract_value_custom_default(self):
         assert _extract_value({}, "missing", default={"complex": True}) == {"complex": True}
+
+
+# ============================================================================
+# REGRESSION — ENUM VALIDATION & VOLUME_LIMIT ZERO
+# ============================================================================
+
+class TestRegressionBugfixes:
+    """Regression tests for enum validation (422) and volume_limit=0 fix."""
+
+    def test_list_alerts_invalid_severity_returns_422(self, client):
+        """Passing severity=foo to GET /alerts returns 422, not 500."""
+        c, db = client
+        r = c.get("/api/v1/alerts?severity=foo", headers=_auth())
+        assert r.status_code == 422
+        assert "Invalid severity value" in r.json()["detail"]
+
+    def test_list_alerts_invalid_type_returns_422(self, client):
+        """Passing type=bar to GET /alerts returns 422, not 500."""
+        c, db = client
+        r = c.get("/api/v1/alerts?type=bar", headers=_auth())
+        assert r.status_code == 422
+        assert "Invalid type value" in r.json()["detail"]
+
+    def test_list_alerts_invalid_status_returns_422(self, client):
+        """Passing status=bogus to GET /alerts returns 422, not 500."""
+        c, db = client
+        r = c.get("/api/v1/alerts?status=bogus", headers=_auth())
+        assert r.status_code == 422
+        assert "Invalid status value" in r.json()["detail"]
+
+    def test_volume_rule_zero_limit_triggers_correctly(self):
+        """volume_limit=0 with count=1 should trigger (1 > 0), not fall back to 50."""
+        rule = AlertRule(
+            id="regression-vol-zero",
+            name="Zero limit volume rule",
+            type=AlertType.VOLUME,
+            enabled=True,
+            volume_limit=0,
+            field_path="count",
+            severity="critical",
+            message_template="Volume exceeded",
+        )
+        data = {"count": 1, "entity_type": "volume", "entity_id": "vol-zero-test"}
+        alerts = evaluate_rules(data, rules=[rule])
+        assert len(alerts) == 1

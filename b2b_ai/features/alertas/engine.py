@@ -184,7 +184,7 @@ def _evaluate_volume(data: dict, rule: AlertRule) -> bool:
         count = int(count)
     except (ValueError, TypeError):
         return False
-    limit = rule.volume_limit or 50
+    limit = rule.volume_limit if rule.volume_limit is not None else 50
     return count > limit
 
 
