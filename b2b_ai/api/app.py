@@ -437,7 +437,14 @@ _RATE_LIMIT_EXEMPT_PREFIXES = (
 
 
 def create_app(db=None):
-    db = db or Database()
+    # Support B2B_DATABASE_URL as the canonical PG connection string.
+    # Priority: explicit db arg > B2B_DATABASE_URL > B2B_DB_URL > B2B_DB_PATH > default SQLite.
+    if db is None:
+        pg_url = os.environ.get("B2B_DATABASE_URL")
+        if pg_url:
+            db = Database(pg_url)
+        else:
+            db = Database()
     logger.set_db(db)
 
     # Fail-fast de configuración de firma. Si B2B_JWT_SECRET falta (o es

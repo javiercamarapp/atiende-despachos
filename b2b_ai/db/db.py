@@ -21,6 +21,9 @@ DEFAULT_DB = (os.environ.get("B2B_DB_URL")
               or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
                   os.path.abspath(__file__)))), "b2b_ai.db"))
 
+# Import adapter factory for PostgreSQL/SQLite switching
+from b2b_ai.db.adapter_factory import create_adapter, is_postgres as _is_postgres_url
+
 # Campos de tenant_config que se cifran en reposo (PII / credenciales).
 # Cualquier otro valor se guarda en claro.
 _SENSITIVE_CONFIG_KEYS = {"webhook_url", "notif_recipient", "whatsapp_token"}

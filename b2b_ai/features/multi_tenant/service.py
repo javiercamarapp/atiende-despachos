@@ -422,6 +422,9 @@ class MultiTenantService:
         if not is_valid:
             raise TenantBlockedError(err)
 
+        # Capture old context BEFORE switching (for audit trail)
+        old_context = self._current_context
+
         context = TenantContext(
             tenant_id=tenant.id,
             tenant_name=tenant.name,
@@ -439,7 +442,7 @@ class MultiTenantService:
             AuditAction.CONTEXT_SWITCHED,
             user_id=user_id,
             ip_address=ip_address,
-            details={"from_tenant": self._current_context.tenant_id if self._current_context else None},
+            details={"from_tenant": old_context.tenant_id if old_context else None},
         )
 
         return context
