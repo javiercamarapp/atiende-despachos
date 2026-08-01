@@ -103,6 +103,7 @@ class DiotEntry(BaseModel):
         ...,
         description="RFC del tercero (emisor o receptor según tipo)",
     )
+    requires_human_review: bool = Field(default=False, description="Requires human review")
     nombre: str = Field(
         default="",
         description="Nombre o razón social del tercero",

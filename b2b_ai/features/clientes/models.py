@@ -64,6 +64,10 @@ class InvoiceStatus(BaseModel):
     total: Optional[float] = Field(default=None, ge=0, description="Invoice total amount")
     regimen_fiscal: Optional[str] = Field(default=None, description="Tax regime code")
     uso_cfdi: Optional[str] = Field(default=None, description="CFDI usage code")
+    requires_human_review: bool = Field(default=False, description="Requires human review")
+    human_review_reason: Optional[str] = Field(default=None, description="Reason for human review")
+    referencia_legal: Optional[str] = Field(default=None, description="Legal reference (CFF Art)")
+    escalation_path: Optional[str] = Field(default=None, description="Escalation path")
 
     @field_validator("cfdi_id")
     @classmethod

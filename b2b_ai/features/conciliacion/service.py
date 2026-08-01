@@ -72,6 +72,7 @@ class ConciliationService(ManualProcessMixin):
         amount_tolerance : float
             Fractional tolerance for amount-only matching (default 0.01 = 1%).
         """
+        super().__init__()
         self.date_tolerance_days = date_tolerance_days
         self.discrepancy_threshold = discrepancy_threshold
         self.amount_tolerance = amount_tolerance

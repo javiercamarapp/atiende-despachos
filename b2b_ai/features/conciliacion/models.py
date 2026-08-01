@@ -375,3 +375,6 @@ class ConciliationReport(BaseModel):
         default_factory=list,
         description="Detailed adjustment proposals",
     )
+    requires_human_review: bool = Field(default=False, description="Requires human review")
+    referencia_legal: Optional[str] = Field(default=None, description="Legal reference (CFF Art)")
+    escalation_path: Optional[str] = Field(default=None, description="Escalation path")

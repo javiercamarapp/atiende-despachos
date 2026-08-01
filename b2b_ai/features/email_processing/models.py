@@ -58,6 +58,8 @@ class ExtractedInvoice(BaseModel):
     cfdi_data: Dict[str, Any] = Field(default_factory=dict, description="Extracted CFDI data")
     status: ProcessingStatus = Field(default=ProcessingStatus.PENDING, description="Processing status")
     errors: List[str] = Field(default_factory=list, description="Processing errors")
+    requires_human_review: bool = Field(default=False, description="Requires human review")
+    referencia_legal: Optional[str] = Field(default=None, description="Legal reference (CFF Art)")
     email_id: Optional[str] = Field(default=None, description="Source email ID")
     attachment_type: AttachmentType = Field(default=AttachmentType.XML, description="Source attachment type")
     uuid: Optional[str] = Field(default=None, description="CFDI UUID if extracted")
