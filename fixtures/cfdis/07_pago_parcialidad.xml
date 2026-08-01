@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+                  xmlns:pago20="http://www.sat.gob.mx/Pagos20"
+                  xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd
+                                      http://www.sat.gob.mx/Pagos20 http://www.sat.gob.mx/sitio_internet/cfd/Pagos/Pagos20.xsd"
+                  Version="4.0" Folio="1"
+                  Fecha="2026-07-20T14:00:00"
+                  FormaPago="99" MetodoPago="PPD" Moneda="MXN"
+                  TipoDeComprobante="P" Exportacion="01"
+                  LugarExpedicion="06600" SubTotal="0.00" Total="0.00">
+  <cfdi:Emisor Rfc="DESP820101AB1" Nombre="DESPACHO CONTABLE JAVIER C. S.C." RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="CON950820K12" Nombre="CONSULTORIA ESTRATEGICA DEL NORTE S.A. DE C.V." DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="601" UsoCFDI="CP01"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="84111506" Cantidad="1" ClaveUnidad="ACT" Unidad="Actividad"
+                   Descripcion="Parcialidad de pago" ValorUnitario="0.00" Importe="0.00" ObjetoImp="01">
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Complemento>
+    <pago20:Pagos Version="2.0">
+      <pago20:Pago FechaPago="2026-07-20T14:00:00" FormaPago="03" Moneda="MXN" Monto="2000.00">
+        <pago20:DoctoRelacionado IdDocumento="4a54e553-84f3-4a3a-b495-846bad779691"
+            Serie="B" Folio="210" MonedaDR="MXN" MetodoDePagoDR="PPD"
+            NumParcialidad="1" ImpSaldoAnt="5800.00" ImpPagado="2000.00" ImpSaldoInsoluto="3800.00"/>
+      </pago20:Pago>
+    </pago20:Pagos>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="c4d5e6f7-8a9b-4c0d-8e1f-000000000001"
+        FechaTimbrado="2026-07-20T14:01:00" RfcProvCertif="SAT970701NN3"
+        SelloCFD="AABBCC" NoCertificado="00001000000000000000" SelloSAT="DDEEFF"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

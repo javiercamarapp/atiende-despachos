@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Configuración · Portal del cliente{% endblock %}
+{% block body %}
+<div class="topbar">
+  <h1>Configuración del tenant</h1>
+  <div class="who">{{ tenant.name }}</div>
+</div>
+
+{% if saved %}
+<div class="flash ok">Cambios guardados correctamente.</div>
+{% endif %}
+
+<div class="card">
+  <form id="settingsForm">
+    <div class="filters" style="flex-direction:column;align-items:stretch">
+      <div>
+        <label class="muted" for="f_rfc">RFC</label>
+        <input id="f_rfc" name="rfc" value="{{ cfg.rfc }}" placeholder="XXXX000000XXX">
+      </div>
+      <div>
+        <label class="muted" for="f_erp">Tipo de ERP</label>
+        <select id="f_erp" name="erp_type">
+          <option value="contpaqi" {{ 'selected' if cfg.erp_type=='contpaqi' }}>CONTPAQi</option>
+          <option value="aspel" {{ 'selected' if cfg.erp_type=='aspel' }}>Aspel</option>
+          <option value="csv" {{ 'selected' if cfg.erp_type=='csv' }}>CSV</option>
+        </select>
+      </div>
+      <div>
+        <label class="muted" for="f_plantilla">Plantilla contable</label>
+        <input id="f_plantilla" name="plantilla_contable" value="{{ cfg.plantilla_contable }}">
+      </div>
+      <div>
+        <label class="muted" for="f_notif_channel">Canal de notificación</label>
+        <select id="f_notif_channel" name="notif_channel">
+          <option value="email" {{ 'selected' if cfg.notif_channel=='email' }}>Email</option>
+          <option value="whatsapp" {{ 'selected' if cfg.notif_channel=='whatsapp' }}>WhatsApp</option>
+        </select>
+      </div>
+      <div>
+        <label class="muted" for="f_notif_recipient">Destinatario de notificaciones</label>
+        <input id="f_notif_recipient" name="notif_recipient" value="{{ cfg.notif_recipient }}"
+               placeholder="correo o teléfono">
+      </div>
+      <div>
+        <button class="btn primary" type="submit">Guardar cambios</button>
+        <span id="saveMsg" class="muted" style="margin-left:10px"></span>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+document.getElementById("settingsForm").addEventListener("submit", async function(e){
+  e.preventDefault();
+  var payload = {
+    rfc: document.getElementById("f_rfc").value,
+    erp_type: document.getElementById("f_erp").value,
+    plantilla_contable: document.getElementById("f_plantilla").value,
+    notif_channel: document.getElementById("f_notif_channel").value,
+    notif_recipient: document.getElementById("f_notif_recipient").value
+  };
+  var msg = document.getElementById("saveMsg");
+  msg.textContent = "Guardando…";
+  try{
+    var r = await fetch("/portal/settings", {
+      method:"PUT",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    if(!r.ok) throw new Error("Error " + r.status);
+    var d = await r.json();
+    msg.textContent = "Guardado: " + (d.updated||[]).join(", ");
+    location.href = "/portal/settings?saved=1";
+  }catch(err){
+    msg.textContent = "Error: " + err.message;
+  }
+});
+</script>
+{% endblock %}

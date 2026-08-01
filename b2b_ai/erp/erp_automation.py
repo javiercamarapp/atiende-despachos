@@ -1,0 +1,239 @@
+# -*- coding: utf-8 -*-
+"""
+erp_automation.py — Base de automatización de escritorio para ERPs on-premise.
+
+CONTPAQi y Aspel de escritorio no exponen API REST estable: se automatizan por
+computer use de escritorio (capturar la ventana, localizar controles y pulsar /
+teclear, igual que lo haría una persona). Este módulo es la capa "real" de esa
+automatización: orquesta un driver de escritorio y añade tres capacidades que
+un flujo manual necesita para operar en producción:
+
+  - **Audit log con screenshots**: cada paso del flujo registra una entrada
+    (paso, intento, timestamp, ok/error) y guarda una captura de pantalla en un
+    directorio de auditoría. Permite revisar después qué vio la máquina.
+  - **Error recovery con retry**: cualquier paso se reintenta hasta `retries`
+    veces; cada reintento vuelve a capturar. Si todo falla, el error queda
+    registrado y se devuelve un dict `ok=False` con detalle.
+  - **Health check**: verifica que el ERP está abierto (título de ventana),
+    que es navegable (la captura de pantalla funciona) y que es guardable
+    (el registro de un CFDI de prueba funciona). Con retry + screenshots.
+
+El backend real de escritorio (captura + visión + eventos de teclado/ratón) se
+inyecta vía `DesktopAutomation`. En desarrollo/CI se usa `MockDesktop` (en
+memoria) para que los tests no dependan de una instalación de CONTPAQi/Aspel.
+El contrato no cambia: sustituir el mock por un controlador real es transparente
+para esta capa.
+
+> Diseño rector: la máquina navega y rellena; la validación fiscal final y la
+> firma son del profesional. Ninguna acción de este módulo presenta nada ante
+> el SAT.
+"""
+from __future__ import annotations
+
+import json
+import os
+import time
+import uuid
+from datetime import datetime
+
+
+def _utcnow_iso():
+    return datetime.utcnow().isoformat(timespec="seconds") + "Z"
+
+
+class DesktopERPBase:
+    """Orquesta un driver de escritorio (CONTPAQi/Aspel) con auditoría.
+
+    El driver (hijo de DesktopAutomation + métodos de dominio: open_app, login,
+    capture_invoice_grid, register_invoice) se pasa en el constructor. Esta
+    clase añade la capa de auditoría / retry / health común.
+    """
+
+    backend = "abstract-desktop"
+
+    def __init__(self, driver, audit_dir=None, retries=3, screenshots=True):
+        self.driver = driver
+        self.retries = max(1, int(retries))
+        self.screenshots = bool(screenshots)
+        # Directorio de auditoría: si no se pasa, uno temporal bajo el repo.
+        self.audit_dir = audit_dir or self._default_audit_dir()
+        os.makedirs(self.audit_dir, exist_ok=True)
+        self.audit_log = []          # entradas en memoria (para el agente)
+        self.audit_log_path = os.path.join(self.audit_dir, "audit.jsonl")
+        self._session_id = uuid.uuid4().hex[:10].upper()
+
+    # -- utilidades ----------------------------------------------------------
+    @staticmethod
+    def _default_audit_dir():
+        here = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(here, "..", "..", "audit_erp")
+
+    def _screenshot(self, step):
+        """Captura la ventana y devuelve la ruta (o None si falla / desactivado)."""
+        if not self.screenshots:
+            return None
+        try:
+            shot = self.driver.screenshot()
+            if not shot.get("ok"):
+                return None
+            path = shot.get("path")
+            if not path or path == "<mock>":
+                # En modo mock no hay imagen real; registramos el marcador igual.
+                return path
+            return path
+        except Exception:
+            return None
+
+    def _log(self, step, status, **extra):
+        entry = {
+            "session": self._session_id,
+            "step": step,
+            "status": status,
+            "at": _utcnow_iso(),
+            "attempt": extra.pop("attempt", None),
+            "screenshot": extra.pop("screenshot", None),
+            "detail": extra.pop("detail", None),
+        }
+        entry.update(extra)
+        self.audit_log.append(entry)
+        with open(self.audit_log_path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        return entry
+
+    def _retry(self, step, fn, *args, **kwargs):
+        """Ejecuta `fn` con reintentos, capturando screenshot en cada intento.
+
+        Devuelve el dict resultante. Si falla, registra el error y devuelve
+        un dict `ok=False` con `step`, `retries` y el último error.
+        """
+        last = {"ok": False, "message": "No ejecutado"}
+        for attempt in range(1, self.retries + 1):
+            shot = self._screenshot(f"{step}/intento-{attempt}")
+            try:
+                result = fn(*args, **kwargs) or {}
+                ok = bool(result.get("ok"))
+                self._log(step, "ok" if ok else "error",
+                          attempt=attempt, screenshot=shot,
+                          detail=result.get("message"))
+                if ok:
+                    result.setdefault("audit_step", step)
+                    result.setdefault("screenshot", shot)
+                    result.setdefault("retries", attempt)
+                    return result
+                last = result
+            except Exception as exc:  # noqa: BLE001 - capa de integración
+                last = {"ok": False, "message": f"{type(exc).__name__}: {exc}"}
+                self._log(step, "exception", attempt=attempt,
+                          screenshot=shot, detail=last["message"])
+        last["ok"] = False
+        last["step"] = step
+        last["retries"] = self.retries
+        last["recovered"] = False
+        self._log(step, "failed", attempt=self.retries,
+                  screenshot=self._screenshot(f"{step}/final"),
+                  detail=last.get("message"))
+        return last
+
+    # -- health check --------------------------------------------------------
+    def health(self, credentials=None):
+        """Verifica ERP abierto, navegable y guardable. Con retry + screenshots.
+
+        - `abierto`    : el título de ventana responde (ERP lanzado).
+        - `navegable`  : la captura de pantalla responde (UI interactuable).
+        - `guardable`  : solo verificable con sesión. Si el driver ya está
+          autenticado se registra un CFDI de prueba; si no, se intenta login
+          con `credentials`; si no hay sesión el resultado es `None` (no
+          verificado) y se indica por qué.
+
+        Devuelve {ok, backend, checks, detail, audit_dir}.
+        """
+        checks = {}
+
+        # 1) ¿Está abierto? -> título de ventana
+        def _abierto():
+            title = self.driver.read_window_title()
+            return {"ok": bool(title), "title": title}
+        checks["abierto"] = self._retry("health/abierto", _abierto)
+
+        # 2) ¿Es navegable? -> la captura de pantalla responde
+        def _navegable():
+            shot = self.driver.screenshot()
+            return {"ok": bool(shot.get("ok")), "path": shot.get("path")}
+        checks["navegable"] = self._retry("health/navegable", _navegable)
+
+        # 3) ¿Es guardable? -> requiere sesión; intentar login si no la hay
+        if self.driver.session is None and credentials:
+            self._retry("health/login", self.driver.login, credentials)
+        if self.driver.session is not None:
+            def _guardable():
+                return self.driver.register_invoice(
+                    {"folio_fiscal": f"HEALTH-{self._session_id}",
+                     "total": 0.0, "_health_probe": True})
+            checks["guardable"] = self._retry("health/guardable", _guardable)
+        else:
+            checks["guardable"] = {
+                "ok": None,
+                "message": "Sin sesión y sin credentials: guardado no verificado.",
+            }
+
+        hard_ok = checks["abierto"].get("ok") and checks["navegable"].get("ok")
+        guardable_ok = checks["guardable"].get("ok")
+        ok = bool(hard_ok and (guardable_ok is True or guardable_ok is None))
+        detail = "ERP abierto y navegable."
+        if guardable_ok is True:
+            detail += " Guardado verificado."
+        elif guardable_ok is None:
+            detail += " Guardado no verificado (sin sesión)."
+        else:
+            detail = "Alguna comprobación de salud falló; revisar `checks`."
+        return {
+            "ok": ok,
+            "backend": self.backend,
+            "checks": {k: v.get("ok") for k, v in checks.items()},
+            "detail": detail,
+            "audit_dir": self.audit_dir,
+        }
+
+    def full_flow(self, credentials, invoices=None):
+        """Flujo completo: abrir -> login -> capturar grid -> registrar.
+
+        credentials: dict {usuario, password, empresa}.
+        invoices: lista opcional de dicts de CFDI a registrar.
+        Devuelve {ok, registered, steps, audit_log_path}.
+        """
+        steps = {}
+        steps["open"] = self._retry("open_app", self.driver.open_app)
+        if not steps["open"].get("ok"):
+            return {"ok": False, "registered": [], "steps": steps,
+                    "error": "No se pudo abrir el ERP."}
+
+        steps["login"] = self._retry("login", self.driver.login, credentials)
+        if not steps["login"].get("ok"):
+            return {"ok": False, "registered": [], "steps": steps,
+                    "error": "No se pudo autenticar en el ERP."}
+
+        # Abrir el módulo de captura de facturas si el driver lo expone.
+        open_invoices = getattr(self.driver, "open_invoices", None)
+        if open_invoices is not None:
+            steps["open_invoices"] = self._retry("open_invoices", open_invoices)
+
+        steps["capture"] = self._retry(
+            "capture_grid", self.driver.capture_invoice_grid)
+        grid = steps["capture"].get("grid", []) or []
+
+        to_register = invoices if invoices is not None else grid
+        registered = []
+        for inv in to_register:
+            res = self._retry("register", self.driver.register_invoice, inv)
+            if res.get("ok"):
+                registered.append(res.get("registro") or inv)
+            else:
+                steps.setdefault("register_errors", []).append(
+                    {"invoice": inv, "error": res.get("message")})
+
+        return {
+            "ok": True,
+            "registered": registered,
+            "steps": steps,
+            "audit_log_path": self.audit_log_path,
+        }

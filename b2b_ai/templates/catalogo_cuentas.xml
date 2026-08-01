@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Plantilla del catálogo de cuentas (CUC) para contabilidad electrónica del SAT.
+  Schema de referencia: CatalogoCuentas 1.3
+    xmlns:Cat = http://www.sat.gob.mx/esquemas/ContabilidadE/1_3/CatalogoCuentas
+    XSD      = CatalogoCuentas_1_3.xsd
+
+  Elementos:
+    Cat:Catalogo (Version, RFC, Anio, Mes, FechaModificacion, Sello,
+                  noCertificado, Certificado)
+      Cat:Ctas
+        Cat:Cta (NumCta, Desc, SubCtaDe, Nivel, Natur)
+
+  Naturaleza: D = deudora, A = acreedora (código agrupador SAT / NT 2026).
+  Este archivo es una referencia documental; el código genera el XML con la
+  misma estructura usando los valores reales del catálogo.
+-->
+<Cat:Catalogo xmlns:Cat="http://www.sat.gob.mx/esquemas/ContabilidadE/1_3/CatalogoCuentas"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://www.sat.gob.mx/esquemas/ContabilidadE/1_3/CatalogoCuentas http://www.sat.gob.mx/esquemas/ContabilidadE/1_3/CatalogoCuentas/CatalogoCuentas_1_3.xsd"
+              Version="1.3"
+              RFC="DESP820101AB1"
+              Anio="2026"
+              Mes="01"
+              FechaModificacion="2026-01-31T23:59:59"
+              Sello=""
+              noCertificado=""
+              Certificado="">
+  <Cat:Ctas>
+    <Cat:Cta NumCta="1000" Desc="ACTIVO" SubCtaDe="" Nivel="1" Natur="D"/>
+    <Cat:Cta NumCta="1100" Desc="ACTIVO CIRCULANTE" SubCtaDe="1000" Nivel="2" Natur="D"/>
+    <Cat:Cta NumCta="1101" Desc="BANCOS" SubCtaDe="1100" Nivel="3" Natur="D"/>
+    <Cat:Cta NumCta="1102" Desc="CLIENTES" SubCtaDe="1100" Nivel="3" Natur="D"/>
+    <Cat:Cta NumCta="2000" Desc="PASIVO" SubCtaDe="" Nivel="1" Natur="A"/>
+    <Cat:Cta NumCta="2100" Desc="PASIVO CIRCULANTE" SubCtaDe="2000" Nivel="2" Natur="A"/>
+    <Cat:Cta NumCta="2101" Desc="PROVEEDORES" SubCtaDe="2100" Nivel="3" Natur="A"/>
+    <Cat:Cta NumCta="4000" Desc="INGRESOS" SubCtaDe="" Nivel="1" Natur="A"/>
+    <Cat:Cta NumCta="4100" Desc="INGRESOS POR SERVICIOS" SubCtaDe="4000" Nivel="2" Natur="A"/>
+    <Cat:Cta NumCta="6000" Desc="GASTOS" SubCtaDe="" Nivel="1" Natur="D"/>
+    <Cat:Cta NumCta="6100" Desc="GASTOS DE OPERACION" SubCtaDe="6000" Nivel="2" Natur="D"/>
+    <Cat:Cta NumCta="6102" Desc="GASTOS ADMINISTRATIVOS" SubCtaDe="6100" Nivel="3" Natur="D"/>
+  </Cat:Ctas>
+</Cat:Catalogo>

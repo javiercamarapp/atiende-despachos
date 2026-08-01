@@ -1,0 +1,84 @@
+# -*- coding: utf-8 -*-
+"""
+aspel_real.py — Integración REAL de Aspel (SAE/COI) por computer use.
+
+Aspel es un ERP de escritorio sin API REST estable; se automatiza por computer
+use de escritorio: abrir la app, navegar las pantallas del SAE, capturar los
+datos del CFDI y guardar el registro — igual que lo haría una persona.
+
+Este módulo construye la integración real sobre `AspelDriver`
+(b2b_ai/computer_use/aspel_driver.py) y la capa común `DesktopERPBase`
+(b2b_ai/erp/erp_automation.py), que aporta:
+
+  - Audit log con screenshots de cada paso.
+  - Error recovery: reintentos con nueva captura por intento.
+  - Health check (abierto / navegable / guardable) con retry.
+
+En desarrollo/CI se inyecta un backend `DesktopAutomation` en memoria
+(MockDesktop) para que los tests no dependan de una instalación de Aspel SAE.
+En producción se inyecta el controlador de escritorio real; esta capa y sus
+tests no cambian.
+
+> Diseño rector: la máquina navega y rellena; la validación fiscal final y la
+> firma son del profesional. Ninguna acción de este módulo presenta nada ante
+> el SAT.
+"""
+from __future__ import annotations
+
+from b2b_ai.computer_use.aspel_driver import AspelDriver
+from b2b_ai.computer_use.contpaqi_driver import MockDesktop
+from b2b_ai.erp.erp_automation import DesktopERPBase
+
+APP_NAME = "Aspel"
+
+
+class RealAspel(DesktopERPBase):
+    """Integración real de Aspel (SAE/COI) sobre computer use de escritorio."""
+
+    backend = "Aspel (computer use, real desktop)"
+
+    def __init__(self, driver=None, desktop=None, audit_dir=None, retries=3,
+                 screenshots=True):
+        if driver is None:
+            driver = AspelDriver(desktop=desktop or MockDesktop())
+        super().__init__(driver, audit_dir=audit_dir, retries=retries,
+                         screenshots=screenshots)
+
+    # ------------------------------------------------------------------ API
+    def open_app(self):
+        return self._retry("open_app", self.driver.open_app)
+
+    def login(self, credentials: dict):
+        return self._retry("login", self.driver.login, credentials)
+
+    def open_invoices(self):
+        return self._retry("open_invoices", self.driver.open_invoices)
+
+    def capture_invoice_grid(self):
+        return self._retry("capture_grid", self.driver.capture_invoice_grid)
+
+    def register_invoice(self, data: dict):
+        return self._retry("register", self.driver.register_invoice, data)
+
+    def navigate_sae_screens(self, screens=("facturas", "captura", "guardar")):
+        """Navega las pantallas típicas del SAE con captura por pantalla.
+
+        `screens`: secuencia de pantallas del SAE a recorrer. Se simula la
+        navegación pulsando Enter sobre cada pantalla y se captura cada paso
+        para el audit log. Overridable por instalación concreta.
+        """
+        visited = []
+        for screen in screens:
+            res = self._retry(f"navigate/{screen}", self.driver.press_key, "Enter")
+            visited.append({"screen": screen, "ok": bool(res.get("ok"))})
+        return {"ok": all(v["ok"] for v in visited), "visited": visited}
+
+
+def health():
+    """Health check de Aspel sobre el driver por defecto."""
+    return RealAspel().health()
+
+
+def capture_and_register(credentials: dict, invoices=None, audit_dir=None):
+    """Flujo completo: abrir Aspel, capturar y registrar CFDI."""
+    return RealAspel(audit_dir=audit_dir).full_flow(credentials, invoices)

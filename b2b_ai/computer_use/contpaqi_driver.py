@@ -1,0 +1,259 @@
+# -*- coding: utf-8 -*-
+"""
+contpaqi_driver.py — Driver de computer use para CONTPAQi de escritorio.
+
+CONTPAQi on-premise (contabilidad, admón) no expone API REST estable; la vía
+de automatización fiable es computer use de escritorio: capturar la ventana,
+localizar controles y pulsar/teclear (igual que lo haría una persona).
+
+Este módulo define:
+
+  - DesktopAutomation : interfaz abstracta de un "escritorio" (ventana de una
+    app de escritorio). Agnóstica del ERP: cualquier driver de escritorio
+    (CONTPAQi, Aspel) la implementa.
+  - MockDesktop        : implementación funcional EN MEMORIA del escritorio.
+    Registra clics, teclas y texto tipeado para testing y demo.
+  - ContpaqiDriver     : driver de escritorio para CONTPAQi sobre el contrato
+    DesktopAutomation. Abre la app, autentica, captura el grid de facturas y
+    registra CFDI pendientes de revisión.
+  - Helpers de módulo (get/set_default_contpaqi, contpaqi_login,
+    contpaqi_register) para operar sobre un driver por defecto.
+
+En producción se sustituiría MockDesktop por un controlador real (captura de
+pantalla + visión + eventos de teclado/ratón); el contrato abstracto no cambia.
+
+Diseño rector: la máquina navega y rellena; la validación fiscal final y la
+firma son del profesional. Ninguna acción de este módulo presenta nada ante
+el SAT.
+"""
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from datetime import datetime
+
+
+# ---------------------------------------------------------------------------
+# Interfaz de "escritorio" (computer use de apps de escritorio)
+# ---------------------------------------------------------------------------
+class DesktopAutomation(ABC):
+    """Contrato de un escritorio virtual controlable por computer use.
+
+    Métodos mínimos de cualquier backend de escritorio (mock, Playwright/CDP
+    con visión, Sikuli). Toda acción devuelve un dict auditable.
+    """
+
+    @abstractmethod
+    def screenshot(self) -> dict:
+        """Captura la ventana actual. Devuelve {ok, path}."""
+
+    @abstractmethod
+    def read_window_title(self) -> str:
+        """Devuelve el título de la ventana activa."""
+
+    @abstractmethod
+    def click(self, x: int, y: int) -> dict:
+        """Clic en coordenadas de la ventana. Devuelve {ok, x, y}."""
+
+    @abstractmethod
+    def type_text(self, text: str) -> dict:
+        """Escribe texto. Devuelve {ok, chars}."""
+
+    @abstractmethod
+    def press_key(self, key: str) -> dict:
+        """Pulsa una tecla (Enter, Tab...). Devuelve {ok, key}."""
+
+    @abstractmethod
+    def health(self) -> dict:
+        """Devuelve {ok, backend, detail}."""
+
+
+# ---------------------------------------------------------------------------
+# Mock de escritorio (en memoria) para testing / demo
+# ---------------------------------------------------------------------------
+class MockDesktop(DesktopAutomation):
+    """Simulación de una ventana de escritorio controlable.
+
+    Registra en listas lo que se hace (clics, teclas, texto tipeado) para
+    poder probar y auditar el flujo de un driver sin un escritorio real.
+
+    Inyección de fallas (para probar retry / error recovery):
+      - `fail_next(action, times)` inyecta `times` fallos consecutivos en la
+        primitiva indicada ("click", "type_text", "press_key", "screenshot",
+        "read_window_title"). Usado por los tests de recuperación de errores.
+      - `screenshot_path`: si se asigna una ruta real, `screenshot()` la
+        devuelve como si fuera la captura en disco (permite verificar que el
+        audit log referencia archivos existentes).
+    """
+
+    DEFAULT_TITLE = "Escritorio virtual (computer use)"
+    backend = "Desktop (computer use, en memoria)"
+
+    def __init__(self, title: str = DEFAULT_TITLE):
+        self.title = title
+        self.clicks: list = []
+        self.keys: list = []
+        self.typed: list = []
+        self._faults: dict = {}
+        self.screenshot_path: str | None = None
+
+    # -- inyección de fallas -------------------------------------------------
+    def fail_next(self, action: str, times: int = 1) -> None:
+        """Inyecta `times` fallos consecutivos en la primitiva `action`."""
+        self._faults[action] = self._faults.get(action, 0) + int(times)
+
+    def _maybe_fail(self, action: str) -> bool:
+        """Devuelve True si la acción debe fallar por inyección."""
+        n = self._faults.get(action, 0)
+        if n > 0:
+            self._faults[action] = n - 1
+            return True
+        return False
+
+    # -- primitivas DesktopAutomation ----------------------------------------
+    def screenshot(self):
+        if self._maybe_fail("screenshot"):
+            return {"ok": False, "path": None, "title": self.title,
+                    "error": "Falla inyectada en screenshot"}
+        path = self.screenshot_path or "<mock>"
+        return {"ok": True, "path": path, "title": self.title}
+
+    def read_window_title(self):
+        if self._maybe_fail("read_window_title"):
+            raise RuntimeError("Falla inyectada en read_window_title")
+        return self.title
+
+    def click(self, x: int, y: int):
+        if self._maybe_fail("click"):
+            return {"ok": False, "x": x, "y": y, "error": "Falla inyectada en click"}
+        self.clicks.append((x, y))
+        return {"ok": True, "x": x, "y": y}
+
+    def type_text(self, text: str):
+        if self._maybe_fail("type_text"):
+            return {"ok": False, "chars": 0, "error": "Falla inyectada en type_text"}
+        self.typed.append(text)
+        return {"ok": True, "chars": len(text)}
+
+    def press_key(self, key: str):
+        if self._maybe_fail("press_key"):
+            return {"ok": False, "key": key, "error": "Falla inyectada en press_key"}
+        self.keys.append(key)
+        return {"ok": True, "key": key}
+
+    def health(self):
+        return {"ok": True, "backend": self.backend,
+                "detail": "MockDesktop operativo (sin escritorio real)."}
+
+
+# ---------------------------------------------------------------------------
+# Driver de escritorio para CONTPAQi
+# ---------------------------------------------------------------------------
+class ContpaqiDriver(DesktopAutomation):
+    """Driver de computer use de escritorio para CONTPAQi on-premise.
+
+    Opera sobre un backend DesktopAutomation (normalmente MockDesktop): abre
+    la app, autentica tipeando usuario/clave, captura el grid de facturas y
+    registra CFDI pendientes de revisión. La validación final es del prof.
+    """
+
+    APP_NAME = "CONTPAQi"
+    backend = "CONTPAQi (computer use, desktop mock)"
+
+    def __init__(self, desktop: DesktopAutomation | None = None):
+        self.desktop = desktop or MockDesktop()
+        self.session = None
+        self._registered = []
+
+    def open_app(self) -> dict:
+        return {"ok": True, "app": self.APP_NAME,
+                "window": self.desktop.read_window_title()}
+
+    def login(self, credentials: dict) -> dict:
+        creds = credentials or {}
+        usuario = creds.get("usuario", "")
+        if not usuario:
+            return {"ok": False, "session": None,
+                    "message": "Falta 'usuario' en las credenciales."}
+        self.desktop.type_text(usuario)
+        self.desktop.type_text(creds.get("password", ""))
+        self.session = {
+            "usuario": usuario,
+            "empresa": creds.get("empresa", ""),
+            "login_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        return {"ok": True, "session": self.session,
+                "message": f"Sesión CONTPAQi iniciada como {usuario}."}
+
+    def capture_invoice_grid(self) -> dict:
+        if self.session is None:
+            return {"ok": False, "grid": [],
+                    "message": "Sin sesión; autentíquese primero."}
+        return {"ok": True,
+                "grid": [{"folio_fiscal": r["folio_fiscal"],
+                          "status": r["status"]} for r in self._registered],
+                "message": "Grid de facturas capturado."}
+
+    def register_invoice(self, data: dict) -> dict:
+        if self.session is None:
+            return {"ok": False,
+                    "message": "Sin sesión; autentíquese primero."}
+        folio = (data or {}).get("folio_fiscal")
+        if not folio:
+            return {"ok": False, "registro": None,
+                    "message": "Falta 'folio_fiscal' del CFDI."}
+        registro = {
+            "folio_fiscal": folio,
+            "total": (data or {}).get("total"),
+            "emisor_rfc": (data or {}).get("emisor_rfc"),
+            "status": "pendiente_revision",
+            "capturado_en": datetime.now().isoformat(timespec="seconds"),
+        }
+        self._registered.append(registro)
+        return {"ok": True, "registro": registro,
+                "message": f"CFDI {folio} registrado (pendiente de revisión)."}
+
+    def health(self):
+        return {"ok": True, "backend": self.backend,
+                "detail": "ContpaqiDriver operativo (sobre escritorio mock)."}
+
+    # -- primitivas de escritorio: delegan al backend DesktopAutomation ------
+    def screenshot(self):
+        return self.desktop.screenshot()
+
+    def read_window_title(self):
+        return self.desktop.read_window_title()
+
+    def click(self, x: int, y: int):
+        return self.desktop.click(x, y)
+
+    def type_text(self, text: str):
+        return self.desktop.type_text(text)
+
+    def press_key(self, key: str):
+        return self.desktop.press_key(key)
+
+
+# ---------------------------------------------------------------------------
+# Helpers de módulo (API pública simple)
+# ---------------------------------------------------------------------------
+_DEFAULT_CONTQAPI: ContpaqiDriver | None = None
+
+
+def get_default_contpaqi() -> ContpaqiDriver:
+    global _DEFAULT_CONTQAPI
+    if _DEFAULT_CONTQAPI is None:
+        _DEFAULT_CONTQAPI = ContpaqiDriver()
+    return _DEFAULT_CONTQAPI
+
+
+def set_default_contpaqi(driver: ContpaqiDriver | None) -> None:
+    global _DEFAULT_CONTQAPI
+    _DEFAULT_CONTQAPI = driver
+
+
+def contpaqi_login(credentials: dict) -> dict:
+    return get_default_contpaqi().login(credentials)
+
+
+def contpaqi_register(data: dict) -> dict:
+    return get_default_contpaqi().register_invoice(data)

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B&B AI — Demo Reporte CFDI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            background: #0f172a; color: #e2e8f0; padding: 2rem; line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 {
+            font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #c084fc, #38bdf8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .subtitle { color: #94a3b8; margin-bottom: 2rem; }
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem; margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .stat-card h3 { font-size: 0.9rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 700; color: #38bdf8; margin-top: 0.25rem; }
+        .stat-card .value.green { color: #4ade80; }
+        .stat-card .value.amber { color: #fbbf24; }
+        .stat-card .value.rose { color: #fb7185; }
+        .section-title { font-size: 1.3rem; font-weight: 600; margin: 2rem 0 1rem; color: #f1f5f9; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+        th, td { padding: 0.6rem 0.8rem; text-align: left; font-size: 0.9rem; }
+        th {
+            background: #1e293b; color: #94a3b8; font-weight: 600;
+            border-bottom: 2px solid #334155; position: sticky; top: 0;
+        }
+        td { border-bottom: 1px solid #1e293b; }
+        tr:hover td { background: rgba(56, 189, 248, 0.05); }
+        tr.anomaly-row td { background: rgba(251, 113, 133, 0.08); }
+        tr.anomaly-row:hover td { background: rgba(251, 113, 133, 0.15); }
+        .monto { font-family: 'SF Mono', monospace; text-align: right; }
+        .badge {
+            display: inline-block; padding: 0.15rem 0.5rem; border-radius: 9999px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge-ok { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+        .badge.anomaly-high { background: rgba(251, 113, 133, 0.2); color: #fb7185; }
+        .badge.anomaly-medium { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .badge.anomaly-low { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+        .conf-low { color: #fbbf24; }
+        .conf-high { color: #4ade80; }
+
+        .chart { margin: 1rem 0 2rem; }
+        .chart-row {
+            display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;
+        }
+        .chart-label { width: 140px; font-size: 0.85rem; text-align: right; color: #cbd5e1; }
+        .chart-bar-bg {
+            flex: 1; height: 24px; background: #1e293b; border-radius: 12px; overflow: hidden;
+        }
+        .chart-bar { height: 100%; border-radius: 12px; transition: width 0.6s ease; min-width: 4px; }
+        .chart-count { width: 40px; font-size: 0.85rem; color: #94a3b8; }
+
+        .anomalies { margin: 1rem 0 2rem; }
+        .anomaly-card {
+            background: #1e293b; border-left: 4px solid; border-radius: 8px;
+            padding: 1rem; margin-bottom: 0.75rem;
+        }
+        .anomaly-card.anomaly-low { border-color: #94a3b8; }
+        .anomaly-card.anomaly-medium { border-color: #fbbf24; }
+        .anomaly-card.anomaly-high { border-color: #fb7185; }
+        .anomaly-card.anomaly-critical { border-color: #ef4444; }
+        .anomaly-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+        .anomaly-type { font-weight: 600; color: #f1f5f9; text-transform: capitalize; }
+        .anomaly-severity {
+            font-size: 0.75rem; font-weight: 700; padding: 0.1rem 0.4rem;
+            border-radius: 4px; text-transform: uppercase;
+        }
+        .anomaly-low .anomaly-severity { background: rgba(148,163,184,0.2); color:#94a3b8; }
+        .anomaly-medium .anomaly-severity { background: rgba(251,191,36,0.2); color:#fbbf24; }
+        .anomaly-high .anomaly-severity { background: rgba(251,113,133,0.2); color:#fb7185; }
+        .anomaly-critical .anomaly-severity { background: rgba(239,68,68,0.2); color:#ef4444; }
+        .anomaly-desc { color: #cbd5e1; font-size: 0.9rem; }
+        .anomaly-detalle, .anomaly-ref, .anomaly-file { color: #94a3b8; font-size: 0.8rem; margin-top: 0.25rem; }
+        .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #334155; color: #64748b; font-size: 0.85rem; text-align: center; }
+        .logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(135deg, #c084fc, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>B&B AI <span style="font-weight:300;font-size:1.4rem;background:none;-webkit-text-fill-color:#94a3b8;">— Demo Procesamiento CFDI</span></h1>
+        <p class="subtitle">Procesado el 2026-07-31 21:00 &middot; Tiempo total: 0.01s</p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Facturas Procesadas</h3>
+                <div class="value green">10</div>
+            </div>
+            <div class="stat-card">
+                <h3>Monto Total</h3>
+                <div class="value">$1,239,032.00</div>
+            </div>
+            <div class="stat-card">
+                <h3>IVA Total</h3>
+                <div class="value amber">$164,832.00</div>
+            </div>
+            <div class="stat-card">
+                <h3>Anomalías Detectadas</h3>
+                <div class="value rose">8</div>
+            </div>
+        </div>
+
+        <h2 class="section-title">📊 Distribución por Categoría</h2>
+        <div class="chart">    <div class="chart-row">
+        <span class="chart-label">ACTIVO FIJO</span>
+        <div class="chart-bar-bg">
+            <div class="chart-bar" style="width: 100.0%; background: #FF9800;"></div>
+        </div>
+        <span class="chart-count">3</span>
+    </div>    <div class="chart-row">
+        <span class="chart-label">DESCONOCIDO</span>
+        <div class="chart-bar-bg">
+            <div class="chart-bar" style="width: 100.0%; background: #607D8B;"></div>
+        </div>
+        <span class="chart-count">3</span>
+    </div>    <div class="chart-row">
+        <span class="chart-label">GASTO OPERATIVO</span>
+        <div class="chart-bar-bg">
+            <div class="chart-bar" style="width: 66.66666666666666%; background: #4CAF50;"></div>
+        </div>
+        <span class="chart-count">2</span>
+    </div>    <div class="chart-row">
+        <span class="chart-label">NOMINA</span>
+        <div class="chart-bar-bg">
+            <div class="chart-bar" style="width: 66.66666666666666%; background: #2196F3;"></div>
+        </div>
+        <span class="chart-count">2</span>
+    </div></div>
+
+        <h2 class="section-title">📋 Detalle de Facturas</h2>
+        <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Archivo</th>
+                    <th>Emisor</th>
+                    <th>Fecha</th>
+                    <th>Total</th>
+                    <th>Categoría</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>        <tr class="anomaly-row">
+            <td>1</td>
+            <td>activo_fijo_computo.xml</td>
+            <td>COMPUTADORAS Y TECNOLOGIA</td>
+            <td>2026-07-10</td>
+            <td class="monto">$40,600.00</td>
+            <td><span class="conf-high">ACTIVO FIJO</span></td>
+            <td><span class="badge anomaly-high">LOW</span></td>
+        </tr>        <tr class="anomaly-row">
+            <td>2</td>
+            <td>factura_cancelada.xml</td>
+            <td>SERVICIOS CANCELADOS S.A.</td>
+            <td>2026-06-30</td>
+            <td class="monto">$3,480.00</td>
+            <td><span class="conf-low">DESCONOCIDO</span></td>
+            <td><span class="badge anomaly-high">LOW</span></td>
+        </tr>        <tr class="anomaly-row">
+            <td>3</td>
+            <td>gasto_hosting.xml</td>
+            <td>HOSTING PROFESIONAL MEXIC</td>
+            <td>2026-07-05</td>
+            <td class="monto">$2,552.00</td>
+            <td><span class="conf-high">GASTO OPERATIVO</span></td>
+            <td><span class="badge anomaly-high">LOW</span></td>
+        </tr>        <tr class="anomaly-row">
+            <td>4</td>
+            <td>gasto_papeleria.xml</td>
+            <td>PAPELERIA Y SUMINISTROS D</td>
+            <td>2026-07-03</td>
+            <td class="monto">$1,740.00</td>
+            <td><span class="conf-high">ACTIVO FIJO</span></td>
+            <td><span class="badge anomaly-high">LOW</span></td>
+        </tr>        <tr class="anomaly-row">
+            <td>5</td>
+            <td>gasto_servicios_profesionales.</td>
+            <td>CONSULTORIA ESTRATEGICA I</td>
+            <td>2026-07-08</td>
+            <td class="monto">$9,860.00</td>
+            <td><span class="conf-low">DESCONOCIDO</span></td>
+            <td><span class="badge anomaly-high">LOW</span></td>
+        </tr>        <tr class="anomaly-row">
+            <td>6</td>
+            <td>monto_inusual.xml</td>
+            <td>MAQUINARIA PESADA Y EQUIP</td>
+            <td>2026-07-20</td>
+            <td class="monto">$1,136,800.00</td>
+            <td><span class="conf-high">ACTIVO FIJO</span></td>
+            <td><span class="badge anomaly-high">LOW</span></td>
+        </tr>        <tr class="anomaly-row">
+            <td>7</td>
+            <td>nomina_empleado1.xml</td>
+            <td>DESPACHO CONTABLE JAVIER </td>
+            <td>2026-07-15</td>
+            <td class="monto">$25,500.00</td>
+            <td><span class="conf-high">NOMINA</span></td>
+            <td><span class="badge anomaly-high">MEDIUM</span></td>
+        </tr>        <tr class="anomaly-row">
+            <td>8</td>
+            <td>nomina_empleado2.xml</td>
+            <td>DESPACHO CONTABLE JAVIER </td>
+            <td>2026-07-15</td>
+            <td class="monto">$18,500.00</td>
+            <td><span class="conf-high">NOMINA</span></td>
+            <td><span class="badge anomaly-high">MEDIUM</span></td>
+        </tr>        <tr class="">
+            <td>9</td>
+            <td>nota_credito1.xml</td>
+            <td>PAPELERIA Y SUMINISTROS D</td>
+            <td>2026-07-12</td>
+            <td class="monto">$0.00</td>
+            <td><span class="conf-low">DESCONOCIDO</span></td>
+            <td><span class="badge badge-ok">OK</span></td>
+        </tr>        <tr class="">
+            <td>10</td>
+            <td>nota_credito2.xml</td>
+            <td>HOSTING PROFESIONAL MEXIC</td>
+            <td>2026-07-18</td>
+            <td class="monto">$0.00</td>
+            <td><span class="conf-high">GASTO OPERATIVO</span></td>
+            <td><span class="badge badge-ok">OK</span></td>
+        </tr></tbody>
+        </table>
+        </div>
+
+        <h2 class="section-title">🚨 Anomalías Detectadas</h2>
+        <div class="anomalies">    <div class="anomaly-card anomaly-low">
+        <div class="anomaly-header">
+            <span class="anomaly-type">proveedor_nuevo</span>
+            <span class="anomaly-severity">LOW</span>
+        </div>
+        <p class="anomaly-desc">Proveedor nuevo sin historial de facturas previo.</p>
+        <p class="anomaly-detalle"><strong>Detalle:</strong> rfc: COM940101QWE</p>
+        <p class="anomaly-ref"><strong>Ref. Legal:</strong> Validación fiscal de identidad del emisor (CFF Art. 29-A).</p>
+        <p class="anomaly-file"><strong>Factura:</strong> activo_fijo_computo.xml</p>
+    </div>    <div class="anomaly-card anomaly-low">
+        <div class="anomaly-header">
+            <span class="anomaly-type">proveedor_nuevo</span>
+            <span class="anomaly-severity">LOW</span>
+        </div>
+        <p class="anomaly-desc">Proveedor nuevo sin historial de facturas previo.</p>
+        <p class="anomaly-detalle"><strong>Detalle:</strong> rfc: CAN990101AAA</p>
+        <p class="anomaly-ref"><strong>Ref. Legal:</strong> Validación fiscal de identidad del emisor (CFF Art. 29-A).</p>
+        <p class="anomaly-file"><strong>Factura:</strong> factura_cancelada.xml</p>
+    </div>    <div class="anomaly-card anomaly-low">
+        <div class="anomaly-header">
+            <span class="anomaly-type">proveedor_nuevo</span>
+            <span class="anomaly-severity">LOW</span>
+        </div>
+        <p class="anomaly-desc">Proveedor nuevo sin historial de facturas previo.</p>
+        <p class="anomaly-detalle"><strong>Detalle:</strong> rfc: HST890101MNA</p>
+        <p class="anomaly-ref"><strong>Ref. Legal:</strong> Validación fiscal de identidad del emisor (CFF Art. 29-A).</p>
+        <p class="anomaly-file"><strong>Factura:</strong> gasto_hosting.xml</p>
+    </div>    <div class="anomaly-card anomaly-low">
+        <div class="anomaly-header">
+            <span class="anomaly-type">proveedor_nuevo</span>
+            <span class="anomaly-severity">LOW</span>
+        </div>
+        <p class="anomaly-desc">Proveedor nuevo sin historial de facturas previo.</p>
+        <p class="anomaly-detalle"><strong>Detalle:</strong> rfc: PAP850101JKL</p>
+        <p class="anomaly-ref"><strong>Ref. Legal:</strong> Validación fiscal de identidad del emisor (CFF Art. 29-A).</p>
+        <p class="anomaly-file"><strong>Factura:</strong> gasto_papeleria.xml</p>
+    </div>    <div class="anomaly-card anomaly-low">
+        <div class="anomaly-header">
+            <span class="anomaly-type">proveedor_nuevo</span>
+            <span class="anomaly-severity">LOW</span>
+        </div>
+        <p class="anomaly-desc">Proveedor nuevo sin historial de facturas previo.</p>
+        <p class="anomaly-detalle"><strong>Detalle:</strong> rfc: CON880101XYZ</p>
+        <p class="anomaly-ref"><strong>Ref. Legal:</strong> Validación fiscal de identidad del emisor (CFF Art. 29-A).</p>
+        <p class="anomaly-file"><strong>Factura:</strong> gasto_servicios_profesionales.xml</p>
+    </div>    <div class="anomaly-card anomaly-low">
+        <div class="anomaly-header">
+            <span class="anomaly-type">proveedor_nuevo</span>
+            <span class="anomaly-severity">LOW</span>
+        </div>
+        <p class="anomaly-desc">Proveedor nuevo sin historial de facturas previo.</p>
+        <p class="anomaly-detalle"><strong>Detalle:</strong> rfc: EQP990101RTY</p>
+        <p class="anomaly-ref"><strong>Ref. Legal:</strong> Validación fiscal de identidad del emisor (CFF Art. 29-A).</p>
+        <p class="anomaly-file"><strong>Factura:</strong> monto_inusual.xml</p>
+    </div>    <div class="anomaly-card anomaly-medium">
+        <div class="anomaly-header">
+            <span class="anomaly-type">iva_inconsistente</span>
+            <span class="anomaly-severity">MEDIUM</span>
+        </div>
+        <p class="anomaly-desc">El IVA trasladado no coincide con subtotal * tasa.</p>
+        <p class="anomaly-detalle"><strong>Detalle:</strong> subtotal: 25500.0; iva_declarado: 0.0; iva_esperado: 4080.0; tasa: 0.16</p>
+        <p class="anomaly-ref"><strong>Ref. Legal:</strong> Ley del IVA Arts. 1, 5 y 6; CFF Art. 29-A fracc. V.</p>
+        <p class="anomaly-file"><strong>Factura:</strong> nomina_empleado1.xml</p>
+    </div>    <div class="anomaly-card anomaly-low">
+        <div class="anomaly-header">
+            <span class="anomaly-type">proveedor_nuevo</span>
+            <span class="anomaly-severity">LOW</span>
+        </div>
+        <p class="anomaly-desc">Proveedor nuevo sin historial de facturas previo.</p>
+        <p class="anomaly-detalle"><strong>Detalle:</strong> rfc: JCCP840101HDA</p>
+        <p class="anomaly-ref"><strong>Ref. Legal:</strong> Validación fiscal de identidad del emisor (CFF Art. 29-A).</p>
+        <p class="anomaly-file"><strong>Factura:</strong> nomina_empleado1.xml</p>
+    </div>    <div class="anomaly-card anomaly-medium">
+        <div class="anomaly-header">
+            <span class="anomaly-type">iva_inconsistente</span>
+            <span class="anomaly-severity">MEDIUM</span>
+        </div>
+        <p class="anomaly-desc">El IVA trasladado no coincide con subtotal * tasa.</p>
+        <p class="anomaly-detalle"><strong>Detalle:</strong> subtotal: 18500.0; iva_declarado: 0.0; iva_esperado: 2960.0; tasa: 0.16</p>
+        <p class="anomaly-ref"><strong>Ref. Legal:</strong> Ley del IVA Arts. 1, 5 y 6; CFF Art. 29-A fracc. V.</p>
+        <p class="anomaly-file"><strong>Factura:</strong> nomina_empleado2.xml</p>
+    </div></div>
+
+        <div class="footer">
+            <p class="logo">B&B AI</p>
+            <p>Reporte generado automáticamente por el agente contable inteligente.</p>
+            <p>Los resultados son informativos y no constituyen asesoría fiscal.</p>
+        </div>
+    </div>
+</body>
+</html>

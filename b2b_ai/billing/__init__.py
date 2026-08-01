@@ -1,0 +1,7 @@
+# -*- coding: utf-8 -*-
+"""
+billing — Subsistema de cobros (Stripe / Conekta).
+
+Paquete que agrupa los modelos de facturación, los planes/precios y los
+proveedores de pago (Stripe y Conekta) bajo una interfaz común.
+"""

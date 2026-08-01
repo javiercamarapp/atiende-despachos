@@ -1,0 +1,33 @@
+# -*- coding: utf-8 -*-
+"""
+b2b_ai.monitoring — Monitoreo y logging profesional del agente enterprise.
+
+Módulos (todos sin dependencias externas — funcionan en el container dev y en
+producción; psutil/redis se usan si están disponibles, con degradación limpia):
+
+- logger:  logging estructurado en JSON, niveles, request-id, contexto
+           user/tenant y enmascarado de PII.
+- metrics: registro de métricas (request/error/duration + business/custom)
+           con renderizado en formato Prometheus text.
+- alerts:  reglas de alerta (error rate > 5%, latencia > 2s), canales
+           (email/webhook) e historial.
+- health:  snapshot de estado para GET /health/detailed (DB, Redis, disco,
+           memoria, uptime).
+
+El paquete es aditivo: no interfiere con `b2b_ai.api.metrics` (snapshot JSON
+legacy que usa health-check.sh) ni con `b2b_ai.tools.logger` (auditoría de
+tools en DB).
+"""
+from b2b_ai.monitoring.logger import get_logger, JsonFormatter, mask_pii, request_context  # noqa: F401
+from b2b_ai.monitoring.metrics import MetricsRegistry, metrics  # noqa: F401
+from b2b_ai.monitoring.alerts import (  # noqa: F401
+    Alert, AlertRule, AlertManager, EmailChannel, WebhookChannel, alerts,
+)
+from b2b_ai.monitoring.health import build_health_detailed  # noqa: F401
+
+__all__ = [
+    "get_logger", "JsonFormatter", "mask_pii", "request_context",
+    "MetricsRegistry", "metrics",
+    "Alert", "AlertRule", "AlertManager", "EmailChannel", "WebhookChannel",
+    "alerts", "build_health_detailed",
+]

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+                  xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd"
+                  Version="4.0" Serie="C" Folio="332"
+                  Fecha="2026-07-05T09:30:00"
+                  FormaPago="04" MetodoPago="PPD" Moneda="MXN"
+                  TipoDeComprobante="I" Exportacion="01"
+                  LugarExpedicion="06600" SubTotal="20000.00" Total="23200.00">
+  <cfdi:Emisor Rfc="TEC741225M81" Nombre="TECNOLOGIA EMPRESARIAL MX S.A. DE C.V." RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="JCCP840101HDA" Nombre="DESPACHO CONTABLE JAVIER C. S.C." DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="43211503" Cantidad="1" ClaveUnidad="H87" Unidad="Pieza"
+                   Descripcion="Equipo de computo laptop para el area de captura"
+                   ValorUnitario="20000.00" Importe="20000.00" ObjetoImp="02">
+      <cfdi:Impuestos>
+        <cfdi:Traslados>
+          <cfdi:Traslado Base="20000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="3200.00"/>
+        </cfdi:Traslados>
+      </cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="3200.00">
+    <cfdi:Traslados>
+      <cfdi:Traslado Base="20000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="3200.00"/>
+    </cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="7c604a68-480f-43ec-a57c-8db25d43e687"
+        FechaTimbrado="2026-07-05T09:31:00" RfcProvCertif="SAT970701NN3"
+        SelloCFD="AABBCC" NoCertificado="00001000000000000000" SelloSAT="DDEEFF"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

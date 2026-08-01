@@ -1,0 +1,38 @@
+# -*- coding: utf-8 -*-
+"""
+Integración ERP: CONTPAQi (real por computer use + mock API), Aspel (real por
+computer use + mock), CSV (fallback universal) y exportación multi-formato
+(CONTPAQi/Aspel/SAT). Incluye la capa de automatización de escritorio con
+audit log por screenshots, error recovery y health check.
+"""
+from b2b_ai.erp.base import ERPInterface
+from b2b_ai.erp.contpaqi import MockCONTPAQi
+from b2b_ai.erp.connector import (
+    AbstractERPConnector,
+    CONTPAQiConnector,
+    AspelConnector,
+    CSVExporter,
+    cuentas_para_categoria,
+)
+from b2b_ai.erp.csv_erp import CSVErp
+from b2b_ai.erp.erp_automation import DesktopERPBase
+from b2b_ai.erp.contpaqi_real import RealCONTPAQi
+from b2b_ai.erp.aspel_real import RealAspel
+from b2b_ai.erp.csv_export import CSVExport, export_to, ERP_FORMATS
+
+__all__ = [
+    "ERPInterface",
+    "MockCONTPAQi",
+    "AbstractERPConnector",
+    "CONTPAQiConnector",
+    "AspelConnector",
+    "CSVExporter",
+    "cuentas_para_categoria",
+    "CSVErp",
+    "DesktopERPBase",
+    "RealCONTPAQi",
+    "RealAspel",
+    "CSVExport",
+    "export_to",
+    "ERP_FORMATS",
+]

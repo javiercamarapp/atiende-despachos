@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Dashboard — B&amp;B AI Agente Contable</title>
+<meta name="description" content="Dashboard del agente contable B&B AI: métricas, facturas procesadas y estado del pipeline. Disponible offline como PWA." />
+<meta name="theme-color" content="#0b0f19" />
+<meta name="robots" content="noindex" />
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icons/icon-192.png" type="image/png" />
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="B&B AI" />
+
+<style>
+:root{
+  --bg:#0b0f19; --bg2:#111827; --card:#151d2e; --card2:#1a2338;
+  --ink:#e7ecf5; --muted:#9aa7bd; --line:#232f45;
+  --brand:#4f8cff; --brand2:#7c5cff; --grad:linear-gradient(90deg,#4f8cff,#7c5cff);
+  --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+  --radius:16px; --shadow:0 20px 60px rgba(0,0,0,.45);
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:system-ui,-apple-system,'Segoe UI',Inter,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;padding-top:var(--sat)}
+a{color:var(--brand);text-decoration:none}
+img{max-width:100%}
+button{font-family:inherit}
+.container{max-width:1120px;margin:0 auto;padding:0 16px}
+
+/* NAV (mobile-first: botón de instalación + enlace a landing) */
+.nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);background:rgba(11,15,25,.85);border-bottom:1px solid var(--line)}
+.nav .row{display:flex;align-items:center;justify-content:space-between;height:60px;gap:10px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;color:var(--ink)}
+.logo .dot{width:26px;height:26px;border-radius:8px;background:var(--grad);flex:none}
+.nav-actions{display:flex;gap:8px;align-items:center}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 18px;border-radius:10px;font-weight:600;font-size:.92rem;border:none;cursor:pointer;transition:transform .15s}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--grad);color:#fff}
+.btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn-sm{min-height:40px;padding:8px 14px;font-size:.85rem}
+#installBtn{display:none}
+#installBtn.show{display:inline-flex}
+
+/* STATUS BANNER (online/offline) */
+.banner{display:none;text-align:center;font-size:.82rem;font-weight:600;padding:8px 12px}
+.banner.offline{display:block;background:rgba(251,191,36,.15);color:var(--warn);border-bottom:1px solid rgba(251,191,36,.3)}
+.banner.syncing{display:block;background:rgba(79,140,255,.12);color:var(--brand);border-bottom:1px solid rgba(79,140,255,.3)}
+
+/* AUTH GATE */
+.gate{max-width:440px;margin:40px auto;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:32px 24px;text-align:center}
+.gate h2{font-size:1.3rem;font-weight:800;margin-bottom:6px}
+.gate p{color:var(--muted);font-size:.9rem;margin-bottom:20px}
+.gate .field{text-align:left;margin-bottom:14px}
+.gate label{display:block;font-size:.85rem;font-weight:600;margin-bottom:6px;color:var(--ink)}
+.gate input{width:100%;min-height:48px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:16px;font-family:inherit}
+.gate input:focus{outline:none;border-color:var(--brand)}
+.gate .hint{color:var(--muted);font-size:.78rem;margin-top:8px;line-height:1.4}
+.gate .err{color:var(--err);font-size:.85rem;margin-top:10px;min-height:1.2em}
+
+/* DASHBOARD LAYOUT */
+main{padding:20px 0 calc(40px + var(--sab))}
+.hdr{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+.hdr h1{font-size:clamp(1.3rem,4vw,1.7rem);font-weight:800}
+.hdr .sub{color:var(--muted);font-size:.9rem}
+.last-updated{color:var(--muted);font-size:.78rem}
+.last-updated b{color:var(--ink)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.stat b{display:block;font-size:1.5rem;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat span{color:var(--muted);font-size:.78rem}
+
+.grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:900px){ .grid{grid-template-columns:1fr 1fr} }
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;min-width:0}
+.panel h3{font-size:.85rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:flex;flex-direction:column;gap:4px}
+.bar-row .lbl{display:flex;justify-content:space-between;font-size:.82rem}
+.bar-row .lbl b{font-weight:600;color:var(--ink)}
+.bar-track{height:10px;background:var(--bg2);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;background:var(--grad);border-radius:6px}
+
+/* TABLA DE FACTURAS → cards en mobile */
+.inv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap}
+.inv-head h3{font-size:.85rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0}
+.inv-head .filters{display:flex;gap:8px;flex-wrap:wrap}
+.inv-head select{min-height:40px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:14px;font-family:inherit}
+.inv-count{color:var(--muted);font-size:.8rem}
+
+.inv-list{display:flex;flex-direction:column;gap:10px}
+.inv-card{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.inv-card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.inv-card .top .who{min-width:0}
+.inv-card .name{font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inv-card .rfc{color:var(--muted);font-size:.78rem;font-family:ui-monospace,Menlo,monospace}
+.inv-card .total{font-weight:800;font-size:1rem;white-space:nowrap}
+.inv-card .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.72rem;font-weight:700;letter-spacing:.02em}
+.tag.cat{background:rgba(79,140,255,.15);color:var(--brand)}
+.tag.ok{background:rgba(52,211,153,.14);color:var(--ok)}
+.tag.warn{background:rgba(251,191,36,.14);color:var(--warn)}
+.tag.date{background:var(--bg2);color:var(--muted)}
+.inv-card .details{color:var(--muted);font-size:.8rem;line-height:1.45}
+
+.empty{text-align:center;color:var(--muted);padding:28px 10px;font-size:.9rem}
+.loading{text-align:center;color:var(--muted);padding:28px;font-size:.9rem}
+.spinner{display:inline-block;width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+footer{border-top:1px solid var(--line);padding:20px 0 calc(24px + var(--sab));color:var(--muted);font-size:.8rem;text-align:center}
+footer a{margin:0 8px}
+#toast{position:fixed;left:50%;transform:translateX(-50%) translateY(120%);bottom:calc(16px + var(--sab));background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:12px;font-weight:600;font-size:.88rem;box-shadow:var(--shadow);transition:transform .25s;z-index:100}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Touch-friendly: más aire en los botones y nada de resize en inputs */
+input,select,button{font-size:16px}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="container">
+    <div class="row">
+      <a class="logo" href="/"><span class="dot"></span>B&amp;B AI</a>
+      <div class="nav-actions">
+        <button id="installBtn" class="btn btn-ghost btn-sm" aria-label="Instalar app">⬇ Instalar</button>
+        <a href="/" class="btn btn-ghost btn-sm">← Landing</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div id="statusBanner" class="banner" role="status"></div>
+
+<main class="container" id="main">
+
+  <!-- AUTH GATE -->
+  <section id="gate" class="gate" style="display:none">
+    <h2>Acceso al dashboard</h2>
+    <p>Ingresa tu API key de B&amp;B AI para ver métricas y facturas.</p>
+    <form id="keyForm">
+      <div class="field">
+        <label for="apiKey">API Key</label>
+        <input type="password" id="apiKey" name="apiKey" inputmode="text" autocomplete="off" placeholder="sk-..." required />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%">Entrar al dashboard</button>
+      <div class="err" id="gateErr"></div>
+      <p class="hint">Tu clave se guarda solo en este dispositivo (localStorage). Ejemplo dev: <b>B2B_API_KEY</b> de la env del servidor.</p>
+    </form>
+  </section>
+
+  <!-- DASHBOARD (oculto hasta autenticado) -->
+  <div id="dash" style="display:none">
+    <div class="hdr">
+      <div>
+        <h1>Panel de control</h1>
+        <div class="sub">Facturas procesadas y métricas del agente</div>
+      </div>
+      <div class="last-updated" id="lastUpdated">—</div>
+    </div>
+
+    <div class="stats" id="statsRow">
+      <div class="stat"><b id="stTotal">—</b><span>facturas</span></div>
+      <div class="stat"><b id="stValidas">—</b><span>válidas</span></div>
+      <div class="stat"><b id="stPend">—</b><span>revisión humana</span></div>
+      <div class="stat"><b id="stMonto">—</b><span>monto total</span></div>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h3>Montos por categoría</h3>
+        <div class="bars" id="catBars"><div class="empty">Sin datos aún.</div></div>
+      </section>
+      <section class="panel">
+        <h3>Facturas por mes</h3>
+        <div class="bars" id="monthBars"><div class="empty">Sin datos aún.</div></div>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="inv-head">
+        <h3>Facturas procesadas</h3>
+        <div class="filters">
+          <select id="catFilter" aria-label="Filtrar por categoría">
+            <option value="">Todas</option>
+            <option>gasto_operativo</option>
+            <option>inversion</option>
+            <option>activo_fijo</option>
+            <option>nomina</option>
+          </select>
+          <select id="valFilter" aria-label="Filtrar por validez">
+            <option value="">Todas</option>
+            <option value="true">Válidas</option>
+            <option value="false">Con observaciones</option>
+          </select>
+        </div>
+      </div>
+      <div class="inv-count" id="invCount"></div>
+      <div id="invList" class="inv-list"><div class="loading"><span class="spinner"></span>Cargando facturas…</div></div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div>B&amp;B AI — el profesional determina y firma.</div>
+  <div style="margin-top:6px"><a href="/">Landing</a> · <a href="/docs">API docs</a> · <a href="/health">Health</a></div>
+</footer>
+
+<div id="toast" role="status"></div>
+
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var KEY_STORAGE = 'b2b_api_key';
+  var API_CACHE_KEY = 'b2b_cached_invoices';
+
+  var gate = $('gate'), dash = $('dash'), banner = $('statusBanner');
+  var gateErr = $('gateErr');
+  var keyInput = $('apiKey');
+  var lastUpdated = $('lastUpdated');
+  var invList = $('invList'), invCount = $('invCount');
+  var installBtn = $('installBtn');
+
+  var catBars = $('catBars'), monthBars = $('monthBars');
+  var stTotal = $('stTotal'), stValidas = $('stValidas'),
+      stPend = $('stPend'), stMonto = $('stMonto');
+
+  var key = localStorage.getItem(KEY_STORAGE);
+
+  /* ---------- toast ---------- */
+  var toastTimer = null;
+  function toast(msg){
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+  }
+
+  /* ---------- estado online/offline ---------- */
+  function updateStatus(){
+    if(navigator.onLine){
+      banner.className = 'banner';
+      banner.textContent = '';
+    } else {
+      banner.className = 'banner offline';
+      banner.textContent = '📴 Sin conexión — mostrando datos de caché';
+    }
+  }
+  window.addEventListener('online', updateStatus);
+  window.addEventListener('offline', updateStatus);
+
+  /* ---------- PWA install ---------- */
+  var deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.classList.add('show');
+  });
+  installBtn.addEventListener('click', function(){
+    if(!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(choice){
+      if(choice.outcome === 'accepted') toast('✅ App instalada');
+      else toast('Instalación cancelada');
+      installBtn.classList.remove('show');
+      deferredPrompt = null;
+    });
+  });
+  window.addEventListener('appinstalled', function(){
+    toast('✅ B&B AI instalada en tu dispositivo');
+    installBtn.classList.remove('show');
+  });
+
+  /* ---------- gate ---------- */
+  if(key){
+    gate.style.display = 'none';
+    dash.style.display = 'block';
+    loadAll();
+  } else {
+    gate.style.display = 'block';
+  }
+
+  $('keyForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var k = keyInput.value.trim();
+    if(!k){ gateErr.textContent = 'Escribe tu API key.'; return; }
+    gateErr.textContent = '';
+    // Validación contra el servidor
+    fetch('/api/v1/stats', { headers: { 'X-API-Key': k } })
+      .then(function(r){
+        if(r.status === 401 || r.status === 403){
+          gateErr.textContent = 'API key inválida. Revisa e intenta de nuevo.';
+          return null;
+        }
+        if(!r.ok){ gateErr.textContent = 'Error del servidor (' + r.status + ').'; return null; }
+        localStorage.setItem(KEY_STORAGE, k);
+        key = k;
+        gate.style.display = 'none';
+        dash.style.display = 'block';
+        loadAll();
+      })
+      .catch(function(){
+        // Sin red: permitimos entrar con la key local para modo offline
+        localStorage.setItem(KEY_STORAGE, k);
+        key = k;
+        gate.style.display = 'none';
+        dash.style.display = 'block';
+        toast('Sin conexión — entrando en modo offline');
+        loadAll();
+      });
+  });
+
+  /* ---------- datos ---------- */
+  function fmtMoney(n){
+    if(n === null || n === undefined) return '—';
+    try {
+      return '$' + Number(n).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2});
+    } catch(e){ return String(n); }
+  }
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function apiHeaders(){ return { 'X-API-Key': key }; }
+
+  function saveCached(data){
+    try {
+      var old = JSON.parse(localStorage.getItem(API_CACHE_KEY) || '{}');
+      old.invoices = data.invoices || old.invoices || [];
+      old.stats = data.stats || old.stats || null;
+      old.at = new Date().toISOString();
+      localStorage.setItem(API_CACHE_KEY, JSON.stringify(old));
+    } catch(e){}
+  }
+  function readCached(){
+    try { return JSON.parse(localStorage.getItem(API_CACHE_KEY) || 'null'); }
+    catch(e){ return null; }
+  }
+
+  function getJSON(url){
+    return fetch(url, { headers: apiHeaders() }).then(function(r){
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  function loadAll(){
+    banner.className = 'banner syncing';
+    banner.textContent = 'Sincronizando…';
+
+    Promise.all([
+      getJSON('/api/v1/stats').catch(function(e){ return null; }),
+      getJSON('/api/v1/invoices').catch(function(e){ return null; })
+    ]).then(function(res){
+      var stats = res[0], inv = res[1];
+      if(inv && inv.invoices){
+        var cached = readCached() || {};
+        cached.invoices = inv.invoices;
+        cached.stats = stats;
+        cached.at = new Date().toISOString();
+        try { localStorage.setItem(API_CACHE_KEY, JSON.stringify(cached)); } catch(e){}
+      }
+      render(stats, inv);
+      updateStatus();
+    }).catch(function(){
+      // Fallback: datos en caché (offline)
+      var cached = readCached();
+      if(cached){
+        render(cached.stats, { invoices: cached.invoices });
+        banner.className = 'banner offline';
+        banner.textContent = '📴 Mostrando datos de caché';
+        toast('Mostrando datos guardados (offline)');
+      } else {
+        invList.innerHTML = '<div class="empty">Sin datos disponibles y sin conexión.</div>';
+        banner.className = 'banner offline';
+        banner.textContent = '📴 Sin conexión';
+      }
+    });
+  }
+
+  function render(stats, inv){
+    var invoices = (inv && inv.invoices) || [];
+
+    // Stats
+    var validas = 0, pend = 0, monto = 0;
+    invoices.forEach(function(i){
+      if(i.valido) validas++;
+      if(i.requires_human_review) pend++;
+      monto += Number(i.total || 0);
+    });
+    stTotal.textContent = invoices.length;
+    stValidas.textContent = validas;
+    stPend.textContent = pend;
+    stMonto.textContent = fmtMoney(monto);
+
+    // Categorías (de report o del conteo local)
+    var cats = {};
+    var months = {};
+    invoices.forEach(function(i){
+      var c = i.categoria || 'sin-clasificar';
+      cats[c] = (cats[c]||0) + Number(i.total || 0);
+      var m = String(i.fecha || 'sin-fecha').slice(0,7);
+      months[m] = (months[m]||0) + 1;
+    });
+    drawBars(catBars, cats, fmtMoney);
+    drawBars(monthBars, months, function(n){ return n + ' fact.'; });
+
+    lastUpdated.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
+
+    // Tabla (filtros)
+    var catSel = $('catFilter').value, valSel = $('valFilter').value;
+    var filtered = invoices.filter(function(i){
+      if(catSel && i.categoria !== catSel) return false;
+      if(valSel === 'true' && !i.valido) return false;
+      if(valSel === 'false' && i.valido) return false;
+      return true;
+    });
+    renderInvoices(filtered);
+  }
+
+  function drawBars(el, map, fmt){
+    var keys = Object.keys(map);
+    if(!keys.length){ el.innerHTML = '<div class="empty">Sin datos aún.</div>'; return; }
+    var max = Math.max.apply(null, keys.map(function(k){ return map[k]; }));
+    var html = '';
+    keys.sort().forEach(function(k){
+      var pct = max ? Math.round((map[k]/max)*100) : 0;
+      html += '<div class="bar-row">' +
+        '<div class="lbl"><b>'+esc(k)+'</b><span>'+fmt(map[k])+'</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div>' +
+        '</div>';
+    });
+    el.innerHTML = html;
+  }
+
+  function renderInvoices(list){
+    invCount.textContent = list.length + ' factura(s)';
+    if(!list.length){
+      invList.innerHTML = '<div class="empty">No hay facturas que coincidan.</div>';
+      return;
+    }
+    var html = '';
+    list.forEach(function(i){
+      var cls = i.valido ? 'ok' : 'warn';
+      var clsLbl = i.valido ? 'Válida' : 'Observaciones';
+      var cat = esc(i.categoria || 'sin-clasificar');
+      var fecha = esc(String(i.fecha || ''));
+      html += '<article class="inv-card">' +
+        '<div class="top">' +
+          '<div class="who"><div class="name">'+esc(i.emisor_nombre || i.emisor_rfc || 'Sin emisor')+'</div>' +
+          '<div class="rfc">'+esc(i.emisor_rfc || '')+'</div></div>' +
+          '<div class="total">'+fmtMoney(i.total)+'</div>' +
+        '</div>' +
+        '<div class="meta">' +
+          '<span class="tag cat">'+cat+'</span>' +
+          '<span class="tag '+cls+'">'+clsLbl+'</span>' +
+          (fecha ? '<span class="tag date">'+fecha+'</span>' : '') +
+        '</div>' +
+        '<div class="details">' +
+          (i.razon_clasificacion ? 'Clasificación: '+esc(i.razon_clasificacion)+'<br>' : '') +
+          (i.erp_poliza ? 'Póliza ERP: <b>'+esc(i.erp_poliza)+'</b>' : '') +
+          (i.requires_human_review ? '<br><span style="color:var(--warn)">⚠ requiere revisión humana</span>' : '') +
+        '</div>' +
+      '</article>';
+    });
+    invList.innerHTML = html;
+  }
+
+  $('catFilter').addEventListener('change', function(){
+    if(!key) return;
+    // re-render desde la última data: recargamos
+    loadAll();
+  });
+  $('valFilter').addEventListener('change', function(){
+    if(!key) return;
+    loadAll();
+  });
+
+  updateStatus();
+
+  // ---- PWA: registrar service worker (solo en http/https) ----
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('/sw.js').catch(function(err){
+        if (window.console && console.warn) console.warn('SW:', err);
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,445 @@
+# -*- coding: utf-8 -*-
+"""
+reconcile.py — Conciliación bancaria (cruce banco ↔ facturas).
+
+Diseño (de `03-proceso-completo.md` / `06-plan-tecnico.md`): cruce mecánico
+tolerante de movimientos bancarios contra pólizas/facturas. Las partidas que
+no concilian pasan a la cola de excepciones humanas. NO firma nada.
+
+Expansión FASE 2:
+  - Parser de estados de cuenta: CSV (`parse_bank_statement_csv`) y PDF
+    (`parse_bank_statement_pdf`, extractor minimalista sin dependencias).
+  - Matching por monto + fecha (existente) y, como refuerzo, por referencia
+    (folio/referencia exacta).
+  - Reporte de conciliación (`build_reconciliation_report`).
+
+Fuentes de banco normalizadas: lista de dicts
+    {fecha, monto, descripcion, ref}
+donde `fecha` es 'YYYY-MM-DD' y `monto` es un número Decimal (o string
+numérico). `monto` es siempre POSITIVO; la naturaleza se deriva del contexto
+(cargo/abono) o del signo en el origen.
+"""
+from __future__ import annotations
+
+import re
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+
+# ---------------------------------------------------------------------------
+# Helpers numéricos / de fechas
+# ---------------------------------------------------------------------------
+
+def _dec(v):
+    """Convierte a Decimal de forma tolerante (None o texto raro -> None)."""
+    if v is None:
+        return None
+    s = str(v).strip().replace(",", "").replace("$", "").replace(" ", "")
+    if s in ("", "-", "--", "N/A", "n/a"):
+        return None
+    try:
+        return Decimal(s)
+    except InvalidOperation:
+        return None
+
+
+def _norm_fecha(f):
+    if not f:
+        return ""
+    return str(f)[:10]
+
+
+def _parse_date(s):
+    """Intenta parsear una fecha en varios formatos comunes. Devuelve date o None."""
+    if not s:
+        return None
+    s = str(s).strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y",
+                "%Y/%m/%d", "%m/%d/%Y", "%d %b %Y", "%b %d, %Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Parser de estados de cuenta bancarios
+# ---------------------------------------------------------------------------
+
+# Columnas reconocidas (case-insensitive) para identificar un CSV bancario.
+_COL_FECHA = ("fecha", "fecha operacion", "fecha operación", "fecha de operacion",
+              "fecha valor", "fecha de pago", "date", "dia", "fecha movimiento")
+_COL_DESCR = ("descripcion", "descripción", "concepto", "detalle", "referencia",
+              "referencia (descripcion)", "desc", "description", "movimiento",
+              "detalle del movimiento")
+_COL_REF = ("referencia", "ref", "referencia1", "folio", "clave de rastreo",
+            "clave rastreo", "numero de referencia", "nº de referencia")
+_COL_CARGO = ("cargo", "cargos", "debito", "débito", "debe", "retiro", "salida")
+_COL_ABONO = ("abono", "abonos", "credito", "crédito", "haber", "deposito",
+              "depósito", "entrada")
+_COL_MONTO = ("monto", "importe", "cantidad", "valor", "amount", "saldo",
+              "saldo movimiento")
+
+
+def _header_index(headers, accepted):
+    """Devuelve el índice de la primera columna cuyo header esté en `accepted`."""
+    for i, h in enumerate(headers):
+        if str(h).strip().lower() in accepted:
+            return i
+    return None
+
+
+def _sniff_delimiter(lines):
+    """Elige el delimitador (tab, ; o ,) más frecuente en todo el archivo."""
+    from collections import Counter
+    counts = Counter()
+    for ln in lines:
+        for d in ("\t", ";", ","):
+            counts[d] += ln.count(d)
+    if not counts:
+        return ","
+    # Ganador = el delimitador con más ocurrencias; empates -> orden ; , tab
+    best = max(("\t", ";", ","), key=lambda d: counts.get(d, 0))
+    return best if counts.get(best, 0) > 0 else ","
+
+
+def _is_header_row(cells, headers_found):
+    """Heurística: una fila es header si casi todas sus celdas son texto no numérico."""
+    if not cells:
+        return False
+    texto = sum(1 for c in cells if not _dec(c))
+    return texto >= max(1, len(cells) - 1)
+
+
+def parse_bank_statement_csv(path):
+    """Parsea un estado de cuenta bancario en CSV.
+
+    Auto-detecta el delimitador, omite encabezados/cabeceras del banco y
+    normaliza a la estructura {fecha, monto, descripcion, ref}. Soporta tanto
+    columnas separadas de cargo/abono como una sola columna de monto con signo
+    (negativo = cargo).
+
+    Devuelve una lista de dicts normalizados.
+    """
+    import csv
+
+    with open(path, "r", encoding="utf-8-sig") as fh:
+        raw = fh.read()
+
+    lines = [ln for ln in raw.splitlines() if ln.strip()]
+    if not lines:
+        return []
+
+    delim = _sniff_delimiter(lines)
+    rows = []
+    for ln in lines:
+        try:
+            rows.append(next(csv.reader([ln], delimiter=delim)))
+        except Exception:  # noqa: BLE001  (fila corrupta -> se salta)
+            continue
+
+    # Localizar la fila de headers real (la que contenga 'fecha' o 'cargo'/'abono').
+    header_idx = 0
+    for i, r in enumerate(rows):
+        low = {c.strip().lower() for c in r if str(c).strip()}
+        if low & set(_COL_FECHA) or low & set(_COL_CARGO) or low & set(_COL_ABONO):
+            header_idx = i
+            break
+    headers = [str(c).strip().lower() for c in rows[header_idx]]
+    i_fecha = _header_index(headers, _COL_FECHA)
+    i_desc = _header_index(headers, _COL_DESCR)
+    i_ref = _header_index(headers, _COL_REF)
+    i_cargo = _header_index(headers, _COL_CARGO)
+    i_abono = _header_index(headers, _COL_ABONO)
+    i_monto = _header_index(headers, _COL_MONTO)
+
+    # En CSVs con columna 'referencia', ese es el ref; no confundir con descripción.
+    if i_ref is None and i_desc is not None and headers[i_desc] in _COL_REF:
+        i_ref = i_desc
+        i_desc = None
+
+    movimientos = []
+    for r in rows[header_idx + 1:]:
+        if i_fecha is not None and len(r) <= i_fecha:
+            continue
+        if not any(str(c).strip() for c in r):
+            continue
+
+        fecha = _parse_date(r[i_fecha]) if i_fecha is not None and len(r) > i_fecha else None
+        descripcion = r[i_desc].strip() if i_desc is not None and len(r) > i_desc else ""
+        ref = r[i_ref].strip() if i_ref is not None and len(r) > i_ref else ""
+
+        # Monto: prioridad a cargo/abono separados; fallback a columna única con signo.
+        monto = None
+        has_cargo_col = i_cargo is not None and len(r) > i_cargo
+        has_abono_col = i_abono is not None and len(r) > i_abono
+        cargo = _dec(r[i_cargo]) if has_cargo_col else None
+        abono = _dec(r[i_abono]) if has_abono_col else None
+        if cargo is not None or abono is not None:
+            if cargo:
+                monto = -abs(cargo)
+            elif abono:
+                monto = abs(abono)
+        elif i_monto is not None and len(r) > i_monto:
+            monto = _dec(r[i_monto])
+
+        if fecha is None or monto is None:
+            continue
+        movimientos.append({
+            "fecha": fecha.isoformat(),
+            "monto": monto,
+            "descripcion": descripcion,
+            "ref": ref,
+        })
+    return movimientos
+
+
+def _extract_pdf_text(raw):
+    """Extracción minimalista de texto de un PDF sin dependencias.
+
+    Busca operadores de texto `(...) Tj`, `(...) Tj` con array `[(...) Tj]`,
+    y `TJ`. Suficiente para estados de cuenta generados como texto plano
+    (los PDFs escaneados/imagen requieren OCR, fuera de alcance).
+    """
+    text = []
+    # Texto en operadores Tj (entre paréntesis), incluyendo literales escapados.
+    # Regex sobre tokens:  \( (?: [^()\\] | \\. )* \)
+    token_re = re.compile(r"""\(( (?:[^()\\]|\\.)* )\)\s*Tj""", re.VERBOSE)
+    # TJ: array de strings:  [(...) (...) -40 (...) ] TJ
+    tj_re = re.compile(r"""\[(.*?)\]\s*TJ""", re.DOTALL)
+
+    def _clean(m):
+        s = m.group(1)
+        s = s.replace(r"\(", "(").replace(r"\)", ")")
+        s = s.replace("\\n", " ").replace("\\r", " ")
+        s = re.sub(r"\s+", " ", s)
+        return s
+
+    text.extend(_clean(m) for m in token_re.finditer(raw))
+    for tj in tj_re.finditer(raw):
+        inner = tj.group(1)
+        parts = re.findall(r"\(((?:[^()\\]|\\.)*)\)", inner)
+        text.append(" ".join(_clean_part(p) for p in parts))
+    # Limpieza final
+    joined = "\n".join(text)
+    return re.sub(r"[ \t]+", " ", joined)
+
+
+def _clean_part(p):
+    """Limpia una parte de string dentro de un operador TJ de un PDF."""
+    return p.replace(r"\(", "(").replace(r"\)", ")") \
+            .replace("\\n", " ").replace("\\r", " ")
+
+
+def parse_bank_statement_pdf(path):
+    """Parsea un estado de cuenta bancario en PDF (texto plano).
+
+    Usa un extractor minimalista sin dependencias externas. Para PDFs
+    escaneados (sin capa de texto) no es posible extraer movimientos sin OCR;
+    en ese caso se lanza ValueError informativo.
+
+    Normaliza a la misma estructura que el parser CSV.
+    """
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+    except OSError as e:
+        raise ValueError(f"No se pudo abrir el PDF: {e}")
+
+    if not raw.startswith(b"%PDF"):
+        raise ValueError("El archivo no parece ser un PDF (falta cabecera %PDF).")
+
+    # --- Intentar extraer texto plano real del PDF (si la capa de texto existe).
+    try:
+        decoded = raw.decode("latin-1", errors="ignore")
+        text = _extract_pdf_text(decoded)
+    except Exception:  # noqa: BLE001
+        text = ""
+
+    if not text or len(text.strip()) < 3:
+        raise ValueError(
+            "El PDF no contiene capa de texto extraíble (probablemente es un "
+            "escaneo). Se requiere OCR, fuera del alcance del MVP.")
+
+    return _parse_statement_text(text)
+
+
+def _parse_statement_text(text):
+    """Convierte bloques de líneas de un estado de cuenta en movimientos."""
+    # Línea típica: "03/07/2026  5800.00  -5800.00  TRANSFERENCIA REF-1"
+    #              "03/07/2026  TRANSFERENCIA  5,800.00"   (cargo/abono)
+    movimientos = []
+    # Patrón: fecha (dd/mm/aaaa | aaaa-mm-dd) + uno o dos montos + descripción/ref
+    pat = re.compile(
+        r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2})"
+        r"\s+"
+        r"([+-]?[\d,]+\.?\d*|[\d,]+\.?\d*)"            # monto 1
+        r"(?:\s+([+-]?[\d,]+\.?\d*))?"                 # monto 2 (opcional)
+        r"\s+(.*)", re.IGNORECASE)
+    for line in text.splitlines():
+        m = pat.search(line)
+        if not m:
+            continue
+        fecha = _parse_date(m.group(1))
+        if fecha is None:
+            continue
+        m1 = _dec(m.group(2))
+        m2 = _dec(m.group(3))
+        desc = m.group(4).strip()
+        # Si hay 2 montos, el primero suele ser cargo (-) y el segundo abono (+),
+        # o abono/cargo. Quedamos con el no-cero; prioridad a monto con signo.
+        if m2 is not None and m2 != 0:
+            monto = m2
+        else:
+            monto = m1
+        movimientos.append({
+            "fecha": fecha.isoformat(),
+            "monto": monto,
+            "descripcion": desc,
+            "ref": re.search(r"REF[- ]?[0-9A-Z]+", desc, re.IGNORECASE).group(0)
+                    if re.search(r"REF[- ]?[0-9A-Z]+", desc, re.IGNORECASE) else "",
+        })
+    return movimientos
+
+
+# ---------------------------------------------------------------------------
+# Matching
+# ---------------------------------------------------------------------------
+
+def reconcile(invoices, bank_transactions, date_tolerance_days=3):
+    """Cruza facturas contra movimientos bancarios.
+
+    invoices: lista de dicts con al menos {folio_fiscal, fecha, total, emisor}.
+    bank_transactions: lista de {fecha, monto, descripcion, ref}.
+
+    Matching en dos pasadas:
+      1) Monto igual (±0.01) Y fecha dentro de tolerancia.
+      2) Referencia exacta (folio_fiscal == ref) sin importar monto/fecha
+         (refuerzo para pagos parciales o fechas muy desplazadas).
+
+    Devuelve {matched, unmatched_bank, unmatched_invoices}.
+    """
+    matched = []
+    unmatched_bank = list(bank_transactions)
+    unmatched_invoices = list(invoices)
+
+    # --- Pasada 1: monto + fecha
+    for inv in list(unmatched_invoices):
+        inv_total = _dec(inv.get("total"))
+        inv_date = _norm_fecha(inv.get("fecha"))
+        if inv_total is None or not inv_date:
+            continue
+        best = None
+        best_dist = None
+        for bt in unmatched_bank:
+            bt_monto = _dec(bt.get("monto"))
+            if bt_monto is None:
+                continue
+            if abs(bt_monto) != abs(inv_total):  # comparación por valor absoluto
+                continue
+            dist = _fecha_dist(inv_date, _norm_fecha(bt.get("fecha")))
+            if dist is not None and dist <= date_tolerance_days:
+                if best_dist is None or dist < best_dist:
+                    best = bt
+                    best_dist = dist
+        if best is not None:
+            matched.append(_build_match(inv, best, best_dist, "monto+fecha"))
+            unmatched_bank.remove(best)
+            unmatched_invoices.remove(inv)
+
+    # --- Pasada 2: referencia exacta
+    for inv in list(unmatched_invoices):
+        inv_ref = (inv.get("folio_fiscal") or "").strip()
+        if not inv_ref:
+            continue
+        for bt in unmatched_bank:
+            bt_ref = (bt.get("ref") or "").strip()
+            if bt_ref and bt_ref.lower() == inv_ref.lower():
+                matched.append(_build_match(inv, bt, None, "referencia"))
+                unmatched_bank.remove(bt)
+                unmatched_invoices.remove(inv)
+                break
+
+    return {
+        "matched": matched,
+        "unmatched_bank": unmatched_bank,
+        "unmatched_invoices": unmatched_invoices,
+    }
+
+
+def _fecha_dist(f1, f2):
+    try:
+        d1 = datetime.strptime(f1, "%Y-%m-%d").date()
+        d2 = datetime.strptime(f2, "%Y-%m-%d").date()
+        return abs((d1 - d2).days)
+    except ValueError:
+        return None
+
+
+def _build_match(inv, bt, dist, via):
+    return {
+        "folio_fiscal": inv.get("folio_fiscal"),
+        "emisor": inv.get("emisor"),
+        "monto": str(abs(_dec(inv.get("total")))),
+        "fecha_factura": _norm_fecha(inv.get("fecha")),
+        "fecha_banco": _norm_fecha(bt.get("fecha")),
+        "ref_banco": bt.get("ref", "") or bt.get("descripcion", ""),
+        "dias_diferencia": dist,
+        "via": via,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Reporte de conciliación
+# ---------------------------------------------------------------------------
+
+def build_reconciliation_report(invoices, bank_transactions,
+                                date_tolerance_days=3, period=None):
+    """Construye el reporte de una conciliación.
+
+    Agrega montos conciliados vs pendientes, por periodo (opcional) y resume
+    el estado para el dashboard. Devuelve un dict JSON-serializable.
+    """
+    result = reconcile(invoices, bank_transactions, date_tolerance_days)
+    matched = result["matched"]
+    um_bank = result["unmatched_bank"]
+    um_inv = result["unmatched_invoices"]
+
+    def _sum(rows, key):
+        return sum((_dec(r.get(key)) or Decimal("0")) for r in rows)
+
+    # Monto de movimientos bancarios que sí conciliaron (abs).
+    conciliado = sum((abs(_dec(m.get("monto"))) or Decimal("0")) for m in matched)
+    total_banco = sum((abs(_dec(b.get("monto"))) or Decimal("0")) for b in bank_transactions)
+    pendiente_banco = total_banco - conciliado
+    pendiente_facturas = _sum(um_inv, "total")
+
+    por_periodo = {}
+    for m in matched:
+        per = _norm_fecha(m["fecha_banco"])[:7] or _norm_fecha(m["fecha_factura"])[:7] or "sin-periodo"
+        por_periodo.setdefault(per, {"conciliados": 0, "monto": Decimal("0")})
+        por_periodo[per]["conciliados"] += 1
+        por_periodo[per]["monto"] += abs(_dec(m["monto"]) or Decimal("0"))
+
+    def _fmt(d):
+        return {k: {"conciliados": v["conciliados"], "monto": str(v["monto"])}
+                for k, v in sorted(d.items())}
+
+    return {
+        "periodo": period,
+        "facturas": len(invoices),
+        "movimientos_banco": len(bank_transactions),
+        "conciliados": len(matched),
+        "pendientes_banco": len(um_bank),
+        "pendientes_facturas": len(um_inv),
+        "monto_conciliado": str(conciliado),
+        "monto_banco_total": str(total_banco),
+        "monto_pendiente_banco": str(pendiente_banco),
+        "monto_pendiente_facturas": str(pendiente_facturas),
+        "tasa_conciliacion": round(float(conciliado / total_banco * 100), 2)
+            if total_banco else 0.0,
+        "por_periodo": _fmt(por_periodo),
+        "matched": matched,
+        "unmatched_bank": [dict(b) for b in um_bank],
+        "unmatched_invoices": [dict(i) for i in um_inv],
+    }

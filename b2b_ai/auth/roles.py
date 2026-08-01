@@ -1,0 +1,95 @@
+# -*- coding: utf-8 -*-
+"""
+roles.py — Roles y matriz de permisos (RBAC) para la API enterprise.
+
+Roles (se guardan en minúscula en `client_users.role`):
+  - admin    : acceso total dentro de su tenant.
+  - contador : ver + aprobar + reportes (y subir).
+  - auxiliar : subir + ver solo lo propio.
+  - auditor  : solo lectura + ver auditoría.
+
+Permisos por endpoint (capability-based). Cada endpoint del sistema declara
+el permiso que exige; `has_permission(role, perm)` responde si el rol lo
+tiene. Las acciones admin (gestionar usuarios, cambiar roles) se reservan a
+`users.manage`, que solo tiene `admin`.
+"""
+from __future__ import annotations
+
+from typing import FrozenSet
+
+VALID_ROLES: tuple = ("admin", "contador", "auxiliar", "auditor")
+
+PERMISSIONS: dict = {
+    # admin: acceso total (gestión de usuarios, config, todo).
+    "admin": frozenset({
+        "users.manage",      # crear/listar/actualizar/borrar usuarios, cambiar rol
+        "invoices.view",     # ver TODAS las facturas del tenant
+        "invoices.upload",   # subir facturas
+        "invoices.approve",  # aprobar / revisar facturas
+        "reports.generate",  # generar reportes
+        "audit.view",        # ver log de auditoría
+        "settings.manage",   # configurar el tenant
+    }),
+    # contador: operativa contable.
+    "contador": frozenset({
+        "invoices.view",
+        "invoices.upload",
+        "invoices.approve",
+        "reports.generate",
+    }),
+    # auxiliar: carga de facturas y visión de lo propio.
+    "auxiliar": frozenset({
+        "invoices.upload",
+        "invoices.view_own",
+    }),
+    # auditor: solo lectura + auditoría.
+    "auditor": frozenset({
+        "invoices.view",
+        "audit.view",
+    }),
+}
+
+# Etiquetas legibles (UI / logs).
+ROLE_LABELS: dict = {
+    "admin": "Administrador",
+    "contador": "Contador",
+    "auxiliar": "Auxiliar",
+    "auditor": "Auditor",
+}
+
+
+def valid_roles() -> tuple:
+    """Roles soportados (tupla ordenada)."""
+    return VALID_ROLES
+
+
+def is_valid_role(role) -> bool:
+    """True si `role` es un rol soportado (case-insensitive)."""
+    return isinstance(role, str) and role.lower() in VALID_ROLES
+
+
+def role_permissions(role) -> FrozenSet:
+    """Conjunto de permisos de un rol (vacío para roles desconocidos)."""
+    if not isinstance(role, str):
+        return frozenset()
+    return PERMISSIONS.get(role.lower(), frozenset())
+
+
+def has_permission(role, perm) -> bool:
+    """True si el `role` posee el permiso `perm`."""
+    return perm in role_permissions(role)
+
+
+def role_label(role) -> str:
+    """Etiqueta legible del rol (o el propio valor si no hay label)."""
+    if not isinstance(role, str):
+        return str(role)
+    return ROLE_LABELS.get(role.lower(), role)
+
+
+def normalize_role(role) -> str:
+    """Devuelve el rol normalizado a minúscula, o None si es inválido."""
+    if not isinstance(role, str):
+        return None
+    r = role.lower().strip()
+    return r if r in VALID_ROLES else None

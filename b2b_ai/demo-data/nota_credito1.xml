@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+    xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd"
+    Version="4.0" Serie="E" Folio="1"
+    Fecha="2026-07-12T14:00:00"
+    FormaPago="03" MetodoPago="PUE" Moneda="MXN"
+    TipoDeComprobante="E" Exportacion="01"
+    LugarExpedicion="06600" SubTotal="0.00" Total="0.00">
+    <cfdi:Emisor Rfc="PAP850101JKL" Nombre="PAPELERIA Y SUMINISTROS DEL CENTRO S.A. DE C.V." RegimenFiscal="601"/>
+    <cfdi:Receptor Rfc="JCCP840101HDA" Nombre="DESPACHO CONTABLE JAVIER C. S.C."
+        DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="D08"/>
+    <cfdi:CfdiRelacionados TipoRelacion="04">
+        <cfdi:CfdiRelacionado UUID="550e8400-e29b-41d4-a716-446655440000"/>
+    </cfdi:CfdiRelacionados>
+    <cfdi:Conceptos>
+        <cfdi:Concepto ClaveProdServ="44122000" Cantidad="1"
+            ClaveUnidad="E48" Unidad="Servicio"
+            Descripcion="Descuento por devolución de mercancía (papelería en mal estado)"
+            ValorUnitario="500.00" Importe="500.00" ObjetoImp="02"
+            Descuento="500.00">
+            <cfdi:Impuestos>
+                <cfdi:Traslados>
+                    <cfdi:Traslado Base="0.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="0.00"/>
+                </cfdi:Traslados>
+            </cfdi:Impuestos>
+        </cfdi:Concepto>
+    </cfdi:Conceptos>
+    <cfdi:Complemento>
+        <tfd:TimbreFiscalDigital Version="1.1" UUID="211a20fe-b88e-40ff-a408-ec3eaed05e0a"
+            FechaTimbrado="2026-07-12T14:00:00" RfcProvCertif="SAT970701NN3"
+            SelloCFD="AABBCC" NoCertificado="00001000000000000000" SelloSAT="DDEEFF"/>
+    </cfdi:Complemento>
+</cfdi:Comprobante>

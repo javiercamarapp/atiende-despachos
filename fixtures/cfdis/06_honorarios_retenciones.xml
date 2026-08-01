@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+                  xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd"
+                  Version="4.0" Serie="H" Folio="19"
+                  Fecha="2026-07-08T10:00:00"
+                  FormaPago="03" MetodoPago="PUE" Moneda="MXN"
+                  TipoDeComprobante="I" Exportacion="01"
+                  LugarExpedicion="06600" SubTotal="20000.00" Total="19066.66">
+  <cfdi:Emisor Rfc="ABAC8001011T1" Nombre="ASESORIA CONTABLE Y FISCAL ABC S.C." RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="JCCP840101HDA" Nombre="DESPACHO CONTABLE JAVIER C. S.C." DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="84111505" Cantidad="1" ClaveUnidad="E48" Unidad="Servicio"
+                   Descripcion="Honorarios profesionales por asesoria fiscal mensual"
+                   ValorUnitario="20000.00" Importe="20000.00" ObjetoImp="02">
+      <cfdi:Impuestos>
+        <cfdi:Traslados>
+          <cfdi:Traslado Base="20000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="3200.00"/>
+        </cfdi:Traslados>
+        <cfdi:Retenciones>
+          <cfdi:Retencion Base="20000.00" Impuesto="001" TipoFactor="Tasa" TasaOCuota="0.100000" Importe="2000.00"/>
+          <cfdi:Retencion Base="20000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.106667" Importe="2133.34"/>
+        </cfdi:Retenciones>
+      </cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="3200.00" TotalImpuestosRetenidos="4133.34">
+    <cfdi:Traslados>
+      <cfdi:Traslado Base="20000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="3200.00"/>
+    </cfdi:Traslados>
+    <cfdi:Retenciones>
+      <cfdi:Retencion Base="20000.00" Impuesto="001" TipoFactor="Tasa" TasaOCuota="0.100000" Importe="2000.00"/>
+      <cfdi:Retencion Base="20000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.106667" Importe="2133.34"/>
+    </cfdi:Retenciones>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="88f2aa11-2c3d-4e5f-9a10-bbbbbbbbbbbb"
+        FechaTimbrado="2026-07-08T10:01:00" RfcProvCertif="SAT970701NN3"
+        SelloCFD="AABBCC" NoCertificado="00001000000000000000" SelloSAT="DDEEFF"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+                  xmlns:nomina="http://www.sat.gob.mx/nomina"
+                  xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd
+                                      http://www.sat.gob.mx/nomina http://www.sat.gob.mx/sitio_internet/cfd/nomina/nomina12.xsd"
+                  Version="4.0" Serie="N" Folio="55"
+                  Fecha="2026-07-15T18:00:00"
+                  FormaPago="99" MetodoPago="PUE" Moneda="MXN"
+                  TipoDeComprobante="N" Exportacion="01"
+                  LugarExpedicion="06600" SubTotal="15000.00" Total="15000.00">
+  <cfdi:Emisor Rfc="DESP820101AB1" Nombre="DESPACHO CONTABLE JAVIER C. S.C." RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="JCCP840101HDA" Nombre="JUAN CARLOS CONTRERAS PEREZ" DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="605" UsoCFDI="CN01"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="84111505" Cantidad="1" ClaveUnidad="ACT" Unidad="Actividad"
+                   Descripcion="Pago de nomina quincenal del personal del despacho"
+                   ValorUnitario="15000.00" Importe="15000.00" ObjetoImp="01">
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Complemento>
+    <nomina:Nomina Version="1.2" TipoNomina="O" FechaPago="2026-07-15" FechaInicialPago="2026-07-01" FechaFinalPago="2026-07-15" NumDiasPagados="15" TotalPercepciones="15000.00">
+      <nomina:Percepciones TotalSueldos="15000.00" TotalGravado="12000.00" TotalExento="3000.00">
+        <nomina:Percepcion TipoPercepcion="001" Clave="P001" Concepto="Sueldos" ImporteGravado="12000.00" ImporteExento="3000.00"/>
+      </nomina:Percepciones>
+    </nomina:Nomina>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="160bd06b-1a92-4f44-bf39-b187d5f1baff"
+        FechaTimbrado="2026-07-15T18:01:00" RfcProvCertif="SAT970701NN3"
+        SelloCFD="AABBCC" NoCertificado="00001000000000000000" SelloSAT="DDEEFF"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

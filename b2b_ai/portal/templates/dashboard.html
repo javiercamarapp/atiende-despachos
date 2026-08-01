@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Portal del cliente{% endblock %}
+{% block body %}
+<div class="topbar">
+  <h1>Dashboard</h1>
+  <div class="who">Hola, {{ user.user.name or user.user.email }}</div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="k">Facturas</div>
+    <div class="v blue">{{ stats.total_facturas }}</div></div>
+  <div class="stat"><div class="k">Monto total</div>
+    <div class="v">{{ stats.monto_total }}</div></div>
+  <div class="stat"><div class="k">IVA total</div>
+    <div class="v">{{ stats.iva_total }}</div></div>
+  <div class="stat"><div class="k">Procesadas</div>
+    <div class="v green">{{ stats.procesadas }}</div></div>
+  <div class="stat"><div class="k">Pendientes</div>
+    <div class="v amber">{{ stats.pendientes }}</div></div>
+  <div class="stat"><div class="k">Anomalías</div>
+    <div class="v red">{{ stats.anomalias }}</div></div>
+</div>
+
+<div class="card">
+  <h2>Facturas recientes</h2>
+  {% if recent %}
+  <table>
+    <thead><tr><th>Folio fiscal</th><th>Fecha</th><th>Proveedor</th>
+      <th>Total</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for inv in recent %}
+      <tr>
+        <td><a class="link" href="/portal/invoices/{{ inv.id }}">{{ inv.folio_fiscal or inv.id }}</a></td>
+        <td>{{ inv.fecha }}</td>
+        <td>{{ inv.emisor_nombre or inv.emisor_rfc }}</td>
+        <td>{{ money(inv.total) }}</td>
+        <td><span class="badge {{ 'b-'+estado(inv) }}">{{ estado(inv) }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">Aún no hay facturas en tu cuenta.</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Últimas notificaciones</h2>
+  {% if notifications %}
+  <table>
+    <thead><tr><th>Fecha</th><th>Tema</th><th>Mensaje</th></tr></thead>
+    <tbody>
+      {% for n in notifications %}
+      <tr><td>{{ n.created_at }}</td><td>{{ n.subject }}</td>
+        <td>{{ n.body }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No hay notificaciones recientes.</div>
+  {% endif %}
+</div>
+{% endblock %}

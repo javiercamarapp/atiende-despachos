@@ -1,0 +1,41 @@
+# Dependencias de PRODUCCIÓN para B2B-AI enterprise.
+# Solo lo necesario para arrancar la API/CLI en producción.
+# Generado y verificado: pip_audit (0 vulns) + test suite (623 passed, 15 skipped).
+#
+# Runtime: Python 3.11.15
+# Ver: docs/security-audit-report.md.
+
+# --- Web framework (core) ---
+fastapi==0.141.1
+uvicorn[standard]==0.52.0
+python-multipart==0.0.31      # fix PYSEC-2026-1852, PYSEC-2026-3036/3037/3038/3039/3040
+starlette==1.3.1             # fix PYSEC-2026-161/2280/2281/248/249
+pydantic==2.13.4              # validación de inputs
+pydantic-core==2.46.4
+
+# --- Seguridad ---
+bcrypt==5.0.0                 # hash de passwords del portal
+cryptography==50.0.0          # cifrado AES-GCM en reposo (B2B_ENCRYPTION_KEY)
+
+# --- CFDI / XML ---
+lxml==6.1.1                   # parseo de XML SAT (defusedxml usado para DOMParse)
+
+# --- Clientes HTTP / notificaciones ---
+requests==2.33.0              # webhook de WhatsApp, fix PYSEC-2026-2275
+
+# --- Configuración ---
+python-dotenv==1.2.2          # fix PYSEC-2026-2270
+
+# --- Portal del cliente (server-rendered) ---
+jinja2==3.1.6                 # templates HTML del portal
+openpyxl==3.1.5               # exportación a Excel
+
+# --- Opcionales (solo si se activan) ---
+# Para usar PostgreSQL (B2B_DB=postgres):
+#   psycopg[binary]>=3.1
+#   psycopg-pool>=3.1
+# Para el health-check de infra (monitoring/health.py):
+#   redis>=5
+#   psutil>=5
+# Para importar catálogos SAT desde Excel (catalogo_cuentas):
+#   openpyxl>=3.1

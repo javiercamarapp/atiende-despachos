@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Reportes · Portal del cliente{% endblock %}
+{% block body %}
+<div class="topbar">
+  <h1>Reportes gerenciales</h1>
+  <div class="who">Basados en {{ invoice_count }} facturas</div>
+</div>
+
+<div class="card">
+  <table>
+    <thead><tr><th>Reporte</th><th>Descripción</th><th>Descargar</th></tr></thead>
+    <tbody>
+      {% for r in reports %}
+      <tr>
+        <td><b>{{ r.nombre }}</b></td>
+        <td>{{ r.desc }}</td>
+        <td><a class="btn" href="/portal/reports/{{ r.id }}/download">PDF</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <p class="muted">
+    Los reportes se generan bajo demanda con la información de tu tenant.
+    La descarga entrega un documento formateado para impresión / guardar como PDF.
+  </p>
+</div>
+{% endblock %}

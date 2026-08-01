@@ -1,0 +1,311 @@
+# -*- coding: utf-8 -*-
+"""
+connector.py — Conectores ERP FASE 2 (CONTPAQi contaDIGITAL mock / Aspel mock).
+
+FASE 2 del roadmap: integración CONTPAQi (API contaDIGITAL mock/real),
+integración Aspel (mock funcional) y registro automático en ERP (asientos o
+pólizas). Define una abstracción común `AbstractERPConnector` con tres
+capacidades: crear una póliza (asiento contable), consultar el catálogo de
+cuentas y verificar la conexión.
+
+Diseño:
+  - `AbstractERPConnector`   : contrato (create_voucher / get_account_catalog
+                               / check_connection). Cada método devuelve una
+                               `audit_ref` para trazabilidad (de
+                               `07-erps-integracion.md` / `06-plan-tecnico.md`).
+  - `CONTPAQiConnector`      : mock de la API contaDIGITAL de CONTPAQi. Cuando
+                               existan credenciales se sustituye el cuerpo de
+                               los métodos por llamadas REST (POST .../polizas)
+                               sin tocar a los consumidores.
+  - `AspelConnector`         : mock funcional de Aspel COI (mismo contrato).
+  - `CSVExporter`            : exporta pólizas a CSV para importación manual en
+                               cualquier ERP (fallback universal).
+
+Supuestos documentados:
+  - Sin conexión real a las APIs: los conectores operan en memoria y NO tocan
+    credenciales (ningún archivo .env se lee aquí).
+  - El asiento contable (póliza) es el par cargo/abono derivado de la categoría
+    contable de la factura (mismo criterio que el resto del MVP).
+  - Referencia legal del registro de pólizas: CFF Arts. 28, 30 y 33, y Reglas
+    de la Resolución Miscelánea Fiscal (contabilidad electrónica / pólizas).
+
+Ningún resultado aquí sustituye la firma del contador público responsable.
+"""
+from __future__ import annotations
+
+import csv
+import os
+import uuid
+from abc import ABC, abstractmethod
+from datetime import datetime
+
+
+def _dec(v):
+    """Convierte a float de forma tolerante (None/string raro -> 0.0)."""
+    if v is None:
+        return 0.0
+    try:
+        return float(str(v).replace(",", "").replace("$", "").strip())
+    except (TypeError, ValueError):
+        return 0.0
+
+
+# Catálogo de cuentas simplificado (contabilidad electrónica). El par por
+# categoría sigue el criterio del resto del MVP (b2b_ai/erp/contpaqi.py).
+_CUENTAS = {
+    "gasto_operativo": ("6131 Gastos generales", "1130 Bancos"),
+    "inversion": ("1115 Gastos de instalacion", "1130 Bancos"),
+    "activo_fijo": ("1210 Mobiliario y equipo", "1130 Bancos"),
+    "nomina": ("6110 Sueldos y salarios", "1130 Bancos"),
+    "desconocido": ("6100 Gastos por clasificar", "1130 Bancos"),
+}
+
+
+def cuentas_para_categoria(categoria):
+    """Devuelve (cuenta_cargo, cuenta_abono) para una categoría contable."""
+    return _CUENTAS.get(categoria, _CUENTAS["desconocido"])
+
+
+class AbstractERPConnector(ABC):
+    """Contrato de un conector ERP de FASE 2.
+
+    Cada método genera una referencia de auditoría (`audit_ref`) para poder
+    rastrear la operación en la bitácora del agente.
+    """
+
+    backend = "abstract"
+
+    def __init__(self, empresa="Despacho Demo"):
+        self.empresa = empresa
+        self._polizas = {}
+
+    def _audit_ref(self, prefix):
+        return f"{prefix}-{uuid.uuid4().hex[:10].upper()}"
+
+    def _now(self):
+        return datetime.now().isoformat(timespec="seconds")
+
+    @abstractmethod
+    def create_voucher(self, voucher: dict) -> dict:
+        """Crea una póliza (asiento cargo/abono) en el ERP.
+
+        voucher: dict normalizado {folio_fiscal, emisor_rfc, total, fecha,
+                 categoria, concepto}. Devuelve {ok, poliza, cuenta_cargo,
+                 cuenta_abono, status, message, audit_ref}.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_account_catalog(self) -> list:
+        """Devuelve el catálogo de cuentas del ERP (lista de dicts)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_connection(self) -> dict:
+        """Verifica la conexión con el ERP. Devuelve {ok, backend, audit_ref,
+        audited_at, detail}."""
+        raise NotImplementedError
+
+
+class CONTPAQiConnector(AbstractERPConnector):
+    """Mock de la API contaDIGITAL de CONTPAQi.
+
+    Sustituir los cuerpos por llamadas REST reales cuando existan credenciales:
+        POST https://api.contpaqi.com/.../polizas   (Bearer token)
+        GET  https://api.contpaqi.com/.../cuentas
+    El mock NO toca credenciales.
+    """
+
+    backend = "CONTPAQi contaDIGITAL (mock)"
+
+    _CATALOGO = [
+        {"codigo": "1130", "descripcion": "Bancos", "tipo": "deudora"},
+        {"codigo": "1115", "descripcion": "Gastos de instalacion", "tipo": "deudora"},
+        {"codigo": "1210", "descripcion": "Mobiliario y equipo", "tipo": "deudora"},
+        {"codigo": "6100", "descripcion": "Gastos por clasificar", "tipo": "deudora"},
+        {"codigo": "6110", "descripcion": "Sueldos y salarios", "tipo": "deudora"},
+        {"codigo": "6131", "descripcion": "Gastos generales", "tipo": "deudora"},
+        {"codigo": "2010", "descripcion": "Proveedores", "tipo": "acreedora"},
+    ]
+
+    def __init__(self, empresa="Despacho Demo", api_base="https://api.contpaqi.com"):
+        super().__init__(empresa)
+        self.api_base = api_base  # en modo real apunta al endpoint contaDIGITAL
+
+    def create_voucher(self, voucher):
+        folio = voucher.get("folio_fiscal") or voucher.get("concepto")
+        if not folio:
+            return {
+                "ok": False, "poliza": None, "status": "error",
+                "audit_ref": self._audit_ref("CPQ"),
+                "message": "Sin folio fiscal para registrar la póliza.",
+            }
+        categoria = voucher.get("categoria", "desconocido")
+        cargo, abono = cuentas_para_categoria(categoria)
+        poliza_id = "CPQ-" + uuid.uuid4().hex[:10].upper()
+        self._polizas[folio] = {
+            "poliza": poliza_id,
+            "folio_fiscal": folio,
+            "emisor_rfc": voucher.get("emisor_rfc", ""),
+            "total": _dec(voucher.get("total")),
+            "fecha": voucher.get("fecha", ""),
+            "categoria": categoria,
+            "cuenta_cargo": cargo,
+            "cuenta_abono": abono,
+            "fecha_registro": self._now(),
+            "status": "registrada",
+        }
+        return {
+            "ok": True, "poliza": poliza_id, "cuenta_cargo": cargo,
+            "cuenta_abono": abono, "status": "registrada",
+            "audit_ref": self._audit_ref("CPQ"),
+            "message": f"Póliza {poliza_id} registrada en CONTPAQi (mock).",
+        }
+
+    def get_account_catalog(self):
+        return list(self._CATALOGO)
+
+    def check_connection(self):
+        return {
+            "ok": True, "backend": self.backend,
+            "audit_ref": self._audit_ref("CPQ"),
+            "audited_at": self._now(),
+            "detail": "API contaDIGITAL simulada operativa (sin conexión real).",
+        }
+
+
+class AspelConnector(AbstractERPConnector):
+    """Mock funcional de Aspel COI.
+
+    Aspel suele operar sobre archivos locales (empresas/.COI) o vía su API de
+    integración. Aquí se simula con el mismo contrato en memoria. Sustituir por
+    la integración real (SOAP/REST o driver de computer use) cuando se disponga
+    de la instalación y credenciales.
+    """
+
+    backend = "Aspel COI (mock)"
+
+    _CATALOGO = [
+        {"codigo": "1000", "descripcion": "Caja", "tipo": "deudora"},
+        {"codigo": "1020", "descripcion": "Bancos", "tipo": "deudora"},
+        {"codigo": "1500", "descripcion": "Equipo de computo", "tipo": "deudora"},
+        {"codigo": "5100", "descripcion": "Gastos de venta", "tipo": "deudora"},
+        {"codigo": "5300", "descripcion": "Gastos generales", "tipo": "deudora"},
+        {"codigo": "5400", "descripcion": "Sueldos y salarios", "tipo": "deudora"},
+        {"codigo": "2000", "descripcion": "Proveedores", "tipo": "acreedora"},
+    ]
+
+    def __init__(self, empresa="Despacho Demo"):
+        super().__init__(empresa)
+
+    def create_voucher(self, voucher):
+        folio = voucher.get("folio_fiscal") or voucher.get("concepto")
+        if not folio:
+            return {
+                "ok": False, "poliza": None, "status": "error",
+                "audit_ref": self._audit_ref("ASL"),
+                "message": "Sin folio fiscal para registrar la póliza.",
+            }
+        categoria = voucher.get("categoria", "desconocido")
+        cargo, abono = cuentas_para_categoria(categoria)
+        poliza_id = "ASL-" + uuid.uuid4().hex[:10].upper()
+        self._polizas[folio] = {
+            "poliza": poliza_id,
+            "folio_fiscal": folio,
+            "emisor_rfc": voucher.get("emisor_rfc", ""),
+            "total": _dec(voucher.get("total")),
+            "fecha": voucher.get("fecha", ""),
+            "categoria": categoria,
+            "cuenta_cargo": cargo,
+            "cuenta_abono": abono,
+            "fecha_registro": self._now(),
+            "status": "registrada",
+        }
+        return {
+            "ok": True, "poliza": poliza_id, "cuenta_cargo": cargo,
+            "cuenta_abono": abono, "status": "registrada",
+            "audit_ref": self._audit_ref("ASL"),
+            "message": f"Póliza {poliza_id} registrada en Aspel (mock).",
+        }
+
+    def get_account_catalog(self):
+        return list(self._CATALOGO)
+
+    def check_connection(self):
+        return {
+            "ok": True, "backend": self.backend,
+            "audit_ref": self._audit_ref("ASL"),
+            "audited_at": self._now(),
+            "detail": "Aspel COI simulado operativo (sin instalación real).",
+        }
+
+
+class CSVExporter:
+    """Exporta pólizas a CSV para importación manual en cualquier ERP.
+
+    Fallback universal cuando no hay API real (los despachos mexicanos usan
+    mucho Excel/CSV como ERP, de `07-erps-integracion.md`). El CSV resultante
+    puede importarse en CONTPAQi, Aspel o una hoja de cálculo.
+    """
+
+    FIELDNAMES = [
+        "poliza", "folio_fiscal", "emisor_rfc", "total", "fecha", "categoria",
+        "cuenta_cargo", "cuenta_abono", "audit_ref", "fecha_registro",
+    ]
+
+    def __init__(self, path=None):
+        if path is None:
+            base = os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__))))
+            path = os.path.join(base, "polizas_export.csv")
+        self.path = path
+        self.rows = []
+        self._load()
+
+    def _load(self):
+        if os.path.exists(self.path):
+            with open(self.path, newline="", encoding="utf-8") as fh:
+                self.rows = list(csv.DictReader(fh))
+
+    def _write_rows(self, rows):
+        exists = os.path.exists(self.path)
+        with open(self.path, "a", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=self.FIELDNAMES)
+            if not exists:
+                writer.writeheader()
+            for r in rows:
+                writer.writerow(r)
+
+    def export_voucher(self, voucher):
+        """Convierte y agrega una póliza al CSV. Devuelve la fila exportada."""
+        folio = voucher.get("folio_fiscal") or voucher.get("concepto") or ""
+        categoria = voucher.get("categoria", "desconocido")
+        cargo, abono = cuentas_para_categoria(categoria)
+        row = {
+            "poliza": voucher.get("poliza") or ("CSV-" + uuid.uuid4().hex[:8].upper()),
+            "folio_fiscal": folio,
+            "emisor_rfc": voucher.get("emisor_rfc", ""),
+            "total": str(_dec(voucher.get("total"))),
+            "fecha": voucher.get("fecha", ""),
+            "categoria": categoria,
+            "cuenta_cargo": voucher.get("cuenta_cargo", cargo),
+            "cuenta_abono": voucher.get("cuenta_abono", abono),
+            "audit_ref": "EXP-" + uuid.uuid4().hex[:10].upper(),
+            "fecha_registro": datetime.now().isoformat(timespec="seconds"),
+        }
+        self.rows.append(row)
+        self._write_rows([row])
+        return dict(row)
+
+    def export_all(self, vouchers):
+        """Exporta una lista de pólizas al CSV. Devuelve lista de filas."""
+        out = []
+        for v in vouchers:
+            out.append(self.export_voucher(v))
+        return out
+
+    def health(self):
+        return {
+            "ok": True, "backend": "CSV exporter",
+            "detail": f"CSV operativo ({self.path}).", "rows": len(self.rows),
+        }

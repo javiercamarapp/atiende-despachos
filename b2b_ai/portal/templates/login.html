@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acceso · Portal del cliente B&amp;B AI</title>
+<style>
+  :root{--blue:#2563EB;--blue-dark:#1D4ED8;--bg:#F4F6FB;--card:#fff;
+        --ink:#111827;--muted:#6B7280;--line:#E5E7EB;--red:#DC2626}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+       Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);
+       display:flex;align-items:center;justify-content:center;min-height:100vh}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:16px;
+       padding:38px 34px;width:360px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
+  h1{margin:0 0 6px;font-size:20px}
+  .brand{margin-bottom:22px;font-size:14px;color:var(--muted)}
+  .brand b{color:var(--blue)}
+  label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+  input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;
+        font-size:14px;background:#fff}
+  input:focus{outline:none;border-color:var(--blue)}
+  button{margin-top:20px;width:100%;padding:11px;border:none;border-radius:9px;
+         background:var(--blue);color:#fff;font-size:14px;font-weight:600;
+         cursor:pointer}
+  button:hover{background:var(--blue-dark)}
+  .err{background:#FEE2E2;color:#991B1B;border:1px solid #FECACA;border-radius:8px;
+       padding:9px 12px;font-size:13px;margin-top:16px}
+  .hint{margin-top:18px;font-size:12px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>Portal del cliente</h1>
+    <div class="brand"><b>B&amp;B AI</b> · facturas y reportes</div>
+    {% if error %}
+    <div class="err">{{ error }}</div>
+    {% endif %}
+    <form method="POST" action="/portal/login" autocomplete="on">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" required autofocus>
+      <label for="password">Contraseña</label>
+      <input id="password" name="password" type="password" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <div class="hint">Acceso provisto por tu despacho contable.</div>
+  </div>
+</body>
+</html>

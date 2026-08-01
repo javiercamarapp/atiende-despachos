@@ -1,0 +1,114 @@
+# =============================================================================
+# B&B AI — docker-compose.prod.yml · Stack de producción
+#
+# Servicios: api (FastAPI/uvicorn), postgres, redis, nginx (reverse proxy).
+#
+# Uso:
+#   cp .env.production.example .env.production && vi .env.production
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#   curl http://<IP>/health
+#
+# NOTA IMPORTANTE SOBRE LA DB:
+# La capa de datos (b2b_ai/db/db.py) hoy es SQLite-backed. Postgres y Redis se
+# provisionan aquí como infraestructura de producción objetivo. Mientras no
+# exista el adaptador Postgres, el API persiste en SQLite sobre el volumen
+# `b2b-data` (B2B_DB_PATH=/data/b2b_ai.db). El día que aterrice el adaptador,
+# se cambia B2B_DB_PATH por la URL de Postgres y se elimina el volumen SQLite.
+# Ver docs/DEPLOYMENT.md → Base de datos (roadmap de migración).
+# =============================================================================
+
+name: b2b-ai-prod
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: b2b-ai:1.0.0
+    container_name: b2b-ai-api
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      # SQLite persistente (estado actual). Con el adaptador PG se sustituye
+      # por:  B2B_DB_PATH=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - B2B_DB_PATH=/data/b2b_ai.db
+      - B2B_WORKERS=${B2B_WORKERS:-1}
+      - REDIS_URL=redis://redis:6379/0   # provisionado; integración en roadmap
+    volumes:
+      - b2b-data:/data
+    # No exponer puerto al host: solo Nginx habla con el API.
+    expose:
+      - "8000"
+    networks:
+      - b2b
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: b2b-ai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-b2b_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-b2b}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD es obligatorio}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - b2b
+    # No se expone al host; solo accesible desde la red interna.
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-b2b} -d ${POSTGRES_DB:-b2b_ai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: b2b-ai-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - b2b
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: b2b-ai-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Certificados TLS (Let's Encrypt). Crear el dir con el cert o dejar
+      # comentado para servir solo HTTP. Ver docs/DEPLOYMENT.md → TLS.
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+    networks:
+      - b2b
+
+networks:
+  b2b:
+    driver: bridge
+
+volumes:
+  b2b-data:      # persistencia SQLite del API (estado actual)
+  postgres-data: # datos del DB objetivo (provisionado para la migración)
+  redis-data:    # AOF de Redis

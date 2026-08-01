@@ -1,0 +1,172 @@
+# -*- coding: utf-8 -*-
+"""flags.py — Sistema de feature flags multi-tenant.
+
+Resuelve si una capacidad está habilitada para un tenant combinando:
+
+  1. Override explícito por tenant (fila `feature_flags` con tenant_id = X).
+  2. Override global (fila con tenant_id NULL).
+  3. Default del código (`FEATURE_DEFAULTS`).
+
+Además soporta rollout gradual: con `enabled=1` y un `rollout_percentage`
+< 100, `is_enabled` devuelve True solo para un subconjunto determinista de
+tenants (hash consistente: mismo tenant siempre cae en el mismo bucket).
+"""
+from __future__ import annotations
+
+import hashlib
+from typing import Any, Dict, List, Optional
+
+from b2b_ai.db.db import Database
+
+# Defaults por feature para tenants nuevos. `True` = activa por defecto.
+# El onboarding (TenantManager.onboard_tenant) materializa estas filas vía
+# seed_defaults().
+FEATURE_DEFAULTS: Dict[str, bool] = {
+    "portal_cliente": True,
+    "cobranza_automatizada": False,
+    "contabilidad_electronica": False,
+    "billing": False,
+    "analytics_dashboard": True,
+    "audit_trail": True,
+}
+
+
+class FeatureFlags:
+    """Gestión y evaluación de feature flags por tenant."""
+
+    def __init__(self, db: Optional[Database] = None) -> None:
+        self.db = db or Database()
+
+    # ---- Evaluación -------------------------------------------------------
+    def is_enabled(self, feature_name: str, tenant_id) -> bool:
+        """True si `feature_name` está activa para `tenant_id`.
+
+        Prioridad: override por tenant → override global → default del código.
+        Con override habilitado y rollout < 100, aplica el hash-rollout.
+        """
+        row = self._row(feature_name, tenant_id)
+        if row is not None:
+            if not row["enabled"]:
+                return False
+            pct = row["rollout_percentage"]
+            if pct is None or pct >= 100:
+                return True
+            return self._in_rollout(feature_name, tenant_id, int(pct))
+        # Sin override: default del código.
+        return bool(FEATURE_DEFAULTS.get(feature_name, False))
+
+    def _row(self, feature_name: str, tenant_id):
+        """Fila efectiva: override por tenant, si no global, si no None."""
+        if tenant_id is not None:
+            r = self.db.conn.execute(
+                "SELECT * FROM feature_flags WHERE name=? AND tenant_id=?",
+                (feature_name, tenant_id)).fetchone()
+            if r is not None:
+                return r
+        return self.db.conn.execute(
+            "SELECT * FROM feature_flags WHERE name=? AND tenant_id IS NULL",
+            (feature_name,)).fetchone()
+
+    @staticmethod
+    def _in_rollout(feature_name: str, tenant_id, percentage: int) -> bool:
+        """Bucket determinista 0..99 del tenant para la feature."""
+        key = f"{feature_name}:{tenant_id}".encode("utf-8")
+        bucket = int(hashlib.sha256(key).hexdigest(), 16) % 100
+        return bucket < percentage
+
+    # ---- Mutación ---------------------------------------------------------
+    def enable(self, feature_name: str, tenant_id,
+               rollout_percentage: int = 100) -> int:
+        """Activa la feature para un tenant (upsert). Devuelve el id de fila."""
+        return self._upsert(feature_name, tenant_id, enabled=1,
+                            rollout_percentage=rollout_percentage)
+
+    def disable(self, feature_name: str, tenant_id) -> int:
+        """Desactiva la feature para un tenant (upsert). Devuelve el id."""
+        return self._upsert(feature_name, tenant_id, enabled=0,
+                            rollout_percentage=0)
+
+    def set_rollout(self, feature_name: str, tenant_id,
+                    rollout_percentage: int) -> int:
+        """Ajusta el rollout (mantiene `enabled` actual o lo activa si 0)."""
+        pct = max(0, min(100, int(rollout_percentage)))
+        return self._upsert(feature_name, tenant_id, enabled=1,
+                            rollout_percentage=pct)
+
+    def _upsert(self, feature_name: str, tenant_id, enabled: int,
+                rollout_percentage: int) -> int:
+        """Inserta o actualiza el flag. Portátil SQLite/PostgreSQL.
+
+        - Con tenant_id: ON CONFLICT(tenant_id, name) DO UPDATE (índice
+          único existente).
+        - Con tenant_id None (global): no hay conflicto posible en el índice
+          (NULLs no chocan), así que se borra lo anterior e inserta.
+        """
+        if tenant_id is None:
+            self.db.conn.execute(
+                "DELETE FROM feature_flags WHERE name=? AND tenant_id IS NULL",
+                (feature_name,))
+            cur = self.db.conn.execute(
+                "INSERT INTO feature_flags(name, tenant_id, enabled, "
+                "rollout_percentage) VALUES (?,NULL,?,?)",
+                (feature_name, enabled, rollout_percentage))
+        else:
+            cur = self.db.conn.execute(
+                "INSERT INTO feature_flags(name, tenant_id, enabled, "
+                "rollout_percentage) VALUES (?,?,?,?) "
+                "ON CONFLICT(tenant_id, name) DO UPDATE SET "
+                "enabled=excluded.enabled, "
+                "rollout_percentage=excluded.rollout_percentage",
+                (feature_name, tenant_id, enabled, rollout_percentage))
+        self.db.conn.commit()
+        return cur.lastrowid
+
+    # ---- Inventario -------------------------------------------------------
+    def get_all_flags(self, tenant_id) -> List[Dict[str, Any]]:
+        """Estado completo de todas las features para un tenant, con el
+        origen de cada una ('tenant' | 'global' | 'default')."""
+        overrides = {
+            r["name"]: r for r in self.db.conn.execute(
+                "SELECT * FROM feature_flags WHERE tenant_id=?",
+                (tenant_id,)).fetchall()
+        }
+        globals_ = {
+            r["name"]: r for r in self.db.conn.execute(
+                "SELECT * FROM feature_flags WHERE tenant_id IS NULL").fetchall()
+        }
+        all_names = set(FEATURE_DEFAULTS) | set(overrides) | set(globals_)
+        out: List[Dict[str, Any]] = []
+        for name in sorted(all_names):
+            row = overrides.get(name) or globals_.get(name)
+            if row is not None:
+                enabled = bool(row["enabled"])
+                rollout = int(row["rollout_percentage"] or 0)
+                source = "tenant" if name in overrides else "global"
+            else:
+                enabled = bool(FEATURE_DEFAULTS.get(name, False))
+                rollout = 100
+                source = "default"
+            out.append({
+                "name": name,
+                "tenant_id": tenant_id,
+                "enabled": enabled,
+                "rollout_percentage": rollout,
+                "source": source,
+            })
+        return out
+
+    # ---- Defaults para tenants nuevos -------------------------------------
+    def seed_defaults(self, tenant_id) -> None:
+        """Materializa FEATURE_DEFAULTS como filas explícitas del tenant.
+
+        Se llama en el onboarding para que cada tenant nuevo tenga su propio
+        registro (auditable y editable) sin depender solo del default del
+        código.
+        """
+        for name, enabled in FEATURE_DEFAULTS.items():
+            self.db.conn.execute(
+                "INSERT INTO feature_flags(name, tenant_id, enabled, "
+                "rollout_percentage) VALUES (?,?,?,?) "
+                "ON CONFLICT(tenant_id, name) DO NOTHING",
+                (name, tenant_id, 1 if enabled else 0, 100))
+        self.db.conn.commit()

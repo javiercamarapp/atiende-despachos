@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { margin:0; padding:0; background:#f5f6fa; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#2d3748; }
+  .wrap { max-width:600px; margin:24px auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; }
+  .head { background:#1a3a5c; color:#ffffff; padding:28px 32px; }
+  .head h1 { margin:0; font-size:22px; font-weight:600; }
+  .head p { margin:6px 0 0; opacity:.85; font-size:14px; }
+  .body { padding:32px; line-height:1.6; font-size:15px; }
+  .grid { display:flex; gap:16px; margin:16px 0; flex-wrap:wrap; }
+  .stat { flex:1; min-width:110px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:16px; text-align:center; }
+  .stat .num { font-size:26px; font-weight:700; color:#1a3a5c; display:block; }
+  .stat .lbl { font-size:12px; color:#718096; }
+  .card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:16px; margin:16px 0; }
+  .card table { width:100%; border-collapse:collapse; font-size:13px; }
+  .card th { text-align:left; color:#718096; font-weight:600; padding:6px 4px; border-bottom:1px solid #e2e8f0; font-size:12px; text-transform:uppercase; }
+  .card td { padding:8px 4px; border-bottom:1px solid #eef2f7; }
+  .card tr:last-child td { border-bottom:none; }
+  .foot { background:#f8fafc; border-top:1px solid #e2e8f0; padding:20px 32px; font-size:12px; color:#718096; }
+  .foot b { color:#4a5568; }
+  .muted { color:#718096; font-size:13px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <h1>Reporte semanal {{periodo}}</h1>
+      <p>Resumen de tu actividad contable</p>
+    </div>
+    <div class="body">
+      <h2>Hola {{nombre}}, aquí tienes el reporte del periodo {{periodo}}.</h2>
+      <div class="grid">
+        <div class="stat"><span class="num">{{facturas}}</span><span class="lbl">Facturas</span></div>
+        <div class="stat"><span class="num">${{total}}</span><span class="lbl">Total</span></div>
+        <div class="stat"><span class="num">{{aprobadas}}</span><span class="lbl">Aprobadas</span></div>
+        <div class="stat"><span class="num">{{pendientes}}</span><span class="lbl">Pendientes</span></div>
+      </div>
+      <div class="card">
+        <table>
+          <tr><th>Concepto</th><th style="text-align:right">Monto</th></tr>
+          {{fila_resumen}}
+        </table>
+      </div>
+      {{detalle}}
+      <p class="muted">Los agregados son informativos; la presentación fiscal requiere revisión humana.</p>
+    </div>
+    <div class="foot">
+      <b>B2B-AI</b> · Agente contable automatizado<br>
+      Este correo es automático. Soporte: {{soporte_email}}
+    </div>
+  </div>
+</body>
+</html>

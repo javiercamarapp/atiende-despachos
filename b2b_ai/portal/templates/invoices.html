@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Facturas · Portal del cliente{% endblock %}
+{% block body %}
+<div class="topbar">
+  <h1>Facturas</h1>
+  <div class="who">{{ count }} resultados</div>
+</div>
+
+<form class="card" method="get" action="/portal/invoices">
+  <div class="filters">
+    <input type="search" name="q" value="{{ q }}" placeholder="RFC o folio fiscal…">
+    <select name="estado">
+      <option value="">Estado (todos)</option>
+      <option value="procesado" {{ 'selected' if estado=='procesado' }}>Procesado</option>
+      <option value="anomalia"  {{ 'selected' if estado=='anomalia' }}>Anomalía</option>
+      <option value="valida"    {{ 'selected' if estado=='valida' }}>Válida</option>
+      <option value="invalida"  {{ 'selected' if estado=='invalida' }}>Inválida</option>
+    </select>
+    <select name="proveedor">
+      <option value="">Proveedor (todos)</option>
+      {% for rfc, nombre in providers %}
+      <option value="{{ rfc }}" {{ 'selected' if proveedor==rfc }}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+    <input type="date" name="fecha_desde" value="{{ fecha_desde }}" title="Desde">
+    <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" title="Hasta">
+    <button class="btn primary" type="submit">Filtrar</button>
+    <a class="btn" href="/portal/invoices">Limpiar</a>
+    <span style="flex:1"></span>
+    <a class="btn" href="/portal/invoices/export.csv{{ query_string }}" download>CSV</a>
+    <a class="btn" href="/portal/invoices/export.xlsx{{ query_string }}" download>Excel</a>
+  </div>
+</form>
+
+<div class="card">
+  {% if invoices %}
+  <table>
+    <thead><tr><th>Folio fiscal</th><th>Fecha</th><th>Proveedor</th>
+      <th>Categoría</th><th>Subtotal</th><th>Total</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr>
+        <td><a class="link" href="/portal/invoices/{{ inv.id }}">{{ inv.folio_fiscal or inv.id }}</a></td>
+        <td>{{ inv.fecha }}</td>
+        <td>{{ inv.emisor_nombre or inv.emisor_rfc }}</td>
+        <td>{{ inv.categoria or '—' }}</td>
+        <td>{{ money(inv.subtotal) }}</td>
+        <td>{{ money(inv.total) }}</td>
+        <td><span class="badge {{ 'b-'+estado(inv) }}">{{ estado(inv) }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No se encontraron facturas con esos filtros.</div>
+  {% endif %}
+</div>
+{% endblock %}

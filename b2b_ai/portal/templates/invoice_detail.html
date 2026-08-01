@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Factura {{ inv.folio_fiscal or inv.id }} · Portal{% endblock %}
+{% block body %}
+<div class="topbar">
+  <h1>Detalle de factura</h1>
+  <a class="btn" href="/portal/invoices">← Volver a facturas</a>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div>
+      <div class="muted" style="font-size:12px;text-transform:uppercase">Folio fiscal</div>
+      <div style="font-size:16px;font-weight:600">{{ inv.folio_fiscal or '—' }}</div>
+    </div>
+    <div>
+      <span class="badge {{ 'b-'+estado(inv) }}">{{ estado(inv) }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <dl class="grid">
+    <div><dt>Archivo</dt><dd>{{ inv.archivo }}</dd></div>
+    <div><dt>Fecha</dt><dd>{{ inv.fecha or '—' }}</dd></div>
+    <div><dt>Tipo</dt><dd>{{ inv.tipo or '—' }}</dd></div>
+    <div><dt>Serie / Folio</dt><dd>{{ inv.serie or '' }} {{ inv.folio or '' }}</dd></div>
+    <div><dt>Emisor (RFC)</dt><dd>{{ inv.emisor_nombre or '' }} · {{ inv.emisor_rfc or '—' }}</dd></div>
+    <div><dt>Receptor (RFC)</dt><dd>{{ inv.receptor_rfc or '—' }}</dd></div>
+    <div><dt>Subtotal</dt><dd>{{ money(inv.subtotal) }}</dd></div>
+    <div><dt>IVA</dt><dd>{{ money(inv.iva) }}</dd></div>
+    <div><dt>Total</dt><dd><b>{{ money(inv.total) }}</b></dd></div>
+    <div><dt>Moneda</dt><dd>{{ inv.moneda or 'MXN' }}</dd></div>
+    <div><dt>Categoría</dt><dd>{{ inv.categoria or '—' }}</dd></div>
+    <div><dt>Confianza</dt><dd>{{ (inv.confianza * 100) | round(0) if inv.confianza is not none else '—' }}%</dd></div>
+    <div><dt>Descripción</dt><dd>{{ inv.descripcion or '—' }}</dd></div>
+    <div><dt>Estatus ERP</dt><dd>{{ inv.erp_status or '—' }}</dd></div>
+    <div><dt>Procesado en</dt><dd>{{ inv.procesado_en or '—' }}</dd></div>
+  </dl>
+</div>
+
+<div class="card">
+  <h2>Razón de clasificación</h2>
+  <p class="muted">{{ inv.razon_clasificacion or 'Sin justificación registrada.' }}</p>
+  {% if inv.issues %}
+  <h2>Problemas detectados</h2>
+  <p class="muted">{{ inv.issues }}</p>
+  {% endif %}
+</div>
+{% endblock %}

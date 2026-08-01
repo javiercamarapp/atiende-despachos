@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Dashboard es una app autenticada; no necesita indexarse.
+Disallow: /dashboard
+Disallow: /dashboard.html
+
+Sitemap: https://landing-likida.vercel.app/sitemap.xml

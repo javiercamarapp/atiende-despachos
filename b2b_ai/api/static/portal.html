@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Portal de facturas · B&amp;B AI</title>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f8fa; --surface-2:#eef0f4;
+    --border:#e5e7eb; --text:#0f172a; --muted:#64748b;
+    --primary:#111827; --primary-fg:#ffffff; --accent:#2563eb;
+    --ok:#16a34a; --warn:#d97706; --err:#dc2626; --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--text);line-height:1.5;font-size:15px}
+  button{font:inherit;cursor:pointer;border:none;background:none}
+  input,select{font:inherit;color:var(--text)}
+  a{color:var(--accent);text-decoration:none}
+  .hidden{display:none!important}
+
+  /* ---- Layout ---- */
+  .wrap{max-width:960px;margin:0 auto;padding:16px}
+  header.top{display:flex;align-items:center;justify-content:space-between;
+             gap:12px;padding:14px 0;border-bottom:1px solid var(--border);margin-bottom:16px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+  .brand .dot{width:26px;height:26px;border-radius:8px;background:var(--primary);
+              color:var(--primary-fg);display:flex;align-items:center;justify-content:center;font-size:13px}
+  .userbox{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+       background:var(--primary);color:var(--primary-fg);border-radius:10px;
+       padding:10px 16px;font-weight:600;font-size:14px;transition:opacity .15s}
+  .btn:hover{opacity:.88}
+  .btn.ghost{background:var(--surface-2);color:var(--text)}
+  .btn.danger{background:#fef2f2;color:var(--err)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ---- Auth ---- */
+  .auth{max-width:420px;margin:8vh auto;padding:28px;border:1px solid var(--border);
+        border-radius:var(--radius);background:var(--surface)}
+  .auth h1{font-size:20px;margin-bottom:4px}
+  .auth p.sub{color:var(--muted);font-size:14px;margin-bottom:20px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+  .field input{width:100%;padding:11px 13px;border:1px solid var(--border);
+               border-radius:10px;background:#fff;font-size:15px}
+  .field input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+  .tabrow{display:flex;background:var(--surface-2);border-radius:10px;padding:4px;margin-bottom:18px}
+  .tabrow button{flex:1;padding:8px;border-radius:8px;font-weight:600;color:var(--muted)}
+  .tabrow button.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .auth .btn{width:100%;margin-top:6px}
+  .msg{font-size:13px;margin-top:10px;border-radius:8px;padding:9px 12px}
+  .msg.err{background:#fef2f2;color:var(--err)}
+  .msg.ok{background:#f0fdf4;color:var(--ok)}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:10px;text-align:center}
+
+  /* ---- Stats ---- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+  .stat .k{font-size:12.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .stat .v{font-size:26px;font-weight:700;margin-top:6px}
+  .stat .v small{font-size:14px;color:var(--muted);font-weight:500}
+
+  /* ---- Upload ---- */
+  .drop{border:2px dashed var(--border);border-radius:var(--radius);padding:34px 20px;
+        text-align:center;background:var(--surface);transition:border-color .15s,background .15s;margin-bottom:16px}
+  .drop.drag{border-color:var(--accent);background:#eff6ff}
+  .drop .big{font-size:30px}
+  .drop .t{font-weight:600;margin-top:8px}
+  .drop .s{color:var(--muted);font-size:13px;margin-top:4px}
+  .drop .btn{margin-top:14px}
+
+  .jobs{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .job{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+  .job .nm{flex:1;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .job .st{font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;white-space:nowrap}
+  .job .st.processing{background:#eff6ff;color:var(--accent)}
+  .job .st.done{background:#f0fdf4;color:var(--ok)}
+  .job .st.error{background:#fef2f2;color:var(--err)}
+  .bar{flex:1;height:6px;background:var(--surface-2);border-radius:999px;overflow:hidden;max-width:140px}
+  .bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .4s}
+
+  /* ---- Toolbar / filters ---- */
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .toolbar select,.toolbar input{background:#fff;border:1px solid var(--border);
+         border-radius:10px;padding:9px 12px;font-size:14px}
+  .toolbar .grow{flex:1;min-width:140px}
+  .toolbar .rowbtn{display:flex;gap:8px;margin-left:auto}
+
+  /* ---- Table ---- */
+  .table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+  thead th{text-align:left;padding:11px 13px;background:var(--surface);font-size:12px;
+           text-transform:uppercase;letter-spacing:.03em;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody td{padding:11px 13px;border-bottom:1px solid var(--surface-2);white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  .money{font-variant-numeric:tabular-nums;font-weight:600}
+  .pill{font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px}
+  .pill.ok{background:#f0fdf4;color:var(--ok)}
+  .pill.warn{background:#fefce8;color:var(--warn)}
+  .pill.err{background:#fef2f2;color:var(--err)}
+  .pill.mut{background:var(--surface-2);color:var(--muted)}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--surface-2);
+           border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media (max-width:560px){
+    .wrap{padding:12px}
+    .toolbar .rowbtn{margin-left:0;width:100%}
+    .toolbar .rowbtn .btn{flex:1}
+    .stat .v{font-size:22px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== AUTH ===================== -->
+<div id="authView" class="wrap hidden">
+  <div class="auth">
+    <h1>Portal de facturas</h1>
+    <p class="sub">Sube tus CFDI y deja que B&amp;B AI los valide y clasifique.</p>
+    <div class="tabrow">
+      <button id="tabPass" class="active" onclick="showTab('pass')">Contraseña</button>
+      <button id="tabMagic" onclick="showTab('magic')">Enlace mágico</button>
+    </div>
+
+    <form id="loginForm" class="auth-pane">
+      <div class="field"><label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="cliente@tuempresa.mx" required></div>
+      <div class="field"><label for="password">Contraseña</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+      <button class="btn" type="submit">Entrar</button>
+      <div id="loginMsg" class="msg hidden"></div>
+    </form>
+
+    <form id="magicForm" class="auth-pane hidden">
+      <div class="field"><label for="mEmail">Email</label>
+        <input id="mEmail" type="email" autocomplete="email" placeholder="cliente@tuempresa.mx" required></div>
+      <button class="btn" type="submit">Enviar enlace</button>
+      <div id="magicMsg" class="msg hidden"></div>
+    </form>
+    <p class="hint">Tu despacho te creó el acceso. ¿Problemas? Escríbenos a soporte@b2b-ai.local.</p>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="appView" class="wrap hidden">
+  <header class="top">
+    <div class="brand"><span class="dot">BB</span> Portal de facturas</div>
+    <div class="userbox">
+      <span id="userName"></span>
+      <button class="btn ghost" onclick="logout()" style="padding:7px 12px">Salir</button>
+    </div>
+  </header>
+
+  <div class="stats" id="statsRow"></div>
+
+  <div class="drop" id="drop">
+    <div class="big">📄</div>
+    <div class="t">Arrastra tus facturas aquí</div>
+    <div class="s">o haz clic para elegir archivos · XML o PDF</div>
+    <input type="file" id="fileInput" accept=".xml,.pdf" multiple class="hidden">
+    <button class="btn" type="button" onclick="pickFiles()">Subir facturas</button>
+  </div>
+
+  <div class="jobs" id="jobs"></div>
+
+  <div class="toolbar">
+    <select id="fCat" onchange="applyFilters()"><option value="">Todas las categorías</option></select>
+    <select id="fEst" onchange="applyFilters()">
+      <option value="">Todos los estados</option>
+      <option value="valida">Válida</option>
+      <option value="invalida">Inválida</option>
+      <option value="anomalia">Requiere revisión</option>
+    </select>
+    <input type="date" id="fDesde" class="grow" onchange="applyFilters()">
+    <input type="date" id="fHasta" class="grow" onchange="applyFilters()">
+    <div class="rowbtn">
+      <button class="btn ghost" onclick="exportCsv()">⬇ CSV</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Fecha</th><th>RFC emisor</th><th>Monto</th><th>Categoría</th>
+        <th>Estado</th><th>Confianza</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="empty" class="empty hidden">Aún no hay facturas. Sube tu primer CFDI arriba.</div>
+  </div>
+</div>
+
+<script>
+/* ---------- Estado global ---------- */
+let TOKEN = localStorage.getItem("portal_token") || "";
+let polls = {};   // job_id -> interval
+const CAT_LABELS = {"gasto_operativo":"Gasto operativo","inversion":"Inversión",
+  "nomina":"Nómina","honorarios":"Honorarios","activo_fijo":"Activo fijo",
+  "viaticos":"Viáticos","desconocido":"Por clasificar"};
+const catName = c => CAT_LABELS[c] || (c ? c.charAt(0).toUpperCase()+c.slice(1) : "—");
+
+/* ---------- Utilidades ---------- */
+async function api(path, opts={}){
+  opts.headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
+  if(TOKEN) opts.headers["Authorization"] = "Bearer "+TOKEN;
+  const r = await fetch(path, opts);
+  let body = null;
+  try{ body = await r.json(); }catch(e){}
+  if(!r.ok) throw new Error((body && body.detail) || ("Error "+r.status));
+  return body;
+}
+function money(x){
+  const n = parseFloat(x);
+  if(isNaN(n)) return "—";
+  return n.toLocaleString("es-MX",{style:"currency",currency:"MXN"});
+}
+function fmtDate(d){
+  if(!d) return "—";
+  const dt = new Date(d);
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString("es-MX",{day:"2-digit",month:"2-digit",year:"numeric"});
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------- Router de vistas ---------- */
+function showView(name){
+  document.getElementById("authView").classList.toggle("hidden", name!=="auth");
+  document.getElementById("appView").classList.toggle("hidden", name!=="app");
+}
+async function boot(){
+  if(!TOKEN){ showView("auth"); return; }
+  try{
+    const me = await api("/portal/auth/me");
+    document.getElementById("userName").textContent =
+      (me.user.name || me.user.email || "Cliente");
+    enterApp();
+  }catch(e){ TOKEN=""; localStorage.removeItem("portal_token"); showView("auth"); }
+}
+function enterApp(){
+  showView("app");
+  loadStats();
+  loadInvoices();
+  loadCategories();
+}
+
+/* ---------- Auth ---------- */
+function showTab(t){
+  document.getElementById("tabPass").classList.toggle("active", t==="pass");
+  document.getElementById("tabMagic").classList.toggle("active", t==="magic");
+  document.getElementById("loginForm").classList.toggle("hidden", t!=="pass");
+  document.getElementById("magicForm").classList.toggle("hidden", t!=="magic");
+}
+function msg(el, text, kind){
+  const n = document.getElementById(el);
+  n.textContent = text; n.className = "msg "+(kind||"err"); n.classList.remove("hidden");
+}
+document.getElementById("loginForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const btn = e.target.querySelector("button"); btn.disabled = true;
+  try{
+    const body = await api("/portal/auth/login", {method:"POST",
+      body:JSON.stringify({email:document.getElementById("email").value,
+        password:document.getElementById("password").value})});
+    TOKEN = body.token; localStorage.setItem("portal_token", TOKEN);
+    enterApp();
+  }catch(err){ msg("loginMsg", err.message); }
+  finally{ btn.disabled = false; }
+});
+document.getElementById("magicForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const btn = e.target.querySelector("button"); btn.disabled = true;
+  try{
+    const body = await api("/portal/auth/magic-link", {method:"POST",
+      body:JSON.stringify({email:document.getElementById("mEmail").value})});
+    if(body.dev_token){
+      TOKEN = body.dev_token; localStorage.setItem("portal_token", TOKEN);
+      msg("magicMsg","Acceso listo. Entrando…","ok");
+      setTimeout(enterApp, 500);
+    } else {
+      msg("magicMsg", body.message || "Revisa tu email.","ok");
+    }
+  }catch(err){ msg("magicMsg", err.message); }
+  finally{ btn.disabled = false; }
+});
+async function logout(){
+  try{ await api("/portal/auth/logout",{method:"POST"}); }catch(e){}
+  TOKEN=""; localStorage.removeItem("portal_token");
+  showView("auth");
+}
+
+/* ---------- Stats ---------- */
+async function loadStats(){
+  try{
+    const s = await api("/portal/dashboard/stats");
+    const cards = [
+      ["Facturas", s.total_facturas, ""],
+      ["Monto total", money(s.monto_total), ""],
+      ["IVA", money(s.iva_total), ""],
+      ["Revisión pendiente", s.anomalias, s.anomalias>0?"warn":""],
+    ];
+    document.getElementById("statsRow").innerHTML = cards.map(c=>
+      `<div class="stat"><div class="k">${c[0]}</div><div class="v" style="color:${c[2]==="warn"?"var(--warn)":"inherit"}">${c[1]}</div></div>`
+    ).join("");
+  }catch(e){}
+}
+
+/* ---------- Categorías (para el filtro) ---------- */
+async function loadCategories(){
+  try{
+    const r = await api("/portal/invoices.json?limit=1000");
+    const cats = [...new Set(r.invoices.map(i=>i.categoria).filter(Boolean))].sort();
+    const sel = document.getElementById("fCat");
+    cats.forEach(c=>{
+      const o = document.createElement("option"); o.value=c; o.textContent=catName(c); sel.appendChild(o);
+    });
+  }catch(e){}
+}
+
+/* ---------- Invoices ---------- */
+function filtroQuery(){
+  const p = new URLSearchParams();
+  const c = document.getElementById("fCat").value; if(c) p.set("categoria",c);
+  const e = document.getElementById("fEst").value; if(e) p.set("estado",e);
+  const d = document.getElementById("fDesde").value; if(d) p.set("fecha_desde",d);
+  const h = document.getElementById("fHasta").value; if(h) p.set("fecha_hasta",h);
+  return p.toString();
+}
+async function loadInvoices(){
+  const tb = document.getElementById("tbody");
+  tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px"><span class="spinner"></span> Cargando…</td></tr>`;
+  document.getElementById("empty").classList.add("hidden");
+  try{
+    const q = filtroQuery();
+    const r = await api("/portal/invoices.json?"+q);
+    renderInvoices(r.invoices);
+  }catch(e){
+    tb.innerHTML = `<tr><td colspan="6" class="empty">Error al cargar: ${esc(e.message)}</td></tr>`;
+  }
+}
+function renderInvoices(list){
+  const tb = document.getElementById("tbody");
+  if(!list.length){
+    tb.innerHTML=""; document.getElementById("empty").classList.remove("hidden"); return;
+  }
+  document.getElementById("empty").classList.add("hidden");
+  tb.innerHTML = list.map(i=>{
+    let pill, cls;
+    if(i.valido){ pill="Válida"; cls="ok"; }
+    else if(i.requires_human_review){ pill="Revisar"; cls="warn"; }
+    else { pill="Inválida"; cls="err"; }
+    const conf = i.confianza!=null ? Math.round(i.confianza*100)+"%" : "—";
+    return `<tr>
+      <td>${fmtDate(i.fecha||i.created_at)}</td>
+      <td>${esc(i.emisor_rfc||"—")}</td>
+      <td class="money">${money(i.total)}</td>
+      <td>${esc(catName(i.categoria))}</td>
+      <td><span class="pill ${cls}">${pill}</span></td>
+      <td>${conf}</td>
+    </tr>`;
+  }).join("");
+}
+function applyFilters(){ loadInvoices(); }
+
+/* ---------- CSV ---------- */
+async function exportCsv(){
+  const q = filtroQuery();
+  try{
+    const r = await fetch("/portal/invoices/export.csv?"+q,{headers:{Authorization:"Bearer "+TOKEN}});
+    if(!r.ok) throw new Error("No se pudo exportar");
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "facturas_portal.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+  }catch(e){ alert(e.message); }
+}
+
+/* ---------- Upload + polling ---------- */
+function pickFiles(){ document.getElementById("fileInput").click(); }
+const drop = document.getElementById("drop");
+drop.addEventListener("click", e=>{ if(e.target.tagName!=="BUTTON") pickFiles(); });
+document.getElementById("fileInput").addEventListener("change", e=>uploadFiles(e.target.files));
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
+drop.addEventListener("drop", e=>{ if(e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files); });
+
+async function uploadFiles(files){
+  const list = [...files].filter(f=>/\.(xml|pdf)$/i.test(f.name));
+  if(!list.length){ alert("Solo se aceptan archivos XML o PDF."); return; }
+  const jobsEl = document.getElementById("jobs");
+  for(const f of list){
+    const fd = new FormData(); fd.append("file", f);
+    const card = document.createElement("div");
+    card.className="job"; card.innerHTML =
+      `<span class="nm">${esc(f.name)}</span><div class="bar"><i style="width:8%"></i></div>
+       <span class="st processing">Procesando</span>`;
+    jobsEl.prepend(card);
+    try{
+      const up = await fetch("/portal/invoices/upload",{method:"POST",
+        headers:{Authorization:"Bearer "+TOKEN}, body:fd});
+      const jb = await up.json();
+      if(!up.ok) throw new Error(jb.detail||"Error de subida");
+      startPoll(jb.job_id, card, f.name);
+    }catch(err){
+      card.querySelector(".st").className="st error"; card.querySelector(".st").textContent="Error";
+      card.querySelector(".bar").remove();
+      card.querySelector(".nm").textContent = f.name+" — "+err.message;
+    }
+  }
+}
+function startPoll(jobId, card, name){
+  if(polls[jobId]) clearInterval(polls[jobId]);
+  let ticks=0;
+  polls[jobId] = setInterval(async ()=>{
+    ticks++;
+    try{
+      const st = await api("/portal/invoices/"+jobId+"/status");
+      const bar = card.querySelector(".bar i");
+      if(bar){ const w = Math.min(85, 20+ticks*8); bar.style.width = w+"%"; }
+      if(st.status==="done"){
+        clearInterval(polls[jobId]); delete polls[jobId];
+        card.querySelector(".bar").remove();
+        card.querySelector(".st").className="st done";
+        card.querySelector(".st").textContent = st.result && st.result.valido ? "Válida ✓" : "Revisar ⚠";
+        loadInvoices(); loadStats();
+        setTimeout(()=>card.remove(), 6000);
+      } else if(st.status==="error"){
+        clearInterval(polls[jobId]); delete polls[jobId];
+        card.querySelector(".bar").remove();
+        card.querySelector(".st").className="st error"; card.querySelector(".st").textContent="Error";
+        card.querySelector(".nm").textContent = name+" — "+(st.error||"no procesado");
+        setTimeout(()=>card.remove(), 8000);
+      }
+    }catch(e){
+      if(ticks>60){ clearInterval(polls[jobId]); delete polls[jobId]; card.remove(); }
+    }
+  }, 2000);
+}
+
+boot();
+</script>
+</body>
+</html>

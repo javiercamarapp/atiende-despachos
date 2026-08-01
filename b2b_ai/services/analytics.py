@@ -1,0 +1,139 @@
+# -*- coding: utf-8 -*-
+"""
+analytics.py — Analytics avanzado por tenant + cache TTL (enterprise v2).
+
+Agrega métricas de negocio sobre las facturas de UN tenant: tendencia por
+mes, desglose por proveedor (emisor), concentración por categoría, y
+agregados de validez. Incluye un `TTLCache` genérico para respuestas
+frecuentes (GET /api/v2/analytics, /api/v2/audit) que evita recomputar
+dentro de la ventana configurada.
+
+Los cálculos son puros (sin tocar DB) — reciben `invoices` y devuelven
+dicts — para poder cachearlos y testearlos fácilmente.
+"""
+from __future__ import annotations
+
+import time
+from collections import defaultdict
+from decimal import Decimal
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+from b2b_ai.services.report import generate_report
+
+
+def _dec(v: Any) -> Decimal:
+    if v is None or v == "":
+        return Decimal("0")
+    try:
+        return Decimal(str(v))
+    except Exception:  # noqa: BLE001
+        return Decimal("0")
+
+
+def _periodo(fecha: Any) -> str:
+    return str(fecha)[:7] if fecha else "sin-fecha"
+
+
+def build_analytics(
+    invoices: List[Dict[str, Any]],
+    periodo: Optional[str] = None,
+    desde: Optional[str] = None,
+    hasta: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Analytics avanzado de un tenant.
+
+    `invoices`: lista de dicts (salida de `list_invoices`). Filtros
+    opcionales `periodo` ('YYYY-MM'), `desde`/`hasta` ('YYYY-MM-DD').
+    Devuelve dict con: resumen, tendencia mensual, por_proveedor,
+    por_categoria, validez, monto_promedio.
+    """
+    rows = list(invoices)
+    if periodo:
+        rows = [r for r in rows if _periodo(r.get("fecha")) == periodo]
+    if desde:
+        rows = [r for r in rows if (r.get("fecha") or "") >= desde]
+    if hasta:
+        rows = [r for r in rows if (r.get("fecha") or "") <= hasta]
+
+    resumen = generate_report(rows, period=periodo)
+
+    # Tendencia mensual.
+    por_mes = defaultdict(lambda: {"count": 0, "total": Decimal("0")})
+    for r in rows:
+        m = _periodo(r.get("fecha"))
+        por_mes[m]["count"] += 1
+        por_mes[m]["total"] += _dec(r.get("total"))
+    tendencia = {k: {"count": v["count"], "total": str(v["total"])}
+                 for k, v in sorted(por_mes.items())}
+
+    # Por proveedor (emisor).
+    por_proveedor = defaultdict(lambda: {"count": 0, "total": Decimal("0")})
+    for r in rows:
+        prov = r.get("emisor_nombre") or r.get("emisor_rfc") or "desconocido"
+        por_proveedor[prov]["count"] += 1
+        por_proveedor[prov]["total"] += _dec(r.get("total"))
+    proveedores = [
+        {"emisor": k, "count": v["count"], "total": str(v["total"])}
+        for k, v in sorted(por_proveedor.items(),
+                           key=lambda kv: -kv[1]["count"])]
+
+    # Validez.
+    validas = sum(1 for r in rows if r.get("valido") in (1, True, "1", "SI"))
+    invalidas = len(rows) - validas
+
+    total = sum(_dec(r.get("total")) for r in rows)
+    n = len(rows)
+    monto_promedio = round(total / n, 2) if n else Decimal("0")
+
+    return {
+        "periodo": periodo,
+        "filtros": {"desde": desde, "hasta": hasta},
+        "resumen": resumen,
+        "tendencia_mensual": tendencia,
+        "por_proveedor": proveedores,
+        "validez": {"total": len(rows), "validas": validas,
+                    "invalidas": invalidas,
+                    "tasa_validez": round(validas / len(rows), 4) if rows else 0},
+        "monto_promedio": str(monto_promedio),
+    }
+
+
+class TTLCache:
+    """Cache en memoria con expiración por TTL. Dict key → (ts, value)."""
+
+    def __init__(self, ttl_seconds: float = 30.0) -> None:
+        self.ttl = ttl_seconds
+        self._store: Dict[Any, Tuple[float, Any]] = {}
+
+    def get(self, key: Any) -> Any:
+        item = self._store.get(key)
+        if item is None:
+            return None
+        ts, value = item
+        if time.monotonic() - ts > self.ttl:
+            self._store.pop(key, None)
+            return None
+        return value
+
+    def set(self, key: Any, value: Any) -> None:
+        self._store[key] = (time.monotonic(), value)
+
+    def get_or_compute(self, key: Any, fn: Callable[[], Any]) -> Tuple[Any, bool]:
+        hit = self.get(key)
+        if hit is not None:
+            return hit, True
+        value = fn()
+        self.set(key, value)
+        return value, False
+
+    def invalidate(self, prefix: Optional[str] = None) -> None:
+        if prefix is None:
+            self._store.clear()
+            return
+        for k in list(self._store):
+            if k.startswith(prefix):
+                self._store.pop(k, None)
+
+    @property
+    def stats(self) -> Dict[str, Any]:
+        return {"entries": len(self._store), "ttl": self.ttl}

@@ -1,0 +1,17 @@
+# -*- coding: utf-8 -*-
+"""Feature flags por tenant: control de despliegue gradual de capacidades.
+
+Sistema de flags sobre la tabla `feature_flags`:
+
+  - is_enabled(feature, tenant_id) : decide si una feature está activa para
+                                     un tenant (override + rollout + default).
+  - enable / disable               : override por tenant.
+  - get_all_flags(tenant_id)       : estado completo con origen.
+  - seed_defaults(tenant_id)       : materializa defaults para un tenant nuevo.
+
+Los defaults por feature viven en `FEATURE_DEFAULTS` (código); los overrides
+por tenant, en la DB.
+"""
+from b2b_ai.features.flags import FEATURE_DEFAULTS, FeatureFlags
+
+__all__ = ["FEATURE_DEFAULTS", "FeatureFlags"]

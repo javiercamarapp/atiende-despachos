@@ -1,0 +1,344 @@
+# -*- coding: utf-8 -*-
+"""
+collections.py — Agente de cobranza automatizada (FASE 3).
+
+Gestiona las cuentas por cobrar de un despacho: analiza la cartera pendiente
+por vencimiento, la clasifica por antigüedad, genera la secuencia de
+recordatorios (email/WhatsApp) con mensajes personalizados, calcula un score
+de cobrabilidad por factura y registra cada intento de contacto con timestamp
+para auditoría y para alimentar el propio score.
+
+NO envía mensajes reales: solo genera el contenido y, opcionalmente, lo
+registra en la tabla `collection_events`. El envío real queda a cargo del
+canal de notificaciones del cliente.
+
+Forma de uso:
+
+    from b2b_ai.services.collections import CollectionsManager
+    mgr = CollectionsManager(db=db)          # db opcional (persistencia)
+    reporte = mgr.analyze(invoices, today=date.today())
+    msg = mgr.build_reminder(invoice, stage="recordatorio_formal", channel="email")
+    mgr.send_reminder(invoice, stage=..., channel="whatsapp")  # genera + registra
+"""
+from __future__ import annotations
+
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
+from typing import Dict, List, Optional
+
+from b2b_ai.services.collections_templates import (render, render_subject,
+                                                   format_monto, SEQUENCE)
+
+# --------------------------------------------------------------------------- #
+# Buckets de antigüedad
+# --------------------------------------------------------------------------- #
+AGE_BUCKETS = ["0-30", "31-60", "61-90", "90+"]
+
+
+def age_bucket(dias_vencido) -> str:
+    """Clasifica una factura por días de atraso en un bucket de antigüedad.
+
+    Reglas:
+      0-30 días  -> '0-30'
+      31-60 días -> '31-60'
+      61-90 días -> '61-90'
+      91+ días   -> '90+'
+    Si el monto no está vencido (dias_vencido <= 0) se devuelve '0-30' (al
+    corriente / no vencido).
+    """
+    try:
+        d = int(dias_vencido)
+    except (TypeError, ValueError):
+        d = 0
+    if d <= 0:
+        return "0-30"
+    if d <= 30:
+        return "0-30"
+    if d <= 60:
+        return "31-60"
+    if d <= 90:
+        return "61-90"
+    return "90+"
+
+
+def days_overdue(due_date, today=None) -> int:
+    """Días de atraso de una factura respecto a hoy (negativo si aún no vence)."""
+    today = today or date.today()
+    due = _parse_date(due_date)
+    if due is None:
+        return 0
+    return (today - due).days
+
+
+def reminder_stage(due_date, today=None) -> Optional[str]:
+    """Etapa de la secuencia de cobranza que corresponde HOY para una factura.
+
+    Compara la fecha de vencimiento contra la fecha actual y devuelve la etapa
+    cuyo offset en días coincide exactamente:
+      -7 días (antes) -> 'pre_vencimiento'
+       0 días          -> 'vencimiento'
+      +7 días          -> 'recordatorio_formal'
+      +30 días         -> 'segundo_recordatorio'
+      +60 días         -> 'escalamiento'
+    En cualquier otra fecha devuelve None (no toca enviar recordatorio hoy).
+
+    Devuelve None si no se puede parsear la fecha o no coincide ninguna etapa.
+    """
+    today = today or date.today()
+    due = _parse_date(due_date)
+    if due is None:
+        return None
+    delta = (due - today).days  # negativo = vencida hace |delta| días
+    return OFFSET_TO_STAGE.get(delta)
+
+
+# offset en días (relativo al vencimiento) -> etapa
+def _stage_offsets():
+    from b2b_ai.services.collections_templates import STAGE_OFFSET_DAYS
+    return [(s, STAGE_OFFSET_DAYS[s]) for s in SEQUENCE]
+
+
+OFFSET_TO_STAGE = {(-d): s for s, d in _stage_offsets()}
+
+
+# --------------------------------------------------------------------------- #
+# Helpers
+# --------------------------------------------------------------------------- #
+def _parse_date(v):
+    if v is None:
+        return None
+    if isinstance(v, (date, datetime)):
+        return v.date() if isinstance(v, datetime) else v
+    s = str(v).strip()[:10]
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _dec(v):
+    if v is None:
+        return None
+    s = str(v).strip().replace(",", "").replace("$", "").replace(" ", "")
+    if not s:
+        return None
+    try:
+        return Decimal(s)
+    except InvalidOperation:
+        return None
+
+
+# --------------------------------------------------------------------------- #
+# Manager
+# --------------------------------------------------------------------------- #
+class CollectionsManager:
+    """Agente de cobranza: análisis, recordatorios, score y registro."""
+
+    def __init__(self, db=None, tenant_id=None):
+        self.db = db
+        self.tenant_id = tenant_id
+
+    # ---- Análisis de cartera --------------------------------------------- #
+    def analyze(self, invoices: List[dict], today=None) -> Dict:
+        """Analiza la cartera pendiente y la clasifica por antigüedad.
+
+        `invoices` es una lista de dicts con, al menos:
+          factura_id, monto, fecha_vencimiento, nombre_empresa (cliente).
+
+        Devuelve un dict con:
+          - total_invoices / total_monto
+          - buckets: { '0-30': {count, monto}, ... }
+          - invoices: cada factura enriquecida con dias_vencido, bucket y score.
+        """
+        today = today or date.today()
+        analyzed = []
+        buckets = {b: {"count": 0, "monto": Decimal("0")} for b in AGE_BUCKETS}
+        total_monto = Decimal("0")
+
+        for inv in invoices:
+            due = _parse_date(inv.get("fecha_vencimiento"))
+            dias = (today - due).days if due else 0
+            bucket = age_bucket(dias)
+            monto = _dec(inv.get("monto")) or Decimal("0")
+            score = self.collectability_score(inv, dias_vencido=dias)
+
+            row = dict(inv)
+            row.update({
+                "dias_vencido": dias,
+                "bucket": bucket,
+                "score": score,
+            })
+            analyzed.append(row)
+            buckets[bucket]["count"] += 1
+            buckets[bucket]["monto"] += monto
+            total_monto += monto
+
+        return {
+            "total_invoices": len(analyzed),
+            "total_monto": str(total_monto),
+            "buckets": {
+                b: {"count": v["count"], "monto": str(v["monto"])}
+                for b, v in buckets.items()
+            },
+            "invoices": analyzed,
+        }
+
+    # ---- Score de cobrabilidad ------------------------------------------- #
+    def collectability_score(self, invoice: dict, dias_vencido=None,
+                             history: Optional[List[dict]] = None) -> float:
+        """Probabilidad de cobro (0..1) basada en antigüedad e historial.
+
+        Componentes:
+          1. Base por antigüedad: cuanto más vieja la deuda, menos cobrable.
+             - 0-30 → 0.75  |  31-60 → 0.55  |  61-90 → 0.38  |  90+ → 0.22
+          2. Ajuste por historial (events/recordatorios previos):
+             - si algún evento tiene respuesta 'pagado'   → score 1.0 (ya cobrada)
+             - si 'promesa_pago'                           → +0.15
+             - si el cliente respondió alguna vez          → +0.10
+             - cada etapa de escalamiento alcanzada        → -0.05 (más difícil)
+          El resultado se recorta a [0, 1].
+
+        `history` es una lista de dicts tipo CollectionEvent (con keys
+        `respuesta` y `tipo_recordatorio`). Si no se pasa y hay `db`, se lee el
+        historial de la factura de la base de datos.
+        """
+        dias = dias_vencido
+        if dias is None:
+            dias = days_overdue(invoice.get("fecha_vencimiento"))
+        base = {
+            "0-30": 0.75,
+            "31-60": 0.55,
+            "61-90": 0.38,
+            "90+": 0.22,
+        }[age_bucket(dias)]
+
+        if history is None and self.db is not None:
+            fid = str(invoice.get("factura_id"))
+            history = self.db.list_collection_events(
+                tenant_id=self.tenant_id, factura_id=fid)
+
+        score = base
+        if history:
+            responses = [h.get("respuesta") for h in history if h.get("respuesta")]
+            if "pagado" in responses:
+                return 1.0
+            if "promesa_pago" in responses:
+                score += 0.15
+            if any(h.get("respuesta") for h in history):
+                score += 0.10
+            # Cuanto más lejos en la secuencia de escalado, más cuesta cobrar.
+            etapa_avance = sum(1 for h in history
+                               if h.get("tipo_recordatorio") in
+                               {"segundo_recordatorio", "escalamiento"})
+            score -= 0.05 * etapa_avance
+
+        return round(max(0.0, min(1.0, score)), 2)
+
+    # ---- Generación de mensajes ------------------------------------------ #
+    def build_reminder(self, invoice: dict, stage: str, channel: str = "email",
+                       today=None) -> Dict:
+        """Genera el contenido del recordatorio para una etapa y canal.
+
+        Personaliza con el nombre de la empresa, monto formateado, días
+        vencidos y factura_id. Para email devuelve subject + body; para
+        WhatsApp, texto. NO envía ni registra nada.
+
+        Devuelve un dict {stage, channel, subject?, body|whatsapp, invoice_id}.
+        """
+        dias = invoice.get("dias_vencido")
+        if dias is None:
+            dias = days_overdue(invoice.get("fecha_vencimiento"), today)
+        vars_ = {
+            "nombre_empresa": invoice.get("nombre_empresa", ""),
+            "monto": format_monto(invoice.get("monto")),
+            "dias_vencido": str(dias),
+            "factura_id": invoice.get("factura_id", ""),
+        }
+        if channel == "email":
+            return {
+                "stage": stage,
+                "channel": channel,
+                "subject": render_subject(stage, **vars_),
+                "body": render(stage, "email", **vars_),
+                "invoice_id": invoice.get("factura_id"),
+            }
+        return {
+            "stage": stage,
+            "channel": channel,
+            "whatsapp": render(stage, "whatsapp", **vars_),
+            "invoice_id": invoice.get("factura_id"),
+        }
+
+    def send_reminder(self, invoice: dict, stage: str, channel: str = "email",
+                      today=None, record: bool = True) -> Dict:
+        """Genera un recordatorio y (opcionalmente) lo registra en la DB.
+
+        NO envía mensajes reales: devuelve el contenido listo para el canal de
+        notificaciones. Si `record` es True y hay `db`, guarda un CollectionEvent
+        con timestamp en `collection_events` y devuelve el id en la respuesta.
+        """
+        msg = self.build_reminder(invoice, stage, channel, today)
+        msg["sent"] = False  # nunca se envía de verdad en el MVP
+        if record and self.db is not None:
+            event_id = self.db.add_collection_event(
+                tenant_id=self.tenant_id,
+                factura_id=str(invoice.get("factura_id")),
+                tipo_recordatorio=stage,
+                canal=channel,
+                respuesta=None)
+            msg["event_id"] = event_id
+        return msg
+
+    def register_response(self, factura_id, respuesta, channel="email",
+                          tipo_recordatorio=None) -> Optional[int]:
+        """Registra la respuesta de un deudor ('pagado', 'promesa_pago', ...).
+
+        Si `tipo_recordatorio` no se da, se guarda como 'respuesta'. Devuelve
+        el id del evento, o None si no hay DB.
+        """
+        if self.db is None:
+            return None
+        return self.db.add_collection_event(
+            tenant_id=self.tenant_id,
+            factura_id=str(factura_id),
+            tipo_recordatorio=tipo_recordatorio or "respuesta",
+            canal=channel,
+            respuesta=respuesta)
+
+    # ---- Persistencia de la cartera -------------------------------------- #
+    def sync_outstanding(self, invoices: List[dict], today=None,
+                         delete_paid=False) -> int:
+        """Sincroniza la cartera de cuentas por cobrar con la DB.
+
+        Hace upsert de cada factura pendiente (con días vencidos y score).
+        Devuelve cuántas filas se actualizaron. Requiere `db`.
+        """
+        if self.db is None:
+            return 0
+        today = today or date.today()
+        n = 0
+        for inv in invoices:
+            due = _parse_date(inv.get("fecha_vencimiento"))
+            if due is None:
+                continue
+            dias = (today - due).days
+            score = self.collectability_score(inv, dias_vencido=dias)
+            self.db.upsert_outstanding_invoice(
+                tenant_id=self.tenant_id,
+                factura_id=str(inv.get("factura_id")),
+                monto=_dec(inv.get("monto")) or Decimal("0"),
+                fecha_vencimiento=due.isoformat(),
+                dias_vencido=dias,
+                score=score)
+            n += 1
+        if delete_paid:
+            # Se eliminan las facturas de la DB que ya no están en la cartera.
+            pendientes = {str(inv.get("factura_id")) for inv in invoices}
+            for row in self.db.list_outstanding_invoices(
+                    tenant_id=self.tenant_id):
+                if row["factura_id"] not in pendientes:
+                    self.db.delete_outstanding_invoice(
+                        self.tenant_id, row["factura_id"])
+        return n

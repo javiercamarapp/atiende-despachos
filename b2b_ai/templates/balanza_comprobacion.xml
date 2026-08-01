@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Plantilla de balanza de comprobación para contabilidad electrónica del SAT.
+  Schema de referencia: BalanzaComprobacion 1.3
+    xmlns:BCE = http://www.sat.gob.mx/esquemas/ContabilidadE/1_3/BalanzaComprobacion
+    XSD      = BalanzaComprobacion_1_3.xsd
+
+  Elementos:
+    BCE:Balanza (Version, RFC, Mes, Anio, TipoEnvio, FechaModificacion,
+                 Sello, noCertificado, Certificado)
+      BCE:Ctas
+        BCE:Cta (NumCta, SaldoIni, Debe, Haber, SaldoFin)
+
+  TipoEnvio: B = balanza de comprobación, C = catálogo de cuentas.
+  Este archivo es una referencia documental; el código genera el XML con la
+  misma estructura usando los valores reales de la balanza calculada.
+-->
+<BCE:Balanza xmlns:BCE="http://www.sat.gob.mx/esquemas/ContabilidadE/1_3/BalanzaComprobacion"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.sat.gob.mx/esquemas/ContabilidadE/1_3/BalanzaComprobacion http://www.sat.gob.mx/esquemas/ContabilidadE/1_3/BalanzaComprobacion/BalanzaComprobacion_1_3.xsd"
+             Version="1.3"
+             RFC="DESP820101AB1"
+             Mes="01"
+             Anio="2026"
+             TipoEnvio="B"
+             FechaModificacion="2026-01-31T23:59:59"
+             Sello=""
+             noCertificado=""
+             Certificado="">
+  <BCE:Ctas>
+    <BCE:Cta NumCta="1101" SaldoIni="0.00" Debe="1000.00" Haber="0.00" SaldoFin="1000.00"/>
+    <BCE:Cta NumCta="4100" SaldoIni="0.00" Debe="0.00" Haber="1000.00" SaldoFin="1000.00"/>
+  </BCE:Ctas>
+</BCE:Balanza>

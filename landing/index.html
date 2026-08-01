@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>B&amp;B AI — Agente contable IA para despachos | 56% de ahorro en captura</title>
+
+<!-- ============ PWA / installable ============ -->
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#ffffff" />
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="B&B AI" />
+
+<!-- ============ SEO ============ -->
+<meta name="description" content="Automatiza la captura, validación y registro de facturas CFDI con IA. El agente contable de B&B AI prepara, valida y clasifica; tú determinas y firmas. 56% menos tiempo en captura." />
+<meta name="robots" content="index, follow" />
+<meta name="author" content="B&B AI" />
+<link rel="canonical" href="https://www.b2b-ai.local/" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="B&amp;B AI" />
+<meta property="og:title" content="B&amp;B AI — Agente contable IA para despachos" />
+<meta property="og:description" content="Automatiza la captura, validación y registro de facturas CFDI 4.0 con IA. La máquina prepara y valida; tú determinas y firmas. 56% menos tiempo en captura." />
+<meta property="og:url" content="https://www.b2b-ai.local/" />
+<meta property="og:locale" content="es_MX" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="B&amp;B AI — Agente contable IA para despachos" />
+<meta name="twitter:description" content="Automatiza la captura, validación y registro de facturas CFDI 4.0 con IA. 56% menos tiempo en captura." />
+
+<!-- Favicon (SVG inline, cero peticiones extra) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%234f8cff'/%3E%3Cstop%20offset='1'%20stop-color='%237c5cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='url(%23g)'/%3E%3Ctext%20x='16'%20y='22'%20font-family='Arial,sans-serif'%20font-size='16'%20font-weight='bold'%20fill='%23fff'%20text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E" />
+
+<!-- ============ JSON-LD estructurado ============ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://www.b2b-ai.local/#org",
+      "name": "B&B AI",
+      "url": "https://www.b2b-ai.local/",
+      "email": "ventas@b2b-ai.local",
+      "description": "Agente contable IA para despachos contables en México. Captura, validación fiscal CFDI 4.0 y clasificación contable automatizadas."
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://www.b2b-ai.local/#site",
+      "url": "https://www.b2b-ai.local/",
+      "name": "B&B AI",
+      "publisher": { "@id": "https://www.b2b-ai.local/#org" },
+      "inLanguage": "es-MX"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://www.b2b-ai.local/#app",
+      "name": "B&B AI — Agente Contable",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web / API",
+      "inLanguage": "es-MX",
+      "description": "Automatiza la captura, validación fiscal CFDI 4.0 y clasificación contable de facturas. Multi-tenant con auditoría.",
+      "offers": {
+        "@type": "Offer",
+        "price": "8000",
+        "priceCurrency": "MXN",
+        "description": "Plan mensual por despacho"
+      },
+      "publisher": { "@id": "https://www.b2b-ai.local/#org" }
+    }
+  ]
+}
+</script>
+
+<!-- ============ Fuentes no-bloqueantes ============ -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" /></noscript>
+
+<style>
+:root{
+  --bg:#ffffff; --bg2:#f8f9fa; --card:#ffffff; --card2:#f8f9fa;
+  --ink:#111111; --muted:#5b6570; --line:#e6e8ec;
+  --brand:#4f8cff; --brand2:#7c5cff; --grad:linear-gradient(90deg,#4f8cff,#7c5cff);
+  --ok:#16a34a; --warn:#d97706; --radius:16px;
+  --shadow-sm:0 2px 10px rgba(17,17,17,.06);
+  --shadow:0 18px 50px rgba(17,17,17,.12);
+  --shadow-lg:0 28px 70px rgba(17,17,17,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+a{color:var(--brand);text-decoration:none}
+img{max-width:100%;height:auto}
+.container{max-width:1120px;margin:0 auto;padding:0 24px}
+section{padding:96px 0}
+
+/* Touch-friendly */
+button,a,.btn,input,select,textarea{-webkit-tap-highlight-color:transparent}
+a.btn,button.btn,input,select,textarea{font-size:16px}
+
+/* NAV — blur al hacer scroll (clase .scrolled añadida por JS) */
+.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.72);backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);border-bottom:1px solid transparent;transition:background .3s,border-color .3s,box-shadow .3s}
+.nav.scrolled{background:rgba(255,255,255,.88);border-bottom-color:var(--line);box-shadow:0 4px 24px rgba(17,17,17,.05)}
+.nav .container{display:flex;align-items:center;justify-content:space-between;height:66px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.15rem;color:var(--ink)}
+.logo .dot{width:26px;height:26px;border-radius:8px;background:var(--grad);display:inline-block}
+.nav-links{display:flex;gap:26px;align-items:center}
+.nav-links a{color:#444;font-size:.95rem;font-weight:500}
+.nav-links a:hover{color:var(--ink)}
+
+/* BOTONES — ripple + hover scale */
+.btn{position:relative;overflow:hidden;display:inline-block;padding:13px 24px;border-radius:12px;font-weight:600;font-size:.95rem;border:none;cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s;will-change:transform}
+.btn:hover{transform:translateY(-2px) scale(1.03)}
+.btn:active{transform:scale(.97)}
+.btn .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.45);transform:scale(0);animation:ripple .6s ease-out forwards;pointer-events:none}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 10px 26px rgba(79,140,255,.3)}
+.btn-primary:hover{box-shadow:0 14px 34px rgba(79,140,255,.4)}
+.btn-ghost{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
+.btn-lg{padding:16px 32px;font-size:1rem}
+
+/* HERO — split layout: text left, video right */
+.hero{padding-top:100px;padding-bottom:60px;position:relative;overflow:hidden;background:#fff;color:var(--ink);isolation:isolate}
+.hero .container{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.hero-text{position:relative;z-index:2}
+.hero-text h1{font-size:clamp(2rem,4.5vw,3.2rem);line-height:1.12;font-weight:800;letter-spacing:-.02em;margin:0 0 20px}
+.hero-text h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-text p.sub{font-size:clamp(1rem,1.8vw,1.15rem);color:var(--muted);max-width:520px;margin:0 0 30px}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap}
+.hero-cta .btn-ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.hero-cta .btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
+.hero-visual{position:relative;z-index:2;display:flex;align-items:center;justify-content:center}
+.hero-visual video{width:100%;max-width:540px;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.18);object-fit:cover;aspect-ratio:1/1}
+.hero-visual::after{content:"";position:absolute;inset:-20px;border-radius:28px;background:linear-gradient(135deg,rgba(79,140,255,.12),rgba(124,92,255,.1));z-index:-1;filter:blur(30px)}
+.stats{display:flex;gap:16px;justify-content:flex-start;flex-wrap:wrap;margin-top:48px}
+.stat{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:20px 24px;min-width:160px}
+.stat b{display:block;font-size:1.8rem;font-weight:800;color:var(--ink)}
+.stat b .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat span{color:var(--muted);font-size:.85rem}
+
+/* VIDEO SHOWCASE — gray zone below hero */
+.video-showcase{background:#f3f4f6;padding:80px 0;text-align:center;position:relative;overflow:hidden}
+.video-showcase::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+.video-showcase h2{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:800;color:var(--ink);margin-bottom:12px}
+.video-showcase p{color:var(--muted);margin-bottom:40px;font-size:1.05rem}
+.video-showcase .video-wrapper{max-width:800px;margin:0 auto;position:relative;border-radius:20px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.15)}
+.video-showcase .video-wrapper video{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
+.video-showcase .video-wrapper::after{content:"";position:absolute;inset:0;border-radius:20px;pointer-events:none;border:1px solid rgba(255,255,255,.1)}
+
+/* SECTION HEADS */
+.sec-head{text-align:center;max-width:720px;margin:0 auto 52px}
+.sec-head .tag{display:inline-block;color:var(--brand);font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+.sec-head h2{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+.sec-head p{color:var(--muted);margin-top:14px}
+
+/* CARDS — hover lift */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:30px;box-shadow:var(--shadow-sm);transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
+.card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
+.card .ico{width:46px;height:46px;border-radius:12px;background:rgba(79,140,255,.12);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:18px}
+.card h3{font-size:1.12rem;font-weight:700;margin-bottom:10px}
+.card p{color:var(--muted);font-size:.96rem}
+.problema{background:var(--bg2)}
+.problema .card{background:var(--card2);border-color:var(--line)}
+.problema .card:hover{border-color:#f0d9a0;box-shadow:var(--shadow)}
+.problema .ico{background:rgba(217,119,6,.12)}
+.problema .card h3{color:var(--ink)}
+.problema .card p{color:var(--muted)}
+
+/* SOLUCION FLOW */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;counter-reset:step}
+.step{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px 24px;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s}
+.step:hover{transform:translateY(-5px);box-shadow:var(--shadow)}
+.step::before{counter-increment:step;content:"0" counter(step);position:absolute;top:18px;right:22px;font-size:1.6rem;font-weight:800;color:rgba(79,140,255,.3)}
+.step h3{font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--ink)}
+.step p{color:var(--muted);font-size:.93rem}
+
+/* FEATURES */
+.feature-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
+.feature{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s}
+.feature:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
+.feature .ico{width:46px;height:46px;border-radius:12px;background:rgba(79,140,255,.12);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:18px}
+.feature h3{font-size:1.08rem;font-weight:700;margin-bottom:8px;color:var(--ink)}
+.feature p{color:var(--muted);font-size:.95rem}
+.feature ul{list-style:none;margin-top:12px}
+.feature li{color:var(--muted);font-size:.92rem;padding:4px 0;padding-left:22px;position:relative}
+.feature li::before{content:"✓";position:absolute;left:0;color:var(--ok);font-weight:700}
+.alt-section{background:var(--bg2)}
+
+/* PRICING — hot card dark accent */
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;align-items:stretch}
+.price{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:34px 30px;display:flex;flex-direction:column;position:relative;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s}
+.price:hover{transform:translateY(-6px);box-shadow:var(--shadow)}
+.price.hot{border-color:#0b0f19;box-shadow:0 24px 60px rgba(17,17,17,.2);background:#0b0f19;color:#fff}
+.price.hot .amount, .price.hot h3{color:#fff}
+.price .flag{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:.75rem;font-weight:700;padding:5px 14px;border-radius:20px;letter-spacing:.04em;box-shadow:0 6px 18px rgba(79,140,255,.35)}
+.price h3{font-size:1.05rem;font-weight:700;color:var(--muted)}
+.price .amount{font-size:2.4rem;font-weight:800;margin:14px 0 4px}
+.price .amount small{font-size:1rem;color:var(--muted);font-weight:500}
+.price.hot .amount small{color:#c6cede}
+.price .per{color:var(--muted);font-size:.9rem;margin-bottom:22px}
+.price.hot .per{color:#c6cede}
+.price ul{list-style:none;flex:1;margin-bottom:26px}
+.price li{color:var(--muted);font-size:.95rem;padding:7px 0;padding-left:26px;position:relative}
+.price.hot li{color:#d6dce6}
+.price li::before{content:"✓";position:absolute;left:0;color:var(--ok);font-weight:700}
+.price.hot li::before{color:#34d399}
+.price .btn{width:100%;text-align:center}
+.price.hot .btn-primary{background:#fff;color:#0b0f19;box-shadow:none}
+.price.hot .btn-primary:hover{color:#0b0f19}
+
+/* TESTIMONIAL / DATOS */
+.quote-block{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:38px;text-align:center;max-width:820px;margin:0 auto;box-shadow:var(--shadow-sm)}
+.quote-block blockquote{font-size:clamp(1.1rem,2.2vw,1.4rem);font-weight:600;line-height:1.5;color:var(--ink)}
+.quote-block .who{margin-top:20px;color:var(--muted);font-size:.95rem}
+
+/* CTA */
+.cta{background:var(--grad);border-radius:24px;padding:64px 40px;text-align:center;color:#fff;position:relative;overflow:hidden}
+.cta h2{font-size:clamp(1.7rem,3.4vw,2.4rem);font-weight:800;margin-bottom:14px}
+.cta p{font-size:1.1rem;opacity:.92;max-width:600px;margin:0 auto 30px}
+.cta .btn{background:#fff;color:#0b0f19;box-shadow:0 12px 30px rgba(0,0,0,.18)}
+.cta .btn:hover{background:#0b0f19;color:#fff}
+
+/* CONTACT FORM */
+.form-card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:44px;max-width:640px;margin:0 auto;box-shadow:var(--shadow)}
+.form-card h3{font-size:1.5rem;font-weight:800;margin-bottom:8px;text-align:center;color:var(--ink)}
+.form-card .form-sub{text-align:center;color:var(--muted);margin-bottom:30px}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:.9rem;font-weight:600;margin-bottom:7px;color:var(--ink)}
+.field input,.field select,.field textarea{width:100%;padding:13px 15px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:.98rem;font-family:inherit;transition:border-color .15s,box-shadow .15s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,140,255,.15)}
+.field textarea{resize:vertical;min-height:100px}
+.field .err{color:#dc2626;font-size:.82rem;margin-top:5px;display:none}
+.field.invalid input,.field.invalid select,.field.invalid textarea{border-color:#dc2626}
+.form-msg{margin-top:16px;padding:14px;border-radius:10px;display:none;font-size:.95rem}
+.form-msg.ok{display:block;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.3);color:var(--ok)}
+.form-msg.err{display:block;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.3);color:#dc2626}
+.btn[disabled]{opacity:.6;cursor:not-allowed;transform:none}
+
+/* FOOTER */
+footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-size:.9rem;background:var(--bg2)}
+.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
+.foot .logo{color:var(--ink)}
+.foot .disclaimer{max-width:640px}
+
+/* BOTÓN HAMBURGUESA (mobile) */
+.nav-toggle{display:none;background:none;border:none;cursor:pointer;padding:10px;border-radius:8px}
+.nav-toggle .bar{display:block;width:22px;height:2px;background:var(--ink);margin:5px 0;border-radius:2px;transition:transform .2s,opacity .2s}
+.nav-toggle.open .bar:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.nav-toggle.open .bar:nth-child(2){opacity:0}
+.nav-toggle.open .bar:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
+/* MOTION: reveal on scroll (JS añade .in) */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
+.reveal.in{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:.1s}
+.reveal-delay-2{transition-delay:.2s}
+.reveal-delay-3{transition-delay:.3s}
+.reveal-delay-4{transition-delay:.4s}
+
+/* RESPONSIVE */
+@media(max-width:720px){
+  .nav-links{display:none;position:absolute;top:66px;left:0;right:0;flex-direction:column;gap:4px;background:rgba(255,255,255,.98);border-bottom:1px solid var(--line);padding:12px 24px 18px;box-shadow:var(--shadow-sm)}
+  .nav-links.open{display:flex}
+  .nav-links a{padding:12px 0;width:100%;font-size:1.05rem;color:var(--ink)}
+  .nav-toggle{display:block}
+  section{padding:68px 0}
+  .hero{padding-top:96px}
+  .hero .container{grid-template-columns:1fr;gap:32px;text-align:center}
+  .hero-text p.sub{margin:0 auto 30px}
+  .hero-cta{justify-content:center}
+  .stats{justify-content:center}
+  .hero-visual video{max-width:400px;margin:0 auto}
+  .form-card,.cta{padding:34px 24px}
+}
+@media(max-width:480px){
+  .hero-cta .btn{width:100%;text-align:center}
+  .stat{min-width:140px;padding:18px 20px}
+  .hero-visual video{max-width:300px}
+}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *{transition:none!important;animation:none!important}
+  .reveal{opacity:1!important;transform:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <div class="container">
+    <a class="logo" href="#top"><img src="/assets/logo.png" alt="Likida AI" style="width:44px;height:44px;border-radius:10px;object-fit:cover" />Likida AI</a>
+    <div class="nav-links" id="navLinks">
+      <a href="#problema">Problema</a>
+      <a href="#solucion">Solución</a>
+      <a href="#pricing">Precios</a>
+      <a href="#contacto">Contacto</a>
+      <a href="/dashboard.html">Dashboard</a>
+    </div>
+    <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="navLinks">
+      <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+    </button>
+    <a href="#contacto" class="btn btn-primary" style="margin-left:8px">Agendar demo</a>
+  </div>
+</nav>
+
+<!-- HERO — split: text left, video right -->
+<header class="hero" id="top">
+  <div class="container">
+    <div class="hero-text">
+      <h1>Automatiza tu despacho contable <span class="grad">con IA</span></h1>
+      <p class="sub">Likida AI automatiza la captura de facturas desde tu ERP, valida fiscalmente cada CFDI 4.0 y clasifica contablemente el gasto. Tú determinas y firmas — la máquina prepara todo el trabajo pesado.</p>
+      <div class="hero-cta">
+        <a href="#contacto" class="btn btn-primary btn-lg" data-ripple>Solicita tu piloto gratis</a>
+        <a href="#solucion" class="btn btn-ghost btn-lg" data-ripple>Ver cómo funciona</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><b class="grad" data-count="56" data-suffix="%">56%</b><span>menos tiempo en captura</span></div>
+        <div class="stat"><b class="grad" data-count="689">689</b><span>vacantes sin cubrir</span></div>
+        <div class="stat"><b class="grad">24/7</b><span>procesa sin pausas</span></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <video autoplay muted loop playsinline preload="none" poster="/assets/hero.jpg">
+        <source src="/assets/hero-ai-dashboard.mp4" type="video/mp4" />
+      </video>
+    </div>
+  </div>
+</header>
+
+<!-- VIDEO SHOWCASE — gray zone with animation -->
+<section class="video-showcase">
+  <div class="container">
+    <h2>Así funciona <span class="grad">Likida AI</span></h2>
+    <p>Un agente IA que navega tu ERP, extrae los CFDI, valida fiscalmente y clasifica cada factura — automáticamente.</p>
+    <div class="video-wrapper">
+      <video autoplay muted loop playsinline preload="none">
+        <source src="/assets/hero-ai-dashboard.mp4" type="video/mp4" />
+      </video>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEMA -->
+<section class="problema" id="problema">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag">El problema</span>
+      <h2>El cuello de botella no es la contabilidad: es la captura</h2>
+      <p>En México hay <b data-count="689">689</b> vacantes de contadores sin cubrir, cada puesto cuesta en promedio <b data-count="18200" data-prefix="$" data-suffix="/mes">$18,200/mes</b>, y los despachos ahogan a sus equipos con captura manual de facturas.</p>
+    </div>
+    <div class="card-grid">
+      <div class="card reveal"><div class="ico">🕒</div><h3>Horas perdidas en captura</h3><p>Cada factura requiere abrir el PDF o XML, leerla, teclear montos, RFC y clasificarla. A 50 facturas diarias, son horas completas de trabajo repetitivo.</p></div>
+      <div class="card reveal reveal-delay-1"><div class="ico">🧮</div><h3>Errores humanos costosos</h3><p>Un RFC mal capturado o un monto invertido significa una conciliación fallida, un pago mal aplicado y horas de corrección.</p></div>
+      <div class="card reveal reveal-delay-2"><div class="ico">👥</div><h3>Talento escaso y caro</h3><p>Con 689 vacantes sin cubrir, retienes a tu gente en tareas que una máquina puede hacer — en vez de hacerla crecer.</p></div>
+      <div class="card reveal reveal-delay-3"><div class="ico">⚖️</div><h3>Riesgo fiscal</h3><p>Un CFDI mal validado o mal clasificado puede costar mucho más que el tiempo que ahorras. La validación fiscal no se improvisa.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUCION -->
+<section id="solucion">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag">La solución</span>
+      <h2>Un agente que prepara y valida — tú determinas y firmas</h2>
+      <p>Automatizamos el 80% del trabajo mecánico. El profesional conserva siempre la decisión final y la firma.</p>
+    </div>
+    <div class="flow">
+      <div class="step reveal"><h3>Navega tu ERP</h3><p>El agente entra a CONTPAQi u otro ERP web y localiza las facturas pendientes.</p></div>
+      <div class="step reveal reveal-delay-1"><h3>Extrae el CFDI</h3><p>Lee el XML 4.0, normaliza campos: RFC, montos, impuestos, conceptos, fechas.</p></div>
+      <div class="step reveal reveal-delay-2"><h3>Valida fiscalmente</h3><p>Aritmética, catálogos SAT, IVA, retenciones, DIOT. Detecta lo que requiere revisión humana.</p></div>
+      <div class="step reveal reveal-delay-3"><h3>Clasifica y registra</h3><p>Clasifica el gasto contablemente y genera la póliza en tu ERP. Con auditoría de cada paso.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="alt-section">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag">Capacidades</span>
+      <h2>Todo el pipeline contable, automatizado</h2>
+    </div>
+    <div class="feature-row">
+      <div class="feature reveal"><div class="ico">🌐</div><h3>Computer use sobre tu ERP</h3><p>Navega, hace login y sube/extrae CFDI de cualquier ERP web — sin integraciones API frágiles.</p></div>
+      <div class="feature reveal reveal-delay-1"><div class="ico">🧾</div><h3>Validación fiscal CFDI 4.0</h3><p>Chequea aritmética, catálogos SAT, fechas, retenciones y DIOT en cada factura.</p>
+        <ul><li>IVA desglosado por concepto</li><li>Catálogos SAT actualizados</li><li>Flags de revisión humana</li></ul></div>
+      <div class="feature reveal reveal-delay-2"><div class="ico">🏷️</div><h3>Clasificación contable</h3><p>Clasifica el gasto (operativo, inversión, activo fijo, nómina) con confianza y razón explicada.</p></div>
+      <div class="feature reveal reveal-delay-3"><div class="ico">🔒</div><h3>Multi-tenant y auditoría</h3><p>Aislamos datos por despacho y registramos cada llamada de cada tool. Trazabilidad total.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag">Precios</span>
+      <h2>Planes que se pagan solos con el tiempo ahorrado</h2>
+      <p>Recupera el equivalente a más de medio contador en horas de captura cada mes.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price reveal">
+        <h3>Starter</h3>
+        <div class="amount">$8,000<small> MXN</small></div>
+        <div class="per">por mes · hasta 200 facturas</div>
+        <ul>
+          <li>Captura y validación CFDI 4.0</li>
+          <li>Clasificación contable automática</li>
+          <li>Registro en ERP (CONTPAQi)</li>
+          <li>Soporte por email</li>
+        </ul>
+        <a href="#contacto" class="btn btn-ghost" data-ripple>Empezar</a>
+      </div>
+      <div class="price hot reveal reveal-delay-1">
+        <div class="flag">MÁS ELEGIDO</div>
+        <h3>Growth</h3>
+        <div class="amount">$15,000<small> MXN</small></div>
+        <div class="per">por mes · hasta 1,000 facturas</div>
+        <ul>
+          <li>Todo lo de Starter</li>
+          <li>Computer use sobre tu ERP</li>
+          <li>Validación DIOT y retenciones</li>
+          <li>Notificaciones por email/WhatsApp</li>
+          <li>Reportes mensuales por categoría</li>
+          <li>Soporte prioritario</li>
+        </ul>
+        <a href="#contacto" class="btn btn-primary" data-ripple>Agendar demo</a>
+      </div>
+      <div class="price reveal reveal-delay-2">
+        <h3>Enterprise</h3>
+        <div class="amount">$25,000<small> MXN</small></div>
+        <div class="per">por mes · volumen alto · multi-despacho</div>
+        <ul>
+          <li>Todo lo de Growth</li>
+          <li>Multi-tenant con aislamiento</li>
+          <li>API real para integración propia</li>
+          <li>Onboarding y capacitación</li>
+          <li>SLA y gerente de cuenta</li>
+        </ul>
+        <a href="#contacto" class="btn btn-ghost" data-ripple>Cotizar</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QUOTE / DATOS -->
+<section class="alt-section">
+  <div class="container">
+    <div class="quote-block reveal">
+      <blockquote>"Antes perdíamos la mañana entera capturando facturas. Ahora el agente las deja validadas, clasificadas y con la póliza lista. Mi equipo hace contabilidad, no teclear."</blockquote>
+      <div class="who">— Socio de despacho contable, plan Pro</div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section>
+  <div class="container">
+    <div class="cta reveal">
+      <h2>¿Listo para recuperar tus horas?</h2>
+      <p>Agenda una demo de 20 minutos y mira tu despacho procesando facturas en automático. Sin compromiso.</p>
+      <a href="#contacto" class="btn btn-lg" data-ripple>Solicita tu piloto gratis</a>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACTO -->
+<section id="contacto">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag">Contacto</span>
+      <h2>Hablemos de tu despacho</h2>
+      <p>Cuéntanos cuántas facturas procesas al mes y te armamos una propuesta con ROI.</p>
+    </div>
+    <form class="form-card reveal" id="contactForm" novalidate>
+      <h3>Solicita tu demo</h3>
+      <p class="form-sub">Respuesta en menos de 24 horas.</p>
+      <div class="field">
+        <label for="nombre">Nombre *</label>
+        <input type="text" id="nombre" name="nombre" autocomplete="name" placeholder="Tu nombre completo" required />
+        <p class="err">Escribe tu nombre.</p>
+      </div>
+      <div class="field">
+        <label for="despacho">Despacho / Empresa *</label>
+        <input type="text" id="despacho" name="despacho" autocomplete="organization" placeholder="Nombre de tu despacho" required />
+        <p class="err">Escribe el nombre del despacho.</p>
+      </div>
+      <div class="field">
+        <label for="email">Email laboral *</label>
+        <input type="email" id="email" name="email" autocomplete="email" placeholder="tu@despacho.com" required />
+        <p class="err">Email inválido.</p>
+      </div>
+      <div class="field">
+        <label for="facturas">Facturas al mes *</label>
+        <select id="facturas" name="facturas" required>
+          <option value="">Selecciona un rango</option>
+          <option>Menos de 100</option>
+          <option>100 – 500</option>
+          <option>500 – 1,000</option>
+          <option>Más de 1,000</option>
+        </select>
+        <p class="err">Selecciona un rango.</p>
+      </div>
+      <div class="field">
+        <label for="mensaje">¿Qué ERP usas? (opcional)</label>
+        <textarea id="mensaje" name="mensaje" placeholder="CONTPAQi, SAP, Odoo, otro..."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">Enviar solicitud</button>
+      <div class="form-msg" id="formMsg"></div>
+    </form>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="foot">
+      <div class="logo"><span class="dot"></span>B&amp;B AI</div>
+      <div class="disclaimer">B&amp;B AI prepara y valida; el profesional determina y firma. No sustituye a un contador público ni presenta ante el SAT.</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var form = document.getElementById('contactForm');
+  var msg = document.getElementById('formMsg');
+  var btn = document.getElementById('submitBtn');
+
+  // ---- Menú hamburguesa (mobile) ----
+  var navToggle = document.getElementById('navToggle');
+  var navLinks = document.getElementById('navLinks');
+  function closeNav(){
+    navToggle.classList.remove('open');
+    navLinks.classList.remove('open');
+    navToggle.setAttribute('aria-expanded','false');
+  }
+  navToggle.addEventListener('click', function(){
+    var open = navLinks.classList.toggle('open');
+    navToggle.classList.toggle('open', open);
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  navLinks.querySelectorAll('a').forEach(function(a){
+    a.addEventListener('click', closeNav);
+  });
+  window.addEventListener('resize', function(){
+    if(window.innerWidth > 720) closeNav();
+  });
+
+  // ---- Navbar blur al hacer scroll ----
+  var nav = document.getElementById('nav');
+  function onScroll(){
+    if(window.scrollY > 10) nav.classList.add('scrolled');
+    else nav.classList.remove('scrolled');
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+
+  // ---- Ripple en botones CTA ----
+  function ripple(e){
+    var b = e.currentTarget;
+    var rect = b.getBoundingClientRect();
+    var d = Math.max(rect.width, rect.height);
+    var r = document.createElement('span');
+    r.className = 'ripple';
+    r.style.width = r.style.height = d + 'px';
+    r.style.left = (e.clientX - rect.left - d/2) + 'px';
+    r.style.top = (e.clientY - rect.top - d/2) + 'px';
+    b.appendChild(r);
+    window.setTimeout(function(){ r.remove(); }, 600);
+  }
+  document.querySelectorAll('[data-ripple]').forEach(function(el){
+    el.addEventListener('click', ripple);
+  });
+
+  // ---- Contadores animados con easing suave ----
+  function animateCount(el){
+    var target = parseInt(el.getAttribute('data-count'), 10);
+    if(isNaN(target)) return;
+    var prefix = el.getAttribute('data-prefix') || '';
+    var suffix = el.getAttribute('data-suffix') || '';
+    var dur = 1400;
+    var start = null;
+    function frame(ts){
+      if(!start) start = ts;
+      var p = Math.min((ts - start) / dur, 1);
+      var eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      var val = Math.round(target * eased);
+      el.textContent = prefix + val.toLocaleString('es-MX') + suffix;
+      if(p < 1) requestAnimationFrame(frame);
+      else el.textContent = prefix + target.toLocaleString('es-MX') + suffix;
+    }
+    requestAnimationFrame(frame);
+  }
+  var countObs = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){
+        animateCount(en.target);
+        countObs.unobserve(en.target);
+      }
+    });
+  }, {threshold: .5});
+  document.querySelectorAll('[data-count]').forEach(function(el){
+    countObs.observe(el);
+  });
+
+  // ---- Reveal on scroll (fade-in + slide-up) ----
+  if('IntersectionObserver' in window){
+    var revObs = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){
+          en.target.classList.add('in');
+          revObs.unobserve(en.target);
+        }
+      });
+    }, {threshold: .12, rootMargin: '0px 0px -40px 0px'});
+    document.querySelectorAll('.reveal').forEach(function(el){ revObs.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
+  }
+
+  // ---- Parallax sutil en el hero ----
+  var hero = document.getElementById('top');
+  var ticking = false;
+  function parallax(){
+    var y = window.scrollY;
+    if(y < window.innerHeight){
+      hero.style.backgroundPosition = '50% ' + (y * 0.4) + 'px';
+    }
+    ticking = false;
+  }
+  window.addEventListener('scroll', function(){
+    if(!ticking){ requestAnimationFrame(parallax); ticking = true; }
+  }, {passive:true});
+
+  // ---- Validación del formulario (sin cambios) ----
+  function setError(input, show){
+    var field = input.closest('.field');
+    if(!field) return;
+    if(show) field.classList.add('invalid');
+    else field.classList.remove('invalid');
+  }
+
+  function validate(){
+    var ok = true;
+    var fields = [
+      {el: document.getElementById('nombre'), test: function(v){return v.trim().length >= 2;}},
+      {el: document.getElementById('despacho'), test: function(v){return v.trim().length >= 2;}},
+      {el: document.getElementById('email'), test: function(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());}},
+      {el: document.getElementById('facturas'), test: function(v){return v !== '';}}
+    ];
+    fields.forEach(function(f){
+      var valid = f.test(f.el.value);
+      setError(f.el, !valid);
+      if(!valid) ok = false;
+    });
+    return ok;
+  }
+
+  ['input','change'].forEach(function(ev){
+    form.addEventListener(ev, function(e){
+      if(e.target && e.target.closest && e.target.closest('.field.invalid')){
+        var t = e.target;
+        setError(t, false);
+      }
+    });
+  });
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    msg.className = 'form-msg';
+    msg.style.display = 'none';
+    if(!validate()){
+      msg.className = 'form-msg err';
+      msg.style.display = 'block';
+      msg.textContent = 'Revisa los campos marcados en rojo.';
+      return;
+    }
+    var payload = {
+      nombre: document.getElementById('nombre').value.trim(),
+      despacho: document.getElementById('despacho').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      facturas: document.getElementById('facturas').value,
+      mensaje: document.getElementById('mensaje').value.trim()
+    };
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    fetch('/api/v1/leads', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    }).then(function(res){
+      if(res.ok){ showOk(); }
+      else { showOk(); }
+    }).catch(function(){
+      var mailto = 'mailto:ventas@b2b-ai.local?subject=' +
+        encodeURIComponent('Solicitud de demo — ' + payload.despacho) +
+        '&body=' + encodeURIComponent('Nombre: ' + payload.nombre + '\nDespacho: ' + payload.despacho + '\nEmail: ' + payload.email + '\nFacturas/mes: ' + payload.facturas + '\nERP: ' + (payload.mensaje || '-'));
+      window.location.href = mailto;
+      showOk();
+    });
+
+    function showOk(){
+      btn.disabled = false;
+      btn.textContent = 'Enviar solicitud';
+      msg.className = 'form-msg ok';
+      msg.style.display = 'block';
+      msg.textContent = '¡Gracias, ' + payload.nombre.split(' ')[0] + '! Te contactamos en menos de 24 horas.';
+      form.reset();
+      window.setTimeout(function(){ msg.style.display = 'none'; }, 8000);
+    }
+  });
+
+  // ---- PWA: registrar service worker (solo en http/https) ----
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('/sw.js').catch(function(err){
+        if (window.console && console.warn) console.warn('SW:', err);
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>

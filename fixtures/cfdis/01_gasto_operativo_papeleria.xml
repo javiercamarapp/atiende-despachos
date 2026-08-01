@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+                  xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd"
+                  Version="4.0" Serie="A" Folio="1001"
+                  Fecha="2026-07-01T10:15:00"
+                  FormaPago="01" MetodoPago="PUE" Moneda="MXN"
+                  TipoDeComprobante="I" Exportacion="01"
+                  LugarExpedicion="06600" SubTotal="1000.00" Total="1160.00">
+  <cfdi:Emisor Rfc="PAP650101A12" Nombre="PAPELERIA EL CENTRO S.A. DE C.V." RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="JCCP840101HDA" Nombre="DESPACHO CONTABLE JAVIER C. S.C." DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="14111501" Cantidad="1" ClaveUnidad="H87" Unidad="Pieza"
+                   Descripcion="Papeleria y articulos de oficina (hojas, plumas, carpetas)"
+                   ValorUnitario="1000.00" Importe="1000.00" ObjetoImp="02">
+      <cfdi:Impuestos>
+        <cfdi:Traslados>
+          <cfdi:Traslado Base="1000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="160.00"/>
+        </cfdi:Traslados>
+      </cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="160.00">
+    <cfdi:Traslados>
+      <cfdi:Traslado Base="1000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="160.00"/>
+    </cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="9165172a-2af8-4469-84a3-c532c88d0dd3"
+        FechaTimbrado="2026-07-01T10:16:00" RfcProvCertif="SAT970701NN3"
+        SelloCFD="AABBCC" NoCertificado="00001000000000000000" SelloSAT="DDEEFF"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

@@ -1,0 +1,2 @@
+# -*- coding: utf-8 -*-
+"""Servicios de dominio: clasificación, conciliación bancaria y reportes."""

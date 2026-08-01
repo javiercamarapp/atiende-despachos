@@ -1,0 +1,237 @@
+# -*- coding: utf-8 -*-
+"""
+middleware.py — Validación de JWT, control de acceso por roles (RBAC),
+aislamiento multi-tenant y auditoría por request para la API enterprise.
+
+Sin dependencias externas: los JWT se firman con HMAC-SHA256 (HS256) usando
+la librería estándar (hmac / base64 / hashlib), consistente con el estilo del
+resto del auth de B&B AI (comparaciones en tiempo constante con hmac).
+
+Secret: se lee de `B2B_JWT_SECRET`. Si no está configurado se usa un secreto
+de desarrollo (advertencia clara: NO usar en producción).
+
+Dependencias FastAPI expuestas por `JWTAuth`:
+  - require_auth            : valida el Bearer token y devuelve el contexto
+                              del usuario autenticado.
+  - require_permission(p)   : exige el permiso `p` (RBAC).
+  - require_tenant_admin()  : exige ser admin DEL tenant del path param.
+"""
+from __future__ import annotations
+
+import base64
+import hashlib
+import hmac
+import json
+import os
+import secrets
+import time
+from typing import Any, Dict, Optional
+
+from fastapi import Depends, Header, HTTPException, Request
+
+from b2b_ai.auth.roles import has_permission
+
+# TTLs por tipo de token (segundos), ajustables por env.
+ACCESS_TTL = int(os.environ.get("B2B_JWT_ACCESS_TTL", "1800"))      # 30 min
+REFRESH_TTL = int(os.environ.get("B2B_JWT_REFRESH_TTL", "604800"))  # 7 días
+RESET_TTL = int(os.environ.get("B2B_JWT_RESET_TTL", "3600"))        # 1 hora
+
+_ENV_SECRET = "B2B_JWT_SECRET"
+# Secreto de desarrollo si no se configura. En producción SIEMPRE hay que
+# definir B2B_JWT_SECRET (ver .env.production.example).
+_DEV_SECRET = "b2b-ai-dev-jwt-secret-no-usable-en-produccion"
+
+
+def jwt_secret() -> str:
+    """Secret de firma: B2B_JWT_SECRET o el de desarrollo."""
+    return os.environ.get(_ENV_SECRET, "") or _DEV_SECRET
+
+
+class JWTError(Exception):
+    """Token inválido, mal firmado, malformado o caducado."""
+
+
+# --------------------------------------------------------------------------
+# Codificación / decodificación HS256 (stdlib)
+# --------------------------------------------------------------------------
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _b64url_decode(s: str) -> bytes:
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+
+def _sign(payload: str, secret: str) -> str:
+    return _b64url(hmac.new(secret.encode("utf-8"), payload.encode("utf-8"),
+                            hashlib.sha256).digest())
+
+
+def encode_token(claims: Dict[str, Any], secret: Optional[str] = None,
+                 ttl_seconds: Optional[int] = None) -> str:
+    """Firma un JWT HS256 con los claims dados + iat/exp."""
+    secret = secret or jwt_secret()
+    now = int(time.time())
+    full = dict(claims)
+    full.setdefault("iat", now)
+    full.setdefault("exp", now + (ttl_seconds or ACCESS_TTL))
+    header = _b64url(json.dumps({"alg": "HS256", "typ": "JWT"},
+                                separators=(",", ":")).encode("utf-8"))
+    payload = _b64url(json.dumps(full, separators=(",", ":")).encode("utf-8"))
+    sig = _sign(f"{header}.{payload}", secret)
+    return f"{header}.{payload}.{sig}"
+
+
+def decode_token(token: str, secret: Optional[str] = None,
+                 leeway: int = 0) -> Dict[str, Any]:
+    """Valida firma + expiración y devuelve los claims. Lanza JWTError."""
+    secret = secret or jwt_secret()
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise JWTError("Estructura de token inválida.")
+    header_b64, payload_b64, sig = parts
+    expected = _sign(f"{header_b64}.{payload_b64}", secret)
+    if not hmac.compare_digest(sig, expected):
+        raise JWTError("Firma inválida.")
+    try:
+        payload = json.loads(_b64url_decode(payload_b64))
+    except Exception as exc:  # noqa: BLE001
+        raise JWTError("Payload inválido.") from exc
+    if not isinstance(payload, dict):
+        raise JWTError("Payload inválido.")
+    now = time.time()
+    if payload.get("exp") and now > float(payload["exp"]) + leeway:
+        raise JWTError("Token caducado.")
+    return payload
+
+
+def _extract_bearer(authorization: Optional[str]) -> Optional[str]:
+    """Extrae el token de un header `Authorization: Bearer <token>`."""
+    if not authorization:
+        return None
+    if authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip()
+    return None
+
+
+def _public_user(user: Dict[str, Any]) -> Dict[str, Any]:
+    """Copia del usuario sin el hash de password (nunca se expone)."""
+    out = dict(user)
+    out.pop("password_hash", None)
+    return out
+
+
+# --------------------------------------------------------------------------
+# JWTAuth: emisión de tokens + dependencias FastAPI
+# --------------------------------------------------------------------------
+class JWTAuth:
+    """Encapsula firma/verificación de JWT y las dependencias de auth."""
+
+    def __init__(self, db: Any, secret: Optional[str] = None) -> None:
+        self._db = db
+        self._secret = secret or jwt_secret()
+
+    # ---- Emisión ---------------------------------------------------------
+    def access_token(self, user: Dict[str, Any]) -> str:
+        return encode_token(
+            {"type": "access", "sub": str(user["id"]),
+             "tenant_id": user["tenant_id"], "role": user.get("role"),
+             "email": user.get("email")},
+            self._secret, ACCESS_TTL)
+
+    def refresh_token(self, user: Dict[str, Any]) -> str:
+        return encode_token(
+            {"type": "refresh", "sub": str(user["id"]),
+             "tenant_id": user["tenant_id"], "role": user.get("role"),
+             "jti": secrets.token_urlsafe(12)},
+            self._secret, REFRESH_TTL)
+
+    def reset_token(self, user: Dict[str, Any]) -> str:
+        return encode_token(
+            {"type": "reset", "sub": str(user["id"]),
+             "email": user.get("email")},
+            self._secret, RESET_TTL)
+
+    def decode(self, token: str) -> Dict[str, Any]:
+        return decode_token(token, self._secret)
+
+    # ---- Dependencias ----------------------------------------------------
+    def _require_auth(self, request: Request,
+                      authorization: Optional[str] = Header(default=None)):
+        token = _extract_bearer(authorization)
+        if not token:
+            raise HTTPException(status_code=401,
+                                detail="Se requiere sesión (Bearer token).")
+        try:
+            claims = self.decode(token)
+        except JWTError:
+            raise HTTPException(status_code=401,
+                                detail="Token inválido o caducado.")
+        if claims.get("type") != "access":
+            raise HTTPException(status_code=401,
+                                detail="Token no es de acceso.")
+        try:
+            user_id = int(claims["sub"])
+        except (KeyError, ValueError, TypeError):
+            raise HTTPException(status_code=401, detail="Token malformado.")
+        user = self._db.get_client_user(user_id)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Usuario inexistente.")
+
+        # Aislamiento / bloqueo de tenant: un tenant bloqueado no opera.
+        tid = user.get("tenant_id")
+        if tid is not None:
+            try:
+                row = self._db.get_tenant_by_id(tid)
+                if row is not None and row.get("blocked"):
+                    raise HTTPException(status_code=403,
+                                        detail="Tenant bloqueado.")
+            except HTTPException:
+                raise
+            except Exception:  # noqa: BLE001 — best-effort
+                pass
+
+        # Auditoría por request (best-effort, nunca rompe la petición).
+        try:
+            self._db.log_call(
+                "auth", "access", entity="user", entity_id=str(user_id),
+                payload={"path": request.url.path,
+                         "method": request.method},
+                status="ok", tenant_id=tid)
+        except Exception:  # noqa: BLE001
+            pass
+
+        return {"user": _public_user(user), "user_id": user_id,
+                "tenant_id": tid, "role": user.get("role"),
+                "email": user.get("email"), "claims": claims}
+
+    @property
+    def require_auth(self):
+        return self._require_auth
+
+    def require_permission(self, perm: str):
+        """Dependencia: exige el permiso `perm` (RBAC) sobre el contexto."""
+        def dep(ctx: dict = Depends(self._require_auth)):
+            if not has_permission(ctx["role"], perm):
+                raise HTTPException(status_code=403,
+                                    detail=f"Permiso denegado: falta '{perm}'.")
+            return ctx
+        return dep
+
+    def require_tenant_admin(self):
+        """Dependencia: exige ser admin del tenant del path param `tenant_id`.
+
+        En el endpoint se declara como
+        `ctx=Depends(jwt.require_tenant_admin())` y FastAPI inyecta el
+        `tenant_id` del path en el parámetro homónimo de esta dependencia.
+        """
+        def dep(tenant_id: int, ctx: dict = Depends(self._require_auth)):
+            if ctx["tenant_id"] != tenant_id:
+                raise HTTPException(status_code=403,
+                                    detail="Acceso a otro tenant denegado.")
+            if not has_permission(ctx["role"], "users.manage"):
+                raise HTTPException(status_code=403,
+                                    detail="Requiere rol admin.")
+            return ctx
+        return dep

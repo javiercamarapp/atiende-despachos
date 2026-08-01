@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B&amp;B AI — Dashboard gerencial</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#000; --card:#0d0d0d; --line:#222; --txt:#fff;
+    --mut:#9ca3af; --acc:#2563EB; --acc-soft:#1e40af;
+    --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--txt);min-height:100vh}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px}
+  header{display:flex;justify-content:space-between;align-items:center;
+         flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line);
+         padding-bottom:14px;margin-bottom:20px}
+  .brand{font-size:20px;font-weight:800;letter-spacing:.3px}
+  .brand span{color:var(--acc)}
+  .sub{color:var(--mut);font-size:12px;margin-top:3px}
+  .filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .filters label{color:var(--mut);font-size:12px}
+  input[type=date]{background:#0a0a0a;color:var(--txt);border:1px solid var(--line);
+                   border-radius:8px;padding:6px 8px;font-size:13px}
+  button{background:var(--acc);color:#fff;border:none;border-radius:8px;
+         padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer}
+  button:hover{background:var(--acc-soft)}
+  #lastUpdate{color:var(--mut);font-size:11px;margin-top:4px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  @media(max-width:820px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.grid{grid-template-columns:1fr}}
+  .kpi-card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+            padding:16px}
+  .kpi-card .lbl{color:var(--mut);font-size:12px;font-weight:600;
+                 text-transform:uppercase;letter-spacing:.4px}
+  .kpi-card .val{font-size:28px;font-weight:800;margin-top:8px;line-height:1}
+  .kpi-card .val small{font-size:13px;color:var(--mut);font-weight:600}
+  .kpi-card .hint{color:var(--ok);font-size:11px;margin-top:6px}
+  .row{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:18px}
+  @media(max-width:820px){.row{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h2{font-size:14px;margin-bottom:12px;color:var(--mut);
+           font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+  canvas{max-height:300px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr:hover td{background:#0f0f0f}
+  .pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+  .p-high,.p-critical{background:#1f1212;color:var(--err)}
+  .p-medium{background:#1c1608;color:var(--warn)}
+  .p-low{background:#101c10;color:var(--ok)}
+  .empty{color:var(--mut);font-size:13px;padding:20px;text-align:center}
+  .err{color:var(--err);font-size:13px;padding:14px;border:1px solid var(--line);
+       border-radius:10px;margin-bottom:14px;background:#1a0d0d}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">B&amp;B AI <span>· Dashboard gerencial</span></div>
+      <div class="sub" id="sub">Enterprise MVP · reportes en tiempo real</div>
+    </div>
+    <div class="filters">
+      <label>Desde</label><input type="date" id="fDesde">
+      <label>Hasta</label><input type="date" id="fHasta">
+      <button id="apply" onclick="applyFilters()">Aplicar</button>
+      <button onclick="load()" title="Refrescar ahora">↻</button>
+    </div>
+  </header>
+  <div id="lastUpdate">Actualizado —</div>
+
+  <div class="grid" id="kpis"></div>
+  <div class="row">
+    <div class="card"><h2>Facturas por mes</h2><canvas id="chBarras"></canvas></div>
+    <div class="card"><h2>Anomalías por severidad</h2><canvas id="chPie"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Top proveedores por monto</h2>
+    <table>
+      <thead><tr><th>#</th><th>Proveedor</th><th class="num">Facturas</th>
+        <th class="num">Monto</th><th class="num">Anomalías</th></tr></thead>
+      <tbody id="provBody"></tbody>
+    </table>
+    <div id="provEmpty" class="empty" style="display:none">Sin proveedores.</div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const API_KEY = params.get('api_key') || '';
+const BASE = '/api/v1/dashboard';
+let charts = {};
+
+function hdr(){
+  const h = {'Content-Type':'application/json'};
+  if(API_KEY) h['X-API-Key'] = API_KEY;
+  return h;
+}
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function qs(){
+  const p = new URLSearchParams();
+  const a = document.getElementById('fDesde').value;
+  const b = document.getElementById('fHasta').value;
+  if(a) p.set('fecha_desde', a);
+  if(b) p.set('fecha_hasta', b);
+  return p.toString();
+}
+async function get(path){
+  const r = await fetch(BASE + path + (qs()?'?'+qs():''), {headers:hdr()});
+  if(!r.ok) throw new Error('HTTP '+r.status+' '+path);
+  return r.json();
+}
+function fmt(n){ return '$' + Number(n||0).toLocaleString('es-MX',{maximumFractionDigits:2}); }
+function num(n){ return Number(n||0).toLocaleString('es-MX'); }
+function sevPill(s){
+  const map={critical:'p-critical',high:'p-high',medium:'p-medium',low:'p-low'};
+  return '<span class="pill '+map[s]+'">'+s+'</span>';
+}
+
+function kpi(lbl, val, hint){
+  return '<div class="kpi-card"><div class="lbl">'+lbl+'</div>'+
+         '<div class="val">'+val+'</div>'+
+         (hint?'<div class="hint">'+hint+'</div>':'')+'</div>';
+}
+
+function renderKPIs(k){
+  const err = k.tasa_error_pct>5?'<span style="color:var(--err)">▲</span>':'';
+  const aut = '<small>automáticas</small>';
+  document.getElementById('kpis').innerHTML =
+    kpi('Facturas procesadas', num(k.total_facturas), 'total registradas') +
+    kpi('Monto total', fmt(k.monto_total), 'suma de todas') +
+    kpi('Tasa de error', k.tasa_error_pct+'%'+err, k.invalidas_invalid && '') +
+    kpi('% automático', k.porcentaje_automatico_pct+'% '+aut, 'sin revisión humana');
+}
+
+function renderBarras(meses){
+  const ctx = document.getElementById('chBarras');
+  if(charts.barras) charts.barras.destroy();
+  charts.barras = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: meses.map(m=>m.mes),
+      datasets:[{
+        label:'Facturas',
+        data: meses.map(m=>m.facturas),
+        backgroundColor:'#2563EB',
+        borderRadius:6
+      }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#9ca3af'}}},
+      scales:{ x:{ticks:{color:'#9ca3af'},grid:{color:'#111'}},
+               y:{ticks:{color:'#9ca3af'},grid:{color:'#111'},beginAtZero:true} } }
+  });
+}
+
+function renderPie(porSev){
+  const ctx = document.getElementById('chPie');
+  if(charts.pie) charts.pie.destroy();
+  const colors = {critical:'#ef4444',high:'#f87171',medium:'#f59e0b',low:'#22c55e'};
+  const keys = Object.keys(porSev);
+  charts.pie = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels: keys,
+      datasets:[{ data: keys.map(k=>porSev[k]),
+                  backgroundColor: keys.map(k=>colors[k]||'#2563EB'),
+                  borderColor:'#000', borderWidth:2 }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#9ca3af'}}} }
+  });
+}
+
+function renderProvs(provs){
+  const tb = document.getElementById('provBody');
+  const empty = document.getElementById('provEmpty');
+  tb.innerHTML = '';
+  if(!provs || !provs.length){ empty.style.display='block'; return; }
+  empty.style.display='none';
+  provs.forEach((p,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>'+(i+1)+'</td><td>'+esc(p.nombre)+'<br><span style="color:#555;font-size:11px">'+esc(p.rfc)+'</span></td>'+
+      '<td class="num">'+num(p.count)+'</td><td class="num">'+fmt(p.monto)+'</td>'+
+      '<td class="num">'+(p.anomalias?('<span style="color:var(--warn)">'+p.anomalias+'</span>'):'0')+'</td>';
+    tb.appendChild(tr);
+  });
+}
+
+async function load(){
+  const lu = document.getElementById('lastUpdate');
+  lu.textContent = 'Actualizando…';
+  try{
+    const [summary, monthly, byProv, anomalies, kpi] = await Promise.all([
+      get('/summary'), get('/monthly'), get('/by-provider'),
+      get('/anomalies'), get('/kpi')
+    ]);
+    renderKPIs(kpi.kpi);
+    renderBarras(monthly.meses||[]);
+    renderPie(anomalies.por_severidad||{});
+    renderProvs(byProv.proveedores||[]);
+    document.getElementById('sub').textContent =
+      'Tenant '+ (summary.tenant_id ?? '—') + ' · ' + num(summary.total_facturas) +
+      ' facturas · ' + fmt(summary.monto_total);
+    lu.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX') +
+      (API_KEY?' · key activa':' · sin key');
+  }catch(e){
+    lu.textContent = 'Error: ' + e.message;
+  }
+}
+function applyFilters(){ load(); }
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>

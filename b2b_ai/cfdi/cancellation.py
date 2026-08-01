@@ -1,0 +1,119 @@
+# -*- coding: utf-8 -*-
+"""
+cancellation.py — Evaluación y preparación de cancelación de CFDI.
+
+Diseño (de `04-leyes-fiscales.md`): el agente puede DETECTAR un CFDI que
+conviene cancelar y PREPARAR la solicitud, pero NO debe auto-cancelar montos
+relevantes sin validación humana del receptor (riesgo de multa, regla 2.7.1.47
+RMF). La cancelación con efecto irreversible queda SIEMPRE en gate humano.
+
+Funciones:
+  - evaluate_cancellation(datos): veredicto de si aplica cancelación y qué
+    requisitos (aceptación del receptor, 48h, alternativa CFDI de egreso).
+  - prepare_cancellation_request(...): genera el payload de la solicitud en
+    modo dry-run (no ejecuta nada).
+"""
+from __future__ import annotations
+
+from decimal import Decimal
+
+# Umbral referencial para requerir aceptación del receptor al cancelar un
+# CFDI tipo I (regla 2.7.1.47 RMF). Valor configurable; requiere confirmación.
+UMBRAL_ACEPTACION = Decimal("500.00")
+
+
+def _dec(v):
+    try:
+        return Decimal(str(v))
+    except Exception:
+        return None
+
+
+def evaluate_cancellation(datos):
+    """Devuelve un dict con el análisis de cancelación (sin ejecutar nada)."""
+    tipo = datos.get("tipo", "")
+    total = _dec(datos.get("total"))
+    metodo_pago = datos.get("metodo_pago", "")
+    relacionados = datos.get("cfdi_relacionados", [])
+    uuid = datos.get("folio_fiscal", "")
+
+    sugerencias = []
+    requiere_aceptacion = False
+    decision = "no_aplica"
+
+    if tipo == "E":
+        decision = "no_cancelar_usar_egreso"
+        sugerencias.append(
+            "Es un CFDI de egreso (nota de crédito). La vía correcta para "
+            "ajustar es emitir el CFDI de egreso relacionado, no cancelar el "
+            "comprobante original (Anexo 20).")
+    elif tipo == "N":
+        decision = "revisar_especial"
+        sugerencias.append(
+            "CFDI de nómina: la cancelación es excepcional y con requisitos "
+            "específicos del SAT; requiere revisión de especialista.")
+    elif tipo == "I":
+        if total is None:
+            decision = "requiere_revision"
+            sugerencias.append("Sin monto total; no se puede evaluar requisito "
+                               "de aceptación del receptor.")
+        elif total <= UMBRAL_ACEPTACION:
+            decision = "cancelacion_directa"
+            sugerencias.append(f"Total {total} ≤ umbral de aceptación "
+                               f"({UMBRAL_ACEPTACION}); no requiere aceptación "
+                               "del receptor para cancelar.")
+        else:
+            decision = "requiere_aceptacion_receptor"
+            requiere_aceptacion = True
+            sugerencias.append(
+                f"Total {total} > umbral ({UMBRAL_ACEPTACION}): la cancelación "
+                "requiere la aceptación del receptor o aceptación tácita tras "
+                "48 horas naturales (regla 2.7.1.47 RMF). Multa por cancelación "
+                "indebida si no se respeta.")
+    elif tipo == "P":
+        decision = "no_cancelar_complemento"
+        sugerencias.append("Los comprobantes de pago (Tipo P) se relacionan con "
+                           "el CFDI que pagan; no se cancelan de forma aislada.")
+
+    # Notas de crédito relacionadas / pagos ya aplicados
+    if relacionados:
+        sugerencias.append(f"CFDI tiene {len(relacionados)} relacionado(s): "
+                           f"verificar impacto antes de cancelar.")
+
+    return {
+        "uuid": uuid,
+        "tipo": tipo,
+        "total": total,
+        "decision": decision,
+        "requiere_aceptacion_receptor": requiere_aceptacion,
+        "sugerencias": sugerencias,
+        "requires_human_review": True,  # cancelación siempre requiere humano
+        "ref_legal": "CFF art. 29-A fracc. I; regla 2.7.1.47 RMF; Anexo 20",
+    }
+
+
+def prepare_cancellation_request(datos, motivo="", confirmacion_humana=False):
+    """
+    Genera el payload de la solicitud de cancelación en modo dry-run.
+
+    NO ejecuta la cancelación real (no hay conexión SAT en el MVP). La
+    ejecución real requeriría la e.firma del contribuyente y un PAC/SAT.
+    Devuelve (payload, errores).
+    """
+    eval_res = evaluate_cancellation(datos)
+    errores = []
+
+    if not confirmacion_humana:
+        errores.append("Se requiere confirmación humana explícita para cancelar.")
+    if not datos.get("folio_fiscal"):
+        errores.append("El CFDI no tiene folio fiscal (UUID).")
+
+    payload = {
+        "uuid": datos.get("folio_fiscal", ""),
+        "rfc_emisor": datos.get("emisor_rfc", ""),
+        "motivo": motivo,
+        "requiere_aceptacion_receptor": eval_res["requiere_aceptacion_receptor"],
+        "dry_run": True,
+        "estado": "preparado_para_revision_humana",
+    }
+    return payload, errores

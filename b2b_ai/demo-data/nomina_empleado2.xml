@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+    xmlns:nomina12="http://www.sat.gob.mx/nomina12"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+    xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd"
+    Version="4.0" Serie="N" Folio="2"
+    Fecha="2026-07-15T08:00:00"
+    FormaPago="99" MetodoPago="PUE" Moneda="MXN"
+    TipoDeComprobante="N" Exportacion="01"
+    LugarExpedicion="06600" SubTotal="18500.00" Total="18500.00">
+    <cfdi:Emisor Rfc="JCCP840101HDA" Nombre="DESPACHO CONTABLE JAVIER C. S.C." RegimenFiscal="601"/>
+    <cfdi:Receptor Rfc="RAMJ850101HDF" Nombre="JUAN CARLOS RAMIREZ MENDOZA"
+        DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="605" UsoCFDI="CN01"/>
+    <cfdi:Conceptos>
+        <cfdi:Concepto ClaveProdServ="84111505" Cantidad="1"
+            ClaveUnidad="ACT" Unidad="Actividad"
+            Descripcion="Pago de nómina" ValorUnitario="18500.00" Importe="18500.00" ObjetoImp="01"/>
+    </cfdi:Conceptos>
+    <cfdi:Impuestos TotalImpuestosTrasladados="0.00">
+        <cfdi:Traslados>
+            <cfdi:Traslado Base="18500.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="0.00"/>
+        </cfdi:Traslados>
+    </cfdi:Impuestos>
+    <cfdi:Complemento>
+        <nomina12:Nomina Version="1.2" TipoNomina="O" FechaPago="2026-07-15"
+            FechaInicialPago="2026-06-15" FechaFinalPago="2026-07-14"
+            NumDiasPagados="30"
+            TotalPercepciones="20000.00" TotalDeducciones="1500.00">
+            <nomina12:Emisor RegistroPatronal="Z-1234567-01" RfcPatronOrigen="JCCP840101HDA"/>
+            <nomina12:Receptor Curp="RAMJ850101HDFNNC01" NumEmpleado="002"
+                TipoJornada="01" RiesgoPuesto="2" PeriodicidadPago="04"/>
+        </nomina12:Nomina>
+        <tfd:TimbreFiscalDigital Version="1.1" UUID="9b26682a-1ba1-4991-9e4f-3feb0e91b898"
+            FechaTimbrado="2026-07-15T08:00:00" RfcProvCertif="SAT970701NN3"
+            SelloCFD="AABBCC" NoCertificado="00001000000000000000" SelloSAT="DDEEFF"/>
+    </cfdi:Complemento>
+</cfdi:Comprobante>

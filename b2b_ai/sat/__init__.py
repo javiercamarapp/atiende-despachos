@@ -1,0 +1,27 @@
+# -*- coding: utf-8 -*-
+"""b2b_ai.sat — Integración con el SAT para descarga masiva de CFDI.
+
+Módulo mock-first: opera SIN e.firma real ni credenciales de producción.
+Implementa el contrato de integración (login, descarga masiva de CFDI,
+balanza, catálogo de cuentas, verificación de estatus, cadena de custodia y
+programación automática) con un transporte simulado y determinista, de modo
+que toda la lógica es testeable sin tocar el SAT real.
+
+Cuando existan credenciales reales (RFC + CIEC + e.firma), los cuerpos de
+`SATDownloader` y `SATValidator` se sustituyen por las llamadas a los Web
+Services / portal del SAT sin cambiar a los consumidores (mismo patrón que
+los conectores ERP mock-first del proyecto).
+
+Componentes:
+    SATDownloader  — login/logout y descarga de CFDI, balanza y catálogo.
+    SATValidator   — estatus de CFDI/RFC y cadena de custodia.
+    SATScheduler   — descarga diaria, verificación semanal y alertas.
+    build_sat_router — endpoints FastAPI /api/v1/sat/*.
+"""
+from __future__ import annotations
+
+from b2b_ai.sat.downloader import SATDownloader
+from b2b_ai.sat.validator import SATValidator
+from b2b_ai.sat.scheduler import SATScheduler
+
+__all__ = ["SATDownloader", "SATValidator", "SATScheduler"]

@@ -1,0 +1,1 @@
+web: uvicorn b2b_ai.api.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${B2B_WORKERS:-1} --proxy-headers
