@@ -391,7 +391,3 @@ def install_error_handlers(app: FastAPI) -> None:
             },
             headers={"X-Trace-Id": trace_id},
         )
-
-    @app.exception_handler(EnterpriseError)
-    async def enterprise_http_exception_handler(request: Request, exc: EnterpriseError):
-        return exc.to_response()

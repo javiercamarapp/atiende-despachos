@@ -232,7 +232,7 @@ SYNTHETIC_PATTERNS: List[Dict[str, Any]] = [
 
 
 def generate_synthetic_dataset(
-    n_samples_per_category: int = 60,
+    n_samples_per_category: int = 25,
     seed: int = 42,
 ) -> Tuple[List[Dict[str, Any]], List[str]]:
     """Generate synthetic CFDI training data.
@@ -361,8 +361,8 @@ class AutoClassifier:
         self._model = Pipeline([
             ("features", self._column_transformer),
             ("classifier", GradientBoostingClassifier(
-                n_estimators=150,
-                max_depth=5,
+                n_estimators=50,
+                max_depth=4,
                 min_samples_split=10,
                 learning_rate=0.1,
                 random_state=42,
