@@ -777,7 +777,7 @@ class TestFactories:
         xml = CFDIFactory.xml_content(total=5000.00)
         assert "cfdi:Comprobante" in xml
         assert "5000.00" in xml
-        assert "Version="4.0"" in xml
+        assert 'Version="4.0"' in xml
 
     def test_bank_transaction_factory(self):
         from tests.factories import BankTransactionFactory
@@ -937,7 +937,7 @@ class TestSnapshotXML:
         assert "TEST220101CD2" in xml
         assert "10000.00" in xml
         assert "TEST-UUID-1234" in xml
-        assert "Version="4.0"" in xml
+        assert 'Version="4.0"' in xml
         assert "cfdi:Comprobante" in xml
 
     def test_payroll_xml_snapshot(self):
