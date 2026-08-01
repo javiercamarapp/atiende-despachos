@@ -532,6 +532,28 @@ class TestGeneratePayrollCFDI:
         assert "Nomina" in xml
         assert emp["rfc"] in xml
 
+    def test_cfdi_total_arithmetic(self):
+        """[38] CFDI Total must equal SubTotal − TotalDeducciones (not just tag present)."""
+        import xml.etree.ElementTree as ET
+        emp = {"rfc": "ABC010101ABC", "curp": "AABB010101HDFRRL01", "nombre": "Test Employee",
+               "salario_diario": 500, "num_seguridad_social": "12345678901", "periodicidad": "Mensual"}
+        emisor = {"rfc": "EMI010101ABC", "nombre": "Empresa S.A.", "regimen_fiscal": "601"}
+        periodo = {"fecha_pago": "2026-01-15", "fecha_inicial": "2026-01-01",
+                   "fecha_final": "2026-01-15", "dias_pagados": 15}
+        res = calculate_payroll(emp, sueldo_bruto=15000, dias_pagados=15)
+        xml = generate_payroll_cfdi(emp, emisor, periodo, resultados=res)
+        root = ET.fromstring(xml)
+        ns = {"cfdi": "http://www.sat.gob.mx/cfd/4", "nomina": "http://www.sat.gob.mx/nomina12"}
+        total = Decimal(root.attrib["Total"])
+        subtotal = Decimal(root.attrib["SubTotal"])
+        nomina = root.find(".//nomina:Nomina", ns)
+        total_ded = Decimal(nomina.attrib.get("TotalDeducciones", "0"))
+        total_perc = Decimal(nomina.attrib["TotalPercepciones"])
+        assert total == subtotal - total_ded, (
+            f"Total ({total}) != SubTotal ({subtotal}) − TotalDeducciones ({total_ded})")
+        assert total_perc == Decimal(res["percepciones"]["total"]).quantize(Decimal("0.01")), (
+            f"TotalPercepciones ({total_perc}) != calculate_payroll percepciones ({res['percepciones']['total']})")
+
 
 # ── bank_reconciliation.py ───────────────────────────────────────────────────
 

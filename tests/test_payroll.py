@@ -27,7 +27,9 @@ def test_isr_ultimo_rango():
 def test_imss_total_positivo():
     r = calc_imss(15000)
     assert Decimal(r["total"]) > 0
-    assert Decimal(r["total"]) == Decimal(r["eym"]) + Decimal(r["rcva"])
+    # total = eym (includes excedente_3uma) + iv + rcva + gmp (LSS arts. 105-109)
+    assert Decimal(r["total"]) == (Decimal(r["eym"]) + Decimal(r["iv"])
+                                    + Decimal(r["rcva"]) + Decimal(r["gmp"]))
 
 
 def test_infonavit_cinco_porciento():
@@ -89,3 +91,53 @@ def test_generate_payroll_cfdi_xml():
     assert "<nomina:Nomina" in xml
     assert "TotalDeducciones" in xml
     assert "Curp=" in xml and "NumSeguridadSocial=" in xml
+
+
+def test_payroll_cfdi_arithmetic():
+    """[38] Verify CFDI Total = SubTotal − TotalDeducciones and
+    TotalPercepciones = sum of actual percepciones, not just tag presence."""
+    import xml.etree.ElementTree as ET
+    from b2b_ai.services.payroll import calculate_payroll
+
+    emp = {"rfc": "JCCP840101HDA", "curp": "JCCP840101HDA000", "nombre": "JUAN PEREZ",
+           "salario_diario": 1000, "num_seguridad_social": "111222333", "periodicidad": "Mensual"}
+    emisor = {"rfc": "DESP820101AB1", "nombre": "DESPACHO S.C.", "regimen_fiscal": "601"}
+    periodo = {"fecha_pago": "2026-07-15", "fecha_inicial": "2026-07-01",
+               "fecha_final": "2026-07-15", "dias_pagados": 15}
+
+    res = calculate_payroll(emp, sueldo_bruto=15000, dias_pagados=15)
+    xml = generate_payroll_cfdi(emp, emisor, periodo, resultados=res)
+
+    # Parse XML
+    root = ET.fromstring(xml)
+    ns = {"cfdi": "http://www.sat.gob.mx/cfd/4",
+          "nomina": "http://www.sat.gob.mx/nomina12"}
+
+    total = Decimal(root.attrib["Total"])
+    subtotal = Decimal(root.attrib["SubTotal"])
+
+    # Complemento Nomina
+    nomina = root.find(".//nomina:Nomina", ns)
+    assert nomina is not None, "Missing nomina:Nomina complement"
+    total_percepciones = Decimal(nomina.attrib["TotalPercepciones"])
+    total_deducciones = Decimal(nomina.attrib.get("TotalDeducciones", "0"))
+
+    # Total = SubTotal − TotalDeducciones
+    assert total == subtotal - total_deducciones, (
+        f"Total ({total}) != SubTotal ({subtotal}) − TotalDeducciones ({total_deducciones})")
+
+    # TotalPercepciones == SubTotal (both represent gross pay)
+    assert total_percepciones == subtotal, (
+        f"TotalPercepciones ({total_percepciones}) != SubTotal ({subtotal})")
+
+    # TotalPercepciones = sum of actual percepciones from calculate_payroll
+    expected_percepciones = Decimal(res["percepciones"]["total"])
+    assert total_percepciones == expected_percepciones.quantize(Decimal("0.01")), (
+        f"TotalPercepciones ({total_percepciones}) != "
+        f"calculate_payroll result ({expected_percepciones})")
+
+    # TotalDeducciones = sum of actual deductions from calculate_payroll
+    expected_deducciones = Decimal(res["total_deducciones"])
+    assert total_deducciones == expected_deducciones.quantize(Decimal("0.01")), (
+        f"TotalDeducciones ({total_deducciones}) != "
+        f"calculate_payroll result ({expected_deducciones})")
