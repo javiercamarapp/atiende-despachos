@@ -39,7 +39,7 @@ from b2b_ai.services.diot_service import (
 def _make_operation_xml(
     rfc: str = "ABC123456789",
     razon_social: str = "Proveedor SA",
-    tipo_operacion: str = "01",
+    tipo_operacion: str = "03",
     monto: str = "10000.00",
     iva_trasladado: str = "1600.00",
     iva_acreditable: str = "1600.00",
