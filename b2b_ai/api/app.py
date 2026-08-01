@@ -1277,6 +1277,11 @@ def create_app(db=None):
         app.mount("/static", StaticFiles(directory=LANDING_DIR),
                   name="landing-static")
 
+        # /assets — la landing HTML referencia /assets/logo.png, /assets/hero.jpg, etc.
+        # Montamos LANDING_DIR directamente para que /assets/* resuelva a landing/assets/*.
+        app.mount("/assets", StaticFiles(directory=LANDING_DIR / "assets"),
+                  name="landing-assets")
+
     # ------------------------------------------------------------------ #
     # Demo mode — cuando DEMO_MODE=true, montar rutas mock para prospects
     # ------------------------------------------------------------------ #
