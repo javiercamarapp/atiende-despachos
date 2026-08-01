@@ -45,7 +45,7 @@ def _login(client, tid, email, password):
         "email": email, "password": password, "tenant_id": tid})
 
 
-def _seed(ctx, email="admin@a.mx", pw="password123"):
+def _seed(ctx, email="admin@a.mx", pw="Password123!"):
     """Crea el tenant T1 (bootstrap admin) y devuelve client + sesión admin."""
     c = ctx["client"]
     _register(c, ctx["t1"], email, pw, role="contador")
@@ -58,7 +58,7 @@ def _seed(ctx, email="admin@a.mx", pw="password123"):
 # --------------------------------------------------------------------------
 def test_register_bootstrap_primer_usuario_es_admin(ctx):
     c = ctx["client"]
-    r = _register(c, ctx["t1"], "admin@a.mx", "password123", role="contador")
+    r = _register(c, ctx["t1"], "admin@a.mx", "Password123!", role="contador")
     assert r.status_code == 200
     body = r.json()["user"]
     assert body["email"] == "admin@a.mx"
@@ -68,14 +68,14 @@ def test_register_bootstrap_primer_usuario_es_admin(ctx):
 
 def test_register_segundo_usuario_requiere_admin(ctx):
     c = ctx["client"]
-    _register(c, ctx["t1"], "admin@a.mx", "password123")
+    _register(c, ctx["t1"], "admin@a.mx", "Password123!")
     # Sin token -> 401 (el tenant ya tiene usuarios).
-    r = _register(c, ctx["t1"], "emp@a.mx", "password123")
+    r = _register(c, ctx["t1"], "emp@a.mx", "Password123!")
     assert r.status_code == 401
     # Con token admin -> 200 con el rol pedido.
-    sess = _login(c, ctx["t1"], "admin@a.mx", "password123").json()
+    sess = _login(c, ctx["t1"], "admin@a.mx", "Password123!").json()
     h = _bearer(sess["access_token"])
-    r = _register(c, ctx["t1"], "emp@a.mx", "password123",
+    r = _register(c, ctx["t1"], "emp@a.mx", "Password123!",
                   role="auxiliar", name="Emp", headers=h)
     assert r.status_code == 200
     assert r.json()["user"]["role"] == "auxiliar"
@@ -83,31 +83,31 @@ def test_register_segundo_usuario_requiere_admin(ctx):
 
 def test_register_duplicado_409(ctx):
     c = ctx["client"]
-    _register(c, ctx["t1"], "admin@a.mx", "password123")
-    sess = _login(c, ctx["t1"], "admin@a.mx", "password123").json()
+    _register(c, ctx["t1"], "admin@a.mx", "Password123!")
+    sess = _login(c, ctx["t1"], "admin@a.mx", "Password123!").json()
     h = _bearer(sess["access_token"])
-    r = _register(c, ctx["t1"], "admin@a.mx", "password123", headers=h)
+    r = _register(c, ctx["t1"], "admin@a.mx", "Password123!", headers=h)
     assert r.status_code == 409
 
 
 def test_register_rol_invalido_422(ctx):
     c = ctx["client"]
-    _register(c, ctx["t1"], "admin@a.mx", "password123")
-    sess = _login(c, ctx["t1"], "admin@a.mx", "password123").json()
+    _register(c, ctx["t1"], "admin@a.mx", "Password123!")
+    sess = _login(c, ctx["t1"], "admin@a.mx", "Password123!").json()
     h = _bearer(sess["access_token"])
-    r = _register(c, ctx["t1"], "emp@a.mx", "password123", role="boss",
+    r = _register(c, ctx["t1"], "emp@a.mx", "Password123!", role="boss",
                   headers=h)
     assert r.status_code == 422
 
 
 def test_register_admin_de_otro_tenant_403(ctx):
     c = ctx["client"]
-    _register(c, ctx["t1"], "admin@a.mx", "password123")
-    _register(c, ctx["t2"], "admin2@b.mx", "password123")
+    _register(c, ctx["t1"], "admin@a.mx", "Password123!")
+    _register(c, ctx["t2"], "admin2@b.mx", "Password123!")
     # Admin de T1 no puede registrar usuarios en T2.
-    sess = _login(c, ctx["t1"], "admin@a.mx", "password123").json()
+    sess = _login(c, ctx["t1"], "admin@a.mx", "Password123!").json()
     h = _bearer(sess["access_token"])
-    r = _register(c, ctx["t2"], "emp@b.mx", "password123", headers=h)
+    r = _register(c, ctx["t2"], "emp@b.mx", "Password123!", headers=h)
     assert r.status_code == 403
 
 
@@ -116,8 +116,8 @@ def test_register_admin_de_otro_tenant_403(ctx):
 # --------------------------------------------------------------------------
 def test_login_y_me(ctx):
     c = ctx["client"]
-    _register(c, ctx["t1"], "admin@a.mx", "password123")
-    sess = _login(c, ctx["t1"], "admin@a.mx", "password123").json()
+    _register(c, ctx["t1"], "admin@a.mx", "Password123!")
+    sess = _login(c, ctx["t1"], "admin@a.mx", "Password123!").json()
     assert sess["access_token"] and sess["refresh_token"]
     assert sess["user"]["email"] == "admin@a.mx"
     assert sess["tenant_id"] == ctx["t1"]
@@ -129,7 +129,7 @@ def test_login_y_me(ctx):
 
 def test_login_wrong_password_401(ctx):
     c = ctx["client"]
-    _register(c, ctx["t1"], "admin@a.mx", "password123")
+    _register(c, ctx["t1"], "admin@a.mx", "Password123!")
     r = _login(c, ctx["t1"], "admin@a.mx", "mala")
     assert r.status_code == 401
 
@@ -147,8 +147,8 @@ def test_me_token_invalido_401(ctx):
 
 def test_refresh_ok(ctx):
     c = ctx["client"]
-    _register(c, ctx["t1"], "admin@a.mx", "password123")
-    sess = _login(c, ctx["t1"], "admin@a.mx", "password123").json()
+    _register(c, ctx["t1"], "admin@a.mx", "Password123!")
+    sess = _login(c, ctx["t1"], "admin@a.mx", "Password123!").json()
     r = c.post("/api/v1/auth/refresh",
                json={"refresh_token": sess["refresh_token"]})
     assert r.status_code == 200
@@ -160,8 +160,8 @@ def test_refresh_ok(ctx):
 
 def test_refresh_con_access_token_401(ctx):
     c = ctx["client"]
-    _register(c, ctx["t1"], "admin@a.mx", "password123")
-    sess = _login(c, ctx["t1"], "admin@a.mx", "password123").json()
+    _register(c, ctx["t1"], "admin@a.mx", "Password123!")
+    sess = _login(c, ctx["t1"], "admin@a.mx", "Password123!").json()
     r = c.post("/api/v1/auth/refresh",
                json={"refresh_token": sess["access_token"]})
     assert r.status_code == 401
@@ -169,8 +169,8 @@ def test_refresh_con_access_token_401(ctx):
 
 def test_update_me(ctx):
     c = ctx["client"]
-    _register(c, ctx["t1"], "admin@a.mx", "password123", name="Admin")
-    sess = _login(c, ctx["t1"], "admin@a.mx", "password123").json()
+    _register(c, ctx["t1"], "admin@a.mx", "Password123!", name="Admin")
+    sess = _login(c, ctx["t1"], "admin@a.mx", "Password123!").json()
     r = c.put("/api/v1/auth/me", headers=_bearer(sess["access_token"]),
               json={"name": "Nuevo Nombre", "password": "otrapass123"})
     assert r.status_code == 200
@@ -186,7 +186,7 @@ def _add_aux(ctx, sess, email="emp@a.mx"):
     """Registra un auxiliar en T1 usando la sesión admin. Devuelve su user."""
     c = ctx["client"]
     h = _bearer(sess["access_token"])
-    r = _register(c, ctx["t1"], email, "password123", role="auxiliar",
+    r = _register(c, ctx["t1"], email, "Password123!", role="auxiliar",
                   name="Emp", headers=h)
     assert r.status_code == 200
     return r.json()["user"]
@@ -206,7 +206,7 @@ def test_list_users_admin(ctx):
 def test_list_users_requiere_admin(ctx):
     c, sess = _seed(ctx)
     emp = _add_aux(ctx, sess)
-    esess = _login(c, ctx["t1"], emp["email"], "password123").json()
+    esess = _login(c, ctx["t1"], emp["email"], "Password123!").json()
     r = c.get(f"/api/v1/tenants/{ctx['t1']}/users",
               headers=_bearer(esess["access_token"]))
     assert r.status_code == 403
@@ -223,7 +223,7 @@ def test_create_user_en_tenant(ctx):
     c, sess = _seed(ctx)
     r = c.post(f"/api/v1/tenants/{ctx['t1']}/users",
                headers=_bearer(sess["access_token"]),
-               json={"email": "nuevo@a.mx", "password": "password123",
+               json={"email": "nuevo@a.mx", "password": "Password123!",
                      "role": "auditor", "name": "Nuevo"})
     assert r.status_code == 200
     u = r.json()["user"]
@@ -234,7 +234,7 @@ def test_create_user_en_tenant(ctx):
 def test_create_user_duplicado_409(ctx):
     c, sess = _seed(ctx)
     h = _bearer(sess["access_token"])
-    payload = {"email": "nuevo@a.mx", "password": "password123",
+    payload = {"email": "nuevo@a.mx", "password": "Password123!",
                "role": "auxiliar"}
     assert c.post(f"/api/v1/tenants/{ctx['t1']}/users", headers=h,
                   json=payload).status_code == 200
@@ -281,7 +281,7 @@ def test_change_role_ultimo_admin_protegido(ctx):
 def test_change_role_requiere_admin(ctx):
     c, sess = _seed(ctx)
     emp = _add_aux(ctx, sess)
-    esess = _login(c, ctx["t1"], emp["email"], "password123").json()
+    esess = _login(c, ctx["t1"], emp["email"], "Password123!").json()
     r = c.put(f"/api/v1/tenants/{ctx['t1']}/users/{emp['id']}/role",
               headers=_bearer(esess["access_token"]), json={"role": "contador"})
     assert r.status_code == 403

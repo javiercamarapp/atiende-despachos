@@ -53,6 +53,9 @@ def _allowed_dirs():
         (base / "data").resolve(),
         (base / "tmp").resolve(),
         (base / "uploads").resolve(),
+        (base / "fixtures").resolve(),
+        (base / "demo-data").resolve(),
+        (base / "b2b_ai" / "demo-data").resolve(),
         Path(tempfile.gettempdir()).resolve(),
     ]
 

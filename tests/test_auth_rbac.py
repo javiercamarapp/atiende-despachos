@@ -147,7 +147,7 @@ def test_jwt_malformed_rechazado():
 # UserManager
 # --------------------------------------------------------------------------
 def test_create_user_ok(um, tenant):
-    u = um.create_user("juan@a.mx", "password123", tenant, role="contador",
+    u = um.create_user("juan@a.mx", "Password123!", tenant, role="contador",
                        name="Juan")
     assert u["id"] >= 1
     assert u["email"] == "juan@a.mx"
@@ -157,19 +157,19 @@ def test_create_user_ok(um, tenant):
 
 
 def test_create_user_normaliza_email(um, tenant):
-    u = um.create_user("  Juan@A.MX ", "password123", tenant, role="admin")
+    u = um.create_user("  Juan@A.MX ", "Password123!", tenant, role="admin")
     assert u["email"] == "juan@a.mx"
 
 
 def test_create_user_duplicado_levanta(um, tenant):
-    um.create_user("a@a.mx", "password123", tenant, role="contador")
+    um.create_user("a@a.mx", "Password123!", tenant, role="contador")
     with pytest.raises(UserExistsError):
-        um.create_user("a@a.mx", "password123", tenant, role="contador")
+        um.create_user("a@a.mx", "Password123!", tenant, role="contador")
 
 
 def test_create_user_rol_invalido(um, tenant):
     with pytest.raises(InvalidRoleError):
-        um.create_user("x@a.mx", "password123", tenant, role="superuser")
+        um.create_user("x@a.mx", "Password123!", tenant, role="superuser")
 
 
 def test_create_user_password_corto(um, tenant):
@@ -178,8 +178,8 @@ def test_create_user_password_corto(um, tenant):
 
 
 def test_authenticate_ok(um, tenant):
-    um.create_user("juan@a.mx", "password123", tenant, role="admin", name="Juan")
-    sess = um.authenticate("juan@a.mx", "password123", tenant_id=tenant)
+    um.create_user("juan@a.mx", "Password123!", tenant, role="admin", name="Juan")
+    sess = um.authenticate("juan@a.mx", "Password123!", tenant_id=tenant)
     assert sess is not None
     assert sess["access_token"] and sess["refresh_token"]
     assert sess["user"]["email"] == "juan@a.mx"
@@ -191,25 +191,25 @@ def test_authenticate_ok(um, tenant):
 
 
 def test_authenticate_password_mal(um, tenant):
-    um.create_user("juan@a.mx", "password123", tenant)
+    um.create_user("juan@a.mx", "Password123!", tenant)
     assert um.authenticate("juan@a.mx", "mala", tenant_id=tenant) is None
 
 
 def test_authenticate_email_inexistente(um, tenant):
-    assert um.authenticate("nadie@a.mx", "password123", tenant_id=tenant) is None
+    assert um.authenticate("nadie@a.mx", "Password123!", tenant_id=tenant) is None
 
 
 def test_refresh_token_ok(um, tenant):
-    u = um.create_user("juan@a.mx", "password123", tenant)
-    sess = um.authenticate("juan@a.mx", "password123", tenant_id=tenant)
+    u = um.create_user("juan@a.mx", "Password123!", tenant)
+    sess = um.authenticate("juan@a.mx", "Password123!", tenant_id=tenant)
     new = um.refresh_token(sess["refresh_token"])
     assert new["access_token"]
     assert new["user"]["id"] == u["id"]
 
 
 def test_refresh_token_acceso_no_sirve(um, tenant):
-    u = um.create_user("juan@a.mx", "password123", tenant)
-    sess = um.authenticate("juan@a.mx", "password123", tenant_id=tenant)
+    u = um.create_user("juan@a.mx", "Password123!", tenant)
+    sess = um.authenticate("juan@a.mx", "Password123!", tenant_id=tenant)
     # Un access token no vale como refresh.
     with pytest.raises(InvalidTokenError):
         um.refresh_token(sess["access_token"])
@@ -221,7 +221,7 @@ def test_refresh_token_basura_rechazado(um):
 
 
 def test_get_user(um, tenant):
-    u = um.create_user("juan@a.mx", "password123", tenant, name="Juan")
+    u = um.create_user("juan@a.mx", "Password123!", tenant, name="Juan")
     got = um.get_user(u["id"])
     assert got["email"] == "juan@a.mx"
     assert "password_hash" not in got
@@ -229,7 +229,7 @@ def test_get_user(um, tenant):
 
 
 def test_update_user(um, tenant):
-    u = um.create_user("juan@a.mx", "password123", tenant, name="Juan")
+    u = um.create_user("juan@a.mx", "Password123!", tenant, name="Juan")
     updated = um.update_user(u["id"], {"name": "Juan Pérez",
                                        "password": "nuevapass123"})
     assert updated["name"] == "Juan Pérez"
@@ -238,22 +238,22 @@ def test_update_user(um, tenant):
 
 
 def test_update_user_email_duplicado(um, tenant):
-    um.create_user("a@a.mx", "password123", tenant)
-    u2 = um.create_user("b@a.mx", "password123", tenant)
+    um.create_user("a@a.mx", "Password123!", tenant)
+    u2 = um.create_user("b@a.mx", "Password123!", tenant)
     with pytest.raises(UserExistsError):
         um.update_user(u2["id"], {"email": "a@a.mx"})
 
 
 def test_delete_user(um, tenant):
-    admin = um.create_user("admin@a.mx", "password123", tenant, role="admin")
-    emp = um.create_user("emp@a.mx", "password123", tenant, role="auxiliar")
+    admin = um.create_user("admin@a.mx", "Password123!", tenant, role="admin")
+    emp = um.create_user("emp@a.mx", "Password123!", tenant, role="auxiliar")
     um.delete_user(emp["id"])
     assert um.get_user(emp["id"]) is None
     assert um.get_user(admin["id"]) is not None
 
 
 def test_delete_ultimo_admin_protegido(um, tenant):
-    admin = um.create_user("admin@a.mx", "password123", tenant, role="admin")
+    admin = um.create_user("admin@a.mx", "Password123!", tenant, role="admin")
     with pytest.raises(LastAdminError):
         um.delete_user(admin["id"])
 
@@ -264,7 +264,7 @@ def test_delete_usuario_inexistente(um, tenant):
 
 
 def test_password_reset(um, tenant):
-    u = um.create_user("juan@a.mx", "password123", tenant)
+    u = um.create_user("juan@a.mx", "Password123!", tenant)
     res = um.password_reset("juan@a.mx", tenant_id=tenant)
     assert res is not None
     assert res["reset_token"]
