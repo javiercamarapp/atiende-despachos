@@ -62,6 +62,8 @@ def build_nomina_completa_router(require_api_key=None) -> APIRouter:
     from fastapi import Depends as _Depends
     router = APIRouter(prefix="/nomina-completa", tags=["nomina-completa"])
     _auth = [_Depends(require_api_key)] if require_api_key else []
+    if _auth:
+        router.dependencies.extend(_auth)
 
     # Almacén de nóminas procesadas
     _processed: dict[str, dict] = {}

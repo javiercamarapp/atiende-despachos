@@ -133,13 +133,16 @@ def _get_obligaciones_by_rfc(rfc: str) -> dict:
 def build_contabilidad_electronica_router(require_api_key=None) -> APIRouter:
     """Devuelve un APIRouter con endpoints /contabilidad-electronica/*.
 
-    Sigue el patrón `build_*_router()` del proyecto. No requiere auth
-    por ser flujo de generación/validación local.
+    Sigue el patrón `build_*_router()` del proyecto.
     """
+    from fastapi import Depends as _Depends
+
     router = APIRouter(
         prefix="/contabilidad-electronica",
         tags=["contabilidad-electronica"],
     )
+    if require_api_key:
+        router.dependencies.append(_Depends(require_api_key))
 
     # ---- POST /balanza ---------------------------------------------------
     @router.post(

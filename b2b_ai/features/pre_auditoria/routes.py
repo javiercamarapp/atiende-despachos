@@ -65,6 +65,8 @@ def build_pre_auditoria_router(require_api_key=None) -> APIRouter:
     """
     router = APIRouter(prefix="/pre-auditoria", tags=["pre-auditoria"])
     _auth = [Depends(require_api_key)] if require_api_key else []
+    if _auth:
+        router.dependencies.extend(_auth)
 
     # Almacén temporal de reportes (key = tenant_id-period)
     _reports: dict[str, dict] = {}
