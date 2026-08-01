@@ -491,10 +491,12 @@ def build_portal_pages_router(db):
                 pass
             yield _sse("heartbeat", {"ts": datetime.now().isoformat()})
             # Polling ligero: revisa notificaciones nuevas cada 3s.
-            while True:
+            # Se limita a un número fijo de ciclos para compatibilidad
+            # con TestClient (que espera el cierre del generador).
+            import time as _time
+            for _cycle in range(3):
                 try:
-                    import time
-                    time.sleep(3)
+                    _time.sleep(3)
                     new = [n for n in _notifications_for(db, tenant, limit=20)
                            if n.get("id", 0) > last_seen]
                     for n in new:

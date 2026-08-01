@@ -97,7 +97,7 @@ class QuickBooksConnector(AbstractERPConnector, ERPInterface):
         if mock is not None:
             self._mock = mock
         else:
-            self._mock = QBO_MOCK_MODE == "1"
+            self._mock = bool(QBO_MOCK_MODE)
         self._accounts_cache: list[dict] | None = None
 
     # ------------------------------------------------------------------

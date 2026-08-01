@@ -81,7 +81,7 @@ def api_ctx(tmp_path):
     _insert(db, t, idx=1, total="1000.00", fecha="2026-05-01")
     _insert(db, t, idx=2, total="2500.00", fecha="2026-05-10", tipo="I")
     # Create API key
-    db.create_api_key("test-reports-key", tenant_id=t)
+    db.create_api_key(t, "test-reports-key", "test-reports-key")
     app = create_app(db)
     client = TestClient(app)
     return {"client": client, "db": db, "tenant_id": t}
@@ -433,7 +433,7 @@ class TestReportAPI:
         """Report for tenant with no data should still work."""
         db = Database(str(tmp_path / "empty_tenant.db"))
         t = db.create_tenant("Empty", rfc="EMP000000000")
-        db.create_api_key("empty-key", tenant_id=t)
+        db.create_api_key(t, "empty-key", "empty-key")
         app = create_app(db)
         c = TestClient(app)
         r = c.get("/api/v1/reports/monthly/2026-01",
