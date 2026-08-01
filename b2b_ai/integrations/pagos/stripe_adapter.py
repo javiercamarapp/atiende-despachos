@@ -7,6 +7,7 @@ En producción, se conectaría a la Stripe API (https://stripe.com/docs/api).
 """
 from __future__ import annotations
 
+import os
 import logging
 import uuid as _uuid
 from datetime import datetime
@@ -39,7 +40,7 @@ class StripeAdapter(PaymentAdapter):
     def __init__(self, config: Optional[PaymentConfig] = None):
         config = config or PaymentConfig(
             provider="stripe",
-            api_key="sk_test_faker_stripe_key_DO_NOT_USE",
+            api_key=os.environ.get("STRIPE_SECRET_KEY", ""),
         )
         super().__init__(config=config)
 

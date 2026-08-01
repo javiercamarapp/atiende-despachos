@@ -7,6 +7,7 @@ En producción, se conectaría a la Twilio API (https://www.twilio.com/docs/sms/
 """
 from __future__ import annotations
 
+import os
 import logging
 import uuid as _uuid
 from datetime import datetime
@@ -38,8 +39,8 @@ class TwilioAdapter(CommunicationAdapter):
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(
             provider="twilio",
-            api_key="AC_faker_twilio_sid_DO_NOT_USE",
-            api_secret="faker_twilio_auth_token_DO_NOT_USE",
+            api_key=os.environ.get("TWILIO_SID", ""),
+            api_secret=os.environ.get("TWILIO_AUTH_TOKEN", ""),
             from_phone="+525512345678",
             from_email="sms@b2b-ai.com",
         )

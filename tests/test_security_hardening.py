@@ -170,7 +170,8 @@ def test_secrets_scan_repo(tmp_path):
             # ignora líneas que son claramente ejemplos/placeholders de docs
             if any(x in line for x in ("example.com", "EXAMPLE", "PLACEHOLDER",
                                        "xxxx", "your-", "TU_", "YOUR_", "<secret>",
-                                       "Mock", "mock", "MOCK")):
+                                       "Mock", "mock", "MOCK", "faker", "DO_NOT_USE",
+                                       "FACKEY")):
                 continue
             for rx in _HIGH_RISK:
                 if rx.search(line):

@@ -7,6 +7,7 @@ En producción, se conectaría a la PayPal API (https://developer.paypal.com/doc
 """
 from __future__ import annotations
 
+import os
 import logging
 import uuid as _uuid
 from datetime import datetime
@@ -39,8 +40,8 @@ class PayPalAdapter(PaymentAdapter):
     def __init__(self, config: Optional[PaymentConfig] = None):
         config = config or PaymentConfig(
             provider="paypal",
-            api_key="faker_paypal_client_id_DO_NOT_USE",
-            api_secret="faker_paypal_secret_DO_NOT_USE",
+            api_key=os.environ.get("PAYPAL_CLIENT_ID", ""),
+            api_secret=os.environ.get("PAYPAL_CLIENT_SECRET", ""),
         )
         super().__init__(config=config)
 

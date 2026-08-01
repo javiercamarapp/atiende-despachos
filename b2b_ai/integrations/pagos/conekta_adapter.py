@@ -8,6 +8,7 @@ Soporta tarjetas, OXXO y SPEI.
 """
 from __future__ import annotations
 
+import os
 import logging
 import uuid as _uuid
 from datetime import datetime
@@ -40,7 +41,7 @@ class ConektaAdapter(PaymentAdapter):
     def __init__(self, config: Optional[PaymentConfig] = None):
         config = config or PaymentConfig(
             provider="conekta",
-            api_key="key_faker_conekta_DO_NOT_USE",
+            api_key=os.environ.get("CONEKTA_API_KEY", ""),
         )
         super().__init__(config=config)
 

@@ -7,6 +7,7 @@ En producción, se conectaría a la WhatsApp Business API (https://developers.fa
 """
 from __future__ import annotations
 
+import os
 import logging
 import uuid as _uuid
 from datetime import datetime
@@ -38,7 +39,7 @@ class WhatsAppBusinessAdapter(CommunicationAdapter):
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(
             provider="whatsapp_business",
-            api_key="faker_whatsapp_token_DO_NOT_USE",
+            api_key=os.environ.get("WHATSAPP_BUSINESS_TOKEN", ""),
             whatsapp_business_id="1234567890",
             from_phone="+525512345678",
         )

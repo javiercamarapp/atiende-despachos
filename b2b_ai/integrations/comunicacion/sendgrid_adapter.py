@@ -7,6 +7,7 @@ En producción, se conectaría a la SendGrid API (https://docs.sendgrid.com/api-
 """
 from __future__ import annotations
 
+import os
 import logging
 import uuid as _uuid
 from datetime import datetime
@@ -38,7 +39,7 @@ class SendGridAdapter(CommunicationAdapter):
     def __init__(self, config: Optional[CommunicationConfig] = None):
         config = config or CommunicationConfig(
             provider="sendgrid",
-            api_key="faker_sendgrid_api_key_DO_NOT_USE",
+            api_key=os.environ.get("SENDGRID_API_KEY", ""),
             from_email="noreply@b2b-ai.com",
         )
         super().__init__(config=config)
