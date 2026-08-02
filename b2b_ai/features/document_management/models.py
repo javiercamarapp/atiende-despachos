@@ -54,7 +54,7 @@ class Document(BaseModel):
       - tags       : etiquetas para búsqueda flexible.
     """
     id: str = Field(default_factory=lambda: str(_uuid.uuid4()))
-    tenant_id: str = Field(..., description="Tenant dueño del documento")
+    tenant_id: Optional[str] = Field(default=None, description="Tenant dueño del documento")
     name: str = Field(..., description="Nombre original del archivo")
     category: DocumentCategory = Field(default=DocumentCategory.OTRO)
     content_type: str = Field(default="application/octet-stream")
@@ -66,8 +66,8 @@ class Document(BaseModel):
     tags: List[str] = Field(default_factory=list)
     status: DocumentStatus = Field(default=DocumentStatus.ACTIVO)
     created_by: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
-    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
+    updated_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
 
     @field_validator("name")
     @classmethod
@@ -99,6 +99,7 @@ class Document(BaseModel):
 
 class DocumentVersion(BaseModel):
     """Versión congelada e inmutable de un documento."""
+    id: str = Field(default_factory=lambda: str(_uuid.uuid4()))
     document_id: str = Field(..., description="Documento padre")
     version: int = Field(..., ge=1)
     sha256: str = Field(..., description="Hash SHA-256 del contenido en esta versión")
@@ -106,10 +107,11 @@ class DocumentVersion(BaseModel):
     size: int = Field(default=0, ge=0)
     note: str = Field(default="", description="Nota del cambio")
     created_by: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.utcnow())
 
     def to_dict(self) -> Dict:
         return {
+            "id": self.id,
             "document_id": self.document_id,
             "version": self.version,
             "sha256": self.sha256,

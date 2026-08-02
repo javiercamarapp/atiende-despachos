@@ -212,20 +212,19 @@ def test_router_content_disposition_is_sanitized(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 5. Persistencia opcional a JSON
+# 5. Persistencia real en DB
 # ---------------------------------------------------------------------------
 
 def test_persistence_survives_service_recreation(tmp_path):
-    state = Path(str(tmp_path)) / "state.json"
-    root = Path(str(tmp_path)) / "docs"
-    s1 = DocumentService(kind="local", root=str(root), state_file=str(state))
+    from b2b_ai.db.db import Database
+    db = Database(str(tmp_path / "docs.db"))
+    root = str(tmp_path / "docs")
+    s1 = DocumentService(db=db, kind="local", root=root)
     doc = s1.upload_document("T1", "persist.pdf", b"bytes", tags=["fiscal"])
     assert doc.version == 1
-    assert state.exists()
 
-    # Simula reinicio: estado en memoria limpio + servicio nuevo leyendo el archivo.
-    _reset_state()
-    s2 = DocumentService(kind="local", root=str(root), state_file=str(state))
+    # Simula reinicio: nueva instancia del servicio contra la MISMA base.
+    s2 = DocumentService(db=db, kind="local", root=root)
     reloaded = s2.get_document("T1", doc.id)
     assert reloaded.name == "persist.pdf"
     assert reloaded.sha256 == doc.sha256

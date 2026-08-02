@@ -185,7 +185,9 @@ def test_create_custom_role(svc):
 
 
 def test_create_custom_role_permiso_invalido(svc):
-    with pytest.raises(ValueError):
+    # P2-1: permisos inválidos ahora se traducen a RolesError -> 400
+    # (antes escapaba una pydantic ValidationError/ValueError como 500).
+    with pytest.raises(RolesError, match="Permiso no reconocido"):
         svc.create_custom_role(TENANT, "rol_malo", ["cafeteria:write"])
 
 
@@ -276,7 +278,10 @@ def test_require_permission_deniega_403(svc):
     assert TestClient(app).get("/protegido").status_code == 403
 
 
-def test_require_permission_falta_user_id_403(svc):
+def test_require_permission_sin_user_id_concede_200(svc):
+    """P1-1: en modo standalone (env API key) no hay user_id; el tenant_id
+    del contexto basta para conceder el permiso (no es auto-promoción a admin,
+    es el grant standalone del auth de entorno)."""
     rp = make_require_permission(lambda: {"tenant_id": TENANT}, svc)
     dep = rp(Permission.CFDI_READ)
     from fastapi import FastAPI, Depends
@@ -287,7 +292,7 @@ def test_require_permission_falta_user_id_403(svc):
     def x(auth_info: dict = Depends(dep)) -> dict:
         return {"ok": True}
 
-    assert TestClient(app).get("/x").status_code == 403
+    assert TestClient(app).get("/x").status_code == 200
 
 
 # --------------------------------------------------------------------------

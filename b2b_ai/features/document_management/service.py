@@ -6,27 +6,26 @@ Expone:
   - DocumentService : upload_document / search_documents / get_document /
                       get_version_history / share_document / list_shares /
                       add_tag / archive_document.
-  - registros en memoria por tenant + backend de almacenamiento (abstracción).
+  - CRUD persistido en la base de datos (SQLite dev / PostgreSQL prod) a
+    través de la capa `Database` de b2b_ai.db.db. Cada mutación se persiste
+    de inmediato, así los datos sobreviven reinicios de la app.
 
 El hash SHA-256 garantiza integridad del contenido; cada nueva subida del
-mismo documento (mismo hash) no duplica contenido y versiona.
+mismo documento (mismo nombre y tenant) versiona sin duplicar contenido.
 
-Persistencia opcional: si se pasa ``state_file`` (o la env ``DOCS_STATE_FILE``),
-el índice de documentos/versiones/comparticiones se vuelca a un archivo JSON
-después de cada mutación y se recarga al arrancar. El contenido binario sigue
-viviendo en el backend de storage. Si no se configura, el estado es solo en
-memoria (comportamiento por defecto, sin romper tests existentes).
+El contenido binario se guarda en el backend de storage (LocalStorage / S3);
+la tabla `documents` guarda el índice/metadata. El aislamiento multi-tenant
+es estricto: TODA lectura/escritura filtra por tenant_id.
 """
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 import uuid as _uuid
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from b2b_ai.db.db import Database, DEFAULT_DB
 from b2b_ai.features.document_management.models import (
     Document,
     DocumentCategory,
@@ -42,17 +41,27 @@ from b2b_ai.features.document_management.storage import (
     get_backend,
 )
 
-# Registro en memoria (MVP). En producción se sustituye por el repositorio DB.
-_documents: Dict[str, Document] = {}
-_versions: Dict[str, List[DocumentVersion]] = {}
-_shares: Dict[str, List[DocumentShare]] = {}
+# En memoria por defecto solo para backward-compat de los tests que no pasan
+# db. Con db=None usamos una base SQLite efímera (:memory:), aislada por
+# instancia del servicio — nunca toca la base real del repo.
+_DEFAULT_DB = None
 
 
 def _reset_state() -> None:
-    """Limpia el estado en memoria (útil para tests)."""
-    _documents.clear()
-    _versions.clear()
-    _shares.clear()
+    """Compat: limpia la base efímera por defecto (útil para tests)."""
+    global _DEFAULT_DB
+    if _DEFAULT_DB is not None:
+        try:
+            _wipe_all(_DEFAULT_DB)
+        except Exception:  # noqa: BLE001 — best-effort en tests
+            pass
+
+
+def _wipe_all(db: Database) -> None:
+    """Elimina filas de las tablas documentales (uso en tests)."""
+    for table in ("document_shares", "document_versions", "documents"):
+        db.conn.execute(f"DELETE FROM {table}")
+    db.conn.commit()
 
 
 def _sha256(data: bytes) -> str:
@@ -63,112 +72,107 @@ def _tenant_key(tenant_id: str) -> str:
     return str(tenant_id).strip().upper()
 
 
-class _StateCodec:
-    """Codifica/decodifica el índice entre modelos Pydantic y JSON."""
+def _utcnow_iso() -> str:
+    return datetime.utcnow().isoformat(timespec="seconds")
 
-    @staticmethod
-    def encode_document(doc: Document) -> Dict[str, Any]:
-        return doc.to_dict()
 
-    @staticmethod
-    def decode_document(data: Dict[str, Any]) -> Document:
-        # status/category vienen como string en JSON → re-mapear a enum.
-        d = dict(data)
-        d["category"] = DocumentCategory(d["category"])
-        d["status"] = DocumentStatus(d["status"])
-        return Document.model_validate(d)
+def _ensure_schema(db: Database) -> None:
+    """Garantiza que las tablas documentales existan (idempotente).
 
-    @staticmethod
-    def encode_version(v: DocumentVersion) -> Dict[str, Any]:
-        return v.to_dict()
+    En la base por defecto ya se crean vía MIGRATIONS v20. Esta defensa
+    cubre :memory: y bases creadas con migrate=False.
+    """
+    if db._is_pg:
+        return
+    try:
+        row = db.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='documents'"
+        ).fetchone()
+    except Exception:  # noqa: BLE001
+        return
+    if row:
+        return
+    from b2b_ai.db.models import MIGRATIONS
+    for m in MIGRATIONS:
+        if m["version"] == 20:
+            db.conn.executescript(m["sql"])
+            db.conn.commit()
+            return
 
-    @staticmethod
-    def decode_version(data: Dict[str, Any]) -> DocumentVersion:
-        return DocumentVersion.model_validate(data)
 
-    @staticmethod
-    def encode_share(s: DocumentShare) -> Dict[str, Any]:
-        return s.to_dict()
+def _db_row_to_document(row: Any) -> Document:
+    metadata = {}
+    tags: List[str] = []
+    try:
+        metadata = json.loads(row["metadata"] or "{}")
+    except (ValueError, TypeError):
+        metadata = {}
+    try:
+        tags = json.loads(row["tags"] or "[]")
+    except (ValueError, TypeError):
+        tags = []
+    return Document(
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        name=row["name"],
+        category=DocumentCategory(row["category"]),
+        content_type=row["content_type"],
+        size=row["size"],
+        sha256=row["sha256"],
+        storage_path=row["storage_path"],
+        version=row["version"],
+        metadata=metadata or {},
+        tags=tags or [],
+        status=DocumentStatus(row["status"]),
+        created_by=row["created_by"],
+        created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+        updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else None,
+    )
 
-    @staticmethod
-    def decode_share(data: Dict[str, Any]) -> DocumentShare:
-        d = dict(data)
-        d["permission"] = SharePermission(d["permission"])
-        return DocumentShare.model_validate(d)
+
+def _db_row_to_version(row: Any) -> DocumentVersion:
+    return DocumentVersion(
+        id=row["id"],
+        document_id=row["document_id"],
+        version=row["version"],
+        sha256=row["sha256"],
+        storage_path=row["storage_path"],
+        size=row["size"],
+        note=row["note"],
+        created_by=row["created_by"],
+        created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+    )
+
+
+def _db_row_to_share(row: Any) -> DocumentShare:
+    return DocumentShare(
+        id=row["id"],
+        document_id=row["document_id"],
+        shared_with=row["shared_with"],
+        permission=SharePermission(row["permission"]),
+        token=row["token"],
+        created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+        expires_at=datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
+    )
 
 
 class DocumentService:
-    """Servicio stateless para el sistema de gestión documental."""
+    """Servicio de gestión documental persistido en DB (SQLite/PG)."""
 
-    def __init__(self, storage: Optional[BaseStorage] = None, kind: str = "local",
-                 state_file: Optional[str] = None, **storage_kwargs):
+    def __init__(self, db: Optional[Database] = None, storage: Optional[BaseStorage] = None,
+                 kind: str = "local", **storage_kwargs):
+        global _DEFAULT_DB
+        if db is not None:
+            self.db = db
+        else:
+            if _DEFAULT_DB is None:
+                _DEFAULT_DB = Database(":memory:", migrate=False)
+            self.db = _DEFAULT_DB
+        _ensure_schema(self.db)
         if storage is not None:
             self.storage = storage
         else:
             self.storage = get_backend(kind, **storage_kwargs)
-        self._state_file = (
-            state_file or os.environ.get("DOCS_STATE_FILE")
-        )
-        if self._state_file:
-            self._load_state()
-
-    # -- Persistencia -----------------------------------------------------
-    def _load_state(self) -> None:
-        """Carga el índice desde el archivo JSON (si existe)."""
-        if not self._state_file:
-            return
-        p = Path(self._state_file)
-        if not p.exists():
-            return
-        try:
-            raw = json.loads(p.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return
-        _reset_state()
-        for d in raw.get("documents", []):
-            try:
-                doc = _StateCodec.decode_document(d)
-                _documents[doc.id] = doc
-            except Exception:
-                continue
-        for vid, vlist in raw.get("versions", {}).items():
-            _versions[vid] = [
-                _StateCodec.decode_version(v) for v in vlist
-            ]
-        for sid, slist in raw.get("shares", {}).items():
-            _shares[sid] = [
-                _StateCodec.decode_share(s) for s in slist
-            ]
-
-    def _save_state(self) -> None:
-        """Vuelca el índice a JSON (best-effort, nunca rompe la mutación)."""
-        if not self._state_file:
-            return
-        payload = {
-            "documents": [
-                _StateCodec.encode_document(d) for d in _documents.values()
-            ],
-            "versions": {
-                vid: [_StateCodec.encode_version(v) for v in vlist]
-                for vid, vlist in _versions.items()
-            },
-            "shares": {
-                sid: [_StateCodec.encode_share(s) for s in slist]
-                for sid, slist in _shares.items()
-            },
-        }
-        try:
-            p = Path(self._state_file)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            tmp = p.with_suffix(".tmp")
-            tmp.write_text(json.dumps(payload), encoding="utf-8")
-            tmp.replace(p)
-        except OSError:
-            pass
-
-    def _mutate(self) -> None:
-        """Persiste tras una mutación del índice."""
-        self._save_state()
 
     # -- Alta -------------------------------------------------------------
     def upload_document(
@@ -182,10 +186,10 @@ class DocumentService:
         tags: Optional[List[str]] = None,
         created_by: Optional[str] = None,
     ) -> Document:
-        """Sube un documento, calcula su hash, lo versiona y lo guarda.
+        """Sube un documento, calcula su hash, lo versiona y lo persiste.
 
-        Si ya existe un documento con el mismo (tenant, name), crea una nueva
-        versión; de lo contrario crea el documento en versión 1.
+        Si ya existe un documento con el mismo (tenant, name) no-eliminado,
+        crea una nueva versión; de lo contrario crea el documento en v1.
         """
         tenant_key = _tenant_key(tenant_id)
         if not data:
@@ -193,29 +197,43 @@ class DocumentService:
         digest = _sha256(data)
 
         existing = self._find_by_name(tenant_key, name)
+        now = _utcnow_iso()
 
         rel_path = f"{tenant_key}/{digest[:2]}/{digest}.bin"
         self.storage.save(rel_path, data)
 
         if existing:
-            # Versionar: no duplicamos contenido (mismo hash) pero sí la versión
-            version = existing.version + 1
-            doc = existing.model_copy(deep=True)
-            doc.version = version
-            doc.sha256 = digest
-            doc.storage_path = rel_path
-            doc.size = len(data)
-            doc.content_type = content_type
-            doc.updated_at = datetime.utcnow()
-            if tags:
-                doc.tags = list(dict.fromkeys([*doc.tags, *tags]))
-            if metadata:
-                doc.metadata = {**doc.metadata, **metadata}
-            if category != DocumentCategory.OTRO or not doc.metadata:
-                doc.category = category
-            _documents[doc.id] = doc
+            new_version = existing.version + 1
+            new_doc = Document(
+                id=existing.id,
+                tenant_id=tenant_key,
+                name=existing.name,
+                category=(category if category != DocumentCategory.OTRO
+                          else existing.category),
+                content_type=content_type,
+                size=len(data),
+                sha256=digest,
+                storage_path=rel_path,
+                version=new_version,
+                metadata={**existing.metadata, **(metadata or {})},
+                tags=list(dict.fromkeys([*existing.tags, *(tags or [])])),
+                status=existing.status,
+                created_by=existing.created_by,
+                created_at=existing.created_at,
+                updated_at=datetime.fromisoformat(now),
+            )
+            self.db.conn.execute(
+                """UPDATE documents SET category=?, content_type=?, size=?,
+                   sha256=?, storage_path=?, version=?, metadata=?, tags=?,
+                   status=?, updated_at=? WHERE id=?""",
+                (new_doc.category.value, new_doc.content_type, new_doc.size,
+                 new_doc.sha256, new_doc.storage_path, new_doc.version,
+                 json.dumps(new_doc.metadata), json.dumps(new_doc.tags),
+                 new_doc.status.value, now, new_doc.id),
+            )
         else:
-            doc = Document(
+            new_doc = Document(
+                id=str(_uuid.uuid4()),
                 tenant_id=tenant_key,
                 name=name,
                 category=category,
@@ -227,21 +245,33 @@ class DocumentService:
                 metadata=metadata or {},
                 tags=tags or [],
                 created_by=created_by,
+                created_at=datetime.fromisoformat(now),
+                updated_at=datetime.fromisoformat(now),
             )
-            _documents[doc.id] = doc
+            self.db.conn.execute(
+                """INSERT INTO documents (id, tenant_id, name, category,
+                   content_type, size, sha256, storage_path, version,
+                   metadata, tags, status, created_by, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (new_doc.id, new_doc.tenant_id, new_doc.name, new_doc.category.value,
+                 new_doc.content_type, new_doc.size, new_doc.sha256,
+                 new_doc.storage_path, new_doc.version, json.dumps(new_doc.metadata),
+                 json.dumps(new_doc.tags), new_doc.status.value, new_doc.created_by,
+                 now, now),
+            )
 
         # Guardar versión inmutable
-        _versions.setdefault(doc.id, []).append(DocumentVersion(
-            document_id=doc.id,
-            version=doc.version,
-            sha256=digest,
-            storage_path=rel_path,
-            size=len(data),
-            note="Versión inicial" if doc.version == 1 else f"Versión {doc.version}",
-            created_by=created_by,
-        ))
-        self._mutate()
-        return doc
+        self.db.conn.execute(
+            """INSERT INTO document_versions (id, document_id, tenant_id,
+               version, sha256, storage_path, size, note, created_by, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (str(_uuid.uuid4()), new_doc.id, tenant_key, new_doc.version, digest,
+             rel_path, len(data),
+             "Versión inicial" if new_doc.version == 1 else f"Versión {new_doc.version}",
+             created_by, now),
+        )
+        self.db.conn.commit()
+        return new_doc
 
     # -- Búsqueda ----------------------------------------------------------
     def search_documents(
@@ -254,14 +284,14 @@ class DocumentService:
     ) -> List[Document]:
         """Busca documentos del tenant por nombre/metadata/tags/categoría."""
         tenant_key = _tenant_key(tenant_id)
+        rows = self.db.conn.execute(
+            """SELECT * FROM documents WHERE tenant_id=? AND status=? ORDER BY updated_at DESC""",
+            (tenant_key, DocumentStatus.ACTIVO.value)).fetchall()
         q = (query or "").strip().lower()
         tagset = {t.lower() for t in (tags or [])}
         results: List[Document] = []
-        for doc in _documents.values():
-            if doc.tenant_id != tenant_key:
-                continue
-            if doc.status != DocumentStatus.ACTIVO:
-                continue
+        for row in rows:
+            doc = _db_row_to_document(row)
             if category is not None and doc.category != category:
                 continue
             if tagset:
@@ -277,16 +307,17 @@ class DocumentService:
                 if q not in haystack:
                     continue
             results.append(doc)
-        results.sort(key=lambda d: d.updated_at, reverse=True)
         return results[:limit]
 
     # -- Lectura -----------------------------------------------------------
     def get_document(self, tenant_id: str, document_id: str) -> Document:
         tenant_key = _tenant_key(tenant_id)
-        doc = _documents.get(document_id)
-        if not doc or doc.tenant_id != tenant_key:
+        row = self.db.conn.execute(
+            """SELECT * FROM documents WHERE id=? AND tenant_id=?""",
+            (document_id, tenant_key)).fetchone()
+        if not row:
             raise KeyError(f"Documento no encontrado: {document_id}")
-        return doc
+        return _db_row_to_document(row)
 
     def read_document_bytes(self, tenant_id: str, document_id: str) -> bytes:
         doc = self.get_document(tenant_id, document_id)
@@ -298,11 +329,11 @@ class DocumentService:
     # -- Versiones ---------------------------------------------------------
     def get_version_history(self, tenant_id: str, document_id: str) -> List[DocumentVersion]:
         self.get_document(tenant_id, document_id)  # valida pertenencia
-        return sorted(
-            _versions.get(document_id, []),
-            key=lambda v: v.version,
-            reverse=True,
-        )
+        rows = self.db.conn.execute(
+            """SELECT * FROM document_versions WHERE document_id=? AND tenant_id=?
+               ORDER BY version DESC""",
+            (document_id, _tenant_key(tenant_id))).fetchall()
+        return [_db_row_to_version(r) for r in rows]
 
     # -- Compartición ------------------------------------------------------
     def share_document(
@@ -313,20 +344,33 @@ class DocumentService:
         permission: SharePermission = SharePermission.LECTURA,
         expires_at: Optional[datetime] = None,
     ) -> DocumentShare:
+        tenant_key = _tenant_key(tenant_id)
         self.get_document(tenant_id, document_id)
         share = DocumentShare(
+            id=str(_uuid.uuid4()),
             document_id=document_id,
             shared_with=shared_with.strip(),
             permission=permission,
             expires_at=expires_at,
         )
-        _shares.setdefault(document_id, []).append(share)
-        self._mutate()
+        self.db.conn.execute(
+            """INSERT INTO document_shares (id, document_id, tenant_id,
+               shared_with, permission, token, created_at, expires_at)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (share.id, share.document_id, tenant_key, share.shared_with,
+             share.permission.value, share.token, _utcnow_iso(),
+             share.expires_at.isoformat() if share.expires_at else None),
+        )
+        self.db.conn.commit()
         return share
 
     def list_shares(self, tenant_id: str, document_id: str) -> List[DocumentShare]:
         self.get_document(tenant_id, document_id)
-        return list(_shares.get(document_id, []))
+        rows = self.db.conn.execute(
+            """SELECT * FROM document_shares WHERE document_id=? AND tenant_id=?
+               ORDER BY created_at""",
+            (document_id, _tenant_key(tenant_id))).fetchall()
+        return [_db_row_to_share(r) for r in rows]
 
     # -- Utilidades --------------------------------------------------------
     def add_tag(self, tenant_id: str, document_id: str, tag: str) -> Document:
@@ -334,20 +378,24 @@ class DocumentService:
         tag = tag.strip()
         if tag and tag not in doc.tags:
             doc.tags.append(tag)
-            _documents[doc.id] = doc
-        self._mutate()
+            self.db.conn.execute(
+                "UPDATE documents SET tags=?, updated_at=? WHERE id=?",
+                (json.dumps(doc.tags), _utcnow_iso(), doc.id))
+            self.db.conn.commit()
         return doc
 
     def archive_document(self, tenant_id: str, document_id: str) -> Document:
         doc = self.get_document(tenant_id, document_id)
         doc.status = DocumentStatus.ARCHIVADO
-        _documents[doc.id] = doc
-        self._mutate()
+        self.db.conn.execute(
+            "UPDATE documents SET status=?, updated_at=? WHERE id=?",
+            (doc.status.value, _utcnow_iso(), doc.id))
+        self.db.conn.commit()
         return doc
 
     def _find_by_name(self, tenant_key: str, name: str) -> Optional[Document]:
-        for doc in _documents.values():
-            if doc.tenant_id == tenant_key and doc.name == name \
-               and doc.status != DocumentStatus.ELIMINADO:
-                return doc
-        return None
+        row = self.db.conn.execute(
+            """SELECT * FROM documents WHERE tenant_id=? AND name=? AND status!=?
+               LIMIT 1""",
+            (tenant_key, name, DocumentStatus.ELIMINADO.value)).fetchone()
+        return _db_row_to_document(row) if row else None

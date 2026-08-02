@@ -78,7 +78,7 @@ def build_document_router(db: Any = None,
             "require_api_key es obligatorio. Nunca construir el router sin auth."
         )
     auth_dep = require_api_key
-    service = DocumentService()
+    service = DocumentService(db=db)
     router = APIRouter(prefix=ROUTER_PREFIX, tags=["document-management"])
 
     @router.post("/upload", summary="Sube un documento.")

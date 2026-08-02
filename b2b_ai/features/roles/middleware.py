@@ -65,8 +65,12 @@ def make_require_permission(require_api_key: Callable[..., Any],
                 logger.info("standalone grant tenant=%s perm=%s (sin user_id)",
                             tenant_id, permission)
                 return auth_info
-            # P2-2: el primer usuario de un tenant se auto-asigna el rol admin.
-            svc.ensure_first_user_admin(user_id, tenant_id)
+            # P2-2 (REGRESIÓN P1): el bootstrap del primer admin NO ocurre aquí.
+            # Auto-promover aquí a admin a cualquier usuario sin rol rompe el
+            # aislamiento multi-tenant: un usuario de tenant B sin rol que logre
+            # contexto con tenant A obtendría admin en A. El bootstrap del primer
+            # usuario es responsabilidad de la capa de creación de api_key/seed
+            # (vía RolesService.ensure_first_user_admin), nunca del request RBAC.
             if not svc.check_permission(user_id, tenant_id, permission):
                 logger.info("permission denied user=%s tenant=%s perm=%s",
                             user_id, tenant_id, permission)

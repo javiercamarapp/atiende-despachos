@@ -205,10 +205,19 @@ class RolesService:
     def ensure_first_user_admin(self, user_id: str, tenant_id: str) -> bool:
         """P2-2: auto-asigna el rol admin al primer usuario de un tenant.
 
-        En modo DB, `user_id = api_keys.id` pero nada asigna roles de forma
-        automática. La primera vez que un usuario aparece en un tenant sin
-        ningún rol asignado, se le otorga el rol builtin `admin` (bootstrap),
-        de modo que RBAC nunca quede "muerto" por falta de vínculo user->rol.
+        Utilidad de BOOTSTRAP. En modo DB, `user_id = api_keys.id` pero nada
+        asigna roles de forma automática. La primera vez que un usuario aparece
+        en un tenant sin ningún rol asignado, se le otorga el rol builtin
+        `admin` (bootstrap), de modo que RBAC nunca quede "muerto" por falta
+        de vínculo user->rol.
+
+        ⚠️ INVARIANTE DE SEGURIDAD: este método DEBE llamarse SOLO desde la
+        capa de creación de api_key o desde el seed script (provisión
+        explícita), NUNCA dentro del request path del middleware RBAC.
+        Auto-promover dentro de un request rompe el aislamiento multi-tenant:
+        un usuario sin rol de otro tenant que consiga contexto con tenant ajeno
+        obtendría admin. El request path debe devolver 403 si el usuario no
+        tiene rol. (Ver test_p2_2_middleware_no_auto_asigna_admin_al_sin_rol.)
         Devuelve True si asignó el rol admin.
         """
         if not user_id or not tenant_id:

@@ -169,16 +169,17 @@ chk("router: missing tenant -> 400",
     c5.post("/api/v1/documents/upload",
             files={"file": ("x", b"d", "application/octet-stream")}).status_code == 400)
 
-# 6. persistence
-state = Path(tmp) / "s.json"
+# 6. persistence (real DB — survives service recreation)
+from b2b_ai.db.db import Database
 root = Path(tmp) / "docs"
-s1 = DocumentService(kind="local", root=str(root), state_file=str(state))
+_db = Database(str(Path(tmp) / "dm.db"))
+s1 = DocumentService(db=_db, kind="local", root=str(root))
 doc = s1.upload_document("T1", "persist.pdf", b"bytes", tags=["fiscal"])
-_reset_state()
-s2 = DocumentService(kind="local", root=str(root), state_file=str(state))
+# Nueva instancia contra la MISMA base: el dato sobrevive la recreación.
+s2 = DocumentService(db=_db, kind="local", root=str(root))
 re = s2.get_document("T1", doc.id)
 chk("persistence survives recreation",
-    state.exists() and re.name == "persist.pdf" and re.tags == ["fiscal"]
+    re.name == "persist.pdf" and re.tags == ["fiscal"]
     and s2.read_document_bytes("T1", doc.id) == b"bytes")
 
 print("=" * 50)

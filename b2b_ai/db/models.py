@@ -786,6 +786,61 @@ MIGRATIONS = [
         );
         """,
     },
+    {
+        "version": 20,
+        "name": "document_management",
+        "sql": """
+        -- Gestión documental (document_management). Persistencia real en DB
+        -- (antes vivía en un archivo JSON vía DOCS_STATE_FILE). El id es TEXT
+        -- (UUID) para conservar el contrato de la API existente.
+        CREATE TABLE IF NOT EXISTS documents (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'otro',
+            content_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+            size INTEGER NOT NULL DEFAULT 0,
+            sha256 TEXT NOT NULL DEFAULT '',
+            storage_path TEXT NOT NULL DEFAULT '',
+            version INTEGER NOT NULL DEFAULT 1,
+            metadata TEXT NOT NULL DEFAULT '{}',
+            tags TEXT NOT NULL DEFAULT '[]',
+            status TEXT NOT NULL DEFAULT 'ACTIVO',
+            created_by TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_documents_tenant ON documents(tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_documents_tenant_name ON documents(tenant_id, name);
+
+        CREATE TABLE IF NOT EXISTS document_versions (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL REFERENCES documents(id),
+            tenant_id TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            sha256 TEXT NOT NULL DEFAULT '',
+            storage_path TEXT NOT NULL DEFAULT '',
+            size INTEGER NOT NULL DEFAULT 0,
+            note TEXT NOT NULL DEFAULT '',
+            created_by TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_docversions_doc ON document_versions(document_id);
+        CREATE INDEX IF NOT EXISTS idx_docversions_doc_ver ON document_versions(document_id, version);
+
+        CREATE TABLE IF NOT EXISTS document_shares (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL REFERENCES documents(id),
+            tenant_id TEXT NOT NULL,
+            shared_with TEXT NOT NULL,
+            permission TEXT NOT NULL DEFAULT 'lectura',
+            token TEXT NOT NULL DEFAULT '',
+            created_at TEXT,
+            expires_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_docshares_doc ON document_shares(document_id);
+        """,
+    },
 ]
 
 

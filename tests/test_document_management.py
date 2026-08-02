@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
 """test_document_management.py — Tests del sistema de gestión documental.
 
+Persistencia en base de datos (SQLite dev / PostgreSQL prod) vía la capa
+`Database` de b2b_ai.db.db. Los datos sobreviven la recreación del servicio:
+cada test usa su propia base aislada (archivo temporal) y verifica que las
+mutaciones quedan persistidas.
+
 Cubre:
   - DocumentService.upload_document: hash SHA-256, versión 1, storage.
   - Versionado: re-subida del mismo nombre crea nueva versión (sin duplicar).
-  - search_documents: por query, tags, categoría.
+  - search_documents: por query, tags, categoría + aislamiento por tenant.
   - get_document / read_document_bytes: lectura y pertenencia por tenant.
   - get_version_history: historial ordenado desc.
   - share_document / list_shares.
   - add_tag / archive_document.
+  - Persistencia real en DB: los datos sobreviven a una recreación del servicio.
   - Backend LocalStorage: save/read/delete/exists y path traversal.
   - OCR: extract_text_from_pdf (pdfplumber) y extract_cfdi_data_from_xml.
   - Router /api/v1/documents/* (upload/search/get).
@@ -22,6 +28,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from b2b_ai.db.db import Database
 from b2b_ai.features.document_management.models import (
     Document,
     DocumentCategory,
@@ -34,7 +41,6 @@ from b2b_ai.features.document_management.ocr_integration import (
 )
 from b2b_ai.features.document_management.service import (
     DocumentService,
-    _reset_state,
 )
 from b2b_ai.features.document_management.storage import (
     LocalStorage,
@@ -44,16 +50,15 @@ from b2b_ai.features.document_management.storage import (
 from b2b_ai.features.document_management.routes import build_document_router
 
 
-@pytest.fixture(autouse=True)
-def _clean_state():
-    _reset_state()
-    yield
-    _reset_state()
+@pytest.fixture()
+def db(tmp_path):
+    """Base SQLite aislada por test (archivo temporal en tmp_path)."""
+    return Database(str(tmp_path / "docs.db"))
 
 
 @pytest.fixture()
-def service(tmp_path):
-    return DocumentService(kind="local", root=str(tmp_path / "docs"))
+def service(tmp_path, db):
+    return DocumentService(db=db, kind="local", root=str(tmp_path / "docs"))
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +168,37 @@ def test_add_tag_and_archive(service):
 
 
 # ---------------------------------------------------------------------------
+# Persistencia real en DB
+# ---------------------------------------------------------------------------
+
+def test_persistence_survives_service_recreation(tmp_path, db):
+    """Los datos persistidos en DB sobreviven a una recreación del servicio."""
+    root = str(tmp_path / "docs")
+    s1 = DocumentService(db=db, kind="local", root=root)
+    doc = s1.upload_document("T1", "persist.pdf", b"bytes", tags=["fiscal"])
+    s1.add_tag("T1", doc.id, "extra")
+    s1.share_document("T1", doc.id, "socio@x.com")
+
+    # Nueva instancia del servicio contra la MISMA base: estado presente.
+    s2 = DocumentService(db=db, kind="local", root=root)
+    re = s2.get_document("T1", doc.id)
+    assert re.name == "persist.pdf"
+    assert re.tags == ["fiscal", "extra"]
+    assert s2.read_document_bytes("T1", doc.id) == b"bytes"
+    assert len(s2.get_version_history("T1", doc.id)) == 1
+    assert len(s2.list_shares("T1", doc.id)) == 1
+
+
+def test_persistence_isolated_by_tenant(tmp_path, db):
+    root = str(tmp_path / "docs")
+    s1 = DocumentService(db=db, kind="local", root=root)
+    doc = s1.upload_document("T1", "doc.pdf", b"data")
+    s2 = DocumentService(db=db, kind="local", root=root)
+    with pytest.raises(KeyError):
+        s2.get_document("T2", doc.id)
+
+
+# ---------------------------------------------------------------------------
 # Backend LocalStorage
 # ---------------------------------------------------------------------------
 
@@ -193,8 +229,6 @@ def test_get_backend_factory(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_extract_cfdi_from_xml():
-    # XML mínimo que el parser reconoce como CFDI (se tolera error si el
-    # esquema no es completo, pero debe devolver dict sin crashear).
     xml = b"""<?xml version="1.0"?>
     <cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
         Version="4.0" Serie="A" Folio="1" Fecha="2024-03-15T10:00:00"
@@ -218,7 +252,6 @@ def test_extract_cfdi_from_xml():
       </cfdi:Impuestos>
     </cfdi:Comprobante>"""
     data = extract_cfdi_data_from_xml(xml)
-    # Si el parser completo falla por falta de sello, devuelve dict con error
     if data.get("error"):
         assert "error" in data
     else:
@@ -227,7 +260,6 @@ def test_extract_cfdi_from_xml():
 
 def test_extract_text_from_pdf_empty():
     assert extract_text_from_pdf(b"") == ""
-    # Contenido no-PDF devuelve "" sin crashear
     assert extract_text_from_pdf(b"not a pdf") == ""
 
 
@@ -235,20 +267,19 @@ def test_extract_text_from_pdf_empty():
 # Router
 # ---------------------------------------------------------------------------
 
-def _make_client():
+def _make_client(tmp_path):
     app = FastAPI()
 
     def _auth():
         return {"tenant_id": "T1", "user_id": "u1"}
 
-    app.include_router(build_document_router(db=None, require_api_key=lambda: _auth()))
+    db = Database(str(tmp_path / "router.db"))
+    app.include_router(build_document_router(db=db, require_api_key=lambda: _auth()))
     return TestClient(app)
 
 
 def test_router_upload_search_get(tmp_path):
-    client = _make_client()
-    # reset in-memory docs + apuntar storage a tmp
-    _reset_state()
+    client = _make_client(tmp_path)
 
     resp = client.post(
         "/api/v1/documents/upload",
@@ -275,10 +306,39 @@ def test_router_upload_search_get(tmp_path):
 
 
 def test_router_upload_empty_returns_400(tmp_path):
-    client = _make_client()
-    _reset_state()
+    client = _make_client(tmp_path)
     resp = client.post(
         "/api/v1/documents/upload",
         files={"file": ("empty.bin", b"", "application/octet-stream")},
     )
+    assert resp.status_code == 400
+
+
+def test_router_tenant_isolation(tmp_path):
+    app_a = FastAPI()
+    app_a.include_router(build_document_router(
+        db=Database(str(tmp_path / "iso.db")),
+        require_api_key=lambda: {"tenant_id": "TENANT_A", "user_id": "ua"}))
+    client_a = TestClient(app_a)
+    up = client_a.post("/api/v1/documents/upload",
+                       files={"file": ("f.txt", b"secret-A", "text/plain")})
+    assert up.status_code == 200
+    doc_id = up.json()["document"]["id"]
+
+    app_b = FastAPI()
+    app_b.include_router(build_document_router(
+        db=Database(str(tmp_path / "iso.db")),
+        require_api_key=lambda: {"tenant_id": "TENANT_B", "user_id": "ub"}))
+    client_b = TestClient(app_b)
+    assert client_b.get(f"/api/v1/documents/{doc_id}").status_code == 404
+
+
+def test_router_missing_tenant_400(tmp_path):
+    app = FastAPI()
+    app.include_router(build_document_router(
+        db=Database(str(tmp_path / "notenant.db")),
+        require_api_key=lambda: {"user_id": "u"}))
+    client = TestClient(app)
+    resp = client.post("/api/v1/documents/upload",
+                       files={"file": ("x", b"d", "application/octet-stream")})
     assert resp.status_code == 400
