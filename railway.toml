@@ -20,6 +20,7 @@ startCommand = "sh -c 'uvicorn b2b_ai.api.app:app --host 0.0.0.0 --port ${PORT:-
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 healthcheckInterval = 15
+healthcheckStartPeriod = 60
 
 # Política de reinicio en caso de fallo
 restartPolicyType = "ON_FAILURE"
