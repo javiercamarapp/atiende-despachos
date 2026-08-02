@@ -31,7 +31,7 @@ import csv
 import io
 import uuid as _uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from b2b_ai.features.conciliacion.models import (
     Adjustment,
@@ -458,7 +458,7 @@ class ConciliationService(ManualProcessMixin):
 
         # Detect duplicates in bank transactions
         if bank_txns:
-            seen_amounts: Dict[float, List[str]] = {}
+            seen_amounts: Dict[Tuple[float, str], List[str]] = {}
             for txn in bank_txns:
                 key = (txn.amount, txn.date)
                 if key not in seen_amounts:

@@ -86,6 +86,14 @@ class IvaData(BaseModel):
         description="IVA debit balance (iva_cobrado > iva_pagado)",
         ge=0,
     )
+    requires_human_review: bool = Field(
+        default=False,
+        description="Requiere revisión humana",
+    )
+    human_review_reason: Optional[str] = Field(
+        default=None,
+        description="Razón de revisión humana",
+    )
 
     @field_validator("saldo_favor", "saldo_contra", mode="before")
     @classmethod
