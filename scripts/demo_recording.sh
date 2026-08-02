@@ -55,10 +55,12 @@ echo "▶ Generando TRANSCRIPCION.md …"
   echo "## Salida"
   echo ""
   echo '```text'
-  # Elimina secuencias ANSI y CR, conserva el texto legible.
+  # Elimina secuencias ANSI, CR, backspaces y el eco de EOF de `script`.
   sed -e 's/\x1b\[[0-9;]*[a-zA-Z]//g' \
       -e 's/\r//g' \
-      "$RAW" 2>/dev/null | grep -v '^{"ts":' || true
+      -e 's/\x08//g' \
+      -e 's/\^D//g' \
+      "$RAW" 2>/dev/null | grep -v '^{"ts":' | grep -vE '^[[:space:]]*$' || true
   echo '```'
 } > "$MD"
 echo "  Transcripción: $MD"
