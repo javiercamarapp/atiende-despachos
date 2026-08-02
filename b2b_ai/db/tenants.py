@@ -122,7 +122,21 @@ class TenantManager:
     def _issue_api_key(self, tenant_id: int, name: str = "onboarding") -> str:
         import secrets
         key = secrets.token_hex(20)
-        self.db.create_api_key(tenant_id, name, key)
+        api_key_id, _ = self.db.create_api_key(tenant_id, name, key)
+        # RBAC bootstrap (P2-2): el primer usuario/API key de un tenant recibe
+        # el rol admin de forma explícita en la capa de provisión (nunca en el
+        # request path). En modo DB, user_id = api_keys.id; pasamos los MISMOS
+        # valores que el middleware RBAC resolverá después para que los
+        # permisos matcheen (aislamiento multi-tenant intacto: solo se otorga
+        # admin a la key recién creada de ESTE tenant).
+        try:
+            from b2b_ai.features.roles.service import RolesService
+            RolesService().ensure_first_user_admin(
+                user_id=str(api_key_id), tenant_id=str(tenant_id))
+        except Exception as exc:  # noqa: BLE001 — el bootstrap no debe romper la provisión
+            import logging as _logging
+            _logging.getLogger("b2b_ai.tenants").warning(
+                "ensure_first_user_admin skipped: %s", exc)
         return key
 
     # ---- Lectura / validación (aislamiento) ------------------------------

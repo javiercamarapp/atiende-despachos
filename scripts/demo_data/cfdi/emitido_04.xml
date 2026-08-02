@@ -7,7 +7,8 @@
     Fecha="2026-07-18T09:30:00"
     FormaPago="03" MetodoPago="PUE" Moneda="MXN"
     TipoDeComprobante="I" Exportacion="01"
-    LugarExpedicion="06600" SubTotal="25000.00" Total="29000.00">
+    LugarExpedicion="06600" SubTotal="25000.00" Total="29000.00"
+    NoCertificado="00001000000000000000" Sello="T1dGbG93b2ZDb21wb2NfVGVzdA==">
     <cfdi:Emisor Rfc="LIK920101X01" Nombre="LIKIDA AI DESPACHO CONTABLE, S.C." RegimenFiscal="601"/>
     <cfdi:Receptor Rfc="SLI940404GH4" Nombre="SERVICIOS LOGISTICOS INTEGRALES, S.A. DE C.V."
         DomicilioFiscalReceptor="09000" RegimenFiscalReceptor="603" UsoCFDI="G03"/>

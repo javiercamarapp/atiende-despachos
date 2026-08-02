@@ -7,7 +7,8 @@
     Fecha="2026-07-08T11:00:00"
     FormaPago="03" MetodoPago="PUE" Moneda="MXN"
     TipoDeComprobante="I" Exportacion="01"
-    LugarExpedicion="06600" SubTotal="9000.00" Total="10440.00">
+    LugarExpedicion="06600" SubTotal="9000.00" Total="10440.00"
+    NoCertificado="00001000000000000000" Sello="T1dGbG93b2ZDb21wb2NfVGVzdA==">
     <cfdi:Emisor Rfc="LIK920101X01" Nombre="LIKIDA AI DESPACHO CONTABLE, S.C." RegimenFiscal="601"/>
     <cfdi:Receptor Rfc="MAI920202CD2" Nombre="MANUFACTURERA INDUSTRIAL DEL NORTE, S.A.P.I. DE C.V."
         DomicilioFiscalReceptor="64000" RegimenFiscalReceptor="603" UsoCFDI="G03"/>

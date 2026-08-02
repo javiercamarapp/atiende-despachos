@@ -137,6 +137,10 @@ from b2b_ai.audit.middleware import install_audit_middleware
 from b2b_ai.api.routes_health import build_health_router
 from b2b_ai.api.routes_invoices import build_invoices_router
 from b2b_ai.api.routes_arco import build_arco_router
+from b2b_ai.features.document_management.routes import build_document_router
+from b2b_ai.features.roles.routes import build_roles_router
+from b2b_ai.features.pipeline.routes import build_pipeline_router
+from b2b_ai.features.bank_feeds.routes import build_bank_feeds_router
 
 # Logger estructurado JSON (monitoring). Distinto del ToolCallLogger de
 # b2b_ai.tools.logger (auditoría de tools en DB): este emite JSON a stdout.
@@ -1062,6 +1066,18 @@ def create_app(db=None):
     # Close Management (Agente 3): cierre contable mensual autónomo.
     app.include_router(build_close_management_router(db, require_api_key))
     app.include_router(build_bookkeeping_router(db, require_api_key))
+
+    # Gestión documental: upload, OCR, versionado y sharing (FASE document).
+    app.include_router(build_document_router(db, require_api_key))
+
+    # Roles y permisos (RBAC): administración de roles/permisos por tenant.
+    app.include_router(build_roles_router(db, require_api_key))
+
+    # Pipeline end-to-end: parse -> adapt -> bookkeeping -> conciliación.
+    app.include_router(build_pipeline_router(db, require_api_key))
+
+    # Bank feeds: estados de cuenta y conciliación bancaria automatizada.
+    app.include_router(build_bank_feeds_router(db, require_api_key))
 
     # Reportes PDF (FASE reportes): generación + descarga de PDFs.
     app.include_router(build_reports_router(db, require_api_key),

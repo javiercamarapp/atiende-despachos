@@ -50,8 +50,13 @@ def make_require_permission(require_api_key: Callable[..., Any],
             raise RolesError("Permiso vacío", code="invalid_permission")
 
         def dependency(auth_info: Dict[str, Any] = Depends(require_api_key)) -> Dict[str, Any]:
-            user_id = (auth_info or {}).get("user_id")
-            tenant_id = (auth_info or {}).get("tenant_id")
+            # El store RBAC guarda user_id/tenant_id como str y compara con ==.
+            # En modo DB, auth resuelve api_keys.id y tenant_id como int; en los
+            # tests llegan como str. Coercemos a str aquí para que la comparación
+            # sea consistente en AMBOS caminos (si no, un admin almacenado como
+            # "7" nunca matchea contra el int 7 -> 403 en todo require_permission).
+            user_id = str((auth_info or {}).get("user_id") or "")
+            tenant_id = str((auth_info or {}).get("tenant_id") or "")
             if not tenant_id:
                 raise HTTPException(
                     status_code=403,
