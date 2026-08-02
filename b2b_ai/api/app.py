@@ -120,7 +120,7 @@ from b2b_ai.api.rate_limiter import install_enterprise_rate_limit
 from b2b_ai.api.openapi_docs import install_openapi_docs
 from b2b_ai.api.versioning import install_versioning
 from b2b_ai.infrastructure.graceful_shutdown import (
-    GracefulShutdownHandler, request_tracker, is_draining)
+    ShutdownManager, request_tracker, is_draining)
 from b2b_ai.infrastructure.health import (
     HealthCheckRegistry, database_health_check)
 from b2b_ai.features.reconciliation_agent.routes import build_reconcile_agent_router

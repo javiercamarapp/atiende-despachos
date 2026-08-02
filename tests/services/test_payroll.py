@@ -19,7 +19,10 @@ class TestCalcISR:
     def test_first_bracket(self):
         r = calc_isr(500)
         assert float(r["impuesto"]) > 0
-        assert r["rango_aplicado"]["limite_inferior"] == "312.42"
+        # FIS-08: calc_isr now uses 2025 tariff by default
+        # 1st bracket: 0.00-416.34 (0%), 2nd bracket: 416.35-3508.42 (6.40%)
+        # ingreso 500 falls in bracket 2 with limite_inferior=416.35
+        assert r["rango_aplicado"]["limite_inferior"] == "416.35"
 
     def test_high_income(self):
         r = calc_isr(400000)
@@ -39,7 +42,9 @@ class TestCalcISR:
         r = calc_isr(10000)
         assert r["rango_aplicado"] is not None
         imp = float(r["impuesto"])
-        assert 1400 < imp < 1700
+        # FIS-08: 2025 tariff — bracket 6 (8564.68-17128.42, cuota 952.82, 23.52%)
+        # impuesto = 952.82 + (10000-8564.68)*0.2352 = 1290.33
+        assert 1200 < imp < 1400
 
 
 class TestCalcIMSS:
@@ -58,25 +63,27 @@ class TestCalcIMSS:
         assert "LSS" in r["referencia"]
 
     def test_known_value_sbc_1000(self):
-        """[36] Anchor to legal rate: SBC=1000 → known expected total.
+        """[36] Anchor to legal rate: SBC=1000, UMA=113.15 (2025).
 
-        With 2025 IMSS worker rates (30 dias):
-          EYM (base+prest_din+prest_esp + excedente_3uma):
-            base:      0.0025 × 1000 × 30 =  75.00
-            prest_din: 0.0075 × 1000 × 30 = 225.00
-            prest_esp: 0.00375 × 1000 × 30 = 112.50
-            excedente: (1000 - 3×108.57) × 0.004 × 30 = 81.00
-            Subtotal EYM = 493.50
-          IV (Invalidez y Vida):           0.00625 × 1000 × 30 = 187.50
-          RCVA (Retiro, Cesantía):         0.01125 × 1000 × 30 = 337.50
-          GMP (Gastos Médicos Pensionados): 0.00375 × 1000 × 30 = 112.50
-          Total = 1131.00
+        With 2025 IMSS worker rates (30 dias) and UMA diaria 113.15:
+          EYM base:      0.0025 × 1000 × 30 =  75.00
+          prest_din:     0.0075 × 1000 × 30 = 225.00
+          prest_esp:     0.00375 × 1000 × 30 = 112.50
+          excedente:     (1000 - 3×113.15) × 0.004 × 30 = 79.56
+          Subtotal EYM = 492.06
+          IV:            0.00625 × 1000 × 30 = 187.50
+          RCVA:          0.01125 × 1000 × 30 = 337.50
+          GMP:           0.00375 × 1000 × 30 = 112.50
+          Total = 1129.56
         """
         r = calc_imss(1000)
         total = Decimal(r["total"])
-        assert total == Decimal("1131.00"), (
-            f"IMSS total for SBC=1000, 30d should be 1131.00, got {total}. "
-            "Check RATES constants against LSS arts. 105-109.")
+        # FIS-10: With UMA 2025=113.15, the correct total is 1129.20
+        # (rounding accumulated from daily components × 30 days)
+        assert total == Decimal("1129.20"), (
+            f"IMSS total for SBC=1000, 30d should be 1129.20, got {total}. "
+            "Check RATES constants against LSS arts. 105-109."
+        )
 
 
 class TestCalcINFONAVIT:

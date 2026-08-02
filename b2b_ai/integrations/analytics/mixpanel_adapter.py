@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
 """mixpanel_adapter.py — Mixpanel analytics adapter."""
 from __future__ import annotations
+
+import base64
+import json
 import logging
 import os
 import uuid as _uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
+
 import httpx
+
 from b2b_ai.integrations.analytics.adapter import AnalyticsAdapter
 from b2b_ai.integrations.analytics.models import (
     AnalyticsConfig, AnalyticsEvent, AnalyticsEventResult, AnalyticsProvider,
     AnalyticsQuery, AnalyticsQueryResult,
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,7 +54,6 @@ class MixpanelAdapter(AnalyticsAdapter):
             },
         }
         try:
-            import base64, json
             encoded = base64.b64encode(json.dumps(payload).encode()).decode()
             resp = httpx.get(f"{self._track_url}?data={encoded}", timeout=self.config.timeout)
             if resp.status_code == 200 and resp.json().get("status") == 1:
@@ -62,7 +67,12 @@ class MixpanelAdapter(AnalyticsAdapter):
         self._ensure_connected()
         try:
             auth = (self.config.api_key, self.config.api_secret or "")
-            resp = httpx.get(f"{self._query_url}/events", params={"event": f'["{query.metric}"]'}, auth=auth, timeout=self.config.timeout)
+            resp = httpx.get(
+                f"{self._query_url}/events",
+                params={"event": f'["{query.metric}"]'},
+                auth=auth,
+                timeout=self.config.timeout,
+            )
             if resp.status_code == 200:
                 return AnalyticsQueryResult(success=True, data=resp.json().get("data", {}).get("values", {}))
             return AnalyticsQueryResult(success=False, metadata={"message": f"HTTP {resp.status_code}"})

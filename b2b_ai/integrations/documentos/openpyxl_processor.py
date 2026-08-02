@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 """openpyxl_processor.py — Excel generation via openpyxl."""
 from __future__ import annotations
+
 import logging
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
 from b2b_ai.integrations.documentos.adapter import DocumentProcessor
 from b2b_ai.integrations.documentos.models import (
     ExcelExportRequest, ExcelExportResult, OCRRequest, OCRResult,
     PDFRequest, PDFResult, XMLParseRequest, XMLParseResult,
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +35,7 @@ class OpenPyxlProcessor(DocumentProcessor):
         start = time.time()
         try:
             from openpyxl import Workbook
+
             wb = Workbook()
             ws = wb.active
             ws.title = request.sheet_name
@@ -48,7 +52,10 @@ class OpenPyxlProcessor(DocumentProcessor):
             wb.save(output)
             size = os.path.getsize(output)
             elapsed = (time.time() - start) * 1000
-            return ExcelExportResult(success=True, file_path=output, file_size=size, num_rows=len(request.data), num_columns=len(headers), processing_time_ms=elapsed)
+            return ExcelExportResult(
+                success=True, file_path=output, file_size=size,
+                num_rows=len(request.data), num_columns=len(headers),
+            )
         except ImportError:
             logger.warning("OpenPyxlProcessor: openpyxl not installed")
             return ExcelExportResult(success=False, file_path="")

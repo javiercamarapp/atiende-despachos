@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """lxml_processor.py — XML parsing and CFDI validation via lxml."""
 from __future__ import annotations
+
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
 from b2b_ai.integrations.documentos.adapter import DocumentProcessor
 from b2b_ai.integrations.documentos.models import (
     ExcelExportRequest, ExcelExportResult, OCRRequest, OCRResult,
     PDFRequest, PDFResult, XMLParseRequest, XMLParseResult,
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,8 +28,9 @@ class LXMLProcessor(DocumentProcessor):
         start = time.time()
         try:
             from lxml import etree
+
             root = etree.fromstring(request.xml_content.encode("utf-8"))
-            data = {}
+            data: Dict[str, Any] = {}
             tags = request.extract_tags
             if tags:
                 ns = {"cfdi": request.namespace} if request.namespace else {}
@@ -35,6 +39,7 @@ class LXMLProcessor(DocumentProcessor):
                     data[tag] = [el.text or el.attrib for el in elements]
             else:
                 data = {el.tag: el.text or el.attrib for el in root.iter()}
+
             if request.xsd_schema:
                 try:
                     schema = etree.XMLSchema(etree.fromstring(request.xsd_schema.encode("utf-8")))
@@ -43,7 +48,7 @@ class LXMLProcessor(DocumentProcessor):
                     is_valid = False
             else:
                 is_valid = True
-            elapsed = (time.time() - start) * 1000
+
             return XMLParseResult(success=True, data=data, is_valid=is_valid)
         except ImportError:
             logger.warning("LXMLProcessor: lxml not installed")

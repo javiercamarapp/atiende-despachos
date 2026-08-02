@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
 """amplitude_adapter.py — Amplitude analytics adapter."""
 from __future__ import annotations
+
 import logging
 import os
 import uuid as _uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
+
 import httpx
+
 from b2b_ai.integrations.analytics.adapter import AnalyticsAdapter
 from b2b_ai.integrations.analytics.models import (
     AnalyticsConfig, AnalyticsEvent, AnalyticsEventResult, AnalyticsProvider,
     AnalyticsQuery, AnalyticsQueryResult,
 )
+
 logger = logging.getLogger(__name__)
 
 

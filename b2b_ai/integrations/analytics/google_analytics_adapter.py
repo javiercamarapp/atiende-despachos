@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
 """google_analytics_adapter.py — Google Analytics 4 adapter."""
 from __future__ import annotations
+
 import logging
 import os
 import uuid as _uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
+
 import httpx
+
 from b2b_ai.integrations.analytics.adapter import AnalyticsAdapter
 from b2b_ai.integrations.analytics.models import (
     AnalyticsConfig, AnalyticsEvent, AnalyticsEventResult, AnalyticsProvider,
     AnalyticsQuery, AnalyticsQueryResult,
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,7 +49,8 @@ class GoogleAnalyticsAdapter(AnalyticsAdapter):
         try:
             resp = httpx.post(
                 f"{self._base_url}?measurement_id={self.config.api_key}&api_secret={self.config.api_secret}",
-                json=payload, timeout=self.config.timeout,
+                json=payload,
+                timeout=self.config.timeout,
             )
             if resp.status_code in (200, 204):
                 logger.info(f"GoogleAnalyticsAdapter: event '{event.event_name}' sent")

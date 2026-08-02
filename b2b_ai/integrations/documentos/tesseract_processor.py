@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """tesseract_processor.py — OCR via Tesseract."""
 from __future__ import annotations
+
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
 from b2b_ai.integrations.documentos.adapter import DocumentProcessor
 from b2b_ai.integrations.documentos.models import (
     ExcelExportRequest, ExcelExportResult, OCRRequest, OCRResult,
     PDFRequest, PDFResult, XMLParseRequest, XMLParseResult,
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,6 +32,7 @@ class TesseractProcessor(DocumentProcessor):
         try:
             import pytesseract
             from PIL import Image
+
             if request.image_bytes:
                 import io
                 img = Image.open(io.BytesIO(request.image_bytes))
@@ -36,6 +40,7 @@ class TesseractProcessor(DocumentProcessor):
                 img = Image.open(request.image_path)
             else:
                 return OCRResult(success=False, text="", confidence=0.0, processing_time_ms=0)
+
             text = pytesseract.image_to_string(img, lang=request.language)
             elapsed = (time.time() - start) * 1000
             return OCRResult(success=True, text=text.strip(), confidence=0.85, processing_time_ms=elapsed)

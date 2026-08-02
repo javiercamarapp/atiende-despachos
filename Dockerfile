@@ -42,6 +42,12 @@ COPY landing ./landing
 RUN pip install --prefix=/install --no-cache-dir . \
     && pip install --prefix=/install --no-cache-dir "uvicorn[standard]>=0.20"
 
+# Install Playwright + Chromium for browser automation (scraping / PDF render).
+# PYTHONPATH is needed because --prefix installs to /install, not the system site-packages.
+RUN pip install --prefix=/install --no-cache-dir playwright \
+    && PYTHONPATH=/install/lib/python3.11/site-packages \
+       python -m playwright install --with-deps chromium
+
 # ---- Stage 2: runtime — solo lo necesario para servir ----
 FROM python:3.11-slim-bookworm AS runtime
 
@@ -68,6 +74,22 @@ LABEL org.opencontainers.image.title="b2b-ai" \
 COPY --from=builder /install /usr/local
 COPY --from=builder /build/landing /app/landing
 
+# Install Chromium dependencies for Playwright
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+       libcups2 libdrm2 libdbus-1-3 libxkbcommon0 \
+       libatspi2.0-0 libxcomposite1 libxdamage1 libxfixes3 \
+       libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 \
+       libwayland-client0 xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Playwright browsers from builder
+COPY --from=builder /root/.cache/ms-playwright /home/b2b/.cache/ms-playwright
+RUN chown -R b2b:b2b /home/b2b/.cache
+
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/b2b/.cache/ms-playwright
+
 # Herramienta mínima para el healthcheck sin traer toda la app.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
@@ -86,6 +108,9 @@ EXPOSE 8000
 # Healthcheck del API vía curl (más robusto que urllib para stack).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8000/health || exit 1
+
+# Smoke test: verify Playwright + Chromium work
+RUN python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(headless=True); b.close(); p.stop(); print('Playwright+Chromium OK')"
 
 # Workers configurables vía B2B_WORKERS. En producción detrás de Nginx se
 # recomienda B2B_WORKERS=$(nproc). El contenedor con SQLite debe correr con 1

@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 """reportlab_processor.py — PDF generation via ReportLab."""
 from __future__ import annotations
+
 import logging
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
 from b2b_ai.integrations.documentos.adapter import DocumentProcessor
 from b2b_ai.integrations.documentos.models import (
     ExcelExportRequest, ExcelExportResult, OCRRequest, OCRResult,
     PDFRequest, PDFResult, XMLParseRequest, XMLParseResult,
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +28,7 @@ class ReportLabProcessor(DocumentProcessor):
             from reportlab.lib.pagesizes import letter, A4, legal
             from reportlab.pdfgen import canvas
             from reportlab.lib.units import inch
+
             sizes = {"letter": letter, "A4": A4, "legal": legal}
             page_size = sizes.get(request.page_size, letter)
             output = request.output_path or "/tmp/reportlab_output.pdf"
