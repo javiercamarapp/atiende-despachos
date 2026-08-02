@@ -51,6 +51,16 @@ class Permission:
     SETTINGS_READ = "settings:read"
     SETTINGS_WRITE = "settings:write"
     USERS_MANAGE = "users:manage"
+    # Pipeline end-to-end (pipeline/routes.py): ejecución del flujo CFDI →
+    # bookkeeping → conciliación.
+    PIPELINE_RUN = "pipeline:run"
+    # Bank feeds (bank_feeds/routes.py): lectura de cuentas/transacciones,
+    # sincronización de feeds y gestión/categorización.
+    BANK_FEEDS_VIEW = "bank_feeds:view"
+    BANK_FEEDS_SYNC = "bank_feeds:sync"
+    BANK_FEEDS_MANAGE = "bank_feeds:manage"
+    # Gestión documental (document_management/routes.py): borrado físico.
+    DOCUMENTS_DELETE = "documents:delete"
 
     ALL = (
         CFDI_READ, CFDI_WRITE,
@@ -59,6 +69,9 @@ class Permission:
         BILLING_READ, BILLING_WRITE,
         SETTINGS_READ, SETTINGS_WRITE,
         USERS_MANAGE,
+        PIPELINE_RUN,
+        BANK_FEEDS_VIEW, BANK_FEEDS_SYNC, BANK_FEEDS_MANAGE,
+        DOCUMENTS_DELETE,
     )
 
 

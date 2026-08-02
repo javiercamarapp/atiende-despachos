@@ -21,6 +21,9 @@ from b2b_ai.features.pipeline.orchestrator import (
     EndToEndOrchestrator,
     EndToEndPipelineError,
 )
+from b2b_ai.features.roles.middleware import make_require_permission
+from b2b_ai.features.roles.models import Permission
+from b2b_ai.features.roles.service import RolesService
 
 
 class CfdiFileIn(BaseModel):
@@ -53,6 +56,7 @@ def build_pipeline_router(
             "Nunca construir el router sin auth."
         )
     auth_dep = require_api_key
+    require_permission = make_require_permission(require_api_key, RolesService())
     orchestrator = EndToEndOrchestrator()
 
     router = APIRouter(prefix="/api/v1/pipeline", tags=["pipeline"])
@@ -65,6 +69,7 @@ def build_pipeline_router(
     async def run_pipeline(
         req: PipelineRunRequest,
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.PIPELINE_RUN)),
     ) -> dict:
         """Un solo endpoint que hace todo el flujo.
 

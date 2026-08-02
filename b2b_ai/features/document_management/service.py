@@ -393,6 +393,38 @@ class DocumentService:
         self.db.conn.commit()
         return doc
 
+    def delete_document(self, tenant_id: str, document_id: str) -> Document:
+        """Eliminación física (hard delete) de un documento y sus dependencias.
+
+        QA-235: solo existía el soft-delete `archive_document` (status →
+        ARCHIVADO). Este método borra la fila de `documents` de verdad, junto
+        con sus versiones y comparticiones.
+
+        Las migraciones (MIGRATIONS v20 SQLite / alembic 0009 PG) definen
+        `document_versions.document_id` y `document_shares.document_id` como
+        FK sin `ON DELETE CASCADE`, así que eliminamos los hijos de forma
+        explícita ANTES de borrar el documento padre (funciona igual en SQLite
+        y PostgreSQL, sin depender del cascade del motor).
+        """
+        tenant_key = _tenant_key(tenant_id)
+        doc = self.get_document(tenant_id, document_id)  # valida pertenencia
+        self.db.conn.execute(
+            "DELETE FROM document_shares WHERE document_id=? AND tenant_id=?",
+            (document_id, tenant_key))
+        self.db.conn.execute(
+            "DELETE FROM document_versions WHERE document_id=? AND tenant_id=?",
+            (document_id, tenant_key))
+        self.db.conn.execute(
+            "DELETE FROM documents WHERE id=? AND tenant_id=?",
+            (document_id, tenant_key))
+        self.db.conn.commit()
+        # Best-effort: eliminar también el blob de storage si existe.
+        try:
+            self.storage.delete(doc.storage_path)
+        except StorageBackendError:
+            pass
+        return doc
+
     def _find_by_name(self, tenant_key: str, name: str) -> Optional[Document]:
         row = self.db.conn.execute(
             """SELECT * FROM documents WHERE tenant_id=? AND name=? AND status!=?

@@ -6,6 +6,7 @@ Endpoints (todos autenticados por API key):
     POST /api/v1/documents/upload                 Sube un documento (multipart).
     GET  /api/v1/documents/search                 Busca documentos (query/tags/categoría).
     GET  /api/v1/documents/{id}                   Obtiene metadata de un documento.
+    DELETE /api/v1/documents/{id}                 Elimina físicamente un documento. [documents:delete]
     GET  /api/v1/documents/{id}/content           Descarga el contenido.
     GET  /api/v1/documents/{id}/versions          Historial de versiones.
     POST /api/v1/documents/{id}/share             Comparte el documento.
@@ -34,6 +35,9 @@ from b2b_ai.features.document_management.service import (
     DocumentService,
     _reset_state as _docs_reset_state,
 )
+from b2b_ai.features.roles.middleware import make_require_permission
+from b2b_ai.features.roles.models import Permission
+from b2b_ai.features.roles.service import RolesService
 
 ROUTER_PREFIX = "/api/v1/documents"
 
@@ -78,6 +82,7 @@ def build_document_router(db: Any = None,
             "require_api_key es obligatorio. Nunca construir el router sin auth."
         )
     auth_dep = require_api_key
+    require_permission = make_require_permission(require_api_key, RolesService())
     service = DocumentService(db=db)
     router = APIRouter(prefix=ROUTER_PREFIX, tags=["document-management"])
 
@@ -157,6 +162,20 @@ def build_document_router(db: Any = None,
         except KeyError:
             raise HTTPException(status_code=404, detail="Documento no encontrado.")
         return {"ok": True, "document": doc.to_dict()}
+
+    @router.delete("/{document_id}", summary="Elimina físicamente un documento. [documents:delete]")
+    def delete_document(document_id: str,
+                        auth_info: dict = Depends(auth_dep),
+                        _perm: dict = Depends(require_permission(Permission.DOCUMENTS_DELETE))) -> dict:
+        """Hard delete: borra la fila de `documents` y sus dependencias
+        (versions + shares) junto con el blob de storage."""
+        tenant_id = _require_tenant(auth_info)
+        try:
+            doc = service.delete_document(tenant_id, document_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="Documento no encontrado.")
+        return {"ok": True, "message": "Documento eliminado.",
+                "document": doc.to_dict()}
 
     @router.get("/{document_id}/content", summary="Descarga el contenido del documento.")
     def get_content(document_id: str, auth_info: dict = Depends(auth_dep)) -> Response:

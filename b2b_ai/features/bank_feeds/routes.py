@@ -28,6 +28,9 @@ from b2b_ai.features.bank_feeds.models import (
     TransactionStatus,
 )
 from b2b_ai.features.bank_feeds.service import BankFeedService
+from b2b_ai.features.roles.middleware import make_require_permission
+from b2b_ai.features.roles.models import Permission
+from b2b_ai.features.roles.service import RolesService
 
 logger = logging.getLogger("b2b_ai.bank_feeds")
 
@@ -75,6 +78,7 @@ def build_bank_feeds_router(db: Any = None, require_api_key: Any = None) -> APIR
             "require_api_key es obligatorio. Nunca construir el router sin auth."
         )
     auth_dep = require_api_key
+    require_permission = make_require_permission(require_api_key, RolesService())
     service = BankFeedService(db=db)
     router = APIRouter(prefix="/api/v1/bank-feeds", tags=["bank-feeds", "conciliacion"])
 
@@ -83,6 +87,7 @@ def build_bank_feeds_router(db: Any = None, require_api_key: Any = None) -> APIR
     def connect_account(
         req: ConnectAccountRequest,
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.BANK_FEEDS_MANAGE)),
     ) -> dict:
         """Registra una cuenta bancaria para importar transacciones."""
         tenant_id = req.tenant_id or auth_info.get("tenant_id") or ""
@@ -103,6 +108,7 @@ def build_bank_feeds_router(db: Any = None, require_api_key: Any = None) -> APIR
                 response_model=None)
     def list_accounts(
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.BANK_FEEDS_VIEW)),
     ) -> dict:
         tenant_id = auth_info.get("tenant_id") or ""
         accounts = service.list_accounts(tenant_id=tenant_id)
@@ -110,7 +116,8 @@ def build_bank_feeds_router(db: Any = None, require_api_key: Any = None) -> APIR
 
     @router.get("/accounts/{account_id}", summary="Detalle de una cuenta.",
                 response_model=None)
-    def get_account(account_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
+    def get_account(account_id: str, auth_info: dict = Depends(auth_dep),
+                    _perm: dict = Depends(require_permission(Permission.BANK_FEEDS_VIEW))) -> dict:
         account = service.get_account(account_id)
         if account is None:
             raise HTTPException(status_code=404, detail="Cuenta no encontrada.")
@@ -125,6 +132,7 @@ def build_bank_feeds_router(db: Any = None, require_api_key: Any = None) -> APIR
         to_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         limit: int = Query(default=200, ge=1, le=1000),
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.BANK_FEEDS_SYNC)),
     ) -> dict:
         try:
             result = service.sync_transactions(
@@ -145,6 +153,7 @@ def build_bank_feeds_router(db: Any = None, require_api_key: Any = None) -> APIR
         category: Optional[Category] = Query(default=None),
         limit: int = Query(default=200, ge=1, le=1000),
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.BANK_FEEDS_VIEW)),
     ) -> dict:
         txns = service.list_transactions(
             account_id=account_id, status=status, category=category, limit=limit
@@ -154,7 +163,8 @@ def build_bank_feeds_router(db: Any = None, require_api_key: Any = None) -> APIR
     @router.get("/accounts/{account_id}/syncs",
                 summary="Historial de sincronizaciones de la cuenta.",
                 response_model=None)
-    def list_syncs(account_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
+    def list_syncs(account_id: str, auth_info: dict = Depends(auth_dep),
+                   _perm: dict = Depends(require_permission(Permission.BANK_FEEDS_VIEW))) -> dict:
         syncs = service.get_syncs(account_id=account_id)
         return {"ok": True, "data": [s.to_dict() for s in syncs]}
 
@@ -165,6 +175,7 @@ def build_bank_feeds_router(db: Any = None, require_api_key: Any = None) -> APIR
         txn_id: str,
         req: CategorizeRequest,
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.BANK_FEEDS_MANAGE)),
     ) -> dict:
         try:
             txn = service.categorize_transaction(
@@ -176,7 +187,8 @@ def build_bank_feeds_router(db: Any = None, require_api_key: Any = None) -> APIR
 
     @router.post("/reconcile", summary="Cruza transacciones con CFDI/pólizas.",
                  response_model=None)
-    def reconcile(req: ReconcileRequest, auth_info: dict = Depends(auth_dep)) -> dict:
+    def reconcile(req: ReconcileRequest, auth_info: dict = Depends(auth_dep),
+                  _perm: dict = Depends(require_permission(Permission.BANK_FEEDS_SYNC))) -> dict:
         result = service.reconcile_with_cfdi(
             account_id=req.account_id,
             cfdi_list=req.cfdi_list,
