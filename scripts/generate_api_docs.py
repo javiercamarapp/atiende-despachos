@@ -77,21 +77,6 @@ def _normalize_and_balance_md(text: str) -> str:
     return "\n".join(lines)
 
 
-def _normalize_and_balance_md(text: str) -> str:
-    """Sanea el markdown de la description de la app antes de insertarlo.
-
-    1. Convierte escapes literales `\\n` en saltos de línea reales.
-    2. Si el recuento de fences de código (```) es impar, elimina el último
-       para que los bloques queden balanceados (el markdown de la description
-       de la app está malformado)."""
-    text = str(text).replace("\\n", "\n")
-    lines = text.split("\n")
-    fences = [i for i, l in enumerate(lines) if l.strip().startswith("```")]
-    if len(fences) % 2 == 1:
-        lines.pop(fences[-1])
-    return "\n".join(lines)
-
-
 def _resolve_schema(spec: Dict[str, Any], ref: str) -> Dict[str, Any]:
     """Resuelve un $ref a su schema dentro de components.schemas."""
     parts = ref.split("/")
@@ -410,7 +395,7 @@ def _build_markdown(app: Any) -> str:
     schemas = spec.get("components", {}).get("schemas", {})
 
     meta = spec.get("info", {})
-    desc = _demote_headings(meta.get("description", ""))
+    desc = _demote_headings(_normalize_and_balance_md(meta.get("description", "")))
     lines = [
         f"# API Reference — {spec.get('info',{}).get('title','Likida AI Enterprise')}",
         "",

@@ -6,11 +6,12 @@
 All endpoints (except `/health` and `/api/v1/leads`) require authentication via the `X-API-Key` header.
 
 #### API Key Authentication
-curl -H "X-API-Key: ***" https://api.likida.ai/api/v1/stats\n```
+curl -H "X-API-Key: ***" https://api.likida.ai/api/v1/stats
+```
 
 #### JWT Bearer Token (Auth endpoints)
 ```
-curl -H "Authorization: Bearer ***" https://api.likida.ai/api/v1/stats\n```
+curl -H "Authorization: Bearer ***" https://api.likida.ai/api/v1/stats
 
 ### Versioning
 The API supports simultaneous v1 and v2 endpoints:

@@ -40,6 +40,12 @@ from fastapi.responses import JSONResponse
 
 from b2b_ai.api.request_id import get_request_id
 
+
+def _req_id(request) -> str:
+    """Request id efectivo para un error: state (siempre fiable) o contextvar."""
+    state_id = getattr(getattr(request, "state", None), "request_id", None)
+    return state_id or get_request_id() or ""
+
 # ---------------------------------------------------------------------------
 # Trace ID context variable
 # ---------------------------------------------------------------------------
@@ -165,23 +171,26 @@ class EnterpriseError(Exception):
         self.headers = headers or {}
         super().__init__(message)
 
-    def to_response(self, trace_id: Optional[str] = None) -> JSONResponse:
+    def to_response(self, trace_id: Optional[str] = None,
+                    request: Optional[Request] = None) -> JSONResponse:
         """Convert to a JSONResponse."""
+        rid = (_req_id(request) if request is not None
+               else get_request_id() or "")
         body = {
             "error": {
                 "code": self.code,
                 "type": self.error_type,
                 "message": self.message,
                 "trace_id": trace_id or get_trace_id() or generate_trace_id(),
-                "request_id": get_request_id() or None,
+                "request_id": rid or None,
             }
         }
         if self.details:
             body["error"]["details"] = self.details
         resp_headers = dict(self.headers)
         resp_headers["X-Trace-Id"] = body["error"]["trace_id"]
-        if body["error"]["request_id"]:
-            resp_headers["X-Request-ID"] = body["error"]["request_id"]
+        if rid:
+            resp_headers["X-Request-ID"] = rid
         return JSONResponse(
             status_code=self.status_code,
             content=body,
@@ -288,7 +297,7 @@ def install_error_handlers(app: FastAPI) -> None:
     async def enterprise_error_handler(request: Request, exc: EnterpriseError):
         """Handle structured enterprise errors."""
         trace_id = get_trace_id() or generate_trace_id()
-        return exc.to_response(trace_id)
+        return exc.to_response(trace_id, request)
 
     @app.exception_handler(422)
     async def validation_error_handler(request: Request, exc):
@@ -315,11 +324,12 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "validation_error",
                     "message": "Request validation failed.",
                     "trace_id": trace_id,
-                    "request_id": get_request_id() or None,
+                    "request_id": _req_id(request) or None,
                     "details": details,
                 }
             },
-            headers={"X-Trace-Id": trace_id},
+            headers={"X-Trace-Id": trace_id,
+                     "X-Request-ID": _req_id(request) or trace_id},
         )
 
     @app.exception_handler(404)
@@ -333,10 +343,11 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "not_found",
                     "message": "The requested resource was not found.",
                     "trace_id": trace_id,
-                    "request_id": get_request_id() or None,
+                    "request_id": _req_id(request) or None,
                 }
             },
-            headers={"X-Trace-Id": trace_id},
+            headers={"X-Trace-Id": trace_id,
+                     "X-Request-ID": _req_id(request) or trace_id},
         )
 
     @app.exception_handler(405)
@@ -350,10 +361,11 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "method_not_allowed",
                     "message": "The HTTP method is not allowed for this endpoint.",
                     "trace_id": trace_id,
-                    "request_id": get_request_id() or None,
+                    "request_id": _req_id(request) or None,
                 }
             },
-            headers={"X-Trace-Id": trace_id},
+            headers={"X-Trace-Id": trace_id,
+                     "X-Request-ID": _req_id(request) or trace_id},
         )
 
     @app.exception_handler(500)
@@ -373,10 +385,11 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "internal_error",
                     "message": "An unexpected error occurred. Please try again later.",
                     "trace_id": trace_id,
-                    "request_id": get_request_id() or None,
+                    "request_id": _req_id(request) or None,
                 }
             },
-            headers={"X-Trace-Id": trace_id},
+            headers={"X-Trace-Id": trace_id,
+                     "X-Request-ID": _req_id(request) or trace_id},
         )
 
     @app.exception_handler(Exception)
@@ -396,8 +409,9 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "internal_error",
                     "message": "An unexpected error occurred.",
                     "trace_id": trace_id,
-                    "request_id": get_request_id() or None,
+                    "request_id": _req_id(request) or None,
                 }
             },
-            headers={"X-Trace-Id": trace_id},
+            headers={"X-Trace-Id": trace_id,
+                     "X-Request-ID": _req_id(request) or trace_id},
         )
