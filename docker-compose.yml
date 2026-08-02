@@ -28,7 +28,7 @@ services:
     environment:
       # DATABASE_URL: db.py detecta esta variable y usa PostgreSQL (psycopg3).
       # Si no está seteada, fallback a SQLite (B2B_DB_PATH). Railway la inyecta.
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-b2b}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-b2b_ai}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-b2b}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD es obligatorio}@db:5432/${POSTGRES_DB:-b2b_ai}
       - B2B_DB_PATH=/data/b2b_ai.db
       - B2B_WORKERS=${B2B_WORKERS:-1}
       - REDIS_URL=redis://redis:6379/0
