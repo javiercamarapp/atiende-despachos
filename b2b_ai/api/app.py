@@ -82,6 +82,7 @@ from b2b_ai.api import portal as portal_mod
 from b2b_ai.portal.routes import build_portal_pages_router
 from b2b_ai.notifications.api import build_notifications_router
 from b2b_ai.billing.api import build_billing_router
+from b2b_ai.features.billing.routes import build_billing_router as build_pilot_billing_router
 from b2b_ai.reports.router import build_reports_router
 from b2b_ai.api.middleware import install_request_size_limit
 from b2b_ai.api.reconciliation import build_reconciliation_router
@@ -971,6 +972,10 @@ def create_app(db=None):
     # mock (sin red); en producción resuelve por env (B2B_STRIPE_KEY /
     # B2B_CONEKTA_KEY / B2B_PAYMENTS_PROVIDER).
     app.include_router(build_billing_router(db, require_api_key))
+
+    # Billing del piloto (Conekta, suscripción por plan): montado bajo
+    # /api/v1/billing-piloto para no colisionar con el billing comercial.
+    app.include_router(build_pilot_billing_router(db, require_api_key))
 
     # Onboarding wizard de nuevos clientes (wizard + checklist + score).
     app.include_router(build_onboarding_router(db, require_api_key))

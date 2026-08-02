@@ -30,6 +30,10 @@ from b2b_ai.features.onboarding.wizard import (
     OnboardingWizardError,
     _reset_state,
 )
+from b2b_ai.features.billing.service import (
+    BillingError,
+    BillingService,
+)
 
 ROUTER_PREFIX = "/api/v1/onboarding-wizard"
 
@@ -64,6 +68,21 @@ class CompleteResponse(BaseModel):
     ok: bool
     session: dict
     health: dict
+
+
+class CheckoutRequest(BaseModel):
+    """Redirige al checkout de Conekta desde el paso final del onboarding."""
+    plan: str = Field(
+        default="starter", description="Código del plan (starter, pro, business, enterprise)"
+    )
+    success_url: str = Field(
+        default="https://app.likida.ai/billing/success",
+        description="URL a la que regresa tras pagar",
+    )
+    cancel_url: str = Field(
+        default="https://app.likida.ai/billing/cancel",
+        description="URL a la que regresa si cancela",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -149,5 +168,42 @@ def build_onboarding_wizard_router(
             session=result["session"],
             health=result["health"],
         )
+
+    @router.post(
+        "/{session_id}/checkout",
+        summary="Redirige al checkout de Conekta (paso 5 del piloto).",
+    )
+    def checkout(
+        req: CheckoutRequest = CheckoutRequest(),
+        session_id: str = Path(..., description="ID de la sesión"),
+        auth_info: dict = Depends(auth_dep),
+    ):
+        """Crea la sesión de checkout de Conekta para el plan elegido.
+
+        Se apoya en la sesión ya completada (paso 5) para tomar el tenant_id
+        y redirigir al pago. Devuelve la URL de checkout de Conekta.
+        """
+        try:
+            session = service.get_session(session_id)
+        except OnboardingWizardError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+
+        if not session.tenant_id:
+            raise HTTPException(
+                status_code=422,
+                detail="La sesión de onboarding aún no tiene tenant asignado.",
+            )
+
+        try:
+            result = service.billing_checkout(
+                tenant_id=session.tenant_id,
+                plan=req.plan,
+                success_url=req.success_url,
+                cancel_url=req.cancel_url,
+            )
+        except (BillingError, OnboardingWizardError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        return {"ok": True, **result}
 
     return router

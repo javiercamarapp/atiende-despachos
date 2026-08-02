@@ -360,6 +360,30 @@ class OnboardingWizard:
         session = self.get_session(session_id)
         return self._health_check(session)
 
+    def billing_checkout(
+        self,
+        tenant_id: str,
+        plan: str = "starter",
+        success_url: str = "",
+        cancel_url: str = "",
+    ) -> Dict[str, Any]:
+        """Crea la sesión de checkout de Conekta para el plan elegido.
+
+        Es el puente del paso 5 del piloto hacia el módulo de billing: toma
+        el tenant ya creado en el onboarding y devuelve la URL de pago de
+        Conekta (modo mock en tests). Usa una instancia local de BillingService
+        para no acoplar el wizard al estado global del billing.
+        """
+        from b2b_ai.features.billing.service import BillingService
+
+        service = BillingService()
+        return service.create_checkout(
+            tenant_id=tenant_id,
+            plan=plan,
+            success_url=success_url or "https://app.likida.ai/billing/success",
+            cancel_url=cancel_url or "https://app.likida.ai/billing/cancel",
+        )
+
     def _health_check(self, session: OnboardingSession) -> Dict[str, Any]:
         """Checklist completo de los 5 pasos del piloto."""
         tenant = _tenants.get(session.tenant_id)
