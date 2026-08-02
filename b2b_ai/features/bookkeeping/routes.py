@@ -98,9 +98,10 @@ def build_bookkeeping_router(
         override_manager=overrides,
     )
 
-    # Auto-train classifier on startup (synthetic data)
+    # Lazy-train classifier on first use (not on startup)
+    # classifier.train() is now called automatically on first predict()
     try:
-        classifier.train()
+        classifier._lazy_train = True
     except Exception:
         pass  # Graceful if sklearn not available
 

@@ -431,12 +431,19 @@ class AutoClassifier:
     def predict(self, cfdi: Dict[str, Any]) -> Tuple[str, float]:
         """Predict category and confidence for a single CFDI.
 
-        Returns (category, confidence).
+        Returns (category, confidence). Trains lazily on first call.
         """
         # Check overrides first
         rfc = cfdi.get("rfc_emisor", "")
         if rfc in self._overrides:
             return self._overrides[rfc], 1.0
+
+        # Lazy training: train on first predict if not trained yet
+        if not self._trained and HAS_SKLEARN and getattr(self, '_model', None):
+            try:
+                self.train()
+            except Exception:
+                pass  # Fall back to rule-based
 
         if not self._trained or not HAS_SKLEARN:
             return self._rule_based_predict(cfdi)
