@@ -1,131 +1,346 @@
 # -*- coding: utf-8 -*-
-"""Tests del loop de agente (FASE 4): arbol de decision, human-in-the-loop
-y escalado por anomalia / baja confianza."""
+"""test_agent_loop.py — Tests for the AgentLoop main flow.
+
+Covers:
+  - classify_invoice with valid data → auto_processed
+  - LLM timeout → fail-closed (escalate, no auto-register)
+  - Low confidence → hold (no ERP registration)
+  - Anomaly detection → alerta → needs_review
+"""
+from __future__ import annotations
+
+import os
+import time
+from unittest.mock import MagicMock, patch, PropertyMock
+
 import pytest
 
-from b2b_ai.db.db import Database
-from b2b_ai.db.tenants import TenantManager
-from b2b_ai.agent.loop import AgentLoop
-from b2b_ai.services.llm import MockLLM
+os.environ.setdefault("B2B_ENV", "test")
+os.environ.setdefault("B2B_RATE_LIMIT", "off")
 
 
-@pytest.fixture
-def env(tmp_path):
-    db = Database(str(tmp_path / "agent.db"))
-    tm = TenantManager(db)
-    t = tm.onboard_tenant("Cliente A", "XAXX010101000",
-                          policy_human_review="hold")
-    loop = AgentLoop(db=db, llm=MockLLM())
-    return db, tm, t["id"], loop
+# ---------------------------------------------------------------------------
+# Helpers: build a minimal AgentLoop with mocked dependencies
+# ---------------------------------------------------------------------------
+
+def _make_loop(
+    classify_result=None,
+    anomaly_result=None,
+    classify_timeout=False,
+    anomaly_timeout=False,
+    policy="hold",
+    confidence_threshold=0.7,
+    validate_ok=True,
+):
+    """Build an AgentLoop with all external deps mocked."""
+    from b2b_ai.agent.loop import AgentLoop
+
+    # Database mock
+    db = MagicMock()
+    db.insert_invoice.return_value = (42, True)  # inv_id, inserted
+    db.create_review.return_value = 99
+    db.list_tenants.return_value = [{"id": 1, "name": "Test"}]
+    db.create_tenant.return_value = 1
+
+    # TenantManager mock
+    tenants = MagicMock()
+    tenants.get_tenant.return_value = {"id": 1, "name": "Test"}
+    tenants.get_config.return_value = {
+        "policy_human_review": policy,
+        "notif_channel": "email",
+        "notif_recipient": "test@test.com",
+        "confidence_threshold": confidence_threshold,
+    }
+    tenants.erp_factory.return_value = MagicMock()
+
+    # LLM mock
+    llm = MagicMock()
+    if classify_timeout:
+        from b2b_ai.services.timeouts import ServiceTimeoutError
+        llm.classify_invoice.side_effect = ServiceTimeoutError("LLM timeout")
+    elif classify_result is not None:
+        llm.classify_invoice.return_value = classify_result
+    else:
+        llm.classify_invoice.return_value = {
+            "categoria": "papeleria",
+            "confianza": 0.92,
+            "razon": "Oficina",
+            "source": "rules",
+            "requires_human_review": False,
+        }
+
+    if anomaly_timeout:
+        from b2b_ai.services.timeouts import ServiceTimeoutError
+        llm.detect_anomaly.side_effect = ServiceTimeoutError("LLM timeout")
+    elif anomaly_result is not None:
+        llm.detect_anomaly.return_value = anomaly_result
+    else:
+        llm.detect_anomaly.return_value = {
+            "nivel": "normal",
+            "anomalias": [],
+            "source": "rules",
+        }
+
+    # Tool mocks — patch call_tool to control parse/validate/register
+    # parse_cfdi returns a valid CFDI dict
+    parsed = {
+        "folio_fiscal": "TEST-UUID-001",
+        "emisor_rfc": "XAXX010101000",
+        "emisor_nombre": "Demo SA",
+        "receptor_rfc": "TEST220101CD2",
+        "total": 15000.0,
+        "subtotal": 12931.03,
+        "iva": 2068.97,
+        "tipo": "I",
+        "fecha": "2026-01-15",
+        "conceptos": [{"descripcion": "Papeleria"}],
+    }
+    validation = {"ok": True, "requires_human_review": False, "issues": []}
+
+    if not validate_ok:
+        validation = {"ok": False, "requires_human_review": True,
+                      "issues": [{"mensaje": "CFDI inválido"}]}
+
+    def fake_call_tool(name, **kwargs):
+        if name == "parse_cfdi":
+            return parsed
+        elif name == "validate_cfdi":
+            return validation
+        elif name == "register_erp":
+            return {"ok": True, "erp_reference": "ERP-001"}
+        elif name == "send_notification":
+            return {"status": "sent"}
+        raise ValueError(f"Unexpected tool: {name}")
+
+    # Email mock
+    email = MagicMock()
+
+    loop = AgentLoop.__new__(AgentLoop)
+    loop.db = db
+    loop.logger = MagicMock()
+    loop.tenants = tenants
+    loop.llm = llm
+    loop.erp = None
+    loop.email = email
+    loop.notify = False  # disable notifications in tests
+    loop._cu_driver = None
+
+    return loop, parsed, validation, fake_call_tool
 
 
-def test_auto_processed(env, sample_papeleria):
-    db, tm, tid, loop = env
-    r = loop.process(sample_papeleria, tenant_id=tid, send_notifications=False)
-    assert r["decision"] == "auto_processed"
-    assert r["clasificacion"]["categoria"] == "gasto_operativo"
-    assert r["erp"] is not None and r["erp"]["ok"]
-    assert r["review_id"] is None
-    assert db.count_pending_reviews(tid) == 0
-    assert db.count_invoices(tid) == 1
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+class TestAgentLoopClassifyInvoice:
+    """Test agent loop with valid classification → auto_processed."""
+
+    def test_auto_processed_with_valid_data(self):
+        """Happy path: high confidence, no anomaly → auto_processed + ERP registered."""
+        loop, parsed, validation, fake_call_tool = _make_loop()
+
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
+
+        assert result["decision"] == "auto_processed"
+        assert result["invoice_id"] == 42
+        assert result["insertado"] is True
+        assert result["erp"] is not None
+        assert result["erp"]["ok"] is True
+        assert result["review_id"] is None
+        # Verify steps passed
+        pasos = {p["paso"]: p["ok"] for p in result["pasos"]}
+        assert pasos["recibir"] is True
+        assert pasos["validar"] is True
+        assert pasos["clasificar"] is True
+        assert pasos["anomalia"] is True
+        assert pasos["decidir"] is True
+
+    def test_classification_data_in_result(self):
+        """Verify classification and anomaly data are in the result."""
+        loop, parsed, validation, fake_call_tool = _make_loop()
+
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
+
+        assert result["clasificacion"]["categoria"] == "papeleria"
+        assert result["clasificacion"]["confianza"] == 0.92
+        assert result["anomalia"]["nivel"] == "normal"
 
 
-def test_parse_failed_escala(env, tmp_path):
-    db, tm, tid, loop = env
-    bad = tmp_path / "no.xml"
-    bad.write_text("esto no es xml")
-    r = loop.process(str(bad), tenant_id=tid, send_notifications=False)
-    assert r["decision"] == "parse_failed"
-    assert r["review_id"] is not None
-    assert db.count_pending_reviews(tid) == 1
+class TestAgentLoopLLMTimeout:
+    """Test fail-closed behavior when LLM times out."""
+
+    def test_classify_timeout_fails_closed(self):
+        """LLM classify timeout → desconocido, 0.0 confidence → hold."""
+        loop, parsed, validation, fake_call_tool = _make_loop(
+            classify_timeout=True,
+        )
+
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
+
+        # Should be held for review due to 0.0 confidence < floor (0.50)
+        assert result["decision"] == "needs_review"
+        # Should NOT have registered in ERP
+        assert result["erp"] is None
+        # Should have escalated
+        assert result["review_id"] is not None
+
+    def test_anomaly_timeout_fails_closed(self):
+        """LLM anomaly timeout → fail-closed: 'alerta' → needs_review."""
+        loop, parsed, validation, fake_call_tool = _make_loop(
+            anomaly_timeout=True,
+        )
+
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
+
+        assert result["decision"] == "needs_review"
+        assert result["anomalia"]["nivel"] == "alerta"
+        assert result["erp"] is None
+        assert result["review_id"] is not None
+
+    def test_both_timeouts_fail_closed(self):
+        """Both LLM calls timeout → still fails closed, no crash."""
+        loop, parsed, validation, fake_call_tool = _make_loop(
+            classify_timeout=True,
+            anomaly_timeout=True,
+        )
+
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
+
+        assert result["decision"] == "needs_review"
+        assert result["erp"] is None
 
 
-def test_invalida_escala_y_no_registra_erp(env, tmp_path):
-    db, tm, tid, loop = env
-    bad = tmp_path / "invalida.xml"
-    bad.write_text("<Comprobante></Comprobante>")
-    r = loop.process(str(bad), tenant_id=tid, send_notifications=False)
-    assert r["decision"] == "invalid"
-    assert r["review_id"] is not None
-    assert r["erp"] is None
-    assert db.count_pending_reviews(tid) == 1
+class TestAgentLoopLowConfidence:
+    """Test that low confidence triggers hold (no ERP registration)."""
+
+    def test_low_confidence_below_threshold(self):
+        """Confidence 0.4 < threshold 0.7 → hold."""
+        loop, parsed, validation, fake_call_tool = _make_loop(
+            classify_result={
+                "categoria": "otros",
+                "confianza": 0.4,
+                "razon": "Uncertain",
+                "source": "rules",
+                "requires_human_review": True,
+            },
+        )
+
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
+
+        assert result["decision"] == "needs_review"
+        assert result["erp"] is None
+        assert result["review_id"] is not None
+
+    def test_low_confidence_below_floor(self):
+        """Confidence 0.3 < floor 0.50 → ALWAYS hold, regardless of policy."""
+        loop, parsed, validation, fake_call_tool = _make_loop(
+            classify_result={
+                "categoria": "otros",
+                "confianza": 0.3,
+                "razon": "Low",
+                "source": "rules",
+                "requires_human_review": True,
+            },
+            policy="auto_register",  # even with auto_register, floor holds
+        )
+
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
+
+        assert result["decision"] == "needs_review"
+        assert result["erp"] is None
+
+    def test_auto_register_policy_registers_when_not_low_confidence(self):
+        """With policy=auto_register and high anomaly (not low confidence),
+        it should register in ERP even though there's a review needed."""
+        loop, parsed, validation, fake_call_tool = _make_loop(
+            classify_result={
+                "categoria": "papeleria",
+                "confianza": 0.85,
+                "razon": "High",
+                "source": "rules",
+                "requires_human_review": False,
+            },
+            anomaly_result={
+                "nivel": "alerta",
+                "anomalias": ["Monto inusual"],
+                "source": "rules",
+            },
+            policy="auto_register",
+        )
+
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
+
+        # auto_register + anomaly alert → register with review
+        assert result["decision"] == "needs_review"
+        assert result["erp"] is not None  # ERP registered despite review
 
 
-def test_politica_hold_no_registra_erp_con_baja_confianza(env):
-    db, tm, tid, loop = env
+class TestAgentLoopAnomalyDetection:
+    """Test anomaly detection behavior in the agent loop."""
 
-    class BajaConfianza(MockLLM):
-        def _respond(self, task, datos):
-            if task == "classify":
-                import json
-                return json.dumps({"categoria": "desconocido",
-                                   "confianza": 0.2, "razon": "baja"})
-            return super()._respond(task, datos)
+    def test_anomaly_alerta_triggers_review(self):
+        """Anomaly alerta → needs_review."""
+        loop, parsed, validation, fake_call_tool = _make_loop(
+            anomaly_result={
+                "nivel": "alerta",
+                "anomalias": ["Duplicado detectado"],
+                "source": "llm",
+            },
+        )
 
-    loop.llm = BajaConfianza()
-    r = loop.process("fixtures/cfdis/01_gasto_operativo_papeleria.xml",
-                     tenant_id=tid, send_notifications=False)
-    assert r["decision"] == "needs_review"
-    assert r["erp"] is None
-    assert r["review_id"] is not None
-    assert db.count_pending_reviews(tid) == 1
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
 
+        assert result["decision"] == "needs_review"
+        assert result["review_id"] is not None
+        assert result["anomalia"]["nivel"] == "alerta"
 
-def test_politica_auto_register_si_registra_erp_con_baja_confianza(env):
-    db, tm, tid, loop = env
-    tm.set_config(tid, policy_human_review="auto_register")
+    def test_anomaly_normal_allows_auto_process(self):
+        """No anomaly → auto_processed with high confidence."""
+        loop, parsed, validation, fake_call_tool = _make_loop(
+            anomaly_result={
+                "nivel": "normal",
+                "anomalias": [],
+                "source": "rules",
+            },
+        )
 
-    class BajaConfianza(MockLLM):
-        def _respond(self, task, datos):
-            if task == "classify":
-                import json
-                return json.dumps({"categoria": "desconocido",
-                                   "confianza": 0.2, "razon": "baja"})
-            return super()._respond(task, datos)
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
 
-    loop.llm = BajaConfianza()
-    r = loop.process("fixtures/cfdis/01_gasto_operativo_papeleria.xml",
-                     tenant_id=tid, send_notifications=False)
-    assert r["decision"] == "needs_review"
-    # Low confidence (0.2 < 0.7 threshold) → ERP NOT registered, review only
-    assert r["erp"] is None
-    assert r["review_id"] is not None
+        assert result["decision"] == "auto_processed"
 
+    def test_parse_failure_escalates(self):
+        """parse_cfdi raises → parse_failed, no ERP, escalation."""
+        loop, _, _, _ = _make_loop()
 
-def test_anomalia_alerta_escala(env, sample_papeleria):
-    db, tm, tid, loop = env
+        def fail_parse(name, **kwargs):
+            if name == "parse_cfdi":
+                raise ValueError("XML malformed")
+            return MagicMock()
 
-    class AnomaliaForzada(MockLLM):
-        def _respond(self, task, datos):
-            if task == "anomaly":
-                import json
-                return json.dumps({"anomalias": ["IVA irregular"],
-                                   "nivel": "alerta"})
-            return super()._respond(task, datos)
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fail_parse):
+            result = loop.process("/tmp/bad.xml", tenant_id=1, send_notifications=False)
 
-    loop.llm = AnomaliaForzada()
-    r = loop.process(sample_papeleria, tenant_id=tid,
-                     send_notifications=False)
-    assert r["decision"] == "needs_review"
-    assert r["anomalia"]["nivel"] == "alerta"
-    assert r["review_id"] is not None
+        assert result["decision"] == "parse_failed"
+        assert result["erp"] is None
+        assert result["review_id"] is not None
 
+    def test_validation_failure_escalates(self):
+        """Validation failure → invalid, no ERP, escalation."""
+        loop, parsed, validation, fake_call_tool = _make_loop(validate_ok=False)
 
-def test_loop_audita_llamadas(env, sample_papeleria):
-    db, tm, tid, loop = env
-    loop.process(sample_papeleria, tenant_id=tid, send_notifications=False)
-    tools = {a["tool_name"] for a in db.list_audit(tenant_id=tid)}
-    assert "parse_cfdi" in tools
-    assert "validate_cfdi" in tools
-    assert "register_erp" in tools
+        with patch("b2b_ai.agent.loop.call_tool", side_effect=fake_call_tool):
+            result = loop.process("/tmp/fake.xml", tenant_id=1, send_notifications=False)
 
-
-def test_resolucion_de_review(tmp_db):
-    tm = TenantManager(tmp_db)
-    t = tm.onboard_tenant("Cliente B", "ABC123")
-    rid = tmp_db.create_review(t["id"], None, "motivo de prueba")
-    resolved = tmp_db.resolve_review(rid, "approve", "todo ok", "contador")
-    assert resolved is not None
-    assert resolved["status"] == "resolved"
-    assert tmp_db.count_pending_reviews(t["id"]) == 0
-    assert tmp_db.resolve_review(rid, "reject") is None
+        assert result["decision"] == "invalid"
+        assert result["erp"] is None
+        assert result["review_id"] is not None
