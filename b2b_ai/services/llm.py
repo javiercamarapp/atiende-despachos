@@ -750,6 +750,12 @@ class LLMService:
             self._failed(e)
             out = _rule_anomalies(datos)
             out["source"] = "rules"
+            # FAIL-CLOSED: When LLM fails (timeout, network error), the rule-based
+            # fallback may miss anomalies the LLM would catch. Force "alerta" to
+            # require human review — better false positive than false negative.
+            out["nivel"] = "alerta"
+            out["anomalias"].append(
+                "LLM no disponible — requiere revisión humana por precaución.")
             return out
 
 

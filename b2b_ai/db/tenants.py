@@ -186,8 +186,15 @@ class TenantManager:
                 )
                 return _ComputerUseERPAdapter(driver)
         except Exception as e:
+            # FAIL-HARD in production: do NOT silently fall back to mock
+            if os.environ.get("B2B_ENV") == "production":
+                logger.error(
+                    "erp_factory: Computer Use FAILED in production — "
+                    "refusing silent fallback to mock. Error: %s", e)
+                raise
             logger.warning(
-                "erp_factory: Computer Use unavailable, falling back to mock: %s", e)
+                "erp_factory: Computer Use unavailable in dev, "
+                "falling back to mock: %s", e)
 
         return MockCONTPAQi()
 

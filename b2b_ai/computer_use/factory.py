@@ -362,18 +362,12 @@ def _create_playwright_driver(
         return CONTPAQiRealDriver(
             erp_url=erp_url,
             headless=headless,
-            tenant_id=tenant_id,
-            timeout_seconds=timeout_seconds,
-            max_retries=max_retries,
         )
     elif provider == "aspel":
         from b2b_ai.computer_use.aspel_real_driver import AspelRealDriver
         return AspelRealDriver(
             erp_url=erp_url,
             headless=headless,
-            tenant_id=tenant_id,
-            timeout_seconds=timeout_seconds,
-            max_retries=max_retries,
         )
     else:
         raise ComputerUseConfigurationError(
