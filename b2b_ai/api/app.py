@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
 import tempfile
 import threading
 import time

@@ -82,7 +82,7 @@ def build_arco_router(db, require_api_key) -> APIRouter:
     @router.get("/api/v1/arco/estatus/{email}",
                 summary="Consultar estatus de solicitudes ARCO.",
                 tags=["arco"])
-    async def arco_estatus(email: str):
+    async def arco_estatus(email: str, auth_info: dict = Depends(require_api_key)):
         """Devuelve las solicitudes ARCO registradas para un email."""
         rows = db.conn.execute(
             "SELECT entity_id, payload, status, ts FROM audit_log "
@@ -112,7 +112,7 @@ def build_arco_router(db, require_api_key) -> APIRouter:
     @router.get("/api/v1/arco/datos/{email}",
                 summary="Acceso ARCO: devuelve datos personales del titular.",
                 tags=["arco"])
-    async def arco_acceso(email: str):
+    async def arco_acceso(email: str, auth_info: dict = Depends(require_api_key)):
         """Acceso ARCO — LFPDPPP Art. 28: devuelve todos los datos
         personales que el responsable tiene del titular."""
         user = db.get_client_user_by_email(email)
@@ -144,7 +144,7 @@ def build_arco_router(db, require_api_key) -> APIRouter:
     @router.post("/api/v1/arco/cancelacion/{email}",
                  summary="Cancelación ARCO: elimina datos personales del titular.",
                  tags=["arco"])
-    async def arco_cancelacion(email: str):
+    async def arco_cancelacion(email: str, auth_info: dict = Depends(require_api_key)):
         """Cancelación ARCO — LFPDPPP Art. 33: eliminar datos personales.
 
         Nota: Se conservan datos con obligación legal de retención
@@ -155,20 +155,41 @@ def build_arco_router(db, require_api_key) -> APIRouter:
             raise HTTPException(
                 404, "No se encontraron datos para ese email.")
 
+        user_id = user.get("id")
         logger.warning(
-            "ARCO cancelación solicitada para %s — "
-            "Se eliminarán datos no retenidos por ley.", email)
+            "ARCO cancelación solicitada para %s (user_id=%s) — "
+            "Se eliminarán datos no retenidos por ley.", email, user_id)
+
+        # Actually delete personal data
+        deleted_count = 0
+        try:
+            db.delete_client_user(user_id)
+            deleted_count = 1
+        except Exception as e:
+            logger.error("Error deleting client user %s: %s", user_id, e)
+            raise HTTPException(500, f"Error eliminando datos: {e}")
+
+        # Anonymize audit log entries for this email
+        try:
+            db.conn.execute(
+                "UPDATE audit_log SET payload = '{\"anonymized\": true}' "
+                "WHERE entity_id = ? AND entity IN ('arco_request', 'client_user')",
+                (email,))
+            db.conn.commit()
+        except Exception as e:
+            logger.warning("Could not anonymize audit log for %s: %s", email, e)
 
         db.log_call(
             "arco", "cancelacion",
             entity="arco_request",
             entity_id=email,
-            payload={"tipo": "cancelacion"},
-            status="processed",
+            payload={"tipo": "cancelacion", "deleted_user_id": user_id},
+            status="completed",
         )
 
         return {
-            "status": "processed",
+            "status": "completed",
+            "deleted_records": deleted_count,
             "mensaje": (
                 f"Datos personales de {email} eliminados. "
                 "Se conservan CFDI y registros contables con obligación "
