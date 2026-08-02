@@ -27,6 +27,21 @@ from b2b_ai.features.pipeline.orchestrator import (
 )
 from b2b_ai.features.pipeline.routes import build_pipeline_router
 
+
+def _grant_admin(tenant_id: str):
+    """Concede el rol admin (todos los permisos) a u1 en el tenant.
+
+    El pipeline ahora enforza RBAC (PIPELINE_RUN); el rol admin lo incluye.
+    El store RBAC es global-en-memoria, así que sembrar aquí basta para que
+    la dependencia require_permission del router lo conceda.
+    """
+    from b2b_ai.features.roles.service import RolesService, reset_state
+    from b2b_ai.features.roles.seed import seed_default_roles
+    reset_state()
+    svc = RolesService()
+    admin = next(r for r in svc.list_roles() if r.name == "admin")
+    svc.assign_role("u1", tenant_id, admin.id)
+
 # CFDI 4.0 realista (mismo fixture que test_batch_cfdi.py).
 SAMPLE_CFDI = """<?xml version="1.0" encoding="UTF-8"?>
 <cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
@@ -236,64 +251,6 @@ def _auth_for(tenant_id: str):
     async def _dep():
         return {"key": "k", "tenant_id": tenant_id, "user_id": "u1"}
     return _dep
-
-
-def _grant_admin(tenant_id: str):
-    """Concede el rol admin (todos los permisos) a u1 en el tenant.
-
-    El pipeline ahora enforza RBAC (PIPELINE_RUN); el rol admin lo incluye.
-    El store RBAC es global-en-memoria, así que sembrar aquí basta para que
-    la dependencia require_permission del router lo conceda.
-    """
-    from b2b_ai.features.roles.service import RolesService, reset_state
-    reset_state()
-    svc = RolesService()
-    admin = next(r for r in svc.list_roles() if r.name == "admin")
-    svc.assign_role("u1", tenant_id, admin.id)
-
-
-def _grant_admin(tenant_id: str):
-    """Concede el rol admin (todos los permisos) a u1 en el tenant.
-
-    El pipeline ahora enforza RBAC (PIPELINE_RUN); el rol admin lo incluye.
-    El store RBAC es global-en-memoria, así que sembrar aquí basta para que
-    la dependencia require_permission del router lo conceda.
-    """
-    from b2b_ai.features.roles.service import RolesService, reset_state
-    reset_state()
-    svc = RolesService()
-    admin = next(r for r in svc.list_roles() if r.name == "admin")
-    svc.assign_role("u1", tenant_id, admin.id)
-
-
-def _grant_admin(tenant_id: str):
-    """Concede el rol admin (todos los permisos) a u1 en el tenant.
-
-    El pipeline ahora enforza RBAC (PIPELINE_RUN); el rol admin lo incluye.
-    El store RBAC es global-en-memoria, así que sembrar aquí basta para que
-    la dependencia require_permission del router lo conceda.
-    """
-    from b2b_ai.features.roles.service import RolesService, reset_state
-    from b2b_ai.features.roles.seed import seed_default_roles
-    reset_state()
-    svc = RolesService()
-    admin = next(r for r in svc.list_roles() if r.name == "admin")
-    svc.assign_role("u1", tenant_id, admin.id)
-
-
-def _grant_admin(tenant_id: str):
-    """Concede el rol admin (todos los permisos) a u1 en el tenant.
-
-    El pipeline ahora enforza RBAC (PIPELINE_RUN); el rol admin lo incluye.
-    El store RBAC es global-en-memoria, así que sembrar aquí basta para que
-    la dependencia require_permission del router lo conceda.
-    """
-    from b2b_ai.features.roles.service import RolesService, reset_state
-    from b2b_ai.features.roles.seed import seed_default_roles
-    reset_state()
-    svc = RolesService()
-    admin = next(r for r in svc.list_roles() if r.name == "admin")
-    svc.assign_role("u1", tenant_id, admin.id)
 
 
 def test_pipeline_router_run_flujo_completo():

@@ -53,7 +53,7 @@ services:
       - .env.production
     environment:
       # Conexión a PostgreSQL 15 (la app hace failover dev→prod vía DATABASE_URL).
-      DATABASE_URL: postgresql://${POSTGRES_USER:-b2b}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-b2b_ai}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-b2b}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD es obligatorio}@postgres:5432/${POSTGRES_DB:-b2b_ai}
       B2B_ENV: production
       B2B_WORKERS: ${B2B_WORKERS:-2}
       # Nginx confía en este proxy y la app valida la IP real detrás de él.

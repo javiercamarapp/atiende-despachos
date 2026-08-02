@@ -163,7 +163,13 @@ if [[ "$FRESH" == true ]]; then
 fi
 
 if [[ -f "alembic.ini" ]] && "$PY" -c "import alembic" >/dev/null 2>&1; then
-    "$PY" -m alembic upgrade head && ok "Migraciones aplicadas (alembic upgrade head)"
+    if "$PY" -m alembic upgrade head >/dev/null 2>&1; then
+        ok "Migraciones aplicadas (alembic upgrade head)"
+    else
+        warn "alembic falló — usando Database.migrate() como respaldo."
+        "$PY" -c "from b2b_ai.db.db import Database; Database().migrate()" \
+            && ok "Esquema creado/migrado (Database.migrate)"
+    fi
 else
     "$PY" -c "from b2b_ai.db.db import Database; Database().migrate()" \
         && ok "Esquema creado/migrado (Database.migrate)"
@@ -178,8 +184,10 @@ SEED_ARGS=()
 if [[ -n "$DB_ARG" ]]; then
     SEED_ARGS+=(--db "$DB_ARG")
 fi
-if ! "$PY" scripts/seed_demo.py "${SEED_ARGS[@]}" 2>&1; then
-    warn "seed_demo.py falló — revisa la salida. Continuando para generar credenciales."
+if [[ ${#SEED_ARGS[@]} -gt 0 ]]; then
+    "$PY" scripts/seed_demo.py "${SEED_ARGS[@]}" || warn "seed_demo.py falló — revisa la salida."
+else
+    "$PY" scripts/seed_demo.py || warn "seed_demo.py falló — revisa la salida."
 fi
 
 # ---------------------------------------------------------------------------
@@ -202,10 +210,25 @@ db = Database()
 def emit(tid, name):
     key = "demo-" + secrets.token_hex(16)
     db.create_api_key(tid, "demo-admin", key)
+    rfc = ""
     ts = db.list_tenants()
     row = next((t for t in ts if str(t["id"]) == str(tid)), None)
-    rfc = (row or {}).get("rfc", "")
-    email = "admin@" + ".".join(filter(None, name.lower().replace(",", "").split())) or "admin@demo.mx"
+    if row:
+        rfc = row.get("rfc", "")
+        name = row.get("name", name)
+    # Email admin REAL sembrado por seed_demo (password = demo-pass-<email>).
+    email = ""
+    try:
+        cur = db.conn.execute(
+            "SELECT email FROM users WHERE tenant_id=? AND role='admin' ORDER BY id LIMIT 1",
+            (tid,))
+        r = cur.fetchone()
+        if r:
+            email = r[0]
+    except Exception:
+        email = ""
+    if not email:
+        email = f"admin@tenant{tid}.demo.mx"
     print(f"DEMO_TENANT_ID={tid}")
     print(f"DEMO_TENANT_NAME={name}")
     print(f"DEMO_TENANT_RFC={rfc}")
@@ -221,7 +244,19 @@ if tenant_name:
         emit(existing["id"], tenant_name)
     else:
         tid = db.create_tenant(tenant_name, rfc="XAXX010101000")
-        db.create_user(tid, "Admin Demo", f"admin@{tenant_name.lower().replace(' ','')}.mx", role="admin")
+        admin_email = f"admin@{tenant_name.lower().replace(' ','').replace(',','')}.mx"
+        uid = db.create_user(tid, "Admin Demo", admin_email, role="admin")
+        # Credencial de login real siguiendo la convención del seed (client_users:
+        # email + password_hash = sha256("demo-pass-<email>")).
+        try:
+            pw = hashlib.sha256(f"demo-pass-{admin_email}".encode()).hexdigest()
+            db.conn.execute(
+                "INSERT INTO client_users(tenant_id,email,password_hash,name,role) "
+                "VALUES (?,?,?,?,?)",
+                (tid, admin_email, pw, "Admin Demo", "admin"))
+            db.conn.commit()
+        except Exception:
+            pass
         emit(tid, tenant_name)
 else:
     ts = db.list_tenants()
@@ -249,6 +284,7 @@ else
     "$PY" -m uvicorn b2b_ai.api.app:app --host "$HOST" --port "$PORT" \
         >"$LOG" 2>&1 &
     SRV_PID=$!
+    echo "$SRV_PID" > .pilot_server.pid
     trap 'kill "$SRV_PID" 2>/dev/null || true' EXIT
 
     # Poll /health hasta timeout (20s)

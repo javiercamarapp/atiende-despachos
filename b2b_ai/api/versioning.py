@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import re
+from contextvars import ContextVar
 from datetime import date
 from typing import Optional
 
@@ -45,7 +46,7 @@ VERSION_REGISTRY: dict[str, dict] = {
 _VERSION_PATH_RE = re.compile(r"^/api/(v\d+)/")
 
 # Default version when no Accept-Version header is present.
-DEFAULT_VERSION = "v2"
+DEFAULT_VERSION = "v1"
 
 # Maximum supported version (for forward-compat rejection).
 MAX_VERSION = 2
@@ -72,6 +73,22 @@ def _version_from_path(path: str) -> Optional[str]:
 
 def _is_versioned_path(path: str) -> bool:
     return bool(_VERSION_PATH_RE.match(path))
+
+
+# Contextvar con la versión efectiva del request actual (para logs/contexto).
+_version_ctx: "ContextVar[Optional[str]]" = ContextVar(
+    "api_version", default=None)
+
+
+def get_api_version() -> Optional[str]:
+    """Versión de API efectiva del request actual (None si no hay contexto)."""
+    return _version_ctx.get()
+
+
+def set_api_version(version: Optional[str]) -> Optional[str]:
+    """Fija la versión de API del request actual. Devuelve la versión."""
+    _version_ctx.set(version)
+    return version
 
 
 class VersioningMiddleware(BaseHTTPMiddleware):

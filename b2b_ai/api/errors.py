@@ -38,6 +38,8 @@ from typing import Any, Dict, Optional
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from b2b_ai.api.request_id import get_request_id
+
 # ---------------------------------------------------------------------------
 # Trace ID context variable
 # ---------------------------------------------------------------------------
@@ -171,12 +173,15 @@ class EnterpriseError(Exception):
                 "type": self.error_type,
                 "message": self.message,
                 "trace_id": trace_id or get_trace_id() or generate_trace_id(),
+                "request_id": get_request_id() or None,
             }
         }
         if self.details:
             body["error"]["details"] = self.details
         resp_headers = dict(self.headers)
         resp_headers["X-Trace-Id"] = body["error"]["trace_id"]
+        if body["error"]["request_id"]:
+            resp_headers["X-Request-ID"] = body["error"]["request_id"]
         return JSONResponse(
             status_code=self.status_code,
             content=body,
@@ -310,6 +315,7 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "validation_error",
                     "message": "Request validation failed.",
                     "trace_id": trace_id,
+                    "request_id": get_request_id() or None,
                     "details": details,
                 }
             },
@@ -327,6 +333,7 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "not_found",
                     "message": "The requested resource was not found.",
                     "trace_id": trace_id,
+                    "request_id": get_request_id() or None,
                 }
             },
             headers={"X-Trace-Id": trace_id},
@@ -343,6 +350,7 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "method_not_allowed",
                     "message": "The HTTP method is not allowed for this endpoint.",
                     "trace_id": trace_id,
+                    "request_id": get_request_id() or None,
                 }
             },
             headers={"X-Trace-Id": trace_id},
@@ -365,6 +373,7 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "internal_error",
                     "message": "An unexpected error occurred. Please try again later.",
                     "trace_id": trace_id,
+                    "request_id": get_request_id() or None,
                 }
             },
             headers={"X-Trace-Id": trace_id},
@@ -387,6 +396,7 @@ def install_error_handlers(app: FastAPI) -> None:
                     "type": "internal_error",
                     "message": "An unexpected error occurred.",
                     "trace_id": trace_id,
+                    "request_id": get_request_id() or None,
                 }
             },
             headers={"X-Trace-Id": trace_id},
