@@ -113,14 +113,16 @@ class TestISR:
         assert abs(isr - 1.92) < 0.01
 
     def test_isr_second_bracket(self):
-        # 1000 in bracket (312.42-2636.28): (1000-312.42)*6.4% + 5.99
-        expected = (1000 - 312.42) * 0.0640 + 5.99
+        # 1000 in bracket (435.09-3666.30) of ISR_MENSUAL_2026:
+        # (1000-435.09)*6.4% + 8.35 = 44.50
+        expected = (1000 - 435.09) * 0.0640 + 8.35
         isr = calculate_isr(1000.0)
         assert abs(isr - round(expected, 2)) < 0.01
 
     def test_isr_high_income(self):
-        # 100000 in bracket (68821.63, inf): (100000-68821.63)*0.35 + 20557.10
-        expected = (100000 - 68821.63) * 0.35 + 20557.10
+        # 100000 in bracket (95462.31, inf) of ISR_MENSUAL_2026:
+        # (100000-95462.31)*35% + 28513.25 = 30101.44
+        expected = (100000 - 95462.31) * 0.35 + 28513.25
         isr = calculate_isr(100000.0)
         assert abs(isr - round(expected, 2)) < 0.01
 

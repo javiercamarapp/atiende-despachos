@@ -137,6 +137,7 @@ from b2b_ai.audit.middleware import install_audit_middleware
 from b2b_ai.api.routes_health import build_health_router
 from b2b_ai.api.routes_invoices import build_invoices_router
 from b2b_ai.api.routes_arco import build_arco_router
+from b2b_ai.api.routes.cfdi_validation import build_cfdi_validation_router
 
 # Logger estructurado JSON (monitoring). Distinto del ToolCallLogger de
 # b2b_ai.tools.logger (auditoría de tools en DB): este emite JSON a stdout.
@@ -565,6 +566,7 @@ def create_app(db=None):
 
     # Invoice processing, listing, stats (extracted to routes_invoices.py)
     app.include_router(build_invoices_router(db, require_api_key))
+    app.include_router(build_cfdi_validation_router(require_api_key))
 
     @app.get("/api/v1/tools",
              summary="Tools registradas en el agente.",

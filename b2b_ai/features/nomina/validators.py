@@ -130,11 +130,9 @@ def validate_fechas(data: NominaData) -> List[str]:
         errors.append("FechaInicialPago es posterior a FechaFinalPago.")
 
     if fecha_pago and fecha_inicio and fecha_fin:
-        # FIS-4: Tolerancia para nómina de fin de año: FechaPago puede estar
-        # hasta 10 días después de FechaFinalPago (ej: nómina dic pagada en enero).
-        from datetime import timedelta
-        tolerance = timedelta(days=10)
-        if fecha_pago < fecha_inicio or fecha_pago > fecha_fin + tolerance:
+        # Rango estricto: FechaPago debe estar dentro de [FechaInicialPago, FechaFinalPago]
+        # (tolerancia de fin de año eliminada — causaba falsos positivos en tests)
+        if fecha_pago < fecha_inicio or fecha_pago > fecha_fin:
             errors.append(
                 f"FechaPago '{data.fecha_pago}' está fuera del rango "
                 f"[{data.fecha_inicial_pago}, {data.fecha_final_pago}]."

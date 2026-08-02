@@ -97,8 +97,8 @@ CFF_ARTICLES = {
 
 # LISR Art. 96 — ISR tables centralized in b2b_ai/fiscal_tables.py
 from b2b_ai.fiscal_tables import (
-    ISR_MENSUAL_2025 as ISR_TABLE_2024_MONTHLY,
-    ISR_ANUAL_2025 as ISR_TABLE_2024_ANNUAL,
+    ISR_MENSUAL_2026 as ISR_TABLE_2024_MONTHLY,
+    ISR_ANUAL_2026 as ISR_TABLE_2024_ANNUAL,
     get_isr_table,
 )
 

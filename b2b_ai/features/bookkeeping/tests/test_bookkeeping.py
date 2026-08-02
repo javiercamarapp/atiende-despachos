@@ -83,16 +83,34 @@ def pipeline(classifier, rules_engine, journal_gen, erp_registrar, override_mgr)
     )
 
 
+def _mock_require_api_key():
+    """Mock auth dependency that always passes (used in unit/integration tests)."""
+    return {"tenant_id": "test-tenant", "key": "test-key"}
+
+
 @pytest.fixture
 def app(pipeline):
     app = FastAPI()
-    router = build_bookkeeping_router(erp_system=ERPSystem.MOCK)
+    router = build_bookkeeping_router(
+        erp_system=ERPSystem.MOCK,
+        require_api_key=_mock_require_api_key,
+    )
     app.include_router(router)
     return app
 
 
 @pytest.fixture
 def client(app):
+    return TestClient(app)
+
+
+@pytest.fixture
+def client_no_auth(pipeline):
+    """TestClient WITHOUT auth — verifies endpoints reject anonymous callers."""
+    app = FastAPI()
+    # No require_api_key → all 4 endpoints should return 401/403
+    router = build_bookkeeping_router(erp_system=ERPSystem.MOCK)
+    app.include_router(router)
     return TestClient(app)
 
 
@@ -627,3 +645,50 @@ class TestBookkeepingAPI:
             "cfdis": [],
         })
         assert resp.status_code == 400
+
+
+class TestBookkeepingAPIAuth:
+    """CRITICAL: Verify all 4 bookkeeping endpoints require authentication.
+
+    These tests confirm the fix for the security finding: without API key auth,
+    every bookkeeping endpoint must return 401 (unauthorized) or 403 (forbidden).
+    """
+
+    def test_process_requires_auth(self, client_no_auth, sample_cfdi):
+        """POST /api/v1/bookkeeping/process must reject anonymous callers."""
+        resp = client_no_auth.post("/api/v1/bookkeeping/process", json={
+            "cfdis": [sample_cfdi],
+            "tenant_id": "test",
+        })
+        assert resp.status_code in (401, 403), (
+            f"Expected 401/403 for unauthenticated process call, got {resp.status_code}. "
+            "Endpoint is publicly accessible!"
+        )
+
+    def test_status_requires_auth(self, client_no_auth):
+        """GET /api/v1/bookkeeping/status must reject anonymous callers."""
+        resp = client_no_auth.get("/api/v1/bookkeeping/status?tenant_id=test")
+        assert resp.status_code in (401, 403), (
+            f"Expected 401/403 for unauthenticated status call, got {resp.status_code}. "
+            "Endpoint is publicly accessible!"
+        )
+
+    def test_override_requires_auth(self, client_no_auth):
+        """POST /api/v1/bookkeeping/override must reject anonymous callers."""
+        resp = client_no_auth.post("/api/v1/bookkeeping/override", json={
+            "cfdi_uuid": "test-uuid",
+            "action": "reclassify",
+            "new_categoria": "nomina",
+        })
+        assert resp.status_code in (401, 403), (
+            f"Expected 401/403 for unauthenticated override call, got {resp.status_code}. "
+            "Endpoint is publicly accessible!"
+        )
+
+    def test_suggestions_requires_auth(self, client_no_auth):
+        """GET /api/v1/bookkeeping/suggestions must reject anonymous callers."""
+        resp = client_no_auth.get("/api/v1/bookkeeping/suggestions")
+        assert resp.status_code in (401, 403), (
+            f"Expected 401/403 for unauthenticated suggestions call, got {resp.status_code}. "
+            "Endpoint is publicly accessible!"
+        )
