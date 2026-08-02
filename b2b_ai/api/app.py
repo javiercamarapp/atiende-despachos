@@ -138,6 +138,7 @@ from b2b_ai.monitoring.health import build_health_detailed
 from b2b_ai.audit.middleware import install_audit_middleware
 from b2b_ai.audit.routes import build_audit_logger_router
 from b2b_ai.api.routes_health import build_health_router
+from b2b_ai.api.health_routes import build_health_routes
 from b2b_ai.api.routes_invoices import build_invoices_router
 from b2b_ai.api.routes_arco import build_arco_router
 from b2b_ai.api.routes.cfdi_validation import build_cfdi_validation_router
@@ -572,6 +573,10 @@ def create_app(db=None):
 
     # Health, metrics & detailed health (extracted to routes_health.py)
     app.include_router(build_health_router(db, require_api_key))
+
+    # Health check del MVP (readiness por módulo): /api/v1/health y
+    # /api/v1/health/deep. Públicos (endpoints de monitoreo, sin auth).
+    app.include_router(build_health_routes(db))
 
     # Invoice processing, listing, stats (extracted to routes_invoices.py)
     app.include_router(build_invoices_router(db, require_api_key))
