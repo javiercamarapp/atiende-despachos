@@ -1,0 +1,498 @@
+{
+  "info": {
+    "_postman_id": "7f749cf5-0000-4000-8000-likidaapi0001",
+    "name": "Likida AI Enterprise API",
+    "description": "Colección de la API REST de Likida AI (agente contable para despachos). Autenticación vía API key en header X-API-Key (variable {{api_key}}). Generada por el equipo de ingeniería — ver docs/api-reference.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://api.b2b-ai.local", "type": "string" },
+    { "key": "api_key", "value": "sk_likida_XXXXXXXX", "type": "string" },
+    { "key": "tenant_id", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0. Onboarding & Auth",
+      "item": [
+        {
+          "name": "Crear tenant (emite API key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Despacho Contable XYZ\",\n  \"rfc\": \"DESP820101AB1\",\n  \"erp_type\": \"contpaqi\",\n  \"plantilla_contable\": \"SAT\",\n  \"notif_channel\": \"email\",\n  \"user_name\": \"admin\",\n  \"user_email\": \"admin@despacho.mx\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/tenants", "host": ["{{base_url}}"], "path": ["api", "v1", "tenants"] }
+          }
+        },
+        {
+          "name": "Onboarding: status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/onboarding/status", "host": ["{{base_url}}"], "path": ["api", "v1", "onboarding", "status"] }
+          }
+        },
+        {
+          "name": "Auth: login (JWT)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@despacho.mx\",\n  \"password\": \"tu_password\",\n  \"tenant_id\": 1\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. CFDI (facturas)",
+      "item": [
+        {
+          "name": "Procesar CFDI (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "xml_file", "type": "file", "src": null }]
+            },
+            "url": { "raw": "{{base_url}}/api/v1/invoices/process", "host": ["{{base_url}}"], "path": ["api", "v1", "invoices", "process"] }
+          }
+        },
+        {
+          "name": "Listar facturas",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/invoices?limit=100",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "invoices"],
+              "query": [{ "key": "limit", "value": "100" }]
+            }
+          }
+        },
+        {
+          "name": "Detalle de factura",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/invoices/1", "host": ["{{base_url}}"], "path": ["api", "v1", "invoices", "1"] }
+          }
+        },
+        {
+          "name": "Métricas (stats)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/stats", "host": ["{{base_url}}"], "path": ["api", "v1", "stats"] }
+          }
+        },
+        {
+          "name": "Batch CFDI v2 (async)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paths\": [\"/data/cfdi/1.xml\"],\n  \"async\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v2/batch", "host": ["{{base_url}}"], "path": ["api", "v2", "batch"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Bank Feeds (bancos)",
+      "item": [
+        {
+          "name": "Conectar cuenta",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"BBVA\",\n  \"clabe\": \"012180015000000001\",\n  \"account_label\": \"Cuenta operativa\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/bank-feeds/accounts", "host": ["{{base_url}}"], "path": ["api", "v1", "bank-feeds", "accounts"] }
+          }
+        },
+        {
+          "name": "Listar cuentas",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/bank-feeds/accounts", "host": ["{{base_url}}"], "path": ["api", "v1", "bank-feeds", "accounts"] }
+          }
+        },
+        {
+          "name": "Sincronizar feed",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/bank-feeds/accounts/acc-1/sync", "host": ["{{base_url}}"], "path": ["api", "v1", "bank-feeds", "accounts", "acc-1", "sync"] }
+          }
+        },
+        {
+          "name": "Listar transacciones",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/bank-feeds/accounts/acc-1/transactions?limit=50", "host": ["{{base_url}}"], "path": ["api", "v1", "bank-feeds", "accounts", "acc-1", "transactions"], "query": [{ "key": "limit", "value": "50" }] }
+          }
+        },
+        {
+          "name": "Categorizar transacción",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"Servicios\",\n  \"auto\": false\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/bank-feeds/transactions/txn-1/categorize", "host": ["{{base_url}}"], "path": ["api", "v1", "bank-feeds", "transactions", "txn-1", "categorize"] }
+          }
+        },
+        {
+          "name": "Conciliar con CFDI",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"acc-1\",\n  \"cfdi_list\": [ { \"uuid\": \"A1B2C3\", \"fecha\": \"2026-07-30\", \"total\": 12000.0 } ],\n  \"tolerance_days\": 3\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/bank-feeds/reconcile", "host": ["{{base_url}}"], "path": ["api", "v1", "bank-feeds", "reconcile"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Nómina",
+      "item": [
+        {
+          "name": "Procesar nómina",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"period\": { \"month\": 7, \"year\": 2026, \"dias_pagados\": 30 },\n  \"employees\": [ { \"employee_id\": \"EMP-1\", \"name\": \"Juan Pérez\", \"salary\": 25000.0 } ],\n  \"tenant_id\": 1\n}"
+            },
+            "url": { "raw": "{{base_url}}/nomina-completa/process", "host": ["{{base_url}}"], "path": ["nomina-completa", "process"] }
+          }
+        },
+        {
+          "name": "CFDI de nómina",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"payroll_data\": {}\n}" },
+            "url": { "raw": "{{base_url}}/nomina-completa/cfdi", "host": ["{{base_url}}"], "path": ["nomina-completa", "cfdi"] }
+          }
+        },
+        {
+          "name": "Recibo de nómina",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/nomina-completa/payslip/EMP-1?month=7&year=2026", "host": ["{{base_url}}"], "path": ["nomina-completa", "payslip", "EMP-1"], "query": [{ "key": "month", "value": "7" }, { "key": "year", "value": "2026" }] }
+          }
+        },
+        {
+          "name": "Resumen del periodo",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/nomina-completa/summary?month=7&year=2026", "host": ["{{base_url}}"], "path": ["nomina-completa", "summary"], "query": [{ "key": "month", "value": "7" }, { "key": "year", "value": "2026" }] }
+          }
+        },
+        {
+          "name": "Impuestos individuales",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"salary\": 25000.0\n}" },
+            "url": { "raw": "{{base_url}}/nomina-completa/taxes", "host": ["{{base_url}}"], "path": ["nomina-completa", "taxes"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Documentos",
+      "item": [
+        {
+          "name": "Subir documento",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": null },
+                { "key": "category", "value": "OTRO", "type": "text" },
+                { "key": "tags", "value": "revision-2026", "type": "text" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/api/v1/documents/upload", "host": ["{{base_url}}"], "path": ["api", "v1", "documents", "upload"] }
+          }
+        },
+        {
+          "name": "Buscar documentos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/documents/search?q=contrato&limit=50", "host": ["{{base_url}}"], "path": ["api", "v1", "documents", "search"], "query": [{ "key": "q", "value": "contrato" }, { "key": "limit", "value": "50" }] }
+          }
+        },
+        {
+          "name": "Descargar contenido",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/documents/doc-1/content", "host": ["{{base_url}}"], "path": ["api", "v1", "documents", "doc-1", "content"] }
+          }
+        },
+        {
+          "name": "Compartir documento",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"shared_with\": \"contador@despacho.mx\",\n  \"permission\": \"LECTURA\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/documents/doc-1/share", "host": ["{{base_url}}"], "path": ["api", "v1", "documents", "doc-1", "share"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Reportes",
+      "item": [
+        {
+          "name": "Reporte mensual (KPIs)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"default\",\n  \"month\": 7,\n  \"year\": 2026,\n  \"revenue\": 250000.0,\n  \"expenses\": 120000.0,\n  \"taxes_paid\": 30000.0,\n  \"invoices_count\": 45\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/reportes/monthly", "host": ["{{base_url}}"], "path": ["api", "v1", "reportes", "monthly"] }
+          }
+        },
+        {
+          "name": "KPI dashboard",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"default\",\n  \"period\": \"2026-07\",\n  \"revenue\": 250000.0,\n  \"expenses\": 120000.0,\n  \"profit\": 100000.0,\n  \"invoices_count\": 45\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/reportes/kpi", "host": ["{{base_url}}"], "path": ["api", "v1", "reportes", "kpi"] }
+          }
+        },
+        {
+          "name": "Reporte PDF (mensual)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/reports/monthly/2026-07", "host": ["{{base_url}}"], "path": ["api", "v1", "reports", "monthly", "2026-07"] }
+          }
+        },
+        {
+          "name": "DIOT: generar",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"invoices\": [ { \"rfc_tercero\": \"XAXX010101000\", \"nombre\": \"Proveedor SA\", \"tipo_operacion\": \"Nacional\", \"monto_neto\": 10000.0, \"iva_trasladado\": 1600.0, \"iva_acreditable\": 1600.0 } ]\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/diot/generate", "host": ["{{base_url}}"], "path": ["api", "v1", "diot", "generate"] }
+          }
+        },
+        {
+          "name": "DIOT: historial",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/diot/history", "host": ["{{base_url}}"], "path": ["api", "v1", "diot", "history"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Contabilidad Electrónica",
+      "item": [
+        {
+          "name": "Generar balanza XML",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"periodo\": \"2026-07\",\n  \"ejercicio\": 2026,\n  \"mes\": 7,\n  \"rfc\": \"DESP820101AB1\",\n  \"rows\": []\n}"
+            },
+            "url": { "raw": "{{base_url}}/contabilidad-electronica/balanza", "host": ["{{base_url}}"], "path": ["contabilidad-electronica", "balanza"] }
+          }
+        },
+        {
+          "name": "Validar antes de enviar",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"balanza\": { \"periodo\": \"2026-07\", \"ejercicio\": 2026, \"mes\": 7 },\n  \"catalogo\": []\n}" },
+            "url": { "raw": "{{base_url}}/contabilidad-electronica/validate", "host": ["{{base_url}}"], "path": ["contabilidad-electronica", "validate"] }
+          }
+        },
+        {
+          "name": "Obligaciones SAT por RFC",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/contabilidad-electronica/obligaciones/DESP820101AB1", "host": ["{{base_url}}"], "path": ["contabilidad-electronica", "obligaciones", "DESP820101AB1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Conciliación bancaria",
+      "item": [
+        {
+          "name": "Subir estado de cuenta",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file", "src": null }]
+            },
+            "url": { "raw": "{{base_url}}/api/v1/conciliacion/upload", "host": ["{{base_url}}"], "path": ["api", "v1", "conciliacion", "upload"] }
+          }
+        },
+        {
+          "name": "Matching",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bank_transactions\": [ { \"id\": \"t1\", \"date\": \"2026-07-15\", \"amount\": 12000.0, \"type\": \"cargo\", \"reference\": \"REF-1\", \"bank_account\": \"acc-1\" } ],\n  \"cfdi_list\": [ { \"uuid\": \"A1B2C3\", \"fecha\": \"2026-07-15\", \"total\": 12000.0, \"rfc_emisor\": \"XAXX010101000\", \"tipo_comprobante\": \"I\" } ],\n  \"date_tolerance_days\": 3\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/conciliacion/match", "host": ["{{base_url}}"], "path": ["api", "v1", "conciliacion", "match"] }
+          }
+        },
+        {
+          "name": "Conciliación completa",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bank_transactions\": [],\n  \"polizas\": [],\n  \"cfdi_list\": [],\n  \"tolerance_days\": 3,\n  \"period\": \"2026-07\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/conciliacion/reconcile", "host": ["{{base_url}}"], "path": ["api", "v1", "conciliacion", "reconcile"] }
+          }
+        },
+        {
+          "name": "Reporte por periodo",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/conciliacion/report/2026-07", "host": ["{{base_url}}"], "path": ["api", "v1", "conciliacion", "report", "2026-07"] }
+          }
+        },
+        {
+          "name": "Aplicar ajustes",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"adjustment_ids\": [\"adj-1\"],\n  \"applied_by\": \"contador@despacho.mx\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/conciliacion/apply", "host": ["{{base_url}}"], "path": ["api", "v1", "conciliacion", "apply"] }
+          }
+        },
+        {
+          "name": "Listar discrepancias",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+            "url": { "raw": "{{base_url}}/api/v1/conciliacion/discrepancies", "host": ["{{base_url}}"], "path": ["api", "v1", "conciliacion", "discrepancies"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. System",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "OpenAPI contract",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/openapi.json", "host": ["{{base_url}}"], "path": ["openapi.json"] }
+          }
+        }
+      ]
+    }
+  ]
+}

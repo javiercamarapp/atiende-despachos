@@ -1,431 +1,100 @@
-# API Reference — Likida AI Enterprise (Enterprise)
+# API Reference — Likida AI (Enterprise)
 
-Referencia técnica completa de la API REST del agente contable enterprise
-(Likida / Likida AI Enterprise). Toda la documentación interactiva está disponible en la
-instancia en ejecución:
+Referencia de la API REST del agente contable IA para despachos contables.
+Documenta la integración completa para un despacho: autenticación, CFDI,
+bancos, nómina, documentos, reportes, contabilidad electrónica y conciliación.
 
-- Swagger UI: `GET /docs`
-- ReDoc: `GET /redoc`
-- OpenAPI JSON (contract): `GET /openapi.json`
-- Archivo del contrato en el repo: `docs/openapi.json` (generado con
-  `scripts/generate_openapi.py` desde la app real, nunca a mano).
+- Base URL (producción): `https://api.b2b-ai.local`
+- Base URL (local): `http://localhost:8000`
+- Documentación interactiva: `GET /docs` (Swagger UI), `GET /redoc`
+- Contrato OpenAPI: `GET /openapi.json` · también en `docs/openapi.json`
+  y `docs/openapi.yaml` (generado con `scripts/export_openapi.py`).
+- Versión documentada: **1.0.0** · 284 rutas · 152 schemas.
 
-Versión documentada: **1.0.0** · Base URL de producción: `https://api.b2b-ai.local`
-
-Este documento se genera en paralelo con `docs/openapi.json`: el contrato
-OpenAPI es la fuente de verdad para endpoints, schemas y parámetros; este
-documento añade la guía de uso, autenticación, errores y ejemplos.
+> El contrato OpenAPI (`docs/openapi.json`) es la fuente de verdad para rutas,
+> parámetros y schemas. Este documento añade guía de uso, ejemplos y errores.
 
 ---
 
-## 1. Authentication
+## 1. Autenticación
 
-La API usa **tres esquemas de autenticación** según la superficie:
+La mayoría de endpoints de `/api/v1/*` se autentican con una **API key** en el
+header `X-API-Key`. Los módulos `/api/v1/auth/*` y el portal usan **JWT Bearer**.
 
-| Esquema | Header | Dónde | Cómo se obtiene |
+| Esquema | Header | Ámbito | Cómo se obtiene |
 |---|---|---|---|
-| **API Key** | `X-API-Key` | Endpoints `/api/v1/*`, `/api/v2/*` y legacy | Tabla `api_keys` (multi-tenant) o env `B2B_API_KEY` (key de servicio) |
-| **JWT Bearer** | `Authorization: Bearer <token>` | `/api/v1/auth/*` y `/api/v1/tenants/{id}/users/*` | `POST /api/v1/auth/login` |
-| **Portal Bearer** | `Authorization: Bearer <token>` o `X-Portal-Token` | `/portal/*` | `POST /portal/auth/login` (o magic-link) |
+| **API Key** | `X-API-Key: <key>` | `/api/v1/*`, `/api/v2/*`, legacy | Se emite al crear un tenant (`POST /api/v1/tenants`) o en la env `B2B_API_KEY` (key de servicio) |
+| **JWT Bearer** | `Authorization: Bearer <jwt>` | `/api/v1/auth/*`, `/api/v1/tenants/{id}/users/*` | `POST /api/v1/auth/login` |
 
-### 1.1 API Key (mayoría de endpoints)
-
-```http
-X-API-Key: sk_live_xxxxxxxxxxxxxxxx
-```
-
-**Resolución** (`b2b_ai/api/auth.py`):
-
-1. Si la key coincide con la env `B2B_API_KEY` → identidad `service`
-   (`tenant_id=None`). Para dev, pruebas y operación del sistema.
-2. Si la key existe en la tabla `api_keys` → identidad del `tenant_id` y nombre
-   asociados.
-
-**Alcance de tenant (hard-scoping):** una key de tenant **nunca** puede ver u
-operar sobre otro tenant, aunque el cliente mande `tenant_id` en la query. Solo
-la key de servicio puede pedir un tenant arbitrario o todos. Un tenant
-**bloqueado** recibe `403` en cualquier endpoint `/api/v1/*` o `/api/v2/*`.
-
-**Anti-fuerza bruta:** los intentos fallidos se comparan en tiempo constante
-(`hmac.compare_digest`) y se auditan en `audit_log` (se guarda solo la longitud
-y un hash corto de la key, nunca la key completa).
-
-### 1.2 JWT (auth enterprise)
+### 1.1 Uso de la API key
 
 ```http
-POST /api/v1/auth/login
-Content-Type: application/json
-
-{"email": "admin@despacho.com", "password": "supersecreto", "tenant_id": 1}
+X-API-Key: sk_likida_XXXXXXXX
 ```
 
-Respuesta (tokens de acceso y refresco):
+Cada key resuelve un `tenant_id` (aislamiento multi-tenant). Si la key coincide
+con la env `B2B_API_KEY` se trata como key de servicio (`tenant_id=None`).
 
-```json
-{
-  "access_token": "eyJhbGciOi...",
-  "refresh_token": "eyJhbGciOi...",
-  "expires_in": 3600,
-  "user": {"id": 1, "email": "admin@despacho.com", "role": "admin"},
-  "tenant_id": 1
-}
-```
-
-Usa el access token en `Authorization: Bearer <access_token>`. Cuando caduque,
-refresca con `POST /api/v1/auth/refresh` y `{"refresh_token": "..."}`.
-
-**Roles:** `admin`, `contador`, `lectura` (RBAC). Solo `admin` gestiona
-usuarios (`/api/v1/tenants/{id}/users/*`).
-
-### 1.3 Portal (cliente final)
-
-```http
-POST /portal/auth/login
-Content-Type: application/json
-
-{"email": "cliente@despacho.com", "password": "supersecreto"}
-```
-
-Respuesta:
-
-```json
-{
-  "token": "opaco-aleatorio-64car",
-  "user": {"id": 3, "email": "cliente@despacho.com", "name": "Cliente", "role": "cliente"},
-  "tenant_id": 1,
-  "expires_at": "2026-08-30T21:00:00"
-}
-```
-
-Sesiones TTL 30 días. Envía el token en `Authorization: Bearer <token>` o en
-el header `X-Portal-Token`.
-
-### 1.4 Errores de autenticación
+### 1.2 Respuestas de error estándar
 
 | Código | Significado |
 |---|---|
-| `401` | Falta `X-API-Key` / token inválido o caducado |
-| `403` | Tenant bloqueado, rol sin permiso, o key sin tenant en endpoint que lo exige |
-
----
-
-## 2. Rate limiting
-
-### 2.1 Por IP (capa global, `/api/v1/*`)
-
-Ventana deslizante por `(IP, ruta)`. Por defecto **300 peticiones por minuto**
-por IP+ruta. Configurable:
-
-| Env | Default | Efecto |
-|---|---|---|
-| `B2B_RATE_LIMIT` | `on` | `off` desactiva el limitador |
-| `B2B_RATE_LIMIT_PER_MIN` | `300` | Límite por minuto por (IP, ruta) |
-
-Al exceder el límite se devuelve:
-
-```http
-HTTP/1.1 429 Too Many Requests
-Retry-After: 60
-Content-Type: application/json
-
-{"detail": "Demasiadas peticiones. Intenta en un minuto."}
-```
-
-**Exentos del rate limit** (healthchecks, monitoreo y documentación):
-`/health`, `/health/detailed`, `/metrics`, `/metrics/prometheus`, `/static/*`,
-`/icons/*`, `/manifest.json`, `/sw.js`, `/robots.txt`, `/sitemap.xml`,
-`/docs`, `/openapi.json`, `/redoc`, `/favicon.ico`.
-
-**IP real:** por defecto se usa la IP de la conexión (`REMOTE_ADDR`). Solo se
-confía en `X-Forwarded-For` si `B2B_TRUST_PROXY` está configurado con IPs de
-proxy de confianza (evita el bypass por spoofing de XFF).
-
-### 2.2 Por tenant (capa `/api/v2/*`)
-
-Los endpoints v2 aplican además un **rate limit por tenant** (independiente
-del por-IP). Default 300/min, configurable por tenant
-(`rate_limit_per_min` en la config del tenant). Al exceder:
-
-```http
-HTTP/1.1 429 Too Many Requests
-Retry-After: 60
-{"detail": "Rate limit por tenant excedido. Reduce el ritmo."}
-```
-
-### 2.3 Buenas prácticas
-
-- Backoff exponencial en el cliente: espera `Retry-After` + jitter.
-- En lotes (`/api/v2/batch`) usa `async: true` para no quemar cuota en
-  síncronos largos.
-- El `GET /api/v2/usage` te dice cuántas llamadas llevas en el periodo.
-
----
-
-## 3. Pagination
-
-- **`limit`**: la mayoría de listados aceptan `limit` (default 100, máx 1000
-  en `/api/v1/invoices`; hasta 5000 en `/api/v2/audit`).
-- **`offset`**: solo `/api/v2/audit` soporta paginación con `offset`
-  (default 0). Es paginación por desplazamiento (no cursor), adecuada para
-  volumen bajo/medio.
-- La respuesta incluye `count` (número de ítems devueltos en esta página).
-
-Ejemplo:
-
-```http
-GET /api/v2/audit?limit=100&offset=200
-X-API-Key: sk_live_xxx
-```
-
-```json
-{"count": 100, "limit": 100, "offset": 200, "audit": [ ... ]}
-```
-
-No hay paginación por cursor; para volúmenes grandes usa `/api/v2/export`
-(CSV/XLSX/PDF) que soporta hasta 10 000 registros.
-
----
-
-## 4. Formato de errores
-
-Errores de validación (FastAPI/Pydantic) devuelven `HTTPValidationError`:
-
-```json
-{
-  "detail": [
-    {
-      "loc": ["body", "email"],
-      "msg": "field required",
-      "type": "value_error.missing"
-    }
-  ]
-}
-```
-
-Errores de negocio devuelven el detalle plano en `detail`:
-
-```json
-{"detail": "Factura no encontrada."}
-```
-
-### Códigos de error globales
-
-| Código | Significado |
-|---|---|
-| `400` | Body/petición mal formada |
-| `401` | Falta o es inválida la autenticación |
-| `403` | Sin permiso / tenant bloqueado / otro tenant |
+| `200` | OK |
+| `400` | Petición mal formada / error de negocio validable |
+| `401` | Falta o es inválida la API key |
+| `403` | Key válida pero sin permiso para el recurso/tenant |
 | `404` | Recurso no encontrado |
-| `409` | Conflicto de estado (p. ej. webhook sin URL configurada) |
-| `422` | Validación falló (schemas o reglas de negocio: CFDI inválido, URL inválida…) |
-| `429` | Rate limit excedido |
-| `5xx` | Error de servidor (revisa `/health/detailed`) |
+| `413` | Payload excede el límite (10 MB; subidas de docs 15 MB) |
+| `422` | Validación de schemas/reglas falló (CFDI inválido, periodo mal formado…) |
+| `429` | Rate limit superado (300 req/min por IP por defecto) |
+| `500` | Error interno |
+
+Los errores de `4xx/5xx` devuelven JSON estructurado:
+
+```json
+{
+  "detail": "Cuenta no encontrada."
+}
+```
+
+**Rate limit:** 300 req/min por IP (configurable con `B2B_RATE_LIMIT_PER_MIN`,
+o `off` para desactivarlo). Cabecera `Retry-After` en el 429.
 
 ---
 
-## 5. Resumen de endpoints
+## 2. CFDI (facturas)
 
-### 5.1 Públicos (sin auth)
+Módulo de procesamiento, listado y batch de Comprobantes Fiscales.
 
-| Método | Ruta | Descripción |
+### 2.1 Procesar un CFDI — `POST /api/v1/invoices/process`
+
+Sube un XML de CFDI y lo procesa por el pipeline completo (validación,
+clasificación, póliza ERP, inserción en DB).
+
+**multipart/form-data** (recomendado):
+
+| Campo | Tipo | Descripción |
 |---|---|---|
-| GET | `/health` | Health check + versión + estado DB |
-| GET | `/health/detailed` | Estado detallado: DB, pool, cache, disco, memoria |
-| GET | `/metrics` | Métricas operativas JSON |
-| GET | `/metrics/prometheus` | Métricas en formato Prometheus |
-| POST | `/api/v1/leads` | Alta de lead desde la landing |
-| POST | `/api/v1/auth/register` | Alta de usuario (bootstrap del 1er admin del tenant) |
-| POST | `/api/v1/auth/login` | Login → tokens JWT |
-| POST | `/portal/auth/login` | Login del portal cliente |
-| POST | `/portal/auth/magic-link` | Emite sesión sin password (mock email) |
-| POST | `/portal/auth/confirm` | Valida un token de magic link |
+| `xml_file` | file | Archivo XML o PDF del CFDI (obligatorio) |
 
-### 5.2 Facturas (invoices) — API key
+**O bien JSON** con:
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/v1/invoices/process` | Procesa un CFDI (multipart o xml_path) por el pipeline completo |
-| GET | `/api/v1/invoices` | Lista con filtros (categoria, valido, fechas, limit) |
-| GET | `/api/v1/invoices/{invoice_id}` | Detalle de una factura |
+```json
+{ "xml_path": "/data/cfdi/factura_20260731.xml", "tenant_id": 1 }
+```
 
-### 5.3 Métricas y estado — API key
+> La ingesta por `xml_path` requiere que el servidor tenga `B2B_LOCAL_XML_DIRS`
+> configurado; si no, responde `400`. Para integración externa use multipart.
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/v1/stats` | Métricas agregadas (totales y por categoría) |
-| GET | `/api/v1/tools` | Tools registradas en el agente |
-| GET | `/api/v1/dashboard` | Dashboard web HTML |
-| GET | `/api/v1/dashboard/data` | Datos del dashboard en JSON |
-| GET | `/api/v1/dashboard/summary` | Totales procesados y estado |
-| GET | `/api/v1/dashboard/kpi` | KPIs: tiempo, error %, % automático |
-| GET | `/api/v1/dashboard/monthly` | Facturas/montos/anomalías por mes |
-| GET | `/api/v1/dashboard/anomalies` | Anomalías por severidad y tipo |
-| GET | `/api/v1/dashboard/by-provider` | Top 10 proveedores por monto |
-| GET | `/api/v1/dashboard/reconciliation` | Estado de la conciliación |
-
-### 5.4 Contabilidad, nómina, SAT — API key
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/v1/accounting/catalog` | Catálogo de cuentas (CUC) |
-| GET | `/api/v1/accounting/balance` | Balanza de comprobación |
-| POST | `/api/v1/accounting/sat/send` | Envía balanza al SAT (MOCK) |
-| POST | `/api/v1/payroll/calculate` | Calcula nómina (ISR, IMSS, INFONAVIT) + CFDI opcional |
-| POST | `/api/v1/contabilidad/catalogo` | Importa/crea catálogo de cuentas |
-| GET | `/api/v1/contabilidad/catalogo` | Lista catálogo del tenant |
-| POST | `/api/v1/contabilidad/asientos` | Registra un asiento contable |
-| POST | `/api/v1/contabilidad/balanza/{periodo}` | Genera balanza del mes |
-| GET | `/api/v1/contabilidad/balanza/{periodo}` | Descarga balanza XML (SAT) |
-| POST | `/api/v1/contabilidad/electronica/{periodo}` | Genera paquete de contabilidad electrónica |
-| GET | `/api/v1/contabilidad/electronica/{periodo}/download` | Descarga XML listo para SAT |
-| POST | `/api/v1/sat/download` | Descarga masiva de CFDI por rango |
-| POST | `/api/v1/sat/verify` | Verifica estatus y cadena de un CFDI |
-| POST | `/api/v1/sat/schedule` | Programa descarga/verificación periódica |
-| GET | `/api/v1/sat/status` | Estado de sesión y scheduler SAT |
-
-### 5.5 Conciliación y cobranza — API key
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/v1/reconcile/run` | Ejecuta conciliación bancaria |
-| POST | `/api/v1/reconciliation/upload` | Sube estado de cuenta (CSV/PDF) |
-| GET | `/api/v1/reconciliation/matches` | Cruces automáticos (con confidence) |
-| GET | `/api/v1/reconciliation/report` | Reporte de la sesión actual |
-| POST | `/api/v1/reconciliation/confirm` | Confirma manualmente un cruce |
-| POST | `/api/v1/collections/analyze` | Analiza cartera pendiente |
-| POST | `/api/v1/collections/send-reminder` | Genera/registra recordatorio |
-| GET | `/api/v1/collections/aging` | Reporte de antigüedad |
-| GET | `/api/v1/collections/score/{invoice_id}` | Score de cobrabilidad |
-
-### 5.5b Reportes — API key
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/v1/reports/{report_type}/{period}` | Genera un reporte PDF del periodo (`report_type` en `invoices`\|`monthly`\|`reconciliation`\|`anomaly`\|`tax`) |
-| POST | `/api/v1/reports/custom` | Genera un reporte personalizado desde JSON (`data` + `template`); devuelve PDF |
-| GET | `/api/v1/reports/{report_id}/download` | Descarga un reporte previamente generado por id |
-
-### 5.6 Webhooks — API key
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/v1/webhooks/email` | Recibe facturas por email (mock Mailgun/SendGrid) |
-| POST | `/api/v1/webhooks/notify` | Entrega un resultado al webhook del tenant |
-| POST | `/api/v1/webhooks/subscriptions` | Registra la URL de webhook |
-| GET | `/api/v1/webhooks/subscriptions` | Lista la URL de webhook |
-| POST | `/api/v1/webhooks/retry` | Reintenta entregas pendientes (worker) |
-
-Ver `docs/webhooks.md` para el detalle completo de eventos, firma y retry.
-
-### 5.7 Notificaciones — API key
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/v1/notifications/send` | Encola/envía WhatsApp |
-| POST | `/api/v1/notifications/email` | Envía email (SMTP) |
-| GET | `/api/v1/notifications/history` | Historial persistido |
-| POST | `/api/v1/notifications/config` | Guarda config de WhatsApp del tenant |
-| PUT | `/api/v1/notifications/preferences` | Guarda preferencias de notificación |
-
-### 5.8 Facturación (billing) — API key
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/v1/billing/checkout` | Inicia checkout y procesa pago |
-| POST | `/api/v1/billing/subscription` | Crea/activa suscripción a un plan |
-| GET | `/api/v1/billing/invoices` | Facturas del tenant |
-| GET | `/api/v1/billing/plans` | Planes y precios |
-| POST | `/api/v1/billing/webhook` | Recibe eventos del proveedor |
-
-### 5.9 Tenants y onboarding — API key
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/v1/tenants` | Onboarding de un nuevo cliente |
-| GET | `/api/v1/onboarding/status` | Estado del onboarding + score readiness |
-| PUT | `/api/v1/onboarding/step/{step}` | Envía y valida un paso del wizard |
-| POST | `/api/v1/onboarding/complete` | Cierra onboarding y crea usuarios |
-
-### 5.10 Usuarios (admin) — JWT
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/v1/tenants/{tenant_id}/users` | Lista usuarios del tenant |
-| POST | `/api/v1/tenants/{tenant_id}/users` | Crea un usuario |
-| PUT | `/api/v1/tenants/{tenant_id}/users/{user_id}/role` | Cambia rol |
-| GET | `/api/v1/auth/me` | Usuario autenticado |
-| PUT | `/api/v1/auth/me` | Actualiza perfil propio |
-
-### 5.11 Enterprise v2 (escala) — API key
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/v2/batch` | Procesa hasta 1000 CFDI en lote (sync o async) |
-| GET | `/api/v2/batch/{job_id}` | Estado/resultado de un lote async |
-| GET | `/api/v2/analytics` | Analytics avanzado por tenant (cache TTL) |
-| POST | `/api/v2/webhooks` | Registra suscripciones por evento |
-| GET | `/api/v2/webhooks` | Lista suscripciones |
-| DELETE | `/api/v2/webhooks/{subscription_id}` | Elimina suscripción |
-| GET | `/api/v2/audit` | Log de auditoría del tenant |
-| POST | `/api/v2/export` | Exporta a CSV/XLSX/PDF |
-| GET | `/api/v2/usage` | Uso del tenant (calls, facturas) |
-| GET | `/api/v2/health` | Health detallado del servicio |
-| GET | `/api/v2/tenants` | Lista tenants + uso (admin) |
-| POST | `/api/v2/tenants` | Onboarding de tenant (admin) |
-| PATCH | `/api/v2/tenants/{tid}` | Configura un tenant (admin) |
-| POST | `/api/v2/tenants/{tid}/block` | Bloquea tenant |
-| POST | `/api/v2/tenants/{tid}/unblock` | Desbloquea tenant |
-| GET | `/api/v2/tenants/{tid}/usage` | Uso de un tenant (admin) |
-| POST | `/api/v2/retention/purge` | Aplica política de retención (key de servicio) |
-
-### 5.12 Portal del cliente (Bearer)
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/portal/auth/logout` | Cierra sesión |
-| GET | `/portal/auth/me` | Usuario autenticado |
-| GET | `/portal/invoices.json` | Lista facturas (con filtros) |
-| GET | `/portal/invoices/{job_or_id}/status` | Estado de un job o factura |
-| POST | `/portal/invoices/upload` | Sube CFDI y lo procesa en segundo plano |
-| GET | `/portal/invoices/export.csv` | Exporta historial a CSV |
-| GET | `/portal/dashboard/stats` | Métricas del tenant |
-| GET | `/portal/notifications` | Notificaciones del tenant |
-| PUT | `/portal/settings` | Actualiza ajustes del portal |
-
-### 5.13 Legacy (compatibilidad, protegidos por API key)
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/tools` | Tools registradas |
-| GET | `/invoices` | Lista facturas |
-| GET | `/stats` | Métricas agregadas |
-| POST | `/process` | Procesa CFDI (xml_path o folder) |
-
----
-
-## 6. Ejemplos de request/response
-
-### 6.1 Procesar un CFDI
-
-**Multipart** (recomendado desde un navegador o curl):
+Ejemplo curl (multipart):
 
 ```bash
 curl -X POST https://api.b2b-ai.local/api/v1/invoices/process \
-  -H "X-API-Key: sk_live_xxx" \
-  -F "xml_file=@factura.xml" \
-  -F "tenant_id=1"
+  -H "X-API-Key: sk_likida_XXXXXXXX" \
+  -F "xml_file=@factura.xml"
 ```
 
-**JSON con ruta en servidor** (para integraciones server-to-server):
-
-```bash
-curl -X POST https://api.b2b-ai.local/api/v1/invoices/process \
-  -H "X-API-Key: sk_live_xxx" \
-  -H "Content-Type: application/json" \
-  -d '{"xml_path": "/data/cfdi/factura_20260731.xml", "tenant_id": 1}'
-```
-
-Respuesta `200 OK`:
+Respuesta `200`:
 
 ```json
 {
@@ -433,176 +102,540 @@ Respuesta `200 OK`:
     "archivo": "factura.xml",
     "valido": true,
     "requires_human_review": false,
-    "categoria": "gastos",
+    "categoria": "Gastos",
     "confianza": 0.97,
-    "erp_poliza": "P-00123",
-    "erp_status": "contabilizada",
-    "insertado": true,
-    "total": 12000.0,
+    "erp_poliza": "P-2026-0781",
+    "erp_status": "ok",
+    "insertado": 1,
+    "total": "12000.00",
     "emisor": "XAXX010101000",
-    "notificacion": "enviada"
+    "notificacion": "sent"
   }
 }
 ```
 
-Errores:
-- `422` CFDI inválido (`detail: "CFDI inválido: <motivo>"`).
-- `404` xml_path no existe.
-- `400` no mandaste `xml_file` ni `xml_path`.
-- `422` extensión no permitida (solo `.xml`/`.pdf`).
+Errores: `400` (archivo vacío), `422` (CFDI inválido o solo `.xml/.pdf`), `401`.
 
-### 6.2 Listar facturas
+### 2.2 Listar facturas — `GET /api/v1/invoices`
 
-```http
-GET /api/v1/invoices?categoria=gastos&valido=true&fecha_desde=2026-07-01&fecha_hasta=2026-07-31&limit=100
-X-API-Key: sk_live_xxx
+```bash
+curl "https://api.b2b-ai.local/api/v1/invoices?categoria=gastos&valido=true&fecha_desde=2026-07-01&fecha_hasta=2026-07-31&limit=100" \
+  -H "X-API-Key: sk_likida_XXXXXXXX"
 ```
+
+Query params: `tenant_id`, `categoria`, `valido`, `fecha_desde`, `fecha_hasta`,
+`limit` (default 100, max 1000).
 
 ```json
 {
   "count": 2,
   "tenant_id": 1,
   "invoices": [
-    {
-      "id": 42,
-      "folio_fiscal": "UUID-1234",
-      "emisor_rfc": "XAXX010101000",
-      "emisor_nombre": "Proveedor X",
-      "fecha": "2026-07-30",
-      "total": 12000.0,
-      "categoria": "gastos",
-      "valido": true,
-      "status": "procesado"
-    }
+    { "id": 12, "folio_fiscal": "A1B2C3", "fecha": "2026-07-30",
+      "total": "12000.00", "emisor_rfc": "XAXX010101000",
+      "categoria": "Gastos", "valido": 1 }
   ]
 }
 ```
 
-Nota de multi-tenant: la key autenticada fija el tenant; el parámetro
-`tenant_id` solo aplica para la key de servicio.
-
-### 6.3 Lote asíncrono (v2)
+### 2.3 Detalle de una factura — `GET /api/v1/invoices/{invoice_id}`
 
 ```bash
-curl -X POST https://api.b2b-ai.local/api/v2/batch \
-  -H "X-API-Key: sk_live_xxx" -H "Content-Type: application/json" \
-  -d '{"paths": ["/data/cfdi/1.xml", "/data/cfdi/2.xml"], "async": true, "webhook": true}'
+curl https://api.b2b-ai.local/api/v1/invoices/12 -H "X-API-Key: sk_likida_XXXXXXXX"
 ```
 
 ```json
-{"accepted": true, "job_id": "3f2a1c9b7d41", "total": 2, "status": "running"}
+{ "invoice": { "id": 12, "folio_fiscal": "A1B2C3", "fecha": "2026-07-30",
+               "total": "12000.00", "emisor_rfc": "XAXX010101000" } }
 ```
 
-Polling:
+`404` si no existe.
 
-```http
-GET /api/v2/batch/3f2a1c9b7d41
-X-API-Key: sk_live_xxx
+### 2.4 Procesar batch de CFDIs — `POST /api/v1/cfdi/batch` + `GET /api/v1/cfdi/batch/{id}`
+
+> Rutas definidas en `features/batch` (límites: 500 CFDIs / 10 MB). Nota: la
+> app principal monta el batch **vía `/api/v2/batch`** (hasta 1000 CFDIs).
+> Ver sección 8.
+
+### 2.5 Métricas — `GET /api/v1/stats`
+
+Totales, por categoría, auditoría, notificaciones y reporte.
+
+---
+
+## 3. Bank Feeds (bancos)
+
+Módulo `/api/v1/bank-feeds/*` — conexión de cuentas, sincronización,
+categorización y conciliación bancaria.
+
+### 3.1 Conectar cuenta — `POST /api/v1/bank-feeds/accounts`
+
+Body (`ConnectAccountRequest`):
+
+```json
+{
+  "provider": "BBVA",
+  "clabe": "012180015000000001",
+  "account_label": "Cuenta operativa",
+  "ofx_content": "...",
+  "statement_text": "...",
+  "tenant_id": ""
+}
+```
+
+`provider`: `BBVA | BANORTE | SANTANDER | HSBC`. `clabe`, `ofx_content` y
+`statement_text` son opcionales para el MVP.
+
+```json
+{ "ok": true, "message": "Cuenta conectada.", "data": { "id": "acc-1", "provider": "BBVA" } }
+```
+
+`400` si el proveedor es inválido.
+
+### 3.2 Listar cuentas — `GET /api/v1/bank-feeds/accounts`
+
+```json
+{ "ok": true, "data": [ { "id": "acc-1", "provider": "BBVA", "clabe": "..." } ] }
+```
+
+### 3.3 Detalle de cuenta — `GET /api/v1/bank-feeds/accounts/{account_id}`
+
+`404` si no existe.
+
+### 3.4 Sincronizar — `POST /api/v1/bank-feeds/accounts/{account_id}/sync`
+
+Query: `from_date`, `to_date` (`YYYY-MM-DD`), `limit` (default 200, max 1000).
+
+```json
+{ "ok": true, "data": { "synced": 150, "new_transactions": 12 } }
+```
+
+`404` cuenta no encontrada · `502` fallo del proveedor.
+
+### 3.5 Transacciones — `GET /api/v1/bank-feeds/accounts/{account_id}/transactions`
+
+Query: `status`, `category`, `limit`.
+
+### 3.6 Historial de syncs — `GET /api/v1/bank-feeds/accounts/{account_id}/syncs`
+
+### 3.7 Categorizar — `POST /api/v1/bank-feeds/transactions/{txn_id}/categorize`
+
+Body (`CategorizeRequest`):
+
+```json
+{ "category": "Servicios", "auto": false }
+```
+
+`category` opcional (si es `null` y `auto=true`, infiere por heurística).
+`404` si la transacción no existe.
+
+### 3.8 Conciliar — `POST /api/v1/bank-feeds/reconcile`
+
+Cruza transacciones con CFDI/pólizas. Body (`ReconcileRequest`):
+
+```json
+{
+  "account_id": "acc-1",
+  "cfdi_list": [ { "uuid": "A1B2C3", "fecha": "2026-07-30", "total": 12000.0 } ],
+  "tolerance_days": 3
+}
+```
+
+```json
+{ "ok": true, "data": { "matched": 10, "unmatched": 2 } }
+```
+
+---
+
+## 4. Nómina
+
+Módulo `/nomina-completa/*` — cálculo ISR/IMSS/INFONAVIT, CFDI de nómina 1.2,
+recibos (payslips) y resumen por periodo.
+
+### 4.1 Procesar nómina — `POST /nomina-completa/process`
+
+Body (`ProcessPayrollRequest`):
+
+```json
+{
+  "period": { "month": 7, "year": 2026, "dias_pagados": 30 },
+  "employees": [
+    { "employee_id": "EMP-1", "name": "Juan Pérez",
+      "salary": 25000.0, "benefits": 0.0 }
+  ],
+  "tenant_id": 1
+}
 ```
 
 ```json
 {
-  "id": "3f2a1c9b7d41",
-  "tenant_id": 1,
-  "status": "completed",
-  "summary": {
-    "procesadas": 2, "validas": 2, "con_observaciones": 0,
-    "insertadas": 2, "por_categoria": {"gastos": 2}, "errores": 0
-  },
-  "results": [
-    {"archivo": "1.xml", "valido": true, "categoria": "gastos",
-     "confianza": 0.98, "erp_poliza": "P-0001", "erp_status": "contabilizada",
-     "insertado": true, "total": 100.0, "emisor": "XAXX010101000", "invoice_id": 1}
-  ]
+  "ok": true,
+  "payroll": {
+    "period": "2026-07",
+    "employee_count": 1,
+    "employees": [ { "employee_id": "EMP-1", "salario_bruto": 25000.0,
+                     "neto": 20300.0, "taxes": { "isr": 3500.0, "imss": 900.0,
+                     "infonavit": 300.0 } } ],
+    "totals": { "neto": 20300.0, "isr": 3500.0 }
+  }
 }
 ```
 
-### 6.4 Exportar
+### 4.2 CFDI de nómina — `POST /nomina-completa/cfdi`
 
-```bash
-curl -X POST https://api.b2b-ai.local/api/v2/export \
-  -H "X-API-Key: sk_live_xxx" -H "Content-Type: application/json" \
-  -d '{"format": "csv", "scope": "invoices", "limit": 1000}' -o export.csv
+Body (`CFDINominaRequest`): `{ "payroll_data": { ...datos procesados... } }`
+
+### 4.3 Recibo de nómina — `GET /nomina-completa/payslip/{employee_id}`
+
+Query: `month` (1-12, req), `year` (req), `tenant_id`.
+
+> El tenant se deriva **siempre** del token autenticado (anti-IDOR).
+
+`404` si no hay nómina procesada para ese periodo/empleado.
+
+### 4.4 Resumen del periodo — `GET /nomina-completa/summary`
+
+Query: `month`, `year`, `tenant_id`.
+
+### 4.5 Impuestos individuales — `POST /nomina-completa/taxes`
+
+Body (`TaxesRequest`): `{ "salary": 25000.0, "benefits": 0.0, "salary_per_day": 0.0 }`
+
+```json
+{ "ok": true, "taxes": { "isr": 3500.0, "imss": 900.0, "infonavit": 300.0, "neto": 20300.0 } }
 ```
 
-Soporta `format`: `csv`, `xlsx`, `pdf`; `scope`: `invoices`, `audit`.
-Responde con `Content-Disposition: attachment`.
+---
 
-### 6.5 Alta de lead (público)
+## 5. Documentos
 
-```bash
-curl -X POST https://api.b2b-ai.local/api/v1/leads \
-  -H "Content-Type: application/json" \
-  -d '{"nombre":"María González","email":"maria@despacho.com","despacho":"Despacho XYZ","facturas":"400/mes","mensaje":"Quiero automatizar"}'
+Módulo `/api/v1/documents/*` — gestión documental con OCR, versionado y sharing.
+Tenant **obligatorio** en el contexto de auth (`400` si falta).
+
+### 5.1 Subir documento — `POST /api/v1/documents/upload`
+
+multipart:
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `file` | file | Archivo (max 15 MB) — obligatorio |
+| `category` | form | Categoría (`FACTURA`, `RECIBO`, `CONTRATO`, `OTRO`…) |
+| `tags` | form | Tags separados por coma |
+| `created_by` | form | Autor |
+
+```json
+{ "ok": true, "document": { "id": "doc-1", "name": "contrato.pdf", "category": "OTRO" } }
+```
+
+`400` vacío/categoría inválida · `413` > 15 MB.
+
+### 5.2 Buscar — `GET /api/v1/documents/search`
+
+Query: `q`, `category`, `tag` (repetible), `limit` (default 50, max 200).
+
+```json
+{ "ok": true, "count": 1,
+  "results": [ { "id": "doc-1", "name": "contrato.pdf", "category": "OTRO" } ] }
+```
+
+### 5.3 Metadata — `GET /api/v1/documents/{document_id}`
+
+### 5.4 Descargar contenido — `GET /api/v1/documents/{document_id}/content`
+
+Devuelve el binario como `attachment` con `Content-Disposition`.
+
+### 5.5 Historial de versiones — `GET /api/v1/documents/{document_id}/versions`
+
+### 5.6 Compartir — `POST /api/v1/documents/{document_id}/share`
+
+Body: `{ "shared_with": "contador@despacho.mx", "permission": "LECTURA" }`
+(`permission`: `LECTURA | ESCRITURA`).
+
+### 5.7 Listar comparticiones — `GET /api/v1/documents/{document_id}/shares`
+
+### 5.8 Añadir tag — `POST /api/v1/documents/{document_id}/tags`
+
+Body: `{ "tag": "revision-2026" }`
+
+---
+
+## 6. Reportes
+
+### 6.1 Reportes gerenciales — `/api/v1/reportes/*`
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/v1/reportes/monthly` | Reporte financiero mensual con KPIs |
+| `POST` | `/api/v1/reportes/kpi` | Dashboard de KPIs con alertas |
+| `POST` | `/api/v1/reportes/cash-flow` | Análisis de flujo de caja (con proyección) |
+| `POST` | `/api/v1/reportes/profit-loss` | Estado de Resultados (P&L) con ISR |
+| `GET` | `/api/v1/reportes/` | Lista periodos disponibles |
+| `GET` | `/api/v1/reportes/download/{period}` | Descarga en `json/csv/pdf` |
+
+**`POST /api/v1/reportes/monthly`** — body (`MonthlyReportRequest`):
+
+```json
+{
+  "tenant_id": "default", "month": 7, "year": 2026,
+  "revenue": 250000.0, "expenses": 120000.0, "taxes_paid": 30000.0,
+  "invoices_count": 45, "prev_revenue": 230000.0
+}
 ```
 
 ```json
-{"ok": true, "lead_id": 12, "message": "Lead registrado. Te contactamos en menos de 24h."}
+{ "ok": true, "report": { "period": "2026-07", "revenue": 250000.0,
+                          "gross_margin": 52.0, "net": 100000.0 } }
 ```
 
-### 6.6 Payroll
+**`POST /api/v1/reportes/kpi`** — body (`KPIRequest`):
+`tenant_id`, `period` (`YYYY-MM`), `revenue`, `expenses`, `profit`,
+`invoices_count`, `avg_ticket`, `days_to_collect`, `data`.
 
-```bash
-curl -X POST https://api.b2b-ai.local/api/v1/payroll/calculate \
-  -H "X-API-Key: sk_live_xxx" -H "Content-Type: application/json" \
-  -d '{
-    "empleado": {"nombre":"Juan Pérez","rfc":"PEJA850101XXX"},
-    "periodo": {"sueldo_bruto": 25000.0, "dias_pagados": 30},
-    "generar_cfdi": false
-  }'
+**`POST /api/v1/reportes/cash-flow`** — body (`CashFlowRequest`):
+`period`, `opening_balance`, `inflows`, `outflows`, `categories`,
+`project_forward`, `monthly_growth_rate`, `projection_months`.
+
+**`POST /api/v1/reportes/profit-loss`** — body (`ProfitLossRequest`):
+`period`, `income`, `cost_of_goods_sold`, `operating_expenses`,
+`other_income`, `other_expenses`, `isr_rate` (default 0.30), breakdowns.
+
+**`GET /api/v1/reportes/download/{period}?report_type=monthly&format=csv`**
+`report_type`: `monthly | cash-flow | profit-loss`; `format`: `json | csv | pdf`.
+`404` si no existe el reporte del periodo.
+
+### 6.2 Reportes PDF — `/api/v1/reports/*`
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/v1/reports/{type}/{period}` | Genera PDF; cabecera `X-Report-Id` |
+| `GET` | `/api/v1/reports/{id}/download` | Descarga un PDF generado |
+| `POST` | `/api/v1/reports/custom` | Reporte personalizado (JSON) |
+
+`type` ∈ `invoices | monthly | reconciliation | anomaly | tax`.
+`GET /api/v1/reports/monthly/2026-07` devuelve el PDF en `application/pdf`.
+
+### 6.3 DIOT — `/api/v1/diot/*`
+
+**`POST /api/v1/diot/generate`** — body (`GenerateDiotRequest`):
+
+```json
+{
+  "month": 7, "year": 2026,
+  "invoices": [ { "rfc_tercero": "XAXX010101000", "nombre": "Proveedor SA",
+                  "tipo_operacion": "Nacional", "monto_neto": 10000.0,
+                  "iva_trasladado": 1600.0, "iva_acreditable": 1600.0 } ],
+  "tenant_id": null
+}
 ```
 
-Devuelve desglose de ISR, IMSS, INFONAVIT y neto; si `generar_cfdi=true`,
-añade `cfdi_xml`.
+```json
+{ "ok": true, "message": "DIOT generada para 07/2026.",
+  "report_id": "rpt-1", "report": { ... } }
+```
 
-### 6.7 Concilación
+**`POST /api/v1/diot/validate`** — body: `{ "invoices": [ ... ] }`
 
-```bash
-curl -X POST https://api.b2b-ai.local/api/v1/reconcile/run \
-  -H "X-API-Key: sk_live_xxx" -H "Content-Type: application/json" \
-  -d '{
-    "invoices": [{"folio_fiscal":"A1B2C3","fecha":"2026-07-30","total":12000.0,"emisor":"XAXX010101000"}],
-    "bank_transactions": [{"fecha":"2026-07-30","monto":12000.0,"descripcion":"Transferencia","ref":"A1B2C3"}],
-    "date_tolerance_days": 3
-  }'
+**`GET /api/v1/diot/download/{report_id}`** — XML SAT (`text/plain`).
+
+**`GET /api/v1/diot/history`** — historial de DIOT.
+
+---
+
+## 7. Contabilidad Electrónica
+
+Módulo `/contabilidad-electronica/*` — generación y validación de XML SAT
+(no requiere `/api/v1`).
+
+### 7.1 Generar Balanza XML — `POST /contabilidad-electronica/balanza`
+
+Body (`BalanzaRequest`):
+
+```json
+{
+  "periodo": "2026-07",
+  "ejercicio": 2026,
+  "mes": 7,
+  "rfc": "DESP820101AB1",
+  "rows": [ { "cuenta": "101", "saldo_inicial": "0", "debe": "1000",
+              "haber": "0", "saldo_final": "1000" } ]
+}
+```
+
+`rfc` es obligatorio en producción (validación SAT). Respuesta:
+
+```json
+{ "estado": "generado", "xml_content": "<BCE:Balanza ...>...</BCE:Balanza>",
+  "errores": [] }
+```
+
+o `{ "estado": "error", "errores": ["El RFC es obligatorio..."] }`.
+
+### 7.2 Generar Catálogo XML — `POST /contabilidad-electronica/catalogo`
+
+Body: lista de `CatalogoCuenta` (array). Responde `estado: "generado"` con
+`xml_content`.
+
+### 7.3 Validar antes de enviar — `POST /contabilidad-electronica/validate`
+
+Body: `{ "balanza": { ... }, "catalogo": [ ... ] }` (ambos opcionales, al menos
+uno obligatorio). Devuelve `{ "ok": bool, "errores": [...], "balanza": {...},
+"catalogo": {...} }`.
+
+### 7.4 Obligaciones SAT — `GET /contabilidad-electronica/obligaciones/{rfc}`
+
+```json
+{ "rfc": "DESP820101AB1", "regimen": "601",
+  "mensuales": ["Declaración mensual de IVA", "Declaración mensual de ISR", ...],
+  "anuales": ["Declaración anual de ISR", ...],
+  "contabilidad_electronica": true, "fecha_consulta": "2026-08-02 12:00:00" }
 ```
 
 ---
 
-## 7. CORS y seguridad
+## 8. Conciliación bancaria
 
-- **CORS**: desactivado por defecto (solo same-origin). Para integraciones de
-  otro dominio, configura `B2B_CORS_ORIGINS` (lista separada por coma) y
-  opcionalmente `B2B_CORS_ALLOW_CREDENTIALS=true`.
-- **Headers de seguridad**: HSTS, CSP, `X-Frame-Options`, `X-Content-Type-Options:
-  nosniff` instalados por `b2b_ai/api/security_headers.py`.
-- **Cifrado de campos**: campos PII cifrables via `encrypt_field`/`decrypt_field`
-  y detección PII en `b2b_ai/api/security.py`.
-- Subidas de archivos restringidas a `.xml`/`.pdf` (CFDI).
+Módulo `/api/v1/conciliacion/*` — upload de estados de cuenta, matching con
+CFDI/pólizas, ajustes, discrepancias y exportación.
 
-Ver `docs/security-audit-report.md` para el detalle.
+### 8.1 Subir estado de cuenta — `POST /api/v1/conciliacion/upload`
 
----
+multipart `file` (CSV con columnas `id,date,description,amount,type,reference,
+bank_account`). Query `period` (YYYY-MM, auto-detectado).
 
-## 8. Monitoring
-
-- `GET /health` — liveness simple.
-- `GET /health/detailed` — DB, pool, cache, disco, memoria, uptime; `status`
-  `ok` o `degraded` con `degraded_components`.
-- `GET /metrics` — JSON operativo (count, latencia por ruta, códigos de estado).
-- `GET /metrics/prometheus` — texto Prometheus (scrape sin auth, exento de
-  rate limit), incluye uso por tenant.
-
----
-
-## 9. Cómo regenerar esta referencia y el OpenAPI
-
-```bash
-cd enterprise
-.venv/bin/python scripts/generate_openapi.py   # regenera docs/openapi.json
+```json
+{ "ok": true, "statement_id": "stmt-2026-07-1", "period": "2026-07",
+  "transaction_count": 150, "file_name": "banco.csv" }
 ```
 
-El script hace `model_rebuild()` sobre todos los módulos con modelos Pydantic
-(billing, auth, onboarding, sat, notifications, portal) antes de pedir el
-schema a `create_app()`, de modo que es determinista y nunca se desincroniza
-del código.
+`422` CSV inválido.
+
+### 8.2 Matching — `POST /api/v1/conciliacion/match`
+
+Body (`MatchRequest`):
+
+```json
+{
+  "bank_transactions": [ { "id": "t1", "date": "2026-07-15", "amount": 12000.0,
+                           "type": "cargo", "reference": "REF-1", "bank_account": "acc-1" } ],
+  "cfdi_list": [ { "uuid": "A1B2C3", "fecha": "2026-07-15", "total": 12000.0,
+                   "rfc_emisor": "XAXX010101000", "tipo_comprobante": "I" } ],
+  "polizas": null,
+  "date_tolerance_days": 3
+}
+```
+
+```json
+{ "ok": true, "period": "2026-07", "total_transactions": 1,
+  "total_cfdi": 1, "matches": [...], "discrepancies": [...], "report": {...} }
+```
+
+### 8.3 Matching desde CSV — `POST /api/v1/conciliacion/match/csv`
+
+multipart `file` (CSV banco) + query `cfdi_json` y `polizas_json` (JSON
+string), `date_tolerance_days`.
+
+### 8.4 Conciliación completa — `POST /api/v1/conciliacion/reconcile`
+
+Body (`ReconcileRequest`): `bank_transactions`, `polizas`, `cfdi_list`,
+`tolerance_days`, `period`. Devuelve `report` + `summary`
+(`matched`, `unmatched`, `match_rate`, `adjustments_proposed`, `total_variance`).
+
+### 8.5 Reporte por periodo — `GET /api/v1/conciliacion/report/{period}`
+
+`404` si no hay reporte para el periodo (aislado por tenant).
+
+### 8.6 Aplicar ajustes — `POST /api/v1/conciliacion/apply`
+
+Body (`ApplyAdjustmentsRequest`): `{ "adjustment_ids": ["adj-1"], "applied_by": "contador@despacho.mx" }`
+
+### 8.7 Listar discrepancias — `GET /api/v1/conciliacion/discrepancies`
+
+Query: `period`, `discrepancy_type` (`monto|fecha|faltante|sobrante|duplicado`),
+`min_variance`.
+
+### 8.8 Listar ajustes — `GET /api/v1/conciliacion/adjustments`
+
+Query: `status` (`PROPOSED|APPROVED|REJECTED|APPLIED`).
+
+### 8.9 Exportar CSV — `POST /api/v1/conciliacion/export` · `POST /api/v1/conciliacion/export/download`
+
+Body (`ExportRequest`): `period`, `matches`, `bank_transactions`, `cfdi_list`.
+`export` devuelve `{ "csv": "...", "period": "..." }`; `export/download`
+descarga como archivo.
+
+---
+
+## 9. Onboarding de tenant y obtención de API key
+
+### 9.1 Crear tenant (emite API key) — `POST /api/v1/tenants`
+
+El flujo real para que un despacho obtenga su API key es **crear el tenant**:
+
+Body (`TenantOnboardRequest`):
+
+```json
+{
+  "name": "Despacho Contable XYZ",
+  "rfc": "DESP820101AB1",
+  "erp_type": "contpaqi",
+  "plantilla_contable": "SAT",
+  "notif_channel": "email",
+  "webhook_url": "",
+  "user_name": "admin",
+  "user_email": "admin@despacho.mx"
+}
+```
+
+```json
+{
+  "ok": true,
+  "tenant": {
+    "id": 1, "name": "Despacho Contable XYZ", "rfc": "DESP820101AB1",
+    "user_id": 3, "api_key": "sk_likida_XXXXXXXX"
+  }
+}
+```
+
+> Guarde la `api_key` devuelta: no se puede volver a leer en claro.
+
+### 9.2 Onboarding wizard — `/api/v1/onboarding/*`
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/v1/onboarding/status` | Estado del wizard + score |
+| `GET` | `/api/v1/onboarding/steps` | Definiciones de pasos |
+| `GET` | `/api/v1/onboarding/plans` | Planes con precios |
+| `GET` | `/api/v1/onboarding/erp-options` | ERPs disponibles |
+| `GET` | `/api/v1/onboarding/step/{step}` | Datos de un paso (1-5) |
+| `PUT` | `/api/v1/onboarding/step/{step}` | Envía/valida/persiste un paso |
+| `POST` | `/api/v1/onboarding/complete` | Cierra el onboarding |
+
+Pasos: `1=company_profile`, `2=sat_credentials`, `3=erp_connection`,
+`4=billing_plan`, `5=first_cfdi`. Todos requieren que la key tenga tenant
+(`403` si la key es de servicio).
+
+---
+
+## 10. Batch v2 y misceláneo
+
+### 10.1 Procesar lote de CFDI — `POST /api/v2/batch`
+
+Body (`BatchRequest`): `{ "paths": ["/data/cfdi/1.xml", ...], "folder": null,
+"async": true, "webhook": true }`. Hasta 1000 CFDIs. Si `async=false`,
+procesa síncrono.
+
+### 10.2 Estado del lote — `GET /api/v2/batch/{job_id}`
+
+---
+
+## 11. Buenas prácticas de integración
+
+- Enviar **siempre** `X-API-Key` en cada request.
+- Usar `Idempotency-Key` en operaciones de escritura (idempotencia 24h TTL).
+- Respetar el rate limit (300 req/min); reintentar con `Retry-After`.
+- Para subidas grandes, usar multipart y mantener < 10 MB (docs < 15 MB).
+- El aislamiento multi-tenant es automático: cada key solo ve su tenant.
+- Para errores transitorios (`429`, `500`, `502`), implementar backoff
+  exponencial con `Retry-After` / `Retry-After`.
+- Regenerar el contrato local tras cambios de API:
+  `B2B_API_KEY=<k> B2B_JWT_SECRET=<s> B2B_ENCRYPTION_KEY=<e> B2B_ENV=development python scripts/export_openapi.py`
