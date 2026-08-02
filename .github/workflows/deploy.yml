@@ -52,7 +52,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-production.txt
           pip install pytest pytest-asyncio httpx 'psycopg[binary]' psycopg-pool reportlab
+          pip install playwright
           pip install -e .
+
+      - name: Instalar Chromium (Playwright)
+        run: python -m playwright install --with-deps chromium
 
       # Sin pipe: el código de salida de pytest ES el resultado del job.
       - name: Pruebas

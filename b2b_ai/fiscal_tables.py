@@ -15,7 +15,7 @@ Fuentes oficiales:
   - Subsidio: Tabla del subsidio para el empleo publicada por el SAT (DOF)
   - UMA: INEGI — publicado en DOF cada febrero
 
-Última actualización: 2025 (DOF diciembre 2024).
+Última actualización: 2026 (DOF diciembre 2025).
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from typing import List, Optional, Tuple
 # ---------------------------------------------------------------------------
 # Año fiscal vigente
 # ---------------------------------------------------------------------------
-FISCAL_YEAR = 2025
+FISCAL_YEAR = 2026
 
 # ---------------------------------------------------------------------------
 # Tarifa mensual ISR — LISR art. 96 (ejercicio fiscal 2025).
@@ -122,6 +122,102 @@ UMA_DIARIO_2025 = "113.15"
 UMA_MENSUAL_2025 = "3439.54"
 UMA_ANUAL_2025 = "41274.48"
 
+# ---------------------------------------------------------------------------
+# UMA (Unidad de Medida y Actualización) 2026
+# Fuente: INEGI, publicado en DOF febrero 2026.
+# ---------------------------------------------------------------------------
+UMA_DIARIO_2026 = "113.04"
+UMA_MENSUAL_2026 = "3391.20"
+UMA_ANUAL_2026 = "40694.40"
+
+
+# ---------------------------------------------------------------------------
+# Tarifa mensual ISR — LISR art. 96 (ejercicio fiscal 2026).
+# TODO: Actualizar límites y cuotas cuando el DOF publique las tablas 2026.
+#       Por ahora se usan los mismos valores que 2025.
+# ---------------------------------------------------------------------------
+ISR_MENSUAL_2026: List[Tuple[float, float, float, float]] = [
+    (0.00, 416.34, 0.00, 0.0192),
+    (416.35, 3508.42, 7.99, 0.0640),
+    (3508.43, 6145.58, 205.29, 0.1088),
+    (6145.59, 7185.25, 492.98, 0.1600),
+    (7185.26, 8564.67, 659.32, 0.2136),
+    (8564.68, 17128.42, 952.82, 0.2352),
+    (17128.43, 34256.83, 2963.16, 0.3000),
+    (34256.84, 45675.74, 8099.64, 0.3200),
+    (45675.75, 91351.48, 11753.69, 0.3400),
+    (91351.49, float("inf"), 27285.41, 0.3500),
+]
+
+# ---------------------------------------------------------------------------
+# Tarifa anual ISR — LISR art. 96 (ejercicio fiscal 2026).
+# TODO: Actualizar límites y cuotas cuando el DOF publique las tablas 2026.
+# ---------------------------------------------------------------------------
+ISR_ANUAL_2026: List[Tuple[float, float, float, float]] = [
+    (0.00, 4996.07, 0.00, 0.0192),
+    (4996.08, 42101.07, 95.93, 0.0640),
+    (42101.08, 73747.05, 2464.95, 0.1088),
+    (73747.06, 86222.93, 5921.82, 0.1600),
+    (86222.94, 102775.97, 7918.14, 0.2136),
+    (102775.98, 205540.72, 11454.29, 0.2352),
+    (205540.73, 411081.46, 35594.91, 0.3000),
+    (411081.47, 548108.74, 97257.13, 0.3200),
+    (548108.75, 1096217.44, 141065.88, 0.3400),
+    (1096217.45, float("inf"), 327422.79, 0.3500),
+]
+
+# ---------------------------------------------------------------------------
+# Tarifa quincenal ISR — tabla 2026 derivada de la mensual.
+# TODO: Actualizar cuando el DOF publique las tablas 2026.
+# ---------------------------------------------------------------------------
+ISR_QUINCENAL_2026: List[Tuple[float, float, float, float]] = [
+    (0.00, 208.17, 0.00, 0.0192),
+    (208.18, 1754.21, 4.00, 0.0640),
+    (1754.22, 3072.79, 102.65, 0.1088),
+    (3072.80, 3592.63, 246.49, 0.1600),
+    (3592.64, 4282.34, 329.66, 0.2136),
+    (4282.35, 8564.21, 476.41, 0.2352),
+    (8564.22, 17128.42, 1481.58, 0.3000),
+    (17128.43, 22837.87, 4049.82, 0.3200),
+    (22837.88, 45675.74, 5876.85, 0.3400),
+    (45675.75, float("inf"), 13642.71, 0.3500),
+]
+
+# ---------------------------------------------------------------------------
+# Subsidio para el empleo — LISR art. 174, Decreto DOF (2026).
+# Los montos son los mismos que 2025 (el SAT no ha publicado nuevos).
+# TODO: Actualizar si el DOF publica tabla nueva para 2026.
+# ---------------------------------------------------------------------------
+SUBSIDIO_EMPLEO_MENSUAL_2026: List[Tuple[str, str, str]] = [
+    ("0.01", "2169.53", "407.02"),
+    ("2169.54", "3502.78", "406.83"),
+    ("3502.79", "3861.48", "406.62"),
+    ("3861.49", "4607.32", "392.77"),
+    ("4607.33", "5090.80", "382.46"),
+    ("5090.81", "6355.12", "354.24"),
+    ("6355.13", "7470.57", "294.17"),
+    ("7470.58", "8455.60", "253.54"),
+    ("8455.61", "9912.54", "217.61"),
+    ("9912.55", "11641.75", "209.13"),
+    ("11641.76", "13493.97", "0.00"),
+]
+
+# ---------------------------------------------------------------------------
+# Subsidio quincenal 2026 — mitad del mensual.
+# ---------------------------------------------------------------------------
+SUBSIDIO_EMPLEO_QUINCENAL_2026: List[Tuple[str, str, str]] = [
+    ("0.01", "1084.77", "203.51"),
+    ("1084.78", "1751.39", "203.42"),
+    ("1751.39", "1930.74", "203.31"),
+    ("1930.75", "2303.66", "196.39"),
+    ("2303.67", "2545.40", "191.23"),
+    ("2545.41", "3177.56", "177.12"),
+    ("3177.57", "3735.29", "147.09"),
+    ("3735.30", "4227.80", "126.77"),
+    ("4227.81", "4956.27", "108.81"),
+    ("4956.28", "5820.88", "104.57"),
+    ("5820.89", "6746.99", "0.00"),
+]
 
 # ---------------------------------------------------------------------------
 # Tablas legacy (2024) — mantener para cálculos de ejercicios anteriores.
@@ -165,6 +261,9 @@ def get_isr_table(year: Optional[int] = None, period: str = "monthly"):
     """
     year = year or FISCAL_YEAR
     tables = {
+        (2026, "monthly"): ISR_MENSUAL_2026,
+        (2026, "annual"): ISR_ANUAL_2026,
+        (2026, "quincenal"): ISR_QUINCENAL_2026,
         (2025, "monthly"): ISR_MENSUAL_2025,
         (2025, "annual"): ISR_ANUAL_2025,
         (2025, "quincenal"): ISR_QUINCENAL_2025,
@@ -175,7 +274,7 @@ def get_isr_table(year: Optional[int] = None, period: str = "monthly"):
     if key not in tables:
         raise ValueError(
             f"No hay tabla ISR para año={year}, periodo={period}. "
-            f"Años disponibles: 2024, 2025"
+            f"Años disponibles: 2024, 2025, 2026"
         )
     return tables[key]
 
@@ -184,6 +283,8 @@ def get_subsidio_table(year: Optional[int] = None, period: str = "monthly"):
     """Get the subsidio al empleo table for a given year and period."""
     year = year or FISCAL_YEAR
     tables = {
+        (2026, "monthly"): SUBSIDIO_EMPLEO_MENSUAL_2026,
+        (2026, "quincenal"): SUBSIDIO_EMPLEO_QUINCENAL_2026,
         (2025, "monthly"): SUBSIDIO_EMPLEO_MENSUAL_2025,
         (2025, "quincenal"): SUBSIDIO_EMPLEO_QUINCENAL_2025,
     }

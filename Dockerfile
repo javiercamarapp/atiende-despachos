@@ -109,8 +109,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8000/health || exit 1
 
-# Smoke test: verify Playwright + Chromium work
-RUN python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(headless=True); b.close(); p.stop(); print('Playwright+Chromium OK')"
+# NOTE: Build-time Playwright smoke test removed — Chromium cannot launch
+# during `docker build` (no X display, no --no-sandbox). Chromium availability
+# is verified at runtime when the first scraping/PDF endpoint is called.
 
 # Workers configurables vía B2B_WORKERS. En producción detrás de Nginx se
 # recomienda B2B_WORKERS=$(nproc). El contenedor con SQLite debe correr con 1

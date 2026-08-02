@@ -22,10 +22,14 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+import logging
+
 from b2b_ai.db.db import Database
 from b2b_ai.erp.base import ERPInterface
 from b2b_ai.erp.contpaqi import MockCONTPAQi
 from b2b_ai.erp.csv_erp import CSVErp
+
+logger = logging.getLogger(__name__)
 
 # Defaults de configuración por tenant. Los valores almacenados en la tabla
 # tenant_config sobreescriben estos.
@@ -156,9 +160,9 @@ class TenantManager:
                     erp: Optional[ERPInterface] = None) -> ERPInterface:
         """
         Devuelve un ERPInterface según la config del tenant. Si se pasa `erp`
-        explícito, se usa ese (inyección para tests/override). Sino, se
-        construye del tipo configurado: contpaqi → MockCONTPAQi, csv → CSVErp,
-        aspel → MockCONTPAQi (mismo contrato por ahora).
+        explícito, se usa ese (inyección para tests/override). Sino, intenta
+        crear un ComputerUseDriver real (playwright/mock) vía la factory; si
+        no está configurado o falla, cae en MockCONTPAQi con WARNING.
         """
         if erp is not None:
             return erp
@@ -166,7 +170,24 @@ class TenantManager:
         erp_type = (cfg.get("erp_type") or "contpaqi").lower()
         if erp_type == "csv":
             return CSVErp()
-        # contpaqi / aspel / cualquier otro: mock compatible con ERPInterface
+
+        # Try Computer Use real driver
+        try:
+            from b2b_ai.computer_use.factory import ComputerUseDriverFactory
+            from b2b_ai.computer_use.config import ComputerUseConfig
+            cu_config = ComputerUseConfig.from_env()
+            if cu_config.mode != "disabled":
+                driver = ComputerUseDriverFactory.create(
+                    provider=erp_type,
+                    mode=cu_config.mode,
+                    tenant_id=tenant_id,
+                    config=cu_config,
+                )
+                return _ComputerUseERPAdapter(driver)
+        except Exception as e:
+            logger.warning(
+                "erp_factory: Computer Use unavailable, falling back to mock: %s", e)
+
         return MockCONTPAQi()
 
     # ---- Aislamiento de datos --------------------------------------------
@@ -205,3 +226,22 @@ def set_config(db: Database, tenant_id: int, **kwargs: Any) -> Dict[str, Any]:
 def erp_factory(db: Database, tenant_id: int,
                 erp: Optional[ERPInterface] = None) -> ERPInterface:
     return TenantManager(db).erp_factory(tenant_id, erp=erp)
+
+
+class _ComputerUseERPAdapter(ERPInterface):
+    """Adapts ComputerUseDriver to the ERPInterface contract."""
+
+    def __init__(self, driver) -> None:
+        self._driver = driver
+
+    def register_invoice(self, invoice: dict) -> dict:
+        result = self._driver.register_invoice(invoice)
+        return result.to_dict() if hasattr(result, "to_dict") else result
+
+    def get_invoice(self, folio_fiscal: str) -> dict | None:
+        result = self._driver.verify_invoice_registered(folio_fiscal)
+        return result.to_dict() if hasattr(result, "to_dict") else result
+
+    def health(self) -> dict:
+        result = self._driver.health()
+        return result.to_dict() if hasattr(result, "to_dict") else result
