@@ -64,6 +64,10 @@ class Permission:
     # Cierre mensual (monthly_close/routes.py): checklist de cierre.
     CLOSE_VIEW = "close:view"
     CLOSE_MANAGE = "close:manage"
+    # Tracking de piloto (pilot_tracker/routes.py): métricas de uso, health
+    # score y ROI del cliente durante el piloto.
+    PILOT_VIEW = "pilot:view"
+    PILOT_MANAGE = "pilot:manage"
 
     ALL = (
         CFDI_READ, CFDI_WRITE,
@@ -76,6 +80,7 @@ class Permission:
         BANK_FEEDS_VIEW, BANK_FEEDS_SYNC, BANK_FEEDS_MANAGE,
         DOCUMENTS_DELETE,
         CLOSE_VIEW, CLOSE_MANAGE,
+        PILOT_VIEW, PILOT_MANAGE,
     )
 
 
