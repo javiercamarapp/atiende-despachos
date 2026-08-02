@@ -61,6 +61,9 @@ class Permission:
     BANK_FEEDS_MANAGE = "bank_feeds:manage"
     # Gestión documental (document_management/routes.py): borrado físico.
     DOCUMENTS_DELETE = "documents:delete"
+    # Cierre mensual (monthly_close/routes.py): checklist de cierre.
+    CLOSE_VIEW = "close:view"
+    CLOSE_MANAGE = "close:manage"
 
     ALL = (
         CFDI_READ, CFDI_WRITE,
@@ -72,6 +75,7 @@ class Permission:
         PIPELINE_RUN,
         BANK_FEEDS_VIEW, BANK_FEEDS_SYNC, BANK_FEEDS_MANAGE,
         DOCUMENTS_DELETE,
+        CLOSE_VIEW, CLOSE_MANAGE,
     )
 
 

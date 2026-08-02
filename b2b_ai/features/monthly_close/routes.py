@@ -29,6 +29,9 @@ from b2b_ai.features.monthly_close.models import (
     TaskStatus,
 )
 from b2b_ai.features.monthly_close.service import MonthlyCloseService
+from b2b_ai.features.roles.middleware import make_require_permission
+from b2b_ai.features.roles.models import Permission
+from b2b_ai.features.roles.service import RolesService
 
 ROUTER_PREFIX = "/api/v1/close-monthly"
 
@@ -87,14 +90,35 @@ def build_monthly_close_router(
             "require_api_key es obligatorio. Nunca construir el router sin auth."
         )
     auth_dep = require_api_key
+    require_permission = make_require_permission(require_api_key, RolesService())
     service = MonthlyCloseService(db=db)
     router = APIRouter(prefix=ROUTER_PREFIX, tags=["monthly-close"])
+
+    def _get_owned_period(period_id: str, tenant_id: str):
+        """Devuelve el período SOLO si pertenece al tenant autenticado.
+
+        Resuelve por id global en el store, pero exige `period.tenant_id ==
+        tenant_id`. Si el período no existe O no pertenece al tenant, devuelve
+        404 (no 403) para no filtrar la existencia de períodos de otros
+        tenants (defensa contra IDOR multi-tenant).
+        """
+        try:
+            period = service.get_period(period_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if str(period.tenant_id) != str(tenant_id):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Período no encontrado: {period_id}",
+            )
+        return period
 
     @router.post("/open", summary="Abre un período de cierre mensual.",
                  response_model=None)
     def open_period(
         req: OpenPeriodRequest,
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.CLOSE_MANAGE)),
     ) -> dict:
         tenant_id = _require_tenant(auth_info)
         try:
@@ -116,6 +140,7 @@ def build_monthly_close_router(
                 response_model=None)
     def close_history(
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.CLOSE_VIEW)),
     ) -> dict:
         tenant_id = _require_tenant(auth_info)
         periods = service.list_history(tenant_id=tenant_id)
@@ -124,8 +149,13 @@ def build_monthly_close_router(
 
     @router.get("/{period_id}", summary="Estado del período + árbol de tareas.",
                 response_model=None)
-    def get_period(period_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
-        _require_tenant(auth_info)
+    def get_period(
+        period_id: str,
+        auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.CLOSE_VIEW)),
+    ) -> dict:
+        tenant_id = _require_tenant(auth_info)
+        _get_owned_period(period_id, tenant_id)
         try:
             status = service.get_period_status(period_id)
         except KeyError as exc:
@@ -140,8 +170,10 @@ def build_monthly_close_router(
         task_id: str,
         req: Optional[CompleteTaskRequest] = None,
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.CLOSE_MANAGE)),
     ) -> dict:
-        _require_tenant(auth_info)
+        tenant_id = _require_tenant(auth_info)
+        _get_owned_period(period_id, tenant_id)
         user_id = req.user_id if req else ""
         try:
             task = service.complete_task(period_id, task_id, user_id=user_id)
@@ -158,8 +190,10 @@ def build_monthly_close_router(
         period_id: str,
         req: AutoCheckRequest,
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.CLOSE_MANAGE)),
     ) -> dict:
-        _require_tenant(auth_info)
+        tenant_id = _require_tenant(auth_info)
+        _get_owned_period(period_id, tenant_id)
         try:
             completed = service.auto_check_tasks(
                 period_id, module_state=req.module_state)
@@ -174,8 +208,10 @@ def build_monthly_close_router(
         period_id: str,
         req: Optional[ClosePeriodRequest] = None,
         auth_info: dict = Depends(auth_dep),
+        _perm: dict = Depends(require_permission(Permission.CLOSE_MANAGE)),
     ) -> dict:
-        _require_tenant(auth_info)
+        tenant_id = _require_tenant(auth_info)
+        _get_owned_period(period_id, tenant_id)
         user_id = req.user_id if req else ""
         try:
             period = service.close_period(period_id, user_id=user_id)
