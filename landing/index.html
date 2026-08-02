@@ -1,1298 +1,673 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Likida AI — Agente contable IA para despachos</title>
-
-<!-- ============ PWA / installable ============ -->
-<link rel="manifest" href="/manifest.json" />
-<meta name="theme-color" content="#ffffff" />
-<link rel="apple-touch-icon" href="/icons/icon-192.png" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="Likida AI" />
-
-<!-- ============ SEO ============ -->
-<meta name="description" content="Automatiza la captura, validación y registro de facturas CFDI con IA. El agente contable de Likida AI prepara, valida y clasifica; tú determinas y firmas." />
-<meta name="robots" content="index, follow" />
-<meta name="author" content="Likida AI Enterprise" />
-<link rel="canonical" href="https://likida.ai/" />
-
-<!-- Open Graph -->
-<meta property="og:type" content="website" />
-<meta property="og:site_name" content="Likida AI" />
-<meta property="og:title" content="Likida AI — Agente contable IA para despachos" />
-<meta property="og:description" content="Automatiza la captura, validación y registro de facturas CFDI 4.0 con IA. La máquina prepara y valida; tú determinas y firmas." />
-<meta property="og:url" content="https://likida.ai/" />
-<meta property="og:image" content="https://likida.ai/assets/og-image.jpg" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-<meta property="og:locale" content="es_MX" />
-
-<!-- Twitter -->
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Likida AI — Agente contable IA para despachos" />
-<meta name="twitter:description" content="Automatiza la captura, validación y registro de facturas CFDI 4.0 con IA." />
-<meta name="twitter:image" content="https://likida.ai/assets/og-image.jpg" />
-<meta name="twitter:site" content="@likida_ai" />
-
-<!-- Favicon (SVG inline, cero peticiones extra) -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%234f8cff'/%3E%3Cstop%20offset='1'%20stop-color='%237c5cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='url(%23g)'/%3E%3Ctext%20x='16'%20y='22'%20font-family='Arial,sans-serif'%20font-size='16'%20font-weight='bold'%20fill='%23fff'%20text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E" />
-
-<!-- ============ JSON-LD estructurado ============ -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      "@id": "https://likida.ai/#org",
-      "name": "Likida AI",
-      "url": "https://likida.ai/",
-      "email": "ventas@likida.ai",
-      "description": "Agente contable IA para despachos contables en México. Captura, validación fiscal CFDI 4.0 y clasificación contable automatizadas.",
-      "logo": "https://likida.ai/assets/logo.png"
-    },
-    {
-      "@type": "WebSite",
-      "@id": "https://likida.ai/#site",
-      "url": "https://likida.ai/",
-      "name": "Likida AI",
-      "publisher": { "@id": "https://likida.ai/#org" },
-      "inLanguage": "es-MX"
-    },
-    {
-      "@type": "SoftwareApplication",
-      "@id": "https://likida.ai/#app",
-      "name": "Likida AI — Agente Contable",
-      "applicationCategory": "BusinessApplication",
-      "operatingSystem": "Web / API",
-      "inLanguage": "es-MX",
-      "description": "Automatiza la captura, validación fiscal CFDI 4.0 y clasificación contable de facturas. Multi-tenant con auditoría.",
-      "offers": [
-        { "@type": "Offer", "name": "Starter", "price": "8000", "priceCurrency": "MXN", "description": "Hasta 300 CFDI/mes" },
-        { "@type": "Offer", "name": "Pro", "price": "20000", "priceCurrency": "MXN", "description": "Hasta 900 CFDI/mes" },
-        { "@type": "Offer", "name": "Business", "price": "40000", "priceCurrency": "MXN", "description": "Hasta 2,500 CFDI/mes" },
-        { "@type": "Offer", "name": "Enterprise", "price": "80000", "priceCurrency": "MXN", "description": "Hasta 6,000 CFDI/mes, multi-despacho" }
-      ],
-      "publisher": { "@id": "https://likida.ai/#org" }
-    }
-  ]
-}
-</script>
-
-<!-- ============ Fuentes no-bloqueantes ============ -->
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" /></noscript>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Likida AI — Tu despacho contable, corriendo en automático</title>
+<meta name="description" content="Likida AI automatiza la captura, validación fiscal CFDI 4.0 y clasificación contable. Tú determinas y firmas — la máquina prepara todo el trabajo pesado.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#ffffff; --bg2:#f8f9fa; --card:#ffffff; --card2:#f8f9fa;
-  --ink:#111111; --muted:#5b6570; --line:#e6e8ec;
-  --brand:#4f8cff; --brand2:#7c5cff; --grad:linear-gradient(90deg,#4f8cff,#7c5cff);
-  --ok:#16a34a; --warn:#d97706; --radius:16px;
-  --shadow-sm:0 2px 10px rgba(17,17,17,.06);
-  --shadow:0 18px 50px rgba(17,17,17,.12);
-  --shadow-lg:0 28px 70px rgba(17,17,17,.16);
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --white: #ffffff;
+  --light: #f8f9fa;
+  --border: #e5e7eb;
+  --gray: #6b7280;
+  --dark: #1a1a2e;
+  --black: #000000;
+  --accent: #1a1a2e;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-hover: 0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04);
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
-body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-a{color:var(--brand);text-decoration:none}
-img{max-width:100%;height:auto}
-.container{max-width:1120px;margin:0 auto;padding:0 24px}
-section{padding:96px 0}
+html { scroll-behavior: smooth; font-size: 16px; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--dark); background: var(--white); line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; height: auto; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 
-/* Touch-friendly */
-button,a,.btn,input,select,textarea{-webkit-tap-highlight-color:transparent}
-a.btn,button.btn,input,select,textarea{font-size:16px}
+/* Reveal animation */
+.reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
 
-/* NAV — blur al hacer scroll (clase .scrolled añadida por JS) */
-.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.72);backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);border-bottom:1px solid transparent;transition:background .3s,border-color .3s,box-shadow .3s}
-.nav.scrolled{background:rgba(255,255,255,.88);border-bottom-color:var(--line);box-shadow:0 4px 24px rgba(17,17,17,.05)}
-.nav .container{display:flex;align-items:center;justify-content:space-between;height:66px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.15rem;color:var(--ink)}
-.logo .dot{width:26px;height:26px;border-radius:8px;background:var(--grad);display:inline-block}
-.nav-links{display:flex;gap:26px;align-items:center}
-.nav-links a{color:#444;font-size:.95rem;font-weight:500}
-.nav-links a:hover{color:var(--ink)}
+/* ── NAV ── */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); transition: box-shadow 0.3s; }
+nav.scrolled { box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+.nav-inner { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+.nav-logo img { height: 36px; }
+.nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
+.nav-links a { font-size: 14px; font-weight: 500; color: var(--gray); transition: color 0.2s; }
+.nav-links a:hover { color: var(--black); }
+.nav-cta { font-size: 14px; font-weight: 600; padding: 10px 24px; background: var(--black); color: var(--white); border-radius: 8px; transition: all 0.25s; }
+.nav-cta:hover { background: var(--dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.mobile-toggle { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+.mobile-toggle span { display: block; width: 22px; height: 2px; background: var(--black); margin: 5px 0; transition: 0.3s; }
 
-/* BOTONES — ripple + hover scale */
-.btn{position:relative;overflow:hidden;display:inline-block;padding:13px 24px;border-radius:12px;font-weight:600;font-size:.95rem;border:none;cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s;will-change:transform}
-.btn:hover{transform:translateY(-2px) scale(1.03)}
-.btn:active{transform:scale(.97)}
-.btn .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.45);transform:scale(0);animation:ripple .6s ease-out forwards;pointer-events:none}
-@keyframes ripple{to{transform:scale(4);opacity:0}}
-.btn-primary{background:var(--brand);color:#fff;box-shadow:0 10px 26px rgba(79,140,255,.3)}
-.btn-primary:hover{box-shadow:0 14px 34px rgba(79,140,255,.4)}
-.btn-ghost{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
-.btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
-.btn-lg{padding:16px 32px;font-size:1rem}
+/* ── HERO ── */
+.hero { position: relative; min-height: 100vh; display: flex; align-items: center; padding-top: 72px; overflow: hidden; }
+.hero-video { position: absolute; inset: 0; z-index: 0; }
+.hero-video video { width: 100%; height: 100%; object-fit: cover; }
+.hero-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.88); z-index: 1; }
+.hero-content { position: relative; z-index: 2; padding: 80px 0; }
+.hero h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.03em; color: var(--black); max-width: 700px; margin-bottom: 24px; }
+.hero p.subtitle { font-size: clamp(1rem, 1.5vw, 1.2rem); color: var(--gray); max-width: 600px; margin-bottom: 40px; line-height: 1.7; }
+.hero-buttons { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 64px; }
+.btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 32px; background: var(--black); color: var(--white); border-radius: 8px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; transition: all 0.25s; }
+.btn-primary:hover { background: var(--dark); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+.btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 32px; background: transparent; color: var(--dark); border: 1.5px solid var(--border); border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.25s; }
+.btn-secondary:hover { border-color: var(--dark); transform: translateY(-2px); box-shadow: var(--shadow); }
+.hero-stats { display: flex; gap: 48px; flex-wrap: wrap; }
+.stat-item .stat-number { font-size: 2.5rem; font-weight: 800; color: var(--black); letter-spacing: -0.02em; }
+.stat-item .stat-label { font-size: 13px; color: var(--gray); margin-top: 4px; }
 
-/* HERO — split layout: text left, video right */
-.hero{padding-top:100px;padding-bottom:60px;position:relative;overflow:hidden;background:#fff;color:var(--ink);isolation:isolate}
-.hero .container{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
-.hero-text{position:relative;z-index:2}
-.hero-text h1{font-size:clamp(2rem,4.5vw,3.2rem);line-height:1.12;font-weight:800;letter-spacing:-.02em;margin:0 0 20px}
-.hero-text h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.hero-text p.sub{font-size:clamp(1rem,1.8vw,1.15rem);color:var(--muted);max-width:520px;margin:0 0 30px}
-.hero-cta{display:flex;gap:14px;flex-wrap:wrap}
-.hero-cta .btn-ghost{background:transparent;color:var(--ink);border-color:var(--line)}
-.hero-cta .btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
-.hero-visual{position:relative;z-index:2;display:flex;align-items:center;justify-content:center}
-.hero-visual video{width:100%;max-width:540px;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.18);object-fit:cover;aspect-ratio:1/1}
-.hero-visual::after{content:"";position:absolute;inset:-20px;border-radius:28px;background:linear-gradient(135deg,rgba(79,140,255,.12),rgba(124,92,255,.1));z-index:-1;filter:blur(30px)}
-.stats{display:flex;gap:16px;justify-content:flex-start;flex-wrap:wrap;margin-top:48px}
-.stat{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:20px 24px;min-width:160px}
-.stat b{display:block;font-size:1.8rem;font-weight:800;color:var(--ink)}
-.stat b .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.stat span{color:var(--muted);font-size:.85rem}
+/* ── LOGOS MARQUEE ── */
+.logos-section { padding: 60px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); overflow: hidden; }
+.logos-section p { text-align: center; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); margin-bottom: 32px; font-weight: 500; }
+.marquee-track { display: flex; gap: 64px; animation: marquee 25s linear infinite; width: max-content; }
+.marquee-track .logo-item { flex-shrink: 0; font-size: 18px; font-weight: 700; color: #c0c0c0; letter-spacing: 0.02em; white-space: nowrap; }
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-/* VIDEO SHOWCASE — gray zone below hero */
-.video-showcase{background:#f3f4f6;padding:80px 0;text-align:center;position:relative;overflow:hidden}
-.video-showcase::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
-.video-showcase h2{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:800;color:var(--ink);margin-bottom:12px}
-.video-showcase p{color:var(--muted);margin-bottom:40px;font-size:1.05rem}
-.video-showcase .video-wrapper{max-width:800px;margin:0 auto;position:relative;border-radius:20px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.15)}
-.video-showcase .video-wrapper video{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
-.video-showcase .video-wrapper::after{content:"";position:absolute;inset:0;border-radius:20px;pointer-events:none;border:1px solid rgba(255,255,255,.1)}
+/* ── SECTIONS COMMON ── */
+section { padding: 120px 0; }
+.section-label { font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gray); font-weight: 500; margin-bottom: 16px; }
+.section-title { font-size: clamp(2rem, 3.5vw, 2.8rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; color: var(--black); max-width: 650px; }
+.section-subtitle { font-size: 1.05rem; color: var(--gray); max-width: 560px; margin-top: 16px; line-height: 1.7; }
 
-/* SECTION HEADS */
-.sec-head{text-align:center;max-width:720px;margin:0 auto 52px}
-.sec-head .tag{display:inline-block;color:var(--brand);font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
-.sec-head h2{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:800;letter-spacing:-.01em;color:var(--ink)}
-.sec-head p{color:var(--muted);margin-top:14px}
+/* ── PROBLEMA ── */
+.problema { background: var(--light); }
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-top: 56px; }
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 36px 28px; transition: all 0.3s ease; }
+.card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+.card-icon { width: 48px; height: 48px; margin-bottom: 20px; color: var(--dark); }
+.card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--black); }
+.card p { font-size: 14px; color: var(--gray); line-height: 1.65; }
 
-/* CARDS — hover lift */
-.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:30px;box-shadow:var(--shadow-sm);transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
-.card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
-.card .ico{width:46px;height:46px;border-radius:12px;background:rgba(79,140,255,.12);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:18px}
-.card h3{font-size:1.12rem;font-weight:700;margin-bottom:10px}
-.card p{color:var(--muted);font-size:.96rem}
-.problema{background:var(--bg2)}
-.problema .card{background:var(--card2);border-color:var(--line)}
-.problema .card:hover{border-color:#f0d9a0;box-shadow:var(--shadow)}
-.problema .ico{background:rgba(217,119,6,.12)}
-.problema .card h3{color:var(--ink)}
-.problema .card p{color:var(--muted)}
+/* ── SOLUCIÓN ── */
+.solucion-steps { display: flex; gap: 48px; margin-top: 56px; align-items: flex-start; flex-wrap: wrap; }
+.step { flex: 1; min-width: 220px; position: relative; }
+.step-number { width: 48px; height: 48px; border-radius: 50%; background: var(--light); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: var(--dark); margin-bottom: 20px; transition: all 0.3s; }
+.step.active .step-number { background: var(--black); color: var(--white); border-color: var(--black); }
+.step h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+.step p { font-size: 14px; color: var(--gray); line-height: 1.6; }
+.progress-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 56px; overflow: hidden; }
+.progress-fill { height: 100%; width: 0%; background: var(--black); border-radius: 2px; transition: width 1.5s ease; }
+.step-connector { position: absolute; top: 24px; right: -32px; width: 32px; height: 2px; background: var(--border); }
+.step:last-child .step-connector { display: none; }
 
-/* SOLUCION FLOW */
-.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;counter-reset:step}
-.step{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px 24px;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s}
-.step:hover{transform:translateY(-5px);box-shadow:var(--shadow)}
-.step::before{counter-increment:step;content:"0" counter(step);position:absolute;top:18px;right:22px;font-size:1.6rem;font-weight:800;color:rgba(79,140,255,.3)}
-.step h3{font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--ink)}
-.step p{color:var(--muted);font-size:.93rem}
+/* ── AGENTES ── */
+.agentes { background: var(--light); }
+.accordion { margin-top: 48px; max-width: 800px; }
+.accordion-item { border-bottom: 1px solid var(--border); }
+.accordion-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 24px 0; background: none; border: none; cursor: pointer; font-family: inherit; text-align: left; }
+.accordion-trigger h3 { font-size: 1.1rem; font-weight: 600; color: var(--black); }
+.accordion-trigger .chevron { width: 20px; height: 20px; transition: transform 0.3s; color: var(--gray); }
+.accordion-item.open .accordion-trigger .chevron { transform: rotate(180deg); }
+.accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s ease; }
+.accordion-item.open .accordion-body { max-height: 500px; padding-bottom: 24px; }
+.accordion-body p { font-size: 14px; color: var(--gray); line-height: 1.7; margin-bottom: 16px; }
+.accordion-body .workflow-steps { display: flex; gap: 12px; flex-wrap: wrap; }
+.accordion-body .wf-step { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-size: 13px; color: var(--dark); font-weight: 500; }
 
-/* FEATURES */
-.feature-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
-.feature{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s}
-.feature:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
-.feature .ico{width:46px;height:46px;border-radius:12px;background:rgba(79,140,255,.12);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:18px}
-.feature h3{font-size:1.08rem;font-weight:700;margin-bottom:8px;color:var(--ink)}
-.feature p{color:var(--muted);font-size:.95rem}
-.feature ul{list-style:none;margin-top:12px}
-.feature li{color:var(--muted);font-size:.92rem;padding:4px 0;padding-left:22px;position:relative}
-.feature li::before{content:"✓";position:absolute;left:0;color:var(--ok);font-weight:700}
-.alt-section{background:var(--bg2)}
+/* ── COMPUTER USE ── */
+.computer-use-section { background: var(--black); color: var(--white); }
+.computer-use-section .section-label { color: rgba(255,255,255,0.5); }
+.computer-use-section .section-title { color: var(--white); }
+.computer-use-section .section-subtitle { color: rgba(255,255,255,0.6); }
+.cu-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 32px; margin-top: 56px; }
+.cu-feature { padding: 28px; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius); transition: all 0.3s; }
+.cu-feature:hover { border-color: rgba(255,255,255,0.25); transform: translateY(-4px); }
+.cu-feature h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+.cu-feature p { font-size: 14px; color: rgba(255,255,255,0.5); line-height: 1.6; }
 
-/* ISOMETRIC ARCHITECTURE — cut-off illustration */
-.arch-section{background:var(--bg2);padding:96px 0 0;overflow:hidden;position:relative}
-.arch-section .container{position:relative;max-width:1120px;margin:0 auto;padding:0 24px}
-.arch-section .sec-head{text-align:center;max-width:720px;margin:0 auto 48px}
-.arch-wrap{position:relative;overflow:hidden;margin:0 -24px;padding-right:0}
-.arch-wrap svg{display:block;width:140%;max-width:1800px;margin-left:-12%;height:auto}
-.arch-fade{position:absolute;top:0;right:0;bottom:0;width:220px;background:linear-gradient(90deg,transparent 0%,var(--bg2) 100%);pointer-events:none;z-index:2}
-.arch-bottom-fade{position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(180deg,transparent 0%,var(--bg2) 100%);pointer-events:none;z-index:2}
-.arch-section::after{content:"";position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,var(--line) 30%,var(--line) 70%,transparent 100%)}
-/* Arch layer labels */
-.arch-labels{display:flex;justify-content:center;gap:48px;margin-top:-32px;position:relative;z-index:3;padding:0 24px 64px}
-.arch-label{text-align:center;opacity:0;transform:translateY(16px);transition:opacity .6s cubic-bezier(.2,.8,.2,1),transform .6s cubic-bezier(.2,.8,.2,1)}
-.arch-label.in{opacity:1;transform:translateY(0)}
-.arch-label span{display:block;font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.arch-label em{display:block;font-style:normal;color:var(--ink);font-size:1rem;font-weight:600;margin-top:4px}
-@media(max-width:720px){
-  .arch-section{padding:68px 0 0;overflow:visible}
-  .arch-wrap{overflow:visible;margin:0}
-  .arch-wrap svg{width:100%;max-width:100%;margin-left:0}
-  .arch-fade,.arch-bottom-fade{display:none}
-  .arch-labels{flex-direction:column;gap:18px;align-items:center;margin-top:-20px;padding-bottom:48px}
-}
-/* Animated counter badge */
-.stat b[data-count]{display:inline-block;transition:transform .3s}
-.stat b[data-count].counted{transform:scale(1.05)}
-/* Section divider accent */
-.section-divider{height:1px;background:linear-gradient(90deg,transparent 0%,var(--line) 20%,var(--line) 80%,transparent 100%);margin:0}
-/* Enhanced card hover glow */
-.card::after,.feature::after,.step::after{content:"";position:absolute;inset:-1px;border-radius:var(--radius);opacity:0;transition:opacity .3s;pointer-events:none;background:linear-gradient(135deg,rgba(79,140,255,.06),rgba(124,92,255,.06))}
-.card,.feature,.step{position:relative;overflow:hidden}
-.card:hover::after,.feature:hover::after,.step:hover::after{opacity:1}
+/* ── INTEGRACIONES ── */
+.integrations-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 48px; justify-content: center; }
+.integration-logo { width: 120px; height: 64px; background: var(--light); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--gray); transition: all 0.3s; }
+.integration-logo:hover { border-color: var(--dark); color: var(--dark); transform: translateY(-2px); }
 
-/* INTEGRATIONS GRID */
-.integrations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;margin-top:48px}
-.integration-category{background:var(--card);border-radius:var(--radius);padding:28px 24px;box-shadow:var(--shadow-sm);border:1px solid var(--line);transition:transform .25s,box-shadow .25s}
-.integration-category:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
-.integration-category h3{font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--brand)}
-.integration-items{display:flex;flex-direction:column;gap:10px}
-.integration-item{display:flex;align-items:center;gap:10px;font-size:.95rem;color:var(--muted)}
-.integration-item .check{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:rgba(22,163,74,.1);color:var(--ok);font-size:.8rem;font-weight:700;flex-shrink:0}
-.integration-item.coming-soon{opacity:.6}
-.integration-item .badge{display:inline-block;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:var(--bg2);color:var(--muted);padding:2px 8px;border-radius:10px;border:1px solid var(--line);flex-shrink:0}
-@media(max-width:768px){
-  .integrations-grid{grid-template-columns:1fr 1fr;gap:16px}
-  .integration-category{padding:20px 16px}
-}
-@media(max-width:480px){
-  .integrations-grid{grid-template-columns:1fr}
-}
+/* ── SEGURIDAD ── */
+.seguridad { background: var(--light); }
+.security-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-top: 48px; }
+.security-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; transition: all 0.3s; }
+.security-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+.security-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+.security-card p { font-size: 14px; color: var(--gray); line-height: 1.6; }
 
-/* PRICING — hot card dark accent */
-.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;align-items:stretch}
-.price{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:34px 30px;display:flex;flex-direction:column;position:relative;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s}
-.price:hover{transform:translateY(-6px);box-shadow:var(--shadow)}
-.price.hot{border-color:#0b0f19;box-shadow:0 24px 60px rgba(17,17,17,.2);background:#0b0f19;color:#fff}
-.price.hot .amount, .price.hot h3{color:#fff}
-.price .flag{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:.75rem;font-weight:700;padding:5px 14px;border-radius:20px;letter-spacing:.04em;box-shadow:0 6px 18px rgba(79,140,255,.35)}
-.price h3{font-size:1.05rem;font-weight:700;color:var(--muted)}
-.price .amount{font-size:2.4rem;font-weight:800;margin:14px 0 4px}
-.price .amount small{font-size:1rem;color:var(--muted);font-weight:500}
-.price.hot .amount small{color:#c6cede}
-.price .per{color:var(--muted);font-size:.9rem;margin-bottom:22px}
-.price.hot .per{color:#c6cede}
-.price ul{list-style:none;flex:1;margin-bottom:26px}
-.price li{color:var(--muted);font-size:.95rem;padding:7px 0;padding-left:26px;position:relative}
-.price.hot li{color:#d6dce6}
-.price li::before{content:"✓";position:absolute;left:0;color:var(--ok);font-weight:700}
-.price.hot li::before{color:#34d399}
-.price .btn{width:100%;text-align:center}
-.price.hot .btn-primary{background:#fff;color:#0b0f19;box-shadow:none}
-.price.hot .btn-primary:hover{color:#0b0f19}
+/* ── PRECIOS ── */
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-top: 48px; }
+.price-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 36px 28px; transition: all 0.3s; position: relative; }
+.price-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+.price-card.featured { border-color: var(--black); }
+.price-card.featured::after { content: 'Popular'; position: absolute; top: -12px; right: 24px; background: var(--black); color: var(--white); font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px; }
+.price-card .plan-name { font-size: 14px; font-weight: 600; color: var(--gray); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+.price-card .price { font-size: 2.2rem; font-weight: 800; color: var(--black); letter-spacing: -0.02em; }
+.price-card .price span { font-size: 1rem; font-weight: 400; color: var(--gray); }
+.price-card ul { list-style: none; margin: 24px 0; }
+.price-card ul li { font-size: 14px; color: var(--gray); padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.price-card ul li::before { content: '✓'; font-weight: 700; color: var(--dark); }
+.price-card .btn-primary { width: 100%; justify-content: center; }
 
-/* TESTIMONIAL / DATOS */
-.quote-block{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:38px;text-align:center;max-width:820px;margin:0 auto;box-shadow:var(--shadow-sm)}
-.quote-block blockquote{font-size:clamp(1.1rem,2.2vw,1.4rem);font-weight:600;line-height:1.5;color:var(--ink)}
-.quote-block .who{margin-top:20px;color:var(--muted);font-size:.95rem}
+/* ── CTA FINAL ── */
+.cta-final { background: var(--light); text-align: center; }
+.cta-final .section-title { margin: 0 auto; }
+.contact-form { max-width: 500px; margin: 40px auto 0; display: flex; flex-direction: column; gap: 16px; }
+.contact-form input, .contact-form textarea { width: 100%; padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 14px; background: var(--white); color: var(--dark); transition: border-color 0.2s; outline: none; }
+.contact-form input:focus, .contact-form textarea:focus { border-color: var(--dark); }
+.contact-form textarea { resize: vertical; min-height: 100px; }
+.contact-form .btn-primary { align-self: stretch; }
 
-/* CTA */
-.cta{background:var(--grad);border-radius:24px;padding:64px 40px;text-align:center;color:#fff;position:relative;overflow:hidden}
-.cta h2{font-size:clamp(1.7rem,3.4vw,2.4rem);font-weight:800;margin-bottom:14px}
-.cta p{font-size:1.1rem;opacity:.92;max-width:600px;margin:0 auto 30px}
-.cta .btn{background:#fff;color:#0b0f19;box-shadow:0 12px 30px rgba(0,0,0,.18)}
-.cta .btn:hover{background:#0b0f19;color:#fff}
+/* ── FOOTER ── */
+footer { padding: 60px 0 40px; border-top: 1px solid var(--border); }
+.footer-inner { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 40px; }
+.footer-brand img { height: 32px; margin-bottom: 12px; }
+.footer-brand p { font-size: 13px; color: var(--gray); max-width: 280px; }
+.footer-links { display: flex; gap: 48px; }
+.footer-col h4 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; color: var(--black); }
+.footer-col a { display: block; font-size: 14px; color: var(--gray); padding: 4px 0; transition: color 0.2s; }
+.footer-col a:hover { color: var(--black); }
+.footer-bottom { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+.footer-bottom p { font-size: 13px; color: var(--gray); }
 
-/* CONTACT FORM */
-.form-card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:44px;max-width:640px;margin:0 auto;box-shadow:var(--shadow)}
-.form-card h3{font-size:1.5rem;font-weight:800;margin-bottom:8px;text-align:center;color:var(--ink)}
-.form-card .form-sub{text-align:center;color:var(--muted);margin-bottom:30px}
-.field{margin-bottom:18px}
-.field label{display:block;font-size:.9rem;font-weight:600;margin-bottom:7px;color:var(--ink)}
-.field input,.field select,.field textarea{width:100%;padding:13px 15px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:.98rem;font-family:inherit;transition:border-color .15s,box-shadow .15s}
-.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,140,255,.15)}
-.field textarea{resize:vertical;min-height:100px}
-.field .err{color:#dc2626;font-size:.82rem;margin-top:5px;display:none}
-.field.invalid input,.field.invalid select,.field.invalid textarea{border-color:#dc2626}
-.form-msg{margin-top:16px;padding:14px;border-radius:10px;display:none;font-size:.95rem}
-.form-msg.ok{display:block;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.3);color:var(--ok)}
-.form-msg.err{display:block;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.3);color:#dc2626}
-.btn[disabled]{opacity:.6;cursor:not-allowed;transform:none}
-
-/* FOOTER */
-footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-size:.9rem;background:var(--bg2)}
-.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
-.foot .logo{color:var(--ink)}
-.foot .disclaimer{max-width:640px}
-
-/* BOTÓN HAMBURGUESA (mobile) */
-.nav-toggle{display:none;background:none;border:none;cursor:pointer;padding:10px;border-radius:8px}
-.nav-toggle .bar{display:block;width:22px;height:2px;background:var(--ink);margin:5px 0;border-radius:2px;transition:transform .2s,opacity .2s}
-.nav-toggle.open .bar:nth-child(1){transform:translateY(7px) rotate(45deg)}
-.nav-toggle.open .bar:nth-child(2){opacity:0}
-.nav-toggle.open .bar:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-
-/* MOTION: reveal on scroll (JS añade .in) */
-.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
-.reveal.in{opacity:1;transform:translateY(0)}
-.reveal-delay-1{transition-delay:.1s}
-.reveal-delay-2{transition-delay:.2s}
-.reveal-delay-3{transition-delay:.3s}
-.reveal-delay-4{transition-delay:.4s}
-
-/* INTEGRATIONS */
-.integrations{background:var(--bg2)}
-.integrations .sec-head{margin-bottom:40px}
-.int-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
-.int-category{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px 24px;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s}
-.int-category:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
-.int-category h3{font-size:.92rem;font-weight:700;color:var(--ink);margin-bottom:16px;text-transform:uppercase;letter-spacing:.04em}
-.int-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)}
-.int-item:last-child{border-bottom:none}
-.int-item .name{font-size:.92rem;font-weight:500;color:var(--ink)}
-.int-item .check{color:var(--ok);font-weight:700;font-size:.9rem}
-.int-item .soon{font-size:.72rem;font-weight:600;color:var(--muted);background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;white-space:nowrap}
-@media(max-width:720px){
-  .int-grid{grid-template-columns:repeat(2,1fr)}
-}
-@media(max-width:480px){
-  .int-grid{grid-template-columns:1fr}
-}
-
-/* RESPONSIVE */
-@media(max-width:720px){
-  .nav-links{display:none;position:absolute;top:66px;left:0;right:0;flex-direction:column;gap:4px;background:rgba(255,255,255,.98);border-bottom:1px solid var(--line);padding:12px 24px 18px;box-shadow:var(--shadow-sm)}
-  .nav-links.open{display:flex}
-  .nav-links a{padding:12px 0;width:100%;font-size:1.05rem;color:var(--ink)}
-  .nav-toggle{display:block}
-  section{padding:68px 0}
-  .hero{padding-top:96px}
-  .hero .container{grid-template-columns:1fr;gap:32px;text-align:center}
-  .hero-text p.sub{margin:0 auto 30px}
-  .hero-cta{justify-content:center}
-  .stats{justify-content:center}
-  .hero-visual video{max-width:400px;margin:0 auto}
-  .form-card,.cta{padding:34px 24px}
-}
-@media(max-width:480px){
-  .hero-cta .btn{width:100%;text-align:center}
-  .stat{min-width:140px;padding:18px 20px}
-  .hero-visual video{max-width:300px}
-}
-@media (prefers-reduced-motion: reduce){
-  html{scroll-behavior:auto}
-  *{transition:none!important;animation:none!important}
-  .reveal{opacity:1!important;transform:none!important}
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .nav-cta { display: none; }
+  .mobile-toggle { display: block; }
+  .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 72px; left: 0; right: 0; background: var(--white); padding: 24px; border-bottom: 1px solid var(--border); gap: 20px; }
+  .hero-stats { gap: 24px; }
+  .solucion-steps { flex-direction: column; }
+  .step-connector { display: none; }
+  .footer-links { flex-direction: column; gap: 32px; }
+  section { padding: 80px 0; }
 }
 </style>
 </head>
 <body>
-<a href="#contenido-principal" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0">Saltar al contenido principal</a>
-<style>.sr-only:focus{position:static;width:auto;height:auto;padding:inherit;margin:inherit;overflow:visible;clip:auto;border:inherit}</style>
 
 <!-- NAV -->
-<nav class="nav" id="nav">
-  <div class="container">
-    <a class="logo" href="#top"><img src="/assets/logo.png" alt="Likida AI" style="width:44px;height:44px;border-radius:10px;object-fit:cover" />Likida AI</a>
-    <div class="nav-links" id="navLinks">
-      <a href="#como-funciona">Cómo funciona</a>
-      <a href="#problema">Problema</a>
-      <a href="#solucion">Solución</a>
-      <a href="#arquitectura">Arquitectura</a>
-      <a href="#seguridad">Seguridad</a>
-      <a href="#pricing">Precios</a>
-      <a href="#contacto">Contacto</a>
-      <a href="/dashboard.html">Dashboard</a>
-    </div>
-    <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="navLinks">
-      <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+<nav id="navbar">
+  <div class="container nav-inner">
+    <a href="#" class="nav-logo"><img src="/assets/logo-likida.png" alt="Likida AI"></a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#solucion">Cómo funciona</a></li>
+      <li><a href="#agentes">Agentes</a></li>
+      <li><a href="#seguridad">Seguridad</a></li>
+      <li><a href="#precios">Precios</a></li>
+      <li><a href="#contacto">Contacto</a></li>
+    </ul>
+    <a href="#contacto" class="nav-cta">Agendar demo</a>
+    <button class="mobile-toggle" id="mobileToggle" aria-label="Menú">
+      <span></span><span></span><span></span>
     </button>
-    <a href="#contacto" class="btn btn-primary" style="margin-left:8px">Agendar demo</a>
   </div>
 </nav>
 
-<main id="contenido-principal">
-
-<!-- HERO — split: text left, video right -->
-<header class="hero" id="top">
-  <div class="container">
-    <div class="hero-text">
-      <h1>Automatiza tu despacho contable <span class="grad">con IA</span></h1>
-      <p class="sub">Likida AI automatiza la captura de facturas desde tu ERP, valida fiscalmente cada CFDI 4.0 y clasifica contablemente el gasto. Tú determinas y firmas — la máquina prepara todo el trabajo pesado.</p>
-      <div class="hero-cta">
-        <a href="#contacto" class="btn btn-primary btn-lg" data-ripple>Solicita tu piloto gratis</a>
-        <a href="#solucion" class="btn btn-ghost btn-lg" data-ripple>Ver cómo funciona</a>
-      </div>
-      <div class="stats">
-        <div class="stat"><b class="grad" data-count="247" data-prefix="$" data-suffix="K">0</b><span>costo anual de vacante</span></div>
-        <div class="stat"><b class="grad" data-count="24">24</b><span>horas respuesta</span></div>
-        <div class="stat"><b class="grad">24/7</b><span>procesa sin pausas</span></div>
-      </div>
-    </div>
-    <div class="hero-visual">
-      <video autoplay muted loop playsinline preload="none" poster="/assets/hero.jpg">
-        <source src="/assets/hero-ai-dashboard.mp4" type="video/mp4" />
-      </video>
-    </div>
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-video">
+    <video autoplay muted loop playsinline src="/assets/hero-ai-dashboard.mp4"></video>
   </div>
-</header>
-
-<!-- VIDEO SHOWCASE — gray zone with animation -->
-<section class="video-showcase">
-  <div class="container">
-    <h2>Así funciona <span class="grad">Likida AI</span></h2>
-    <p>Un agente IA que recibe los CFDI, valida fiscalmente y clasifica cada factura — automáticamente.</p>
-    <div class="video-wrapper">
-      <video autoplay muted loop playsinline preload="none">
-        <source src="/assets/hero-ai-dashboard.mp4" type="video/mp4" />
-      </video>
+  <div class="hero-overlay"></div>
+  <div class="container hero-content">
+    <h1 class="reveal">Tu despacho contable, corriendo en automático.</h1>
+    <p class="subtitle reveal reveal-delay-1">Likida AI automatiza la captura, validación fiscal CFDI 4.0 y clasificación contable. Tú determinas y firmas — la máquina prepara todo el trabajo pesado.</p>
+    <div class="hero-buttons reveal reveal-delay-2">
+      <a href="#contacto" class="btn-primary">Solicita tu piloto gratis <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a href="#solucion" class="btn-secondary">Ver cómo funciona <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></a>
+    </div>
+    <div class="hero-stats reveal reveal-delay-3">
+      <div class="stat-item">
+        <div class="stat-number"><span class="counter" data-target="56">0</span>%</div>
+        <div class="stat-label">menos tiempo en captura</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number"><span class="counter" data-target="689">0</span></div>
+        <div class="stat-label">vacantes sin cubrir en el sector</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">24/7</div>
+        <div class="stat-label">procesa sin pausas</div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- CÓMO FUNCIONA — 3 pasos simples -->
-<section id="como-funciona">
-  <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">Cómo funciona</span>
-      <h2>3 pasos para automatizar tu despacho</h2>
-      <p>De la factura a tu ERP en minutos, no en horas. El profesional mantiene el control total.</p>
-    </div>
-    <div class="flow">
-      <div class="step reveal">
-        <div class="ico" style="font-size:1.8rem;margin-bottom:14px">🔗</div>
-        <h3>1. Conecta tu ERP</h3>
-        <p>Sube CFDI (XML/PDF) desde tu ERP o por correo. Likida procesa, valida fiscalmente y registra — sin integraciones frágiles.</p>
-      </div>
-      <div class="step reveal reveal-delay-1">
-        <div class="ico" style="font-size:1.8rem;margin-bottom:14px">🤖</div>
-        <h3>2. Procesa automáticamente</h3>
-        <p>El agente IA captura, valida fiscalmente (CFDI 4.0, DIOT, retenciones) y clasifica cada factura contablemente.</p>
-      </div>
-      <div class="step reveal reveal-delay-2">
-        <div class="ico" style="font-size:1.8rem;margin-bottom:14px">✅</div>
-        <h3>3. Tú revisas y firmas</h3>
-        <p>Recibe un resumen con flagged items para tu revisión. Determinas, ajustas y firmas — la máquina preparó todo.</p>
-      </div>
-    </div>
+<!-- LOGOS -->
+<section class="logos-section">
+  <p>Empresas que confían en Likida AI</p>
+  <div class="marquee-track">
+    <span class="logo-item">CONTPAQi</span>
+    <span class="logo-item">Aspel</span>
+    <span class="logo-item">SAT</span>
+    <span class="logo-item">BBVA</span>
+    <span class="logo-item">Banorte</span>
+    <span class="logo-item">Santander</span>
+    <span class="logo-item">CONTPAQi</span>
+    <span class="logo-item">Aspel</span>
+    <span class="logo-item">SAT</span>
+    <span class="logo-item">BBVA</span>
+    <span class="logo-item">Banorte</span>
+    <span class="logo-item">Santander</span>
   </div>
 </section>
 
 <!-- PROBLEMA -->
 <section class="problema" id="problema">
   <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">El problema</span>
-      <h2>El cuello de botella no es la contabilidad: es la captura</h2>
-      <p>En México hay <b data-count="689">689</b> vacantes de contadores sin cubrir, cada puesto cuesta en promedio <b data-count="18200" data-prefix="$" data-suffix="/mes">$18,200/mes</b>, y los despachos ahogan a sus equipos con captura manual de facturas.</p>
-    </div>
-    <div class="card-grid">
-      <div class="card reveal"><div class="ico">🕒</div><h3>Horas perdidas en captura</h3><p>Cada factura requiere abrir el PDF o XML, leerla, teclear montos, RFC y clasificarla. A 50 facturas diarias, son horas completas de trabajo repetitivo.</p></div>
-      <div class="card reveal reveal-delay-1"><div class="ico">🧮</div><h3>Errores humanos costosos</h3><p>Un RFC mal capturado o un monto invertido significa una conciliación fallida, un pago mal aplicado y horas de corrección.</p></div>
-      <div class="card reveal reveal-delay-2"><div class="ico">👥</div><h3>Talento escaso y caro</h3><p>Con 689 vacantes sin cubrir, retienes a tu gente en tareas que una máquina puede hacer — en vez de hacerla crecer.</p></div>
-      <div class="card reveal reveal-delay-3"><div class="ico">⚖️</div><h3>Riesgo fiscal</h3><p>Un CFDI mal validado o mal clasificado puede costar mucho más que el tiempo que ahorras. La validación fiscal no se improvisa.</p></div>
+    <div class="section-label reveal">El problema</div>
+    <h2 class="section-title reveal">El talento contable escasea.<br>Los errores cuestan caro.</h2>
+    <div class="cards-grid">
+      <div class="card reveal reveal-delay-1">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <h3>Horas perdidas en captura</h3>
+        <p>El equipo dedica el 60% de su tiempo a tareas repetitivas de ingreso de datos que una máquina puede hacer en segundos.</p>
+      </div>
+      <div class="card reveal reveal-delay-2">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        <h3>Errores humanos costosos</h3>
+        <p>Un CFDI mal capturado puede significar multas del SAT, deducciones perdidas y auditorías que consumen semanas.</p>
+      </div>
+      <div class="card reveal reveal-delay-3">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <h3>Talento escaso y caro</h3>
+        <p>689 vacantes de contador público sin cubrir en México. Los sueldos suben, pero la calidad del talento disponible baja.</p>
+      </div>
+      <div class="card reveal reveal-delay-4">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        <h3>Riesgo fiscal constante</h3>
+        <p>CFDI 4.0 trajo reglas más estrictas. Un error no detectado puede cerrar la operación de un cliente entero.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- SOLUCION -->
-<section id="solucion">
+<!-- SOLUCIÓN -->
+<section class="solucion" id="solucion">
   <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">La solución</span>
-      <h2>Un agente que prepara y valida — tú determinas y firmas</h2>
-      <p>El profesional conserva siempre la decisión final y la firma.</p>
+    <div class="section-label reveal">La solución</div>
+    <h2 class="section-title reveal">Un agente que prepara y valida — tú determinas y firmas.</h2>
+    <p class="section-subtitle reveal">Likida AI no reemplaza al contador. Le da superpoderes. El agente hace el trabajo pesado, tú revisas, apruebas y firmas.</p>
+    <div class="solucion-steps">
+      <div class="step reveal reveal-delay-1">
+        <div class="step-number">1</div>
+        <span class="step-connector"></span>
+        <h3>Conecta tu ERP</h3>
+        <p>Integración directa con CONTPAQi, Aspel, QuickBooks y cualquier sistema que uses. Sin migraciones, sin cambios de software.</p>
+      </div>
+      <div class="step reveal reveal-delay-2">
+        <div class="step-number">2</div>
+        <span class="step-connector"></span>
+        <h3>Procesa automáticamente</h3>
+        <p>El agente captura CFDIs, valida fiscalmente, clasifica cuentas y concilia bancos — todo en segundo plano, 24/7.</p>
+      </div>
+      <div class="step reveal reveal-delay-3">
+        <div class="step-number">3</div>
+        <h3>Tú revisas y firmas</h3>
+        <p>Cada documento procesado te espera en tu dashboard. Revisas, apruebas o rechazas con un clic. Tú siempre tienes el control.</p>
+      </div>
     </div>
-    <div class="flow">
-      <div class="step reveal"><h3>Recibe el CFDI</h3><p>El agente recibe facturas vía XML, correo o carga manual y las parsea automáticamente.</p></div>
-      <div class="step reveal reveal-delay-1"><h3>Extrae el CFDI</h3><p>Lee el XML 4.0, normaliza campos: RFC, montos, impuestos, conceptos, fechas.</p></div>
-      <div class="step reveal reveal-delay-2"><h3>Valida fiscalmente</h3><p>Aritmética, catálogos SAT, IVA, retenciones, DIOT. Detecta lo que requiere revisión humana.</p></div>
-      <div class="step reveal reveal-delay-3"><h3>Clasifica y registra</h3><p>Clasifica el gasto contablemente y genera la póliza en tu ERP. Con auditoría de cada paso.</p></div>
+    <div class="progress-bar reveal">
+      <div class="progress-fill" id="progressFill"></div>
     </div>
   </div>
 </section>
 
-<!-- ISOMETRIC ARCHITECTURE -->
-<section class="arch-section" id="arquitectura">
+<!-- AGENTES -->
+<section class="agentes" id="agentes">
   <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">Arquitectura</span>
-      <h2>Tres capas, una sola máquina</h2>
-      <p>Desde tus fuentes de datos hasta tu dashboard, cada capa conecta y alimenta la siguiente.</p>
-    </div>
-    <div class="arch-wrap">
-      <div class="arch-fade"></div>
-      <div class="arch-bottom-fade"></div>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" fill="none" role="img" aria-label="Arquitectura de 3 capas de Likida AI">
-        <defs>
-          <linearGradient id="isoGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#e8e8e8"/>
-            <stop offset="100%" stop-color="#f5f5f5"/>
-          </linearGradient>
-          <linearGradient id="isoGrad2" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#d0d0d0"/>
-            <stop offset="100%" stop-color="#e8e8e8"/>
-          </linearGradient>
-          <filter id="layerShadow" x="-4%" y="-4%" width="108%" height="116%">
-            <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#111" flood-opacity=".08"/>
-          </filter>
-          <filter id="smallShadow" x="-10%" y="-10%" width="120%" height="140%">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#111" flood-opacity=".1"/>
-          </filter>
-          <clipPath id="isoClip">
-            <rect x="0" y="0" width="1200" height="720"/>
-          </clipPath>
-        </defs>
-
-        <g clip-path="url(#isoClip)">
-
-        <!-- ============ BOTTOM LAYER: Data Sources ============ -->
-        <g filter="url(#layerShadow)" transform="translate(60,480)">
-          <!-- Isometric platform -->
-          <path d="M0,60 L500,60 L540,30 L500,0 L0,0 L-40,30 Z" fill="#e0e0e0" stroke="#333" stroke-width="1.5"/>
-          <path d="M0,60 L0,80 L500,80 L500,60 Z" fill="#d5d5d5" stroke="#333" stroke-width="1"/>
-          <path d="M500,60 L500,80 L540,50 L540,30 Z" fill="#ccc" stroke="#333" stroke-width="1"/>
-
-          <!-- Data source boxes -->
-          <!-- ERP System box -->
-          <g transform="translate(50,2)">
-            <path d="M0,30 L80,30 L100,14 L80,-2 L0,-2 Z" fill="#f0f0f0" stroke="#333" stroke-width="1.2"/>
-            <path d="M0,30 L0,50 L80,50 L80,30 Z" fill="#ddd" stroke="#333" stroke-width="1"/>
-            <path d="M80,30 L80,50 L100,34 L100,14 Z" fill="#d0d0d0" stroke="#333" stroke-width="1"/>
-            <!-- Database icon -->
-            <ellipse cx="40" cy="2" rx="18" ry="8" fill="none" stroke="#999" stroke-width="1.5"/>
-            <path d="M22,2 L22,12 Q40,20 58,12 L58,2" fill="none" stroke="#999" stroke-width="1.5"/>
-            <text x="40" y="58" text-anchor="middle" font-size="9" fill="#666" font-family="Inter,sans-serif" font-weight="600">CONTPAQi</text>
-          </g>
-
-          <!-- SAT Portal box -->
-          <g transform="translate(200,2)">
-            <path d="M0,30 L80,30 L100,14 L80,-2 L0,-2 Z" fill="#f0f0f0" stroke="#333" stroke-width="1.2"/>
-            <path d="M0,30 L0,50 L80,50 L80,30 Z" fill="#ddd" stroke="#333" stroke-width="1"/>
-            <path d="M80,30 L80,50 L100,34 L100,14 Z" fill="#d0d0d0" stroke="#333" stroke-width="1"/>
-            <!-- Globe icon -->
-            <circle cx="40" cy="2" r="10" fill="none" stroke="#999" stroke-width="1.5"/>
-            <ellipse cx="40" cy="2" rx="4" ry="10" fill="none" stroke="#999" stroke-width="1"/>
-            <line x1="30" y1="2" x2="50" y2="2" stroke="#999" stroke-width="1"/>
-            <text x="40" y="58" text-anchor="middle" font-size="9" fill="#666" font-family="Inter,sans-serif" font-weight="600">SAT Portal</text>
-          </g>
-
-          <!-- Email inbox box -->
-          <g transform="translate(350,2)">
-            <path d="M0,30 L80,30 L100,14 L80,-2 L0,-2 Z" fill="#f0f0f0" stroke="#333" stroke-width="1.2"/>
-            <path d="M0,30 L0,50 L80,50 L80,30 Z" fill="#ddd" stroke="#333" stroke-width="1"/>
-            <path d="M80,30 L80,50 L100,34 L100,14 Z" fill="#d0d0d0" stroke="#333" stroke-width="1"/>
-            <!-- Email icon -->
-            <rect x="25" y="-6" width="30" height="18" rx="2" fill="none" stroke="#999" stroke-width="1.5"/>
-            <path d="M25,-6 L40,5 L55,-6" fill="none" stroke="#999" stroke-width="1.5"/>
-            <text x="40" y="58" text-anchor="middle" font-size="9" fill="#666" font-family="Inter,sans-serif" font-weight="600">Email Inbox</text>
-          </g>
-        </g>
-
-        <!-- ============ DOTTED LINES: Bottom → Middle ============ -->
-        <line x1="180" y1="480" x2="280" y2="380" stroke="#999" stroke-width="1.5" stroke-dasharray="5,5" opacity=".6"/>
-        <line x1="330" y1="480" x2="430" y2="380" stroke="#999" stroke-width="1.5" stroke-dasharray="5,5" opacity=".6"/>
-        <line x1="480" y1="480" x2="580" y2="380" stroke="#999" stroke-width="1.5" stroke-dasharray="5,5" opacity=".6"/>
-        <!-- Animated data flow dots -->
-        <circle r="3" fill="#999" opacity=".5">
-          <animateMotion dur="3s" repeatCount="indefinite" path="M180,480 L280,380"/>
-        </circle>
-        <circle r="3" fill="#999" opacity=".5">
-          <animateMotion dur="3s" repeatCount="indefinite" path="M330,480 L430,380" begin=".8s"/>
-        </circle>
-        <circle r="3" fill="#999" opacity=".5">
-          <animateMotion dur="3s" repeatCount="indefinite" path="M480,480 L580,380" begin="1.6s"/>
-        </circle>
-
-        <!-- ============ MIDDLE LAYER: AI Agents ============ -->
-        <g filter="url(#layerShadow)" transform="translate(60,320)">
-          <!-- Isometric platform -->
-          <path d="M0,60 L500,60 L540,30 L500,0 L0,0 L-40,30 Z" fill="#f5f5f5" stroke="#333" stroke-width="1.5"/>
-          <path d="M0,60 L0,80 L500,80 L500,60 Z" fill="#eee" stroke="#333" stroke-width="1"/>
-          <path d="M500,60 L500,80 L540,50 L540,30 Z" fill="#e5e5e5" stroke="#333" stroke-width="1"/>
-
-          <!-- Agent character 1: Capturing invoices -->
-          <g transform="translate(70,10)" filter="url(#smallShadow)">
-            <!-- Body -->
-            <rect x="15" y="15" width="40" height="30" rx="6" fill="#fff" stroke="#333" stroke-width="1.5"/>
-            <!-- Head -->
-            <circle cx="35" cy="10" r="12" fill="#fff" stroke="#333" stroke-width="1.5"/>
-            <!-- Eyes -->
-            <circle cx="31" cy="8" r="2" fill="#333"/>
-            <circle cx="39" cy="8" r="2" fill="#333"/>
-            <!-- Antenna -->
-            <line x1="35" y1="-2" x2="35" y2="-8" stroke="#333" stroke-width="1.5"/>
-            <circle cx="35" cy="-10" r="3" fill="#aaa" stroke="#333" stroke-width="1"/>
-            <!-- Arms holding document -->
-            <line x1="15" y1="25" x2="5" y2="20" stroke="#333" stroke-width="1.5"/>
-            <line x1="55" y1="25" x2="65" y2="20" stroke="#333" stroke-width="1.5"/>
-            <!-- Document -->
-            <rect x="-2" y="12" width="16" height="20" rx="2" fill="#fff" stroke="#333" stroke-width="1"/>
-            <line x1="1" y1="17" x2="12" y2="17" stroke="#ccc" stroke-width="1"/>
-            <line x1="1" y1="21" x2="12" y2="21" stroke="#ccc" stroke-width="1"/>
-            <line x1="1" y1="25" x2="8" y2="25" stroke="#ccc" stroke-width="1"/>
-            <text x="35" y="55" text-anchor="middle" font-size="9" fill="#666" font-family="Inter,sans-serif" font-weight="600">Captura</text>
-          </g>
-
-          <!-- Agent character 2: Validating -->
-          <g transform="translate(220,10)" filter="url(#smallShadow)">
-            <rect x="15" y="15" width="40" height="30" rx="6" fill="#fff" stroke="#333" stroke-width="1.5"/>
-            <circle cx="35" cy="10" r="12" fill="#fff" stroke="#333" stroke-width="1.5"/>
-            <circle cx="31" cy="8" r="2" fill="#333"/>
-            <circle cx="39" cy="8" r="2" fill="#333"/>
-            <line x1="35" y1="-2" x2="35" y2="-8" stroke="#333" stroke-width="1.5"/>
-            <circle cx="35" cy="-10" r="3" fill="#aaa" stroke="#333" stroke-width="1"/>
-            <line x1="15" y1="25" x2="5" y2="20" stroke="#333" stroke-width="1.5"/>
-            <line x1="55" y1="25" x2="65" y2="20" stroke="#333" stroke-width="1.5"/>
-            <!-- Magnifying glass -->
-            <circle cx="70" cy="16" r="8" fill="none" stroke="#333" stroke-width="1.5"/>
-            <line x1="76" y1="22" x2="82" y2="28" stroke="#333" stroke-width="2"/>
-            <!-- Checkmark -->
-            <path d="M20,18 L24,22 L32,12" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"/>
-            <text x="35" y="55" text-anchor="middle" font-size="9" fill="#666" font-family="Inter,sans-serif" font-weight="600">Valida</text>
-          </g>
-
-          <!-- Agent character 3: Classifying -->
-          <g transform="translate(380,10)" filter="url(#smallShadow)">
-            <rect x="15" y="15" width="40" height="30" rx="6" fill="#fff" stroke="#333" stroke-width="1.5"/>
-            <circle cx="35" cy="10" r="12" fill="#fff" stroke="#333" stroke-width="1.5"/>
-            <circle cx="31" cy="8" r="2" fill="#333"/>
-            <circle cx="39" cy="8" r="2" fill="#333"/>
-            <line x1="35" y1="-2" x2="35" y2="-8" stroke="#333" stroke-width="1.5"/>
-            <circle cx="35" cy="-10" r="3" fill="#aaa" stroke="#333" stroke-width="1"/>
-            <line x1="15" y1="25" x2="5" y2="20" stroke="#333" stroke-width="1.5"/>
-            <line x1="55" y1="25" x2="65" y2="20" stroke="#333" stroke-width="1.5"/>
-            <!-- Tag/label icon -->
-            <path d="M60,8 L78,8 L82,14 L78,20 L60,20 Z" fill="none" stroke="#333" stroke-width="1.5"/>
-            <circle cx="64" cy="14" r="2" fill="#333"/>
-            <!-- Gear -->
-            <circle cx="-5" cy="15" r="8" fill="none" stroke="#999" stroke-width="1.5"/>
-            <circle cx="-5" cy="15" r="3" fill="none" stroke="#999" stroke-width="1"/>
-            <text x="35" y="55" text-anchor="middle" font-size="9" fill="#666" font-family="Inter,sans-serif" font-weight="600">Clasifica</text>
-          </g>
-        </g>
-
-        <!-- ============ DOTTLED LINES: Middle → Top ============ -->
-        <line x1="350" y1="320" x2="450" y2="220" stroke="#999" stroke-width="1.5" stroke-dasharray="5,5" opacity=".6"/>
-        <line x1="450" y1="320" x2="550" y2="220" stroke="#999" stroke-width="1.5" stroke-dasharray="5,5" opacity=".6"/>
-        <line x1="550" y1="320" x2="650" y2="220" stroke="#999" stroke-width="1.5" stroke-dasharray="5,5" opacity=".6"/>
-        <circle r="3" fill="#999" opacity=".5">
-          <animateMotion dur="3s" repeatCount="indefinite" path="M350,320 L450,220"/>
-        </circle>
-        <circle r="3" fill="#999" opacity=".5">
-          <animateMotion dur="3s" repeatCount="indefinite" path="M450,320 L550,220" begin="1s"/>
-        </circle>
-        <circle r="3" fill="#999" opacity=".5">
-          <animateMotion dur="3s" repeatCount="indefinite" path="M550,320 L650,220" begin="2s"/>
-        </circle>
-
-        <!-- ============ TOP LAYER: Dashboard / Vision ============ -->
-        <g filter="url(#layerShadow)" transform="translate(60,120)">
-          <!-- Isometric platform -->
-          <path d="M0,60 L500,60 L540,30 L500,0 L0,0 L-40,30 Z" fill="#f5f5f5" stroke="#333" stroke-width="1.5"/>
-          <path d="M0,60 L0,80 L500,80 L500,60 Z" fill="#eee" stroke="#333" stroke-width="1"/>
-          <path d="M500,60 L500,80 L540,50 L540,30 Z" fill="#e5e5e5" stroke="#333" stroke-width="1"/>
-
-          <!-- Dashboard screen (isometric rectangle) -->
-          <g transform="translate(80,-30)">
-            <path d="M0,30 L300,30 L330,10 L300,-10 L0,-10 Z" fill="#fff" stroke="#333" stroke-width="1.5"/>
-            <path d="M0,30 L0,60 L300,60 L300,30 Z" fill="#fafafa" stroke="#333" stroke-width="1"/>
-            <path d="M300,30 L300,60 L330,40 L330,10 Z" fill="#f0f0f0" stroke="#333" stroke-width="1"/>
-            <!-- Screen content -->
-            <!-- Bar chart -->
-            <rect x="20" y="0" width="20" height="18" rx="2" fill="#ddd" stroke="#999" stroke-width="1"/>
-            <rect x="48" y="8" width="20" height="10" rx="2" fill="#ddd" stroke="#999" stroke-width="1"/>
-            <rect x="76" y="3" width="20" height="15" rx="2" fill="#ccc" stroke="#999" stroke-width="1"/>
-            <rect x="104" y="-2" width="20" height="20" rx="2" fill="#bbb" stroke="#999" stroke-width="1"/>
-            <!-- Line chart -->
-            <polyline points="150,15 170,5 190,12 210,0 230,8 250,3" fill="none" stroke="#999" stroke-width="1.5"/>
-            <circle cx="150" cy="15" r="2" fill="#999"/>
-            <circle cx="170" cy="5" r="2" fill="#999"/>
-            <circle cx="190" cy="12" r="2" fill="#999"/>
-            <circle cx="210" cy="0" r="2" fill="#999"/>
-            <circle cx="230" cy="8" r="2" fill="#999"/>
-            <circle cx="250" cy="3" r="2" fill="#999"/>
-            <!-- Status indicators -->
-            <circle cx="275" cy="5" r="4" fill="#16a34a" opacity=".6"/>
-            <circle cx="275" cy="15" r="4" fill="#16a34a" opacity=".4"/>
-            <circle cx="275" cy="25" r="4" fill="#d97706" opacity=".5"/>
-          </g>
-
-          <!-- Likida "L" logo (pill + curl + dot) -->
-          <g transform="translate(410,8)">
-            <!-- Vertical stem -->
-            <rect x="0" y="0" width="14" height="48" rx="7" fill="#aaa" stroke="#999" stroke-width="1"/>
-            <!-- Curved connector (bottom right) -->
-            <path d="M7,42 Q7,55 20,55 Q35,55 35,48" fill="none" stroke="#aaa" stroke-width="6" stroke-linecap="round"/>
-            <!-- Horizontal pill end -->
-            <rect x="30" y="42" width="28" height="12" rx="6" fill="#aaa" stroke="#999" stroke-width="1"/>
-            <!-- Circle/dot at end -->
-            <circle cx="62" cy="48" r="7" fill="#aaa" stroke="#999" stroke-width="1"/>
-          </g>
-
-          <!-- CFDI metrics labels -->
-          <text x="30" y="75" font-size="8" fill="#999" font-family="Inter,sans-serif" font-weight="500" transform="skewX(-10)">CFDI procesados</text>
-          <text x="150" y="75" font-size="8" fill="#999" font-family="Inter,sans-serif" font-weight="500" transform="skewX(-10)">Validación fiscal</text>
-          <text x="280" y="75" font-size="8" fill="#999" font-family="Inter,sans-serif" font-weight="500" transform="skewX(-10)">Estado general</text>
-        </g>
-
-        <!-- ============ LABEL TAGS (right side, stacked) ============ -->
-        <g transform="translate(680,140)">
-          <!-- Dashboard tag -->
-          <g>
-            <path d="M0,0 L140,0 L160,15 L140,30 L0,30 Z" fill="#fff" stroke="#333" stroke-width="1.2" filter="url(#smallShadow)"/>
-            <text x="70" y="19" text-anchor="middle" font-size="11" fill="#333" font-family="Inter,sans-serif" font-weight="700">Dashboard / Vision</text>
-          </g>
-          <!-- AI Agents tag -->
-          <g transform="translate(0,200)">
-            <path d="M0,0 L140,0 L160,15 L140,30 L0,30 Z" fill="#fff" stroke="#333" stroke-width="1.2" filter="url(#smallShadow)"/>
-            <text x="70" y="19" text-anchor="middle" font-size="11" fill="#333" font-family="Inter,sans-serif" font-weight="700">Agentes IA</text>
-          </g>
-          <!-- Data Sources tag -->
-          <g transform="translate(0,400)">
-            <path d="M0,0 L140,0 L160,15 L140,30 L0,30 Z" fill="#fff" stroke="#333" stroke-width="1.2" filter="url(#smallShadow)"/>
-            <text x="70" y="19" text-anchor="middle" font-size="11" fill="#333" font-family="Inter,sans-serif" font-weight="700">Fuentes de datos</text>
-          </g>
-        </g>
-
-        </g>
-      </svg>
-    </div>
-    <div class="arch-labels reveal">
-      <div class="arch-label"><span>Visibilidad en tiempo real</span><em>Dashboard, reportes, alertas</em></div>
-      <div class="arch-label"><span>Agente IA</span><em>Procesa, valida, clasifica, registra</em></div>
-      <div class="arch-label"><span>Fuentes de datos</span><em>Tu ERP, SAT, email</em></div>
+    <div class="section-label reveal">Agentes especializados</div>
+    <h2 class="section-title reveal">Cada tarea fiscal, cubierta por un agente experto.</h2>
+    <p class="section-subtitle reveal">Cinco agentes de IA diseñados específicamente para la contabilidad mexicana.</p>
+    <div class="accordion reveal">
+      <div class="accordion-item open">
+        <button class="accordion-trigger" aria-expanded="true">
+          <h3>Agente de Captura CFDI</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="accordion-body">
+          <p>Descarga, lee y captura automáticamente todos los CFDIs del SAT. Extrae RFC, conceptos, montos e impuestos sin intervención humana. Compatible con CFDI 3.3 y 4.0.</p>
+          <div class="workflow-steps">
+            <span class="wf-step">📥 Descarga XML del SAT</span>
+            <span class="wf-step">🔍 Extrae datos del CFDI</span>
+            <span class="wf-step">✏️ Captura en ERP</span>
+            <span class="wf-step">✅ Validación cruzada</span>
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item">
+        <button class="accordion-trigger" aria-expanded="false">
+          <h3>Agente de Validación Fiscal</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="accordion-body">
+          <p>Valida cada comprobante contra las reglas del SAT en tiempo real. Detecta CFDIs cancelados, RFCs inválidos, errores de retención y discrepancias fiscales antes de que se conviertan en problemas.</p>
+          <div class="workflow-steps">
+            <span class="wf-step">📋 Reglas CFF Art. 29</span>
+            <span class="wf-step">🔗 Cruce con SAT</span>
+            <span class="wf-step">⚠️ Alerta de anomalías</span>
+            <span class="wf-step">📊 Reporte de riesgos</span>
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item">
+        <button class="accordion-trigger" aria-expanded="false">
+          <h3>Agente de Clasificación Contable</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="accordion-body">
+          <p>Clasifica automáticamente cada transacción en la cuenta contable correcta usando el catálogo CUBS. Aprende de las correcciones del contador para mejorar con cada ciclo.</p>
+          <div class="workflow-steps">
+            <span class="wf-step">🏷️ Identifica naturaleza</span>
+            <span class="wf-step">📂 Asigna cuenta CUBS</span>
+            <span class="wf-step">🧠 Aprende del feedback</span>
+            <span class="wf-step">📈 Reporta precisión</span>
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item">
+        <button class="accordion-trigger" aria-expanded="false">
+          <h3>Agente de Conciliación Bancaria</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="accordion-body">
+          <p>Concilia movimientos bancarios con pólizas contables automáticamente. Importa estados de cuenta de BBVA, Banorte, Santander, HSBC y cualquier banco mexicano.</p>
+          <div class="workflow-steps">
+            <span class="wf-step">🏦 Importa estados de cuenta</span>
+            <span class="wf-step">🔗 Empareja transacciones</span>
+            <span class="wf-step">❓ Marca discrepancias</span>
+            <span class="wf-step">✅ Genera póliza de conciliación</span>
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item">
+        <button class="accordion-trigger" aria-expanded="false">
+          <h3>Agente de Declaraciones Fiscales</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="accordion-body">
+          <p>Prepara declaraciones mensuales y anuales con los datos ya validados. ISR, IESPS, IEPS, retenciones — todo prellenado y listo para tu firma antes de enviar al SAT.</p>
+          <div class="workflow-steps">
+            <span class="wf-step">📊 Agrega datos del periodo</span>
+            <span class="wf-step">🧮 Calcula impuestos</span>
+            <span class="wf-step">📝 Prepara declaración</span>
+            <span class="wf-step">✍️ Espera tu firma</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- FEATURES -->
-<section class="alt-section">
+<!-- COMPUTER USE -->
+<section class="computer-use-section">
   <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">Capacidades</span>
-      <h2>Todo el pipeline contable, automatizado</h2>
-    </div>
-    <div class="feature-row">
-      <div class="feature reveal"><div class="ico">🌐</div><h3>Procesa CFDI desde tu ERP</h3><p>Recibe, valida fiscalmente (CFDI 4.0, DIOT, retenciones) y clasifica facturas desde XML o correo — sin integraciones API frágiles.</p></div>
-      <div class="feature reveal reveal-delay-1"><div class="ico">🧾</div><h3>Validación fiscal CFDI 4.0</h3><p>Chequea aritmética, catálogos SAT, fechas, retenciones y DIOT en cada factura.</p>
-        <ul><li>IVA desglosado por concepto</li><li>Catálogos SAT actualizados</li><li>Flags de revisión humana</li></ul></div>
-      <div class="feature reveal reveal-delay-2"><div class="ico">🏷️</div><h3>Clasificación contable</h3><p>Clasifica el gasto (operativo, inversión, activo fijo, nómina) con confianza y razón explicada.</p></div>
-      <div class="feature reveal reveal-delay-3"><div class="ico">🔒</div><h3>Multi-tenant y auditoría</h3><p>Aislamos datos por despacho y registramos cada llamada de cada tool. Trazabilidad total.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- INTEGRATIONS -->
-<section class="integrations" id="integraciones">
-  <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">Integraciones</span>
-      <h2>Se conecta con lo que ya usas</h2>
-      <p>Likida se integra con los ERPs, bancos y sistemas fiscales más usados en México</p>
-    </div>
-    <div class="int-grid">
-      <!-- SAT & Fiscal -->
-      <div class="int-category reveal">
-        <h3>🏛️ SAT & Fiscal</h3>
-        <div class="int-item"><span class="name">CFDI 4.0</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">Cancelación de CFDI</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">DIOT</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">Contabilidad Electrónica</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">Dictamen Fiscal</span><span class="soon">próximo</span></div>
+    <div class="section-label reveal">Computer Use</div>
+    <h2 class="section-title reveal">AI que opera tu ERP como un humano.</h2>
+    <p class="section-subtitle reveal">Likida AI navega CONTPAQi, Aspel y cualquier software contable exactamente como lo haría un contador — haciendo clic, llenando formularios, exportando reportes.</p>
+    <div class="cu-features">
+      <div class="cu-feature reveal reveal-delay-1">
+        <h3>🖥️ Navegación nativa</h3>
+        <p>El agente opera la interfaz de tu ERP directamente — no APIs, no integraciones frágiles. Hace clic, escribe y navega como una persona.</p>
       </div>
-      <!-- ERPs -->
-      <div class="int-category reveal reveal-delay-1">
-        <h3>💻 ERPs</h3>
-        <div class="int-item"><span class="name">CONTPAQi</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">Aspel</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">QuickBooks</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">Xero</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">Peak</span><span class="soon">próximo</span></div>
+      <div class="cu-feature reveal reveal-delay-2">
+        <h3>👁️ Visión por computadora</h3>
+        <p>Ve la pantalla, lee los campos, valida lo que ingresa. Si algo se ve mal, lo detecta antes de confirmar.</p>
       </div>
-      <!-- Bancos -->
-      <div class="int-category reveal reveal-delay-2">
-        <h3>🏦 Bancos</h3>
-        <div class="int-item"><span class="name">BBVA</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">Banorte</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">Santander</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">HSBC</span><span class="soon">próximo</span></div>
+      <div class="cu-feature reveal reveal-delay-3">
+        <h3>🔄 Sin cambios de software</h3>
+        <p>No necesitas migrar de ERP, cambiar de herramienta ni implementar APIs. Funciona con lo que ya tienes.</p>
       </div>
-      <!-- Nómina -->
-      <div class="int-category reveal reveal-delay-3">
-        <h3>👥 Nómina</h3>
-        <div class="int-item"><span class="name">CFDI Nómina 1.2</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">IMSS</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">INFONAVIT</span><span class="check">✓</span></div>
-      </div>
-      <!-- Otros -->
-      <div class="int-category reveal reveal-delay-4" style="grid-column: span 2">
-        <h3>🔗 Otros</h3>
-        <div class="int-item"><span class="name">Excel / Google Sheets</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">Email (Gmail, Outlook)</span><span class="check">✓</span></div>
-        <div class="int-item"><span class="name">WhatsApp Business</span><span class="check">✓</span></div>
+      <div class="cu-feature reveal reveal-delay-4">
+        <h3>📋 Auditoría completa</h3>
+        <p>Cada clic, cada dato ingresado queda registrado. Puedes reproducir exactamente lo que el agente hizo en cualquier momento.</p>
       </div>
     </div>
   </div>
 </section>
 
 <!-- INTEGRACIONES -->
-<section class="alt-section" id="integraciones">
-  <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">Integraciones</span>
-      <h2>Se conecta con lo que ya usas</h2>
-      <p>Likida se integra con los ERPs, bancos y sistemas fiscales más usados en México.</p>
+<section class="integraciones" id="integraciones">
+  <div class="container" style="text-align:center;">
+    <div class="section-label reveal">Integraciones</div>
+    <h2 class="section-title reveal" style="margin:0 auto;">Se conecta con lo que ya usas.</h2>
+    <p class="section-subtitle reveal" style="margin:16px auto 0;">Sin migraciones. Sin cambios de software. Solo conexión directa.</p>
+    <div class="integrations-grid reveal">
+      <div class="integration-logo">SAT</div>
+      <div class="integration-logo">CONTPAQi</div>
+      <div class="integration-logo">Aspel</div>
+      <div class="integration-logo">QuickBooks</div>
+      <div class="integration-logo">BBVA</div>
+      <div class="integration-logo">Banorte</div>
+      <div class="integration-logo">Santander</div>
+      <div class="integration-logo">HSBC</div>
+      <div class="integration-logo">Excel</div>
+      <div class="integration-logo">Gmail</div>
+      <div class="integration-logo">WhatsApp</div>
     </div>
-    <div class="integrations-grid">
-      <!-- SAT & Fiscal -->
-      <div class="integration-category reveal">
-        <h3>SAT & Fiscal</h3>
-        <div class="integration-items">
-          <div class="integration-item"><span class="check">✓</span> CFDI 4.0</div>
-          <div class="integration-item"><span class="check">✓</span> Cancelación de CFDI</div>
-          <div class="integration-item"><span class="check">✓</span> DIOT</div>
-          <div class="integration-item"><span class="check">✓</span> Contabilidad Electrónica</div>
-          <div class="integration-item coming-soon"><span class="badge">Próximo</span> Dictamen Fiscal</div>
-        </div>
+  </div>
+</section>
+
+<!-- SEGURIDAD -->
+<section class="seguridad" id="seguridad">
+  <div class="container">
+    <div class="section-label reveal">Seguridad</div>
+    <h2 class="section-title reveal">Seguridad de nivel enterprise.<br>Cumplimiento fiscal garantizado.</h2>
+    <p class="section-subtitle reveal">Diseñado para despachos que manejan información fiscal sensible. Sin atajos.</p>
+    <div class="security-grid">
+      <div class="security-card reveal reveal-delay-1">
+        <h3>🔒 AES-256 Encryption</h3>
+        <p>Todos los datos en tránsito y en reposo cifrados con AES-256. El mismo estándar que usan los bancos centrales.</p>
       </div>
-      <!-- ERPs -->
-      <div class="integration-category reveal reveal-delay-1">
-        <h3>ERPs</h3>
-        <div class="integration-items">
-          <div class="integration-item"><span class="check">✓</span> CONTPAQi</div>
-          <div class="integration-item"><span class="check">✓</span> Aspel</div>
-          <div class="integration-item"><span class="check">✓</span> QuickBooks</div>
-          <div class="integration-item"><span class="check">✓</span> Xero</div>
-          <div class="integration-item coming-soon"><span class="badge">Próximo</span> Peak</div>
-        </div>
+      <div class="security-card reveal reveal-delay-2">
+        <h3>🇲🇽 LFPDPPP Compliance</h3>
+        <p>Cumplimiento total con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. Aviso de privacidad y consentimiento informado.</p>
       </div>
-      <!-- Bancos -->
-      <div class="integration-category reveal reveal-delay-2">
-        <h3>Bancos</h3>
-        <div class="integration-items">
-          <div class="integration-item"><span class="check">✓</span> BBVA</div>
-          <div class="integration-item"><span class="check">✓</span> Banorte</div>
-          <div class="integration-item"><span class="check">✓</span> Santander</div>
-          <div class="integration-item coming-soon"><span class="badge">Próximo</span> HSBC</div>
-        </div>
+      <div class="security-card reveal reveal-delay-3">
+        <h3>📜 CFF Art. 28 & 29</h3>
+        <p>Cumplimiento del Código Fiscal de la Federación en todos los procesos de facturación electrónica y conservación de registros.</p>
       </div>
-      <!-- Nómina & Otros -->
-      <div class="integration-category reveal reveal-delay-3">
-        <h3>Nómina & Otros</h3>
-        <div class="integration-items">
-          <div class="integration-item"><span class="check">✓</span> CFDI Nómina 1.2</div>
-          <div class="integration-item"><span class="check">✓</span> IMSS / INFONAVIT</div>
-          <div class="integration-item"><span class="check">✓</span> Excel / Google Sheets</div>
-          <div class="integration-item"><span class="check">✓</span> Email (Gmail, Outlook)</div>
-          <div class="integration-item"><span class="check">✓</span> WhatsApp Business</div>
-        </div>
+      <div class="security-card reveal reveal-delay-4">
+        <h3>📊 Auditoría completa</h3>
+        <p>Log inmutable de cada acción del agente. Trail de auditoría que puedes exportar en cualquier momento para revisión o fiscalización.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- SEGURIDAD & CUMPLIMIENTO -->
-<section id="seguridad">
-  <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">Seguridad &amp; Cumplimiento</span>
-      <h2>Datos protegidos, cumplimiento fiscal garantizado</h2>
-      <p>Infraestructura diseñada para empresas mexicanas que manejan datos fiscales sensibles.</p>
-    </div>
-    <div class="feature-row">
-      <div class="feature reveal">
-        <div class="ico">🔒</div>
-        <h3>Encriptación de datos</h3>
-        <p>AES-256 en reposo, TLS 1.3 en tránsito. Tus facturas y datos contables están protegidos de extremo a extremo.</p>
-      </div>
-      <div class="feature reveal reveal-delay-1">
-        <div class="ico">📋</div>
-        <h3>LFPDPPP</h3>
-        <p>Cumplimiento total de la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. <a href="/legal/privacy" target="_blank" rel="noopener">Consulta nuestro aviso de privacidad</a>.</p>
-      </div>
-      <div class="feature reveal reveal-delay-2">
-        <div class="ico">🏛️</div>
-        <h3>CFF — Código Fiscal</h3>
-        <p>Validación CFDI 4.0 conforme al Código Fiscal de la Federación. Catálogos SAT actualizados, DIOT, retenciones y contabilidad electrónica.</p>
-      </div>
-      <div class="feature reveal reveal-delay-3">
-        <div class="ico">📝</div>
-        <h3>Auditoría completa</h3>
-        <p>Trazabilidad total de cada operación: quién, qué, cuándo. Multi-tenant con aislamiento de datos por despacho. Registro inmutable.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- PRICING -->
-<section id="pricing">
-  <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">Precios</span>
-      <h2>Planes que se pagan solos con el tiempo ahorrado</h2>
-      <p>Recupera el equivalente a más de medio contador en horas de captura cada mes.</p>
-    </div>
+<!-- PRECIOS -->
+<section class="precios" id="precios">
+  <div class="container" style="text-align:center;">
+    <div class="section-label reveal">Precios</div>
+    <h2 class="section-title reveal" style="margin:0 auto;">Planes que escalan con tu despacho.</h2>
+    <p class="section-subtitle reveal" style="margin:16px auto 0;">Sin contratos anuales forzosos. Cancela cuando quieras.</p>
     <div class="pricing-grid">
-      <div class="price reveal">
-        <h3>Starter</h3>
-        <div class="amount">$8,000<small> MXN</small></div>
-        <div class="per">por mes · hasta 300 CFDI</div>
+      <div class="price-card reveal reveal-delay-1">
+        <div class="plan-name">Starter</div>
+        <div class="price">$8,000 <span>MXN/mes</span></div>
         <ul>
-          <li>Captura y validación CFDI 4.0</li>
-          <li>Clasificación contable automática</li>
-          <li>Registro en ERP (CONTPAQi)</li>
+          <li>Hasta 500 CFDIs/mes</li>
+          <li>Agente de Captura</li>
+          <li>Agente de Validación</li>
+          <li>1 usuario</li>
           <li>Soporte por email</li>
         </ul>
-        <a href="#contacto" class="btn btn-ghost" data-ripple>Empezar</a>
+        <a href="#contacto" class="btn-primary">Empezar</a>
       </div>
-      <div class="price hot reveal reveal-delay-1">
-        <div class="flag">MÁS ELEGIDO</div>
-        <h3>Pro</h3>
-        <div class="amount">$20,000<small> MXN</small></div>
-        <div class="per">por mes · hasta 900 CFDI</div>
+      <div class="price-card featured reveal reveal-delay-2">
+        <div class="plan-name">Pro</div>
+        <div class="price">$20,000 <span>MXN/mes</span></div>
         <ul>
-          <li>Todo lo de Starter</li>
-          <li>Procesamiento CFDI desde ERP o correo</li>
-          <li>Validación DIOT y retenciones</li>
-          <li>Notificaciones por email/WhatsApp</li>
-          <li>Reportes mensuales por categoría</li>
+          <li>Hasta 2,000 CFDIs/mes</li>
+          <li>Todos los agentes</li>
+          <li>Computer Use</li>
+          <li>5 usuarios</li>
           <li>Soporte prioritario</li>
         </ul>
-        <a href="#contacto" class="btn btn-primary" data-ripple>Agendar demo</a>
+        <a href="#contacto" class="btn-primary">Empezar</a>
       </div>
-      <div class="price reveal reveal-delay-2">
-        <h3>Business</h3>
-        <div class="amount">$40,000<small> MXN</small></div>
-        <div class="per">por mes · hasta 2,500 CFDI</div>
+      <div class="price-card reveal reveal-delay-3">
+        <div class="plan-name">Business</div>
+        <div class="price">$40,000 <span>MXN/mes</span></div>
         <ul>
-          <li>Todo lo de Pro</li>
-          <li>Conciliación bancaria</li>
-          <li>Reportes para auditoría</li>
-          <li>Onboarding y capacitación</li>
+          <li>Hasta 10,000 CFDIs/mes</li>
+          <li>Todos los agentes</li>
+          <li>Multi-ERP</li>
+          <li>15 usuarios</li>
+          <li>Account manager</li>
         </ul>
-        <a href="#contacto" class="btn btn-ghost" data-ripple>Cotizar</a>
+        <a href="#contacto" class="btn-primary">Empezar</a>
       </div>
-      <div class="price reveal reveal-delay-3">
-        <h3>Enterprise</h3>
-        <div class="amount">$80,000<small> MXN</small></div>
-        <div class="per">por mes · hasta 6,000 CFDI · multi-despacho</div>
+      <div class="price-card reveal reveal-delay-4">
+        <div class="plan-name">Enterprise</div>
+        <div class="price">$80,000 <span>MXN/mes</span></div>
         <ul>
-          <li>Todo lo de Business</li>
-          <li>Multi-tenant con aislamiento</li>
-          <li>API real para integración propia</li>
-          <li>SLA y gerente de cuenta dedicado</li>
+          <li>CFDIs ilimitados</li>
+          <li>Agentes custom</li>
+          <li>On-premise disponible</li>
+          <li>Usuarios ilimitados</li>
+          <li>SLA 99.9% + soporte 24/7</li>
         </ul>
-        <a href="#contacto" class="btn btn-ghost" data-ripple>Cotizar</a>
+        <a href="#contacto" class="btn-primary">Contactar ventas</a>
       </div>
     </div>
   </div>
 </section>
 
-
-
-<!-- CTA -->
-<section>
+<!-- CTA FINAL -->
+<section class="cta-final" id="contacto">
   <div class="container">
-    <div class="cta reveal">
-      <h2>¿Listo para recuperar tus horas?</h2>
-      <p>Agenda una demo de 20 minutos y mira tu despacho procesando facturas en automático. Sin compromiso.</p>
-      <a href="#contacto" class="btn btn-lg" data-ripple>Solicita tu piloto gratis</a>
-    </div>
-  </div>
-</section>
-
-<!-- CONTACTO -->
-<section id="contacto">
-  <div class="container">
-    <div class="sec-head reveal">
-      <span class="tag">Contacto</span>
-      <h2>Hablemos de tu despacho</h2>
-      <p>Cuéntanos cuántas facturas procesas al mes y te armamos una propuesta con ROI.</p>
-    </div>
-    <form class="form-card reveal" id="contactForm" novalidate>
-      <h3>Solicita tu demo</h3>
-      <p class="form-sub">Respuesta en menos de 24 horas.</p>
-      <div class="field">
-        <label for="nombre">Nombre *</label>
-        <input type="text" id="nombre" name="nombre" autocomplete="name" placeholder="Tu nombre completo" required aria-describedby="nombre-err" />
-        <p class="err" id="nombre-err">Escribe tu nombre.</p>
-      </div>
-      <div class="field">
-        <label for="despacho">Despacho / Empresa *</label>
-        <input type="text" id="despacho" name="despacho" autocomplete="organization" placeholder="Nombre de tu despacho" required aria-describedby="despacho-err" />
-        <p class="err" id="despacho-err">Escribe el nombre del despacho.</p>
-      </div>
-      <div class="field">
-        <label for="email">Email laboral *</label>
-        <input type="email" id="email" name="email" autocomplete="email" placeholder="tu@despacho.com" required aria-describedby="email-err" />
-        <p class="err" id="email-err">Email inválido.</p>
-      </div>
-      <div class="field">
-        <label for="facturas">Facturas al mes *</label>
-        <select id="facturas" name="facturas" required aria-describedby="facturas-err">
-          <option value="">Selecciona un rango</option>
-          <option>Menos de 100</option>
-          <option>100 – 500</option>
-          <option>500 – 1,000</option>
-          <option>Más de 1,000</option>
-        </select>
-        <p class="err" id="facturas-err">Selecciona un rango.</p>
-      </div>
-      <div class="field">
-        <label for="mensaje">¿Qué ERP usas? (opcional)</label>
-        <textarea id="mensaje" name="mensaje" placeholder="CONTPAQi, SAP, Odoo, otro..."></textarea>
-      </div>
-      <div class="field" style="margin-top:8px">
-        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:.92rem;line-height:1.4">
-          <input type="checkbox" id="privacyConsent" name="privacyConsent" required style="margin-top:3px;flex-shrink:0" aria-describedby="privacy-err" />
-          <span>He leído y acepto el <a href="/legal/privacy" target="_blank" rel="noopener">aviso de privacidad</a> (LFPDPPP).</span>
-        </label>
-        <p class="err" id="privacy-err">Debes aceptar el aviso de privacidad.</p>
-      </div>
-      <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">Enviar solicitud</button>
-      <div class="form-msg" id="formMsg" role="status" aria-live="polite"></div>
+    <div class="section-label reveal">Contacto</div>
+    <h2 class="section-title reveal">¿Listo para recuperar tus horas?</h2>
+    <p class="section-subtitle reveal" style="margin:16px auto 0;">Agenda una demo o solicita tu piloto gratis. Sin compromiso.</p>
+    <form class="contact-form reveal" onsubmit="handleSubmit(event)">
+      <input type="text" name="nombre" placeholder="Nombre completo" required>
+      <input type="email" name="email" placeholder="Email corporativo" required>
+      <input type="text" name="empresa" placeholder="Nombre del despacho / empresa">
+      <input type="tel" name="telefono" placeholder="Teléfono">
+      <textarea name="mensaje" placeholder="¿Cuántos CFDIs procesan al mes? ¿Qué ERP usan?"></textarea>
+      <button type="submit" class="btn-primary">Solicitar demo <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
     </form>
-    <noscript>
-      <p style="color:#dc2626;text-align:center;padding:12px">
-        Activa JavaScript para enviar el formulario.
-      </p>
-    </noscript>
   </div>
 </section>
-</main>
 
 <!-- FOOTER -->
 <footer>
   <div class="container">
-    <div class="foot">
-      <div class="logo"><span class="dot"></span>Likida AI</div>
-      <div class="disclaimer">Likida AI prepara y valida; el profesional determina y firma. No sustituye a un contador público ni presenta ante el SAT. · <a href="/legal/privacy" style="color:var(--accent);text-decoration:underline">Aviso de Privacidad</a></div>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="/assets/logo-likida.png" alt="Likida AI">
+        <p>Automatización contable con inteligencia artificial para despachos y empresas en México.</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <h4>Producto</h4>
+          <a href="#solucion">Cómo funciona</a>
+          <a href="#agentes">Agentes</a>
+          <a href="#integraciones">Integraciones</a>
+          <a href="#precios">Precios</a>
+        </div>
+        <div class="footer-col">
+          <h4>Empresa</h4>
+          <a href="#">Sobre nosotros</a>
+          <a href="#">Blog</a>
+          <a href="#">Careers</a>
+          <a href="#contacto">Contacto</a>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <a href="#">Aviso de privacidad</a>
+          <a href="#">Términos de servicio</a>
+          <a href="#">Política de cookies</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 Likida AI. Todos los derechos reservados.</p>
+      <p>Hecho con 🤖 en México</p>
     </div>
   </div>
 </footer>
 
 <script>
-(function(){
-  var form = document.getElementById('contactForm');
-  var msg = document.getElementById('formMsg');
-  var btn = document.getElementById('submitBtn');
-
-  // ---- Menú hamburguesa (mobile) ----
-  var navToggle = document.getElementById('navToggle');
-  var navLinks = document.getElementById('navLinks');
-  function closeNav(){
-    navToggle.classList.remove('open');
-    navLinks.classList.remove('open');
-    navToggle.setAttribute('aria-expanded','false');
-  }
-  navToggle.addEventListener('click', function(){
-    var open = navLinks.classList.toggle('open');
-    navToggle.classList.toggle('open', open);
-    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  });
-  navLinks.querySelectorAll('a').forEach(function(a){
-    a.addEventListener('click', closeNav);
-  });
-  window.addEventListener('resize', function(){
-    if(window.innerWidth > 720) closeNav();
-  });
-
-  // ---- Navbar blur al hacer scroll ----
-  var nav = document.getElementById('nav');
-  function onScroll(){
-    if(window.scrollY > 10) nav.classList.add('scrolled');
-    else nav.classList.remove('scrolled');
-  }
-  window.addEventListener('scroll', onScroll, {passive:true});
-  onScroll();
-
-  // ---- Ripple en botones CTA ----
-  function ripple(e){
-    var b = e.currentTarget;
-    var rect = b.getBoundingClientRect();
-    var d = Math.max(rect.width, rect.height);
-    var r = document.createElement('span');
-    r.className = 'ripple';
-    r.style.width = r.style.height = d + 'px';
-    r.style.left = (e.clientX - rect.left - d/2) + 'px';
-    r.style.top = (e.clientY - rect.top - d/2) + 'px';
-    b.appendChild(r);
-    window.setTimeout(function(){ r.remove(); }, 600);
-  }
-  document.querySelectorAll('[data-ripple]').forEach(function(el){
-    el.addEventListener('click', ripple);
-  });
-
-  // ---- Contadores animados con easing suave ----
-  function animateCount(el){
-    var target = parseInt(el.getAttribute('data-count'), 10);
-    if(isNaN(target)) return;
-    var prefix = el.getAttribute('data-prefix') || '';
-    var suffix = el.getAttribute('data-suffix') || '';
-    var dur = 1400;
-    var start = null;
-    function frame(ts){
-      if(!start) start = ts;
-      var p = Math.min((ts - start) / dur, 1);
-      var eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
-      var val = Math.round(target * eased);
-      el.textContent = prefix + val.toLocaleString('es-MX') + suffix;
-      if(p < 1) requestAnimationFrame(frame);
-      else el.textContent = prefix + target.toLocaleString('es-MX') + suffix;
+// Scroll reveal
+const revealElements = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
     }
-    requestAnimationFrame(frame);
-  }
-  var countObs = new IntersectionObserver(function(entries){
-    entries.forEach(function(en){
-      if(en.isIntersecting){
-        animateCount(en.target);
-        countObs.unobserve(en.target);
-      }
-    });
-  }, {threshold: .5});
-  document.querySelectorAll('[data-count]').forEach(function(el){
-    countObs.observe(el);
   });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+revealElements.forEach(el => observer.observe(el));
 
-  // ---- Reveal on scroll (fade-in + slide-up) ----
-  if('IntersectionObserver' in window){
-    var revObs = new IntersectionObserver(function(entries){
-      entries.forEach(function(en){
-        if(en.isIntersecting){
-          en.target.classList.add('in');
-          revObs.unobserve(en.target);
-        }
+// Nav scroll
+window.addEventListener('scroll', () => {
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 10);
+});
+
+// Mobile toggle
+document.getElementById('mobileToggle').addEventListener('click', () => {
+  document.getElementById('navLinks').classList.toggle('open');
+});
+
+// Accordion
+document.querySelectorAll('.accordion-trigger').forEach(trigger => {
+  trigger.addEventListener('click', () => {
+    const item = trigger.parentElement;
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.accordion-item').forEach(i => { i.classList.remove('open'); i.querySelector('.accordion-trigger').setAttribute('aria-expanded', 'false'); });
+    if (!isOpen) {
+      item.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
+    }
+  });
+});
+
+// Animated counters
+const counterObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const el = entry.target;
+      const target = parseInt(el.dataset.target);
+      let current = 0;
+      const increment = target / 60;
+      const timer = setInterval(() => {
+        current += increment;
+        if (current >= target) { current = target; clearInterval(timer); }
+        el.textContent = Math.floor(current);
+      }, 25);
+      counterObserver.unobserve(el);
+    }
+  });
+}, { threshold: 0.5 });
+document.querySelectorAll('.counter').forEach(c => counterObserver.observe(c));
+
+// Progress bar animation
+const progressObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      document.getElementById('progressFill').style.width = '100%';
+      // Activate steps sequentially
+      document.querySelectorAll('.step').forEach((step, i) => {
+        setTimeout(() => step.classList.add('active'), (i + 1) * 500);
       });
-    }, {threshold: .12, rootMargin: '0px 0px -40px 0px'});
-    document.querySelectorAll('.reveal').forEach(function(el){ revObs.observe(el); });
-  } else {
-    document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
-  }
-  // ---- Staggered reveal for architecture labels ----
-  if('IntersectionObserver' in window){
-    var archLabels = document.querySelectorAll('.arch-label');
-    if(archLabels.length){
-      var archObs = new IntersectionObserver(function(entries){
-        entries.forEach(function(en){
-          if(en.isIntersecting){
-            archLabels.forEach(function(label, i){
-              setTimeout(function(){ label.classList.add('in'); }, i * 180);
-            });
-            archObs.disconnect();
-          }
-        });
-      }, {threshold: .3});
-      archObs.observe(archLabels[0]);
-    }
-  }
-
-  // ---- Smooth anchor scrolling with offset for sticky nav ----
-  document.querySelectorAll('a[href^="#"]').forEach(function(a){
-    a.addEventListener('click', function(e){
-      var id = a.getAttribute('href');
-      if(id === '#') return;
-      var target = document.querySelector(id);
-      if(target){
-        e.preventDefault();
-        var navH = document.querySelector('.nav').offsetHeight || 66;
-        var top = target.getBoundingClientRect().top + window.scrollY - navH - 16;
-        window.scrollTo({top: top, behavior: 'smooth'});
-      }
-    });
-  });
-
-
-  // ---- Parallax sutil en el hero ----
-  var hero = document.getElementById('top');
-  var ticking = false;
-  function parallax(){
-    var y = window.scrollY;
-    if(y < window.innerHeight){
-      hero.style.backgroundPosition = '50% ' + (y * 0.4) + 'px';
-    }
-    ticking = false;
-  }
-  window.addEventListener('scroll', function(){
-    if(!ticking){ requestAnimationFrame(parallax); ticking = true; }
-  }, {passive:true});
-
-  // ---- Validación del formulario (sin cambios) ----
-  function setError(input, show){
-    var field = input.closest('.field');
-    if(!field) return;
-    if(show) field.classList.add('invalid');
-    else field.classList.remove('invalid');
-  }
-
-  function validate(){
-    var ok = true;
-    var fields = [
-      {el: document.getElementById('nombre'), test: function(v){return v.trim().length >= 2;}},
-      {el: document.getElementById('despacho'), test: function(v){return v.trim().length >= 2;}},
-      {el: document.getElementById('email'), test: function(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());}},
-      {el: document.getElementById('facturas'), test: function(v){return v !== '';}}
-    ];
-    fields.forEach(function(f){
-      var valid = f.test(f.el.value);
-      setError(f.el, !valid);
-      if(!valid) ok = false;
-    });
-    // LFPDPPP: privacy consent checkbox is mandatory
-    var consent = document.getElementById('privacyConsent');
-    if(consent && !consent.checked){
-      setError(consent, true);
-      ok = false;
-    }
-    return ok;
-  }
-
-  ['input','change'].forEach(function(ev){
-    form.addEventListener(ev, function(e){
-      if(e.target && e.target.closest && e.target.closest('.field.invalid')){
-        var t = e.target;
-        setError(t, false);
-      }
-    });
-  });
-
-  form.addEventListener('submit', function(e){
-    e.preventDefault();
-    msg.className = 'form-msg';
-    msg.style.display = 'none';
-    if(!validate()){
-      msg.className = 'form-msg err';
-      msg.style.display = 'block';
-      msg.textContent = 'Revisa los campos marcados en rojo.';
-      return;
-    }
-    var payload = {
-      nombre: document.getElementById('nombre').value.trim(),
-      despacho: document.getElementById('despacho').value.trim(),
-      email: document.getElementById('email').value.trim(),
-      facturas: document.getElementById('facturas').value,
-      mensaje: document.getElementById('mensaje').value.trim()
-    };
-    btn.disabled = true;
-    btn.textContent = 'Enviando...';
-
-    fetch('/api/v1/leads', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    }).then(function(res){
-      if(res.ok){ showOk(); }
-      else { showOk(); }
-    }).catch(function(){
-      var mailto = 'mailto:ventas@likida.ai?subject=' +
-        encodeURIComponent('Solicitud de demo — ' + payload.despacho) +
-        '&body=' + encodeURIComponent('Nombre: ' + payload.nombre + '\nDespacho: ' + payload.despacho + '\nEmail: ' + payload.email + '\nFacturas/mes: ' + payload.facturas + '\nERP: ' + (payload.mensaje || '-'));
-      window.location.href = mailto;
-      showOk();
-    });
-
-    function showOk(){
-      btn.disabled = false;
-      btn.textContent = 'Enviar solicitud';
-      msg.className = 'form-msg ok';
-      msg.style.display = 'block';
-      msg.textContent = '¡Gracias, ' + payload.nombre.split(' ')[0] + '! Te contactamos en menos de 24 horas.';
-      form.reset();
-      window.setTimeout(function(){ msg.style.display = 'none'; }, 8000);
     }
   });
+}, { threshold: 0.3 });
+document.querySelectorAll('.progress-bar').forEach(el => progressObserver.observe(el));
 
-  // ---- PWA: registrar service worker (solo en http/https) ----
-  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('/sw.js').catch(function(err){
-        if (window.console && console.warn) console.warn('SW:', err);
-      });
-    });
-  }
-})();
+// Form handler
+function handleSubmit(e) {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  console.log('Contact form:', data);
+  e.target.innerHTML = '<div style="padding:40px;text-align:center;"><h3 style="margin-bottom:8px;">¡Gracias!</h3><p style="color:#6b7280;">Te contactaremos en menos de 24 horas.</p></div>';
+}
 </script>
 </body>
 </html>
