@@ -238,6 +238,222 @@ def _build_report(db, report_id, invoices):
 
 
 # --------------------------------------------------------------------------
+# Client Portal — Self-service dashboard (datos en tiempo real por tenant)
+#
+# Cada helper recibe `tenant_id` y devuelve dicts JSON-serializables.
+# TODO el acceso filtra por tenant: un cliente solo ve SUS datos (multi-tenant).
+# --------------------------------------------------------------------------
+
+# Constantes de la métrica de ahorro (calculadas sobre la operación del
+# despacho: cuánto cuesta capturar/validar un CFDI a mano vs. con Likida AI).
+_HORAS_POR_CFDI_MANUAL = 0.45          # ~27 min por CFDI capturado a mano
+_COSTO_HORA_CONTABLE = 320.0           # MXN/h aprox. costo interno por hora
+_HORAS_POR_CFDI_AUTOMATICO = 0.03      # ~2 min por CFDI procesado por la IA
+_TASA_ERROR_MANUAL = 0.18              # 18% de los CFDI manuales tienen error
+
+
+def _portal_summary(db, tenant_id):
+    """Resumen: CFDIs procesados, declaraciones pendientes, alertas activas."""
+    invoices = db.list_invoices(tenant_id=tenant_id)
+    stats = db.invoice_stats(tenant_id=tenant_id)
+    procesadas = sum(1 for i in invoices
+                     if (i.get("status") or "procesado") == "procesado")
+    anomalias = sum(1 for i in invoices if i.get("requires_human_review"))
+    pendientes = max(0, len(invoices) - procesadas)
+    # Declaraciones pendientes = paquetes contables aún no finalizados.
+    paquetes = db.list_paquetes_contabilidad(tenant_id=tenant_id)
+    dec_pendientes = sum(1 for p in paquetes
+                         if (p.get("estado") or "borrador")
+                         not in ("enviado", "timbrado_final", "entregado"))
+    # Alertas activas: notificaciones en vuelo + anomalías de CFDI.
+    notifs = db.list_notifications(tenant_id=tenant_id)
+    alertas_activas = sum(1 for n in notifs
+                          if (n.get("status") or "queued") in ("queued", "sent"))
+    ultima = max(
+        (i.get("procesado_en") or i.get("created_at") or ""
+         for i in invoices), default=None)
+    return {
+        "tenant_id": tenant_id,
+        "cfdis_procesados": procesadas,
+        "cfdis_pendientes": pendientes,
+        "cfdis_anomalias": anomalias,
+        "cfdis_total": len(invoices),
+        "monto_total": round(_dec(stats.get("monto_total")), 2),
+        "iva_total": round(_dec(stats.get("iva_total")), 2),
+        "declaraciones_pendientes": dec_pendientes,
+        "declaraciones_total": len(paquetes),
+        "alertas_activas": alertas_activas + anomalias,
+        "ultima_actividad": ultima,
+    }
+
+
+def _portal_cfdis(db, tenant_id, fecha_desde=None, fecha_hasta=None,
+                  estatus=None, monto_min=None, monto_max=None, limit=200):
+    """Lista de CFDIs del tenant con filtros (fecha, estatus, monto)."""
+    invoices = db.list_invoices(tenant_id=tenant_id, limit=limit)
+    if fecha_desde:
+        invoices = [i for i in invoices
+                    if (i.get("fecha") or "") >= fecha_desde]
+    if fecha_hasta:
+        invoices = [i for i in invoices
+                    if (i.get("fecha") or "") <= fecha_hasta]
+    if estatus:
+        e = estatus.strip().lower()
+        invoices = [i for i in invoices if _estado(i) == e]
+    if monto_min is not None:
+        invoices = [i for i in invoices if _dec(i.get("total")) >= monto_min]
+    if monto_max is not None:
+        invoices = [i for i in invoices if _dec(i.get("total")) <= monto_max]
+    out = []
+    for i in invoices:
+        out.append({
+            "id": i.get("id"),
+            "folio_fiscal": i.get("folio_fiscal"),
+            "fecha": i.get("fecha"),
+            "tipo": i.get("tipo"),
+            "emisor_rfc": i.get("emisor_rfc"),
+            "emisor_nombre": i.get("emisor_nombre"),
+            "categoria": i.get("categoria"),
+            "confianza": i.get("confianza"),
+            "total": round(_dec(i.get("total")), 2),
+            "iva": round(_dec(i.get("iva")), 2),
+            "moneda": i.get("moneda") or "MXN",
+            "valido": bool(i.get("valido")),
+            "estatus": _estado(i),
+        })
+    return {"tenant_id": tenant_id, "count": len(out), "cfdis": out}
+
+
+def _portal_declaraciones(db, tenant_id):
+    """Declaraciones mensuales con estatus (paquetes de contabilidad)."""
+    paquetes = db.list_paquetes_contabilidad(tenant_id=tenant_id)
+    out = []
+    for p in paquetes:
+        estado = (p.get("estado") or "borrador")
+        payload = p.get("payload") or {}
+        out.append({
+            "id": p.get("id"),
+            "periodo": p.get("periodo"),
+            "rfc": p.get("rfc"),
+            "estado": estado,
+            "tipo": payload.get("tipo") if isinstance(payload, dict) else None,
+            "monto": payload.get("monto") if isinstance(payload, dict) else None,
+            "actualizado": p.get("updated_at") or p.get("created_at"),
+        })
+    # Estado: pendiente = aún no entregada.
+    pendientes = sum(1 for d in out
+                     if d["estado"] not in ("enviado", "timbrado_final",
+                                            "entregado"))
+    return {"tenant_id": tenant_id, "count": len(out),
+            "pendientes": pendientes, "declaraciones": out}
+
+
+def _portal_alertas(db, tenant_id, limit=50):
+    """Alertas activas y resueltas del tenant.
+
+    Combina: notificaciones del portal (activadas/resueltas según status) y
+    anomalías de CFDI (requires_human_review). Cada alerta expone un estado
+    legible `resuelta` para que la UI la filtre.
+    """
+    alertas = []
+    notifs = db.list_notifications(tenant_id=tenant_id, limit=limit)
+    for n in notifs:
+        status = (n.get("status") or "queued")
+        alertas.append({
+            "id": f"notif-{n.get('id')}",
+            "tipo": "notificacion",
+            "tema": n.get("subject") or n.get("type"),
+            "detalle": n.get("body"),
+            "fecha": n.get("created_at"),
+            "severidad": "info",
+            "resuelta": status in ("sent", "read", "delivered",
+                                   "error", "failed"),
+        })
+    invoices = db.list_invoices(tenant_id=tenant_id)
+    for i in invoices:
+        if not i.get("requires_human_review"):
+            continue
+        alertas.append({
+            "id": f"cfdi-{i.get('id')}",
+            "tipo": "anomalia",
+            "tema": f"CFDI {i.get('folio_fiscal') or i.get('id')} requiere revisión",
+            "detalle": f"{i.get('emisor_nombre') or i.get('emisor_rfc')} · "
+                       f"{_money(i.get('total'))}",
+            "fecha": i.get("procesado_en") or i.get("created_at"),
+            "severidad": "warning",
+            "resuelta": not bool(i.get("requires_human_review")),
+        })
+    # Ordenar por fecha descendente (más reciente primero).
+    alertas.sort(key=lambda a: a.get("fecha") or "", reverse=True)
+    alertas = alertas[:limit]
+    return {"tenant_id": tenant_id, "count": len(alertas),
+            "activas": sum(1 for a in alertas if not a["resuelta"]),
+            "resueltas": sum(1 for a in alertas if a["resuelta"]),
+            "alertas": alertas}
+
+
+def _portal_metrics(db, tenant_id):
+    """Métricas de ahorro: horas ahorradas, errores evitados, ROI."""
+    invoices = db.list_invoices(tenant_id=tenant_id)
+    procesadas = [i for i in invoices
+                  if (i.get("status") or "procesado") == "procesado"
+                  and i.get("valido")]
+    n = len(procesadas)
+    horas_ahorradas = round(n * (_HORAS_POR_CFDI_MANUAL
+                                 - _HORAS_POR_CFDI_AUTOMATICO), 2)
+    errores_evitados = int(round(n * _TASA_ERROR_MANUAL))
+    ahorro_mano_obra = horas_ahorradas * _COSTO_HORA_CONTABLE
+    # ROI vs. un costo de procesamiento estimado por CFDI.
+    costo_ia_estimado = n * 3.0          # ~$3 MXN por CFDI (tokens/inferencia)
+    inversion = costo_ia_estimado
+    roi = round((ahorro_mano_obra - inversion) / max(inversion, 0.01), 2)
+    return {
+        "tenant_id": tenant_id,
+        "cfdis_procesados": n,
+        "horas_ahorradas": horas_ahorradas,
+        "errores_evitados": errores_evitados,
+        "ahorro_mano_obra": round(ahorro_mano_obra, 2),
+        "inversion_estimada": round(inversion, 2),
+        "roi": roi,
+        "tasa_error_manual_referencia": _TASA_ERROR_MANUAL,
+    }
+
+
+def _portal_activity(db, tenant_id, limit=30):
+    """Timeline de actividad reciente del tenant (multi-fuente)."""
+    events = []
+    invoices = db.list_invoices(tenant_id=tenant_id)
+    for i in invoices:
+        events.append({
+            "ts": i.get("procesado_en") or i.get("created_at") or "",
+            "tipo": "cfdi",
+            "titulo": f"CFDI {i.get('folio_fiscal') or i.get('id')} procesado",
+            "detalle": f"{i.get('emisor_nombre') or i.get('emisor_rfc')} · "
+                       f"{_money(i.get('total'))} · {_estado(i)}",
+            "enlace": f"/portal/invoices/{i.get('id')}",
+        })
+    for n in db.list_notifications(tenant_id=tenant_id, limit=50):
+        events.append({
+            "ts": n.get("created_at") or "",
+            "tipo": "notificacion",
+            "titulo": n.get("subject") or n.get("type"),
+            "detalle": n.get("body"),
+            "enlace": None,
+        })
+    for p in db.list_paquetes_contabilidad(tenant_id=tenant_id, limit=50):
+        events.append({
+            "ts": p.get("updated_at") or p.get("created_at") or "",
+            "tipo": "declaracion",
+            "titulo": f"Declaración {p.get('periodo')}",
+            "detalle": f"Estado: {p.get('estado') or 'borrador'}",
+            "enlace": None,
+        })
+    events.sort(key=lambda e: e.get("ts") or "", reverse=True)
+    return {"tenant_id": tenant_id, "count": len(events[:limit]),
+            "activity": events[:limit]}
+
+
+# --------------------------------------------------------------------------
 # Router
 # --------------------------------------------------------------------------
 # Globals de formato disponibles en todas las plantillas (definidas arriba).
@@ -543,6 +759,74 @@ def build_portal_pages_router(db):
                                  media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache",
                                           "X-Accel-Buffering": "no"})
+
+    # ---- Client Portal — Self-service dashboard (datos reales) ------------
+    @router.get("/summary")
+    def portal_summary(request: Request):
+        """Resumen: CFDIs procesados, declaraciones pendientes, alertas."""
+        user = _require_user_json(db, request)
+        return _portal_summary(db, user["tenant_id"])
+
+    @router.get("/cfdis")
+    def portal_cfdis(
+        request: Request,
+        fecha_desde: Optional[str] = Query(default=None),
+        fecha_hasta: Optional[str] = Query(default=None),
+        estatus: Optional[str] = Query(default=None),
+        monto_min: Optional[float] = Query(default=None),
+        monto_max: Optional[float] = Query(default=None),
+        limit: int = Query(default=200, ge=1, le=1000),
+    ):
+        """Lista de CFDIs del cliente con filtros (fecha, estatus, monto)."""
+        user = _require_user_json(db, request)
+        return _portal_cfdis(
+            db, user["tenant_id"], fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta, estatus=estatus,
+            monto_min=monto_min, monto_max=monto_max, limit=limit)
+
+    @router.get("/declaraciones")
+    def portal_declaraciones(request: Request):
+        """Declaraciones mensuales con estatus."""
+        user = _require_user_json(db, request)
+        return _portal_declaraciones(db, user["tenant_id"])
+
+    @router.get("/alertas")
+    def portal_alertas(request: Request,
+                       limit: int = Query(default=50, ge=1, le=200)):
+        """Alertas activas y resueltas del tenant."""
+        user = _require_user_json(db, request)
+        return _portal_alertas(db, user["tenant_id"], limit=limit)
+
+    @router.get("/metrics")
+    def portal_metrics(request: Request):
+        """Métricas de ahorro: horas ahorradas, errores evitados, ROI."""
+        user = _require_user_json(db, request)
+        return _portal_metrics(db, user["tenant_id"])
+
+    @router.get("/activity")
+    def portal_activity(request: Request,
+                        limit: int = Query(default=30, ge=1, le=100)):
+        """Timeline de actividad reciente del tenant."""
+        user = _require_user_json(db, request)
+        return _portal_activity(db, user["tenant_id"], limit=limit)
+
+    # ---- Self-service dashboard (página HTML) ----------------------------
+    @router.get("/selfservice", response_class=HTMLResponse,
+                include_in_schema=False)
+    def selfservice_page(request: Request):
+        """Página del dashboard self-service (mobile-first, Likida branding)."""
+        user = _resolve_user(db, request)
+        if user is None:
+            return RedirectResponse(url="/portal/login", status_code=302)
+        tenant = user["tenant_id"]
+        return templates.TemplateResponse(
+            request, "selfservice.html",
+            {"request": request, "user": user,
+             "summary": _portal_summary(db, tenant),
+             "metrics": _portal_metrics(db, tenant),
+             "alertas": _portal_alertas(db, tenant),
+             "activity": _portal_activity(db, tenant),
+             "active": "selfservice"})
 
     return router
 

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Mi empresa · Portal del cliente{% endblock %}
+{% block body %}
+<div class="topbar">
+  <h1>Mi empresa</h1>
+  <div class="who">Datos en tiempo real · {{ user.user.name or user.user.email }}</div>
+</div>
+
+<!-- Resumen -->
+<div class="stats">
+  <div class="stat"><div class="k">CFDIs procesados</div>
+    <div class="v blue">{{ summary.cfdis_procesados }}</div></div>
+  <div class="stat"><div class="k">Monto total</div>
+    <div class="v">{{ money(summary.monto_total) }}</div></div>
+  <div class="stat"><div class="k">Declaraciones pend.</div>
+    <div class="v amber">{{ summary.declaraciones_pendientes }}</div></div>
+  <div class="stat"><div class="k">Alertas activas</div>
+    <div class="v red">{{ summary.alertas_activas }}</div></div>
+</div>
+
+<!-- Métricas de ahorro -->
+<div class="card">
+  <h2>Ahorro con Likida AI</h2>
+  <div class="metrics">
+    <div class="metric">
+      <div class="k">Horas ahorradas</div>
+      <div class="v green">{{ metrics.horas_ahorradas }} h</div>
+      <div class="s">vs. captura manual</div>
+    </div>
+    <div class="metric">
+      <div class="k">Errores evitados</div>
+      <div class="v green">{{ metrics.errores_evitados }}</div>
+      <div class="s">{{ (metrics.tasa_error_manual_referencia * 100)|round(0)|int }}% tasa manual</div>
+    </div>
+    <div class="metric">
+      <div class="k">ROI</div>
+      <div class="v green">{{ metrics.roi }}x</div>
+      <div class="s">ahorro {{ money(metrics.ahorro_mano_obra) }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="cols">
+  <!-- Alertas -->
+  <div class="card">
+    <h2>Alertas</h2>
+    {% if alertas.alertas %}
+    <ul class="list">
+      {% for a in alertas.alertas %}
+      <li class="{{ 'done' if a.resuelta else 'alert' }}">
+        <b>{{ a.tema }}</b>
+        {% if a.detalle %}<div class="s">{{ a.detalle }}</div>{% endif %}
+        <span class="badge {{ 'b-pendiente' if a.resuelta else 'b-anomalia' }}">
+          {{ 'resuelta' if a.resuelta else 'activa' }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty">Sin alertas.</div>
+    {% endif %}
+  </div>
+
+  <!-- Actividad reciente -->
+  <div class="card">
+    <h2>Actividad reciente</h2>
+    {% if activity.activity %}
+    <ul class="list">
+      {% for e in activity.activity %}
+      <li>
+        {% if e.enlace %}<a class="link" href="{{ e.enlace }}">{% endif %}<b>{{ e.titulo }}</b>{% if e.enlace %}</a>{% endif %}
+        {% if e.detalle %}<div class="s">{{ e.detalle }}</div>{% endif %}
+        <div class="ts">{{ e.ts }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty">Sin actividad reciente.</div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:14px}
+  .metric{background:#F9FAFB;border:1px solid var(--line);border-radius:10px;
+    padding:14px}
+  .metric .k{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .metric .v{font-size:20px;font-weight:700}
+  .metric .v.green{color:var(--green)}
+  .metric .s{font-size:11px;color:var(--muted);margin-top:4px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .list{list-style:none;margin:0;padding:0}
+  .list li{padding:10px 2px;border-bottom:1px solid var(--line)}
+  .list li:last-child{border-bottom:none}
+  .list .s{font-size:12px;color:var(--muted)}
+  .list .ts{font-size:11px;color:#9CA3AF;margin-top:3px}
+  .list li.alert{border-left:3px solid var(--red);padding-left:10px}
+  .list li.done{opacity:.6}
+  .b-pendiente{background:#E0E7FF;color:#3730A3}
+  @media (max-width:760px){ .cols{grid-template-columns:1fr} }
+</style>
+{% endblock %}
