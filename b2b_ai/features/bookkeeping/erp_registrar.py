@@ -7,6 +7,7 @@ Idempotent. Rollback on failure.
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -71,6 +72,16 @@ class ERPRegistrar:
         erp_system: ERPSystem = ERPSystem.MOCK,
         config: Optional[Dict[str, Any]] = None,
     ):
+        # PRODUCTION GUARD: MOCK ERP is not allowed in production.
+        _b2b_env = os.environ.get("B2B_ENV", "").strip().lower()
+        _is_production = _b2b_env not in ("", "dev", "development", "test", "testing", "local")
+        if _is_production and erp_system == ERPSystem.MOCK:
+            raise RuntimeError(
+                "ERPSystem.MOCK cannot be used in production (B2B_ENV=%r). "
+                "Set erp_system to a real ERP backend or explicitly override "
+                "B2B_ENV to a development value." % _b2b_env
+            )
+
         self._erp_system = erp_system
         self._config = config or {}
         self._registered: Dict[str, str] = {}  # "tenant_id:poliza_id" → erp_reference

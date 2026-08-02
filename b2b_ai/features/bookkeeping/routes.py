@@ -11,6 +11,7 @@ Built with `build_bookkeeping_router(...)` following the project pattern.
 """
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -79,6 +80,16 @@ def build_bookkeeping_router(
     Returns:
         FastAPI APIRouter
     """
+    # PRODUCTION GUARD: MOCK ERP is not allowed in production.
+    _b2b_env = os.environ.get("B2B_ENV", "").strip().lower()
+    _is_production = _b2b_env not in ("", "dev", "development", "test", "testing", "local")
+    if _is_production and erp_system == ERPSystem.MOCK:
+        raise RuntimeError(
+            "ERPSystem.MOCK cannot be used in production (B2B_ENV=%r). "
+            "Set erp_system to a real ERP backend or explicitly override "
+            "B2B_ENV to a development value." % _b2b_env
+        )
+
     router = APIRouter(
         prefix="/api/v1/bookkeeping",
         tags=["bookkeeping"],

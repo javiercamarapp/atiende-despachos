@@ -4,10 +4,9 @@
 Precios en MXN por mes (recurrente). Los límites (usuarios y CFDIs/mes) son
 las métricas que el BillingService usa para controlar el uso del tenant.
 
-    STARTER     : $8,000  MXN/mes,   1 usuario,   500 CFDIs/mes
-    PRO         : $20,000 MXN/mes,   5 usuarios, 2000 CFDIs/mes
-    BUSINESS    : $40,000 MXN/mes,  15 usuarios, 10000 CFDIs/mes
-    ENTERPRISE  : $80,000 MXN/mes,  usuarios ilimitados, CFDIs ilimitados
+    STARTER      : $4,999  MXN/mes,   1 usuario,   500 CFDIs/mes
+    PROFESSIONAL : $14,999 MXN/mes,   5 usuarios, 2000 CFDIs/mes
+    ENTERPRISE   : cotización,        usuarios ilimitados, CFDIs ilimitados
 
 Convenciones del proyecto (pydantic v2, Field con description, enums).
 """
@@ -26,8 +25,7 @@ from pydantic import BaseModel, Field
 class PlanCode(str, Enum):
     """Códigos de plan disponibles."""
     STARTER = "starter"
-    PRO = "pro"
-    BUSINESS = "business"
+    PROFESSIONAL = "professional"
     ENTERPRISE = "enterprise"
 
 
@@ -71,7 +69,7 @@ PLANS: List[Plan] = [
     Plan(
         code=PlanCode.STARTER,
         name="Starter",
-        price_mxn=8000,
+        price_mxn=4999,
         max_users=1,
         max_cfdis_month=500,
         description="Ideal para despachos pequeños que inician su automatización.",
@@ -84,9 +82,9 @@ PLANS: List[Plan] = [
         ],
     ),
     Plan(
-        code=PlanCode.PRO,
-        name="Pro",
-        price_mxn=20000,
+        code=PlanCode.PROFESSIONAL,
+        name="Professional",
+        price_mxn=14999,
         max_users=5,
         max_cfdis_month=2000,
         description="Para despachos en crecimiento con volumen moderado.",
@@ -100,32 +98,16 @@ PLANS: List[Plan] = [
         ],
     ),
     Plan(
-        code=PlanCode.BUSINESS,
-        name="Business",
-        price_mxn=40000,
-        max_users=15,
-        max_cfdis_month=10000,
-        description="Para contadores con múltiples clientes y alto volumen.",
-        features=[
-            "15 usuarios",
-            "Hasta 10000 CFDIs/mes",
-            "Todo lo de Pro",
-            "Multi-tenant por cliente",
-            "API de integración",
-            "Gerente de cuenta",
-        ],
-    ),
-    Plan(
         code=PlanCode.ENTERPRISE,
         name="Enterprise",
-        price_mxn=80000,
+        price_mxn=0,
         max_users=None,
         max_cfdis_month=None,
-        description="Para organizaciones de gran escala. Límites ilimitados.",
+        description="Para organizaciones de gran escala. Cotización personalizada.",
         features=[
             "Usuarios ilimitados",
             "CFDIs ilimitados",
-            "Todo lo de Business",
+            "Todo lo de Professional",
             "Onboarding dedicado",
             "SLA garantizado",
             "Firmas y legalización",

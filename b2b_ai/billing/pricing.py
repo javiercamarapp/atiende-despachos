@@ -3,9 +3,9 @@
 pricing.py — Planes y precios del producto Likida AI Enterprise (en MXN/mes).
 
 Tiers:
-    Starter    — $4,999 MXN/mes  (hasta 500 CFDI/mes).
-    Growth     — $9,999 MXN/mes  (hasta 2,000 CFDI/mes).
-    Enterprise — precio custom (cotización por contrato, sin tope).
+    Starter      — $4,999  MXN/mes  (hasta 500 CFDI/mes).
+    Professional — $14,999 MXN/mes  (hasta 2,000 CFDI/mes).
+    Enterprise   — precio custom (cotización por contrato, sin tope).
 
 Los límites de CFDI se usan para chequear si un tenant excede su plan
 (función `exceeds_cfdi_limit`). La moneda de facturación del producto es
@@ -46,10 +46,10 @@ PLANS = {
         cfdi_limit=500,
         description="Hasta 500 CFDI/mes",
     ),
-    "growth": Plan(
-        key="growth",
-        name="Growth",
-        price_mxn=9999.0,
+    "professional": Plan(
+        key="professional",
+        name="Professional",
+        price_mxn=14999.0,
         cfdi_limit=2000,
         description="Hasta 2,000 CFDI/mes",
     ),

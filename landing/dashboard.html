@@ -133,6 +133,7 @@ input,select,button{font-size:16px}
     <div class="row">
       <a class="logo" href="/"><span class="dot"></span>Likida AI Enterprise</a>
       <div class="nav-actions">
+        <button id="logoutBtn" class="btn btn-ghost btn-sm" style="display:none" aria-label="Cerrar sesión">🔒 Salir</button>
         <button id="installBtn" class="btn btn-ghost btn-sm" aria-label="Instalar app">⬇ Instalar</button>
         <a href="/" class="btn btn-ghost btn-sm">← Landing</a>
       </div>
@@ -155,7 +156,7 @@ input,select,button{font-size:16px}
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%">Entrar al dashboard</button>
       <div class="err" id="gateErr"></div>
-      <p class="hint">Tu clave se guarda solo en este dispositivo (localStorage). Ejemplo dev: <b>B2B_API_KEY</b> de la env del servidor.</p>
+      <p class="hint">Tu clave se guarda solo en esta pestaña (sessionStorage) y se borra al cerrarla. Ejemplo dev: <b>B2B_API_KEY</b> de la env del servidor. Nota: en producción, migrar a httpOnly cookies para que el JS nunca vea la clave.</p>
     </form>
   </section>
 
@@ -222,6 +223,10 @@ input,select,button{font-size:16px}
 (function(){
   'use strict';
   var $ = function(id){ return document.getElementById(id); };
+  // SECURITY FIX: Use sessionStorage instead of localStorage.
+  // sessionStorage is scoped to the current tab and auto-cleared when the tab
+  // closes, preventing the API key from persisting across browser restarts.
+  // TODO: Production should migrate to httpOnly cookies so JS never sees the key.
   var KEY_STORAGE = 'b2b_api_key';
   var API_CACHE_KEY = 'b2b_cached_invoices';
 
@@ -236,7 +241,7 @@ input,select,button{font-size:16px}
   var stTotal = $('stTotal'), stValidas = $('stValidas'),
       stPend = $('stPend'), stMonto = $('stMonto');
 
-  var key = localStorage.getItem(KEY_STORAGE);
+  var key = sessionStorage.getItem(KEY_STORAGE);
 
   /* ---------- toast ---------- */
   var toastTimer = null;
@@ -284,13 +289,26 @@ input,select,button{font-size:16px}
   });
 
   /* ---------- gate ---------- */
+  var logoutBtn = $('logoutBtn');
   if(key){
     gate.style.display = 'none';
     dash.style.display = 'block';
+    logoutBtn.style.display = '';
     loadAll();
   } else {
     gate.style.display = 'block';
   }
+
+  /* ---------- logout (clear session-scoped key) ---------- */
+  logoutBtn.addEventListener('click', function(){
+    sessionStorage.removeItem(KEY_STORAGE);
+    sessionStorage.removeItem(API_CACHE_KEY);
+    key = null;
+    dash.style.display = 'none';
+    gate.style.display = 'block';
+    logoutBtn.style.display = 'none';
+    toast('Sesión cerrada.');
+  });
 
   $('keyForm').addEventListener('submit', function(e){
     e.preventDefault();
@@ -305,18 +323,20 @@ input,select,button{font-size:16px}
           return null;
         }
         if(!r.ok){ gateErr.textContent = 'Error del servidor (' + r.status + ').'; return null; }
-        localStorage.setItem(KEY_STORAGE, k);
+        sessionStorage.setItem(KEY_STORAGE, k);
         key = k;
         gate.style.display = 'none';
         dash.style.display = 'block';
+        logoutBtn.style.display = '';
         loadAll();
       })
       .catch(function(){
         // Sin red: permitimos entrar con la key local para modo offline
-        localStorage.setItem(KEY_STORAGE, k);
+        sessionStorage.setItem(KEY_STORAGE, k);
         key = k;
         gate.style.display = 'none';
         dash.style.display = 'block';
+        logoutBtn.style.display = '';
         toast('Sin conexión — entrando en modo offline');
         loadAll();
       });
@@ -338,15 +358,15 @@ input,select,button{font-size:16px}
 
   function saveCached(data){
     try {
-      var old = JSON.parse(localStorage.getItem(API_CACHE_KEY) || '{}');
+      var old = JSON.parse(sessionStorage.getItem(API_CACHE_KEY) || '{}');
       old.invoices = data.invoices || old.invoices || [];
       old.stats = data.stats || old.stats || null;
       old.at = new Date().toISOString();
-      localStorage.setItem(API_CACHE_KEY, JSON.stringify(old));
+      sessionStorage.setItem(API_CACHE_KEY, JSON.stringify(old));
     } catch(e){}
   }
   function readCached(){
-    try { return JSON.parse(localStorage.getItem(API_CACHE_KEY) || 'null'); }
+    try { return JSON.parse(sessionStorage.getItem(API_CACHE_KEY) || 'null'); }
     catch(e){ return null; }
   }
 
@@ -371,7 +391,7 @@ input,select,button{font-size:16px}
         cached.invoices = inv.invoices;
         cached.stats = stats;
         cached.at = new Date().toISOString();
-        try { localStorage.setItem(API_CACHE_KEY, JSON.stringify(cached)); } catch(e){}
+        try { sessionStorage.setItem(API_CACHE_KEY, JSON.stringify(cached)); } catch(e){}
       }
       render(stats, inv);
       updateStatus();
