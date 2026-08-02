@@ -75,7 +75,8 @@ class TestStructuredLogging:
             ],
         }
         result = mask_pii(data)
-        assert "<rfc>" in str(result["emisor"]["rfc"])
+        # "rfc" is a sensitive key name → value becomes "<redacted>" (not regex-matched)
+        assert result["emisor"]["rfc"] == "<redacted>"
         assert result["items"][0]["monto"] == 1000
 
     def test_mask_secrets_in_url(self):

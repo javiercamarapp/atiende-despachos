@@ -50,8 +50,8 @@ class TestCalcIMSS:
         assert float(r["rcva"]) > 0
 
     def test_zero_sbc(self):
-        r = calc_imss(0)
-        assert r["total"] == "0.00"
+        with pytest.raises(ValueError, match="SBC.*mayor a 0"):
+            calc_imss(0)
 
     def test_references(self):
         r = calc_imss(5000)
