@@ -64,12 +64,12 @@ def _empleado(**overrides) -> dict:
 class TestTaxes:
     def test_isr_bajo(self):
         taxes = calculate_taxes(salary=10000)
-        # $10,000 falls in LISR Art. 96 bracket (6447.12, 12904.06] at 23.52%
-        # ISR before subsidio = 717.37 + (10000 - 6447.12) * 0.2352 = 1553.01
-        # Subsidio for $10,000 = 237.18 (LISR Art. 113)
-        # ISR neto = 1553.01 - 237.18 = 1315.83
+        # $10,000 cae en el tramo 2026 (6936.24, 13074.34] a 10.88%
+        # ISR puro = 406.08 + (10000 - 6936.24) * 0.1088 = 739.42
+        # Subsidio 2026 para $10,000 = 209.13
+        # ISR neto = 739.42 - 209.13 = 530.29
         assert taxes.isr > 0, "ISR must be > 0 for $10,000 (LISR Art. 96)"
-        assert abs(taxes.isr - 1315.83) < 1.0
+        assert abs(taxes.isr - 530.29) < 1.0
 
     def test_isr_medio(self):
         taxes = calculate_taxes(salary=50000)
@@ -104,12 +104,12 @@ class TestTaxes:
         """[11] Subsidio para el empleo reduces ISR for low-income workers."""
         # $8,000 monthly: subsidio should apply
         taxes = calculate_taxes(salary=8000)
-        # ISR before subsidio for $8,000 = 1082.81 (LISR Art. 96 bracket 23.52%)
-        # Subsidio for $8,000 = 271.63 (LISR Art. 113)
-        # ISR neto = 1082.81 - 271.63 = 811.18
+        # ISR before subsidio for $8,000 (tabla 2026, tramo 10.88%) = 521.82
+        # Subsidio 2026 para $8,000 = 253.54
+        # ISR neto = 521.82 - 253.54 = 268.28
         assert taxes.isr > 0, "ISR should be positive after subsidio"
         # Verify subsidio was applied (ISR neto < ISR before subsidio)
-        isr_before_subsidio = 1082.81
+        isr_before_subsidio = 521.82
         assert taxes.isr < isr_before_subsidio, "Subsidio should reduce ISR"
 
     def test_quincenal_isr(self):
@@ -243,7 +243,10 @@ class TestPayslip:
         })
         ded = payslip["deducciones"]
         assert ded["isr"] == 5000
-        assert ded["total"] == 7800
+        # P1-1: el INFONAVIT es aportación patronal, NO se descuenta del
+        # trabajador. El total de deducciones = isr + imss_obrero (5000+800).
+        assert ded["total"] == 5800
+        assert ded["es_patronal"]["infonavit"] is True
 
 
 # ===========================================================================

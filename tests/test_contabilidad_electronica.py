@@ -73,6 +73,7 @@ def sample_balanza_request(sample_balanza_rows):
         periodo="2025-01",
         ejercicio=2025,
         mes=1,
+        rfc="ABC850101T1A",
         rows=sample_balanza_rows,
     )
 
