@@ -7,17 +7,15 @@ funciones helper para ERPs web (CONTPAQi web, SAP, Odoo...) así como los
 drivers de escritorio para las suites on-premise (CONTPAQi y Aspel), que no
 exponen API REST y se automatizan viendo la ventana.
 
-Includes:
-    - Retry logic with exponential backoff
-    - Screenshot comparison for state verification
-    - Element detection using CSS selectors and XPath
-    - Form filling with validation
-    - Table/grid extraction
-    - Dropdown selection
-    - Error recovery with automatic retries
-    - Health checks for all drivers
-    - Structured logging for all operations
+Los drivers reales de Playwright (PlaywrightDesktop, CONTPAQiRealDriver,
+AspelRealDriver) se importan de forma LAZY vía __getattr__ para que importar
+este paquete no cargue Playwright/Chromium (reduce startup time y evita
+dependencias innecesarias cuando Computer Use está deshabilitado).
 """
+from __future__ import annotations
+
+from typing import Any, TYPE_CHECKING
+
 from b2b_ai.computer_use.browser import (
     BrowserAutomation,
     MockBrowser,
@@ -49,10 +47,6 @@ from b2b_ai.computer_use.aspel_driver import (
     aspel_login,
     aspel_register,
 )
-# Real Playwright-based drivers
-from b2b_ai.computer_use.playwright_desktop import PlaywrightDesktop, _retry_async
-from b2b_ai.computer_use.contpaqi_real_driver import CONTPAQiRealDriver
-from b2b_ai.computer_use.aspel_real_driver import AspelRealDriver
 
 __all__ = [
     # web ERPs
@@ -83,9 +77,31 @@ __all__ = [
     "set_default_aspel",
     "aspel_login",
     "aspel_register",
-    # Real drivers (Playwright)
+    # Real drivers (Playwright) — lazy
     "PlaywrightDesktop",
+    "PlaywrightDesktopConfig",
     "CONTPAQiRealDriver",
     "AspelRealDriver",
     "_retry_async",
 ]
+
+_LAZY_IMPORTS = {
+    "PlaywrightDesktop": ("b2b_ai.computer_use.playwright_desktop", "PlaywrightDesktop"),
+    "PlaywrightDesktopConfig": ("b2b_ai.computer_use.playwright_desktop", "PlaywrightDesktopConfig"),
+    "_retry_async": ("b2b_ai.computer_use.playwright_desktop", "_retry_async"),
+    "CONTPAQiRealDriver": ("b2b_ai.computer_use.contpaqi_real_driver", "CONTPAQiRealDriver"),
+    "AspelRealDriver": ("b2b_ai.computer_use.aspel_real_driver", "AspelRealDriver"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily import Playwright-based drivers on first access."""
+    if name in _LAZY_IMPORTS:
+        mod, attr = _LAZY_IMPORTS[name]
+        import importlib
+        return getattr(importlib.import_module(mod), attr)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list:
+    return sorted(set(__all__) | set(globals().keys()))
