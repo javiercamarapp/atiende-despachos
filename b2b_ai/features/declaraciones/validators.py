@@ -167,13 +167,12 @@ def validate_iva_data(data: dict) -> Tuple[bool, List[str]]:
     if iva_pagado < 0:
         errors.append(f"iva_pagado no puede ser negativo ({iva_pagado}).")
 
-    # IVA rate consistency (check if cobrado looks like a 16% multiple)
-    # This is a soft check — not all amounts must be exact multiples
-    if iva_cobrado > 0:
-        remainder = round(iva_cobrado % 0.16, 4)
-        if remainder != 0 and remainder > 0.01:
-            # Could be a border zone (8%) or exempt (0%) — just warn
-            pass  # Soft validation, not blocking
+    # BUG-F19: Removed misleading IVA rate check.
+    # The old check (iva_cobrado % 0.16) was mathematically nonsensical:
+    # IVA cobrado is subtotal × 16%, not a multiple of 0.16 itself.
+    # Example: subtotal=$100, IVA=$16, but 16 % 0.16 = 0.0 (lucky coincidence).
+    # For subtotal=$101, IVA=$16.16, 16.16 % 0.16 = 0.0 (still passes).
+    # This check could never detect real errors and gave false confidence.
 
     # Validate calculated balances match (only if provided)
     saldo_favor = data.get("saldo_favor", 0)

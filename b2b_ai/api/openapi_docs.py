@@ -334,11 +334,11 @@ def install_openapi_docs(app: FastAPI) -> None:
         "via the `X-API-Key` header.\n\n"
         "### API Key Authentication\n"
         "```\n"
-        "curl -H "X-API-Key: your-key-here" https://api.b2b-ai.local/api/v1/stats\n"
+        'curl -H "X-API-Key: your-key" https://api.b2b-ai.local/api/v1/stats\n'
         "```\n\n"
         "### JWT Bearer Token (Auth endpoints)\n"
         "```\n"
-        "curl -H "Authorization: Bearer eyJhbG..." https://api.b2b-ai.local/api/v1/stats\n"
+        'curl -H "Authorization: Bearer eyJhbG..." https://api.b2b-ai.local/api/v1/stats\n'
         "```\n\n"
         "## Versioning\n"
         "The API supports simultaneous v1 and v2 endpoints:\n"

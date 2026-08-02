@@ -85,11 +85,13 @@ def _random_curp() -> str:
 
 
 def _random_nss() -> str:
-    """Generate a random valid-format NSS."""
-    subdelegation = f"{random.randint(1, 99):02d}"
-    affiliation = f"{random.randint(70, 99):02d}{random.randint(1, 2):01d}"
-    consecutive = f"{random.randint(1, 99):02d}"
-    body = subdelegation + affiliation + consecutive
+    """Generate a random valid-format NSS (11 digits)."""
+    # NSS structure: 2 subdelegation + 2 year + 2 month + 4 consecutive + 1 check = 11
+    subdelegation = f"{random.randint(1, 32):02d}"
+    year = f"{random.randint(70, 99):02d}"
+    month = f"{random.randint(1, 12):02d}"
+    consecutive = f"{random.randint(1, 9999):04d}"
+    body = subdelegation + year + month + consecutive  # 10 digits
     # Compute check digit (IMSS algorithm)
     total = 0
     for i, d in enumerate(body):

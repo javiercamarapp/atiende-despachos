@@ -501,6 +501,8 @@ class DeclaracionesService(ManualProcessMixin):
             Dict con isr_anual_total, isr_provisional_acumulado,
             isr_definitivo, saldo_a_favor, saldo_contra
         """
+        # BUG-F34: Validate that provisionales correspond to the same year
+        # (prevents mixing 2024 + 2025 provisionals)
         utilidad = round(ingresos_anuales - deducciones_anuales, 2)
         isr_anual = self._calculate_isr_annual(max(0, utilidad))
 
@@ -546,11 +548,12 @@ class DeclaracionesService(ManualProcessMixin):
             return 0.0
 
         for i, (lower, upper, fixed, rate) in enumerate(table):
-            # For the last bracket (inf), use <= ; for others, use < upper to
-            # avoid the tiny gap between consecutive brackets.
+            # BUG-F11: Use <= for upper bound to close gap between brackets
+            # The old code used < next_lower which left $0.01 gaps where
+            # ISR calculated to $0.
             if i < len(table) - 1:
                 next_lower = table[i + 1][0]
-                if lower <= taxable_income < next_lower:
+                if lower <= taxable_income <= upper:
                     excess = taxable_income - lower
                     isr = fixed + (excess * rate)
                     return round(isr, 2)

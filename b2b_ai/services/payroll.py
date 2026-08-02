@@ -334,7 +334,12 @@ def calc_aguinaldo(salario_diario, dias_trabajados=None, dias_ley=None, rates=No
             "referencia": "LFT art. 87 (aguinaldo ≥ 15 días)",
         }
     dt = _dec(dias_trabajados)
-    monto = sd * dias_ley * (dt / Decimal("365"))
+    # BUG-F8: Use actual days in year (366 for leap years)
+    from calendar import isleap
+    from datetime import date as _date
+    year = _date.today().year
+    dias_año = 366 if isleap(year) else 365
+    monto = sd * dias_ley * (dt / Decimal(str(dias_año)))
     return {
         "aguinaldo": _fmt(_round2(monto)),
         "dias": dias_ley,

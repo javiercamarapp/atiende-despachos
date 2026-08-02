@@ -270,6 +270,12 @@ def validate_cfdi(datos):
         _fail("fecha_timbrado_anterior", "FechaTimbrado es anterior a la fecha de emisión.",
               "Anexo 20")
     elif f_timb is not None:
+        # BUG-F35: Warn if timbrado > 72h after emisión (Regla 2.7.1.35 RMF)
+        if f_emi is not None and (f_timb - f_emi).days > 3:
+            warnings.append(
+                f"CFDI timbrado {(f_timb - f_emi).days} días después de emisión "
+                "(Regla 2.7.1.35 RMF: plazo de 72 horas)."
+            )
         _ok("FechaTimbrado posterior a Fecha")
     else:
         warnings.append("Sin TimbreFiscalDigital (comprobante no timbrado).")
@@ -286,6 +292,14 @@ def validate_cfdi(datos):
         if abs(ret_iva - esperado) > Decimal("1.00"):
             warnings.append(f"Retención IVA {ret_iva} no coincide con 2/3 "
                             f"del IVA ({esperado}); revisar caso.")
+
+    # ---- 8b. IEPS warning (BUG-F18) ----
+    ieps_val = datos.get("ieps")
+    if ieps_val and float(str(ieps_val)) > 0:
+        warnings.append(
+            f"CFDI contiene IEPS ({ieps_val}). El IEPS requiere declaración "
+            "separada (Art. 2 Ley IEPS). La DIOT solo reporta IVA."
+        )
 
     # ---- 9. DIOT: proveedores reportables ----
     if tdc == "I" and subtotal is not None and subtotal > 0:

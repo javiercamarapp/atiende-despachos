@@ -452,6 +452,10 @@ class ConciliationService(ManualProcessMixin):
         if cfdi_list:
             cfdi_map = {c.uuid: c for c in cfdi_list}
 
+        # BUG-F23: PDF support notice — some banks only offer PDF statements
+        # This is documented but not yet implemented (Banorte, HSBC).
+        # The system should reject PDFs with a clear message rather than crash.
+
         # Detect duplicates in bank transactions
         if bank_txns:
             seen_amounts: Dict[float, List[str]] = {}

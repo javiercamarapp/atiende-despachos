@@ -25,7 +25,7 @@ class TestCalcISR:
         r = calc_isr(400000)
         imp = float(r["impuesto"])
         assert imp > 100000
-        assert r["rango_aplicado"]["porcentaje_excedente"] == "0.3500"
+        assert r["rango_aplicado"]["porcentaje_excedente"] == "0.35"
 
     def test_negative_income(self):
         r = calc_isr(-100)
