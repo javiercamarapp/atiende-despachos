@@ -26,7 +26,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field, field_validator
 
 from b2b_ai.features.compliance_tracker.models import ObligationType
@@ -186,7 +186,7 @@ def build_compliance_router(
     @router.get("/calendar/{year}", summary="Calendario anual SAT (idempotente).",
                 response_model=None)
     def annual_calendar(
-        year: int = Query(..., ge=2014, le=2099, description="Año del calendario"),
+        year: int = Path(..., ge=2014, le=2099, description="Año del calendario"),
         auth_info: dict = Depends(auth_dep),
         _perm: dict = Depends(require_permission(Permission.COMPLIANCE_VIEW)),
     ) -> dict:
