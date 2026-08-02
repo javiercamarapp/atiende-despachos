@@ -485,6 +485,20 @@ def create_app(db=None):
         # de esa reconfiguración y garantiza que el JSON log quede activo.
         get_structured_logger("api")
 
+        # --- Graceful shutdown signal handlers ---
+        _shutdown_logger = logging.getLogger("b2b_ai.shutdown")
+
+        def _graceful_shutdown(signum, frame):
+            _shutdown_logger.info(
+                "Received signal %s, initiating graceful shutdown...", signum)
+            # The DB connections will be closed by FastAPI's shutdown event
+            # Set a flag to stop accepting new requests
+            from b2b_ai.infrastructure.graceful_shutdown import _shutdown_state
+            _shutdown_state.is_draining = True
+
+        signal.signal(signal.SIGTERM, _graceful_shutdown)
+        signal.signal(signal.SIGINT, _graceful_shutdown)
+
         yield
 
         # --- shutdown: liberar pools de conexiones y recursos ---

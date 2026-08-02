@@ -1594,6 +1594,54 @@ class Database:
         q += f" ORDER BY created_at DESC LIMIT {int(limit)}"
         return [dict(r) for r in self.conn.execute(q, params).fetchall()]
 
+    # ---- Conciliation sessions (audit trail) ----
+    def create_conciliation_session(self, tenant_id, user_id=None, criteria=None):
+        criteria_txt = json.dumps(criteria or {}, default=str, ensure_ascii=False)
+        cur = self.conn.execute(
+            "INSERT INTO conciliation_sessions(tenant_id, user_id, criteria) VALUES (?,?,?)",
+            (tenant_id, user_id, criteria_txt))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def save_conciliation_match(self, session_id, bank_transaction_id, amount, match_score,
+                               poliza_id=None, cfdi_folio=None):
+        cur = self.conn.execute(
+            "INSERT INTO conciliation_matches(session_id, bank_transaction_id, amount, match_score, poliza_id, cfdi_folio) "
+            "VALUES (?,?,?,?,?,?)",
+            (session_id, bank_transaction_id, amount, match_score, poliza_id, cfdi_folio))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def confirm_conciliation_session(self, session_id):
+        self.conn.execute(
+            "UPDATE conciliation_sessions SET status='confirmed', confirmed_at=datetime('now') WHERE id=?",
+            (session_id,))
+        self.conn.execute(
+            "UPDATE conciliation_matches SET status='confirmed' WHERE session_id=? AND status='proposed'",
+            (session_id,))
+        self.conn.commit()
+
+    def revert_conciliation_match(self, match_id):
+        self.conn.execute(
+            "UPDATE conciliation_matches SET status='reverted', reverted_at=datetime('now') WHERE id=?",
+            (match_id,))
+        self.conn.commit()
+
+    def get_conciliation_sessions(self, tenant_id=None, limit=20):
+        q = "SELECT * FROM conciliation_sessions"
+        params = []
+        if tenant_id is not None:
+            q += " WHERE tenant_id=?"
+            params.append(tenant_id)
+        q += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        return [dict(r) for r in self.conn.execute(q, params).fetchall()]
+
+    def get_conciliation_matches(self, session_id):
+        return [dict(r) for r in self.conn.execute(
+            "SELECT * FROM conciliation_matches WHERE session_id=? ORDER BY id",
+            (session_id,)).fetchall()]
+
 
 def main():
     import sys
