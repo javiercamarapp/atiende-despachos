@@ -119,6 +119,8 @@ from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
 from b2b_ai.api.errors import install_error_handlers
 from b2b_ai.api.idempotency import install_idempotency
 from b2b_ai.api.rate_limiter import install_enterprise_rate_limit
+from b2b_ai.middleware.rate_limiter import install_rate_limit
+from b2b_ai.middleware.request_validator import install_request_validator
 from b2b_ai.api.openapi_docs import install_openapi_docs
 from b2b_ai.api.versioning import install_versioning
 from b2b_ai.infrastructure.graceful_shutdown import (
@@ -487,6 +489,12 @@ def create_app(db=None):
     # Supplements the basic IP-based limiter above with tenant-aware limits
     # and standard X-RateLimit-* headers.
     install_enterprise_rate_limit(app, redis_url=os.environ.get("B2B_REDIS_URL"))
+
+    # Middleware de seguridad: rate limiting por token bucket (clases por
+    # endpoint: auth 5/min, api 100/min, webhooks 30/min) y validación de
+    # peticiones (Content-Type, tamaño máx 10 MB, detección SQLi/XSS).
+    install_rate_limit(app, redis_url=os.environ.get("B2B_REDIS_URL"))
+    install_request_validator(app)
 
     # Métricas (request count + latencia). Se registra DESPUÉS del rate
     # limiter para ser la capa más externa y contar TODAS las peticiones,
