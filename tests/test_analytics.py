@@ -1076,10 +1076,10 @@ class TestAnalyticsRouterFactory:
     """Test the build_analytics_router factory."""
 
     def test_router_has_dashboard_analytics_route(self):
-        router = build_analytics_router(db=None)
+        router = build_analytics_router(db=None, require_api_key=lambda: {})
         routes = [r.path for r in router.routes]
         assert "/dashboard/analytics" in routes
 
     def test_router_tags(self):
-        router = build_analytics_router(db=None)
+        router = build_analytics_router(db=None, require_api_key=lambda: {})
         assert "analytics" in router.tags

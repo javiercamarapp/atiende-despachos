@@ -281,14 +281,20 @@ def process_batch(folder, db=None, tenant_id=None, pattern="*.xml",
 
 
 def summarize(results):
-    ok = sum(1 for r in results if r["validacion"]["ok"])
-    inserted = sum(1 for r in results if r["insertado"])
     from collections import Counter
-    cats = Counter(r["clasificacion"]["categoria"] for r in results)
+    ok = sum(1 for r in results
+             if r.get("validacion", {}).get("ok"))
+    inserted = sum(1 for r in results if r.get("insertado"))
+    errores = sum(1 for r in results if "error" in r or "validacion" not in r)
+    cats = Counter(
+        r.get("clasificacion", {}).get("categoria", "sin_categoria")
+        for r in results
+    )
     return {
         "procesadas": len(results),
         "validas": ok,
-        "con_observaciones": len(results) - ok,
+        "con_observaciones": len(results) - ok - errores,
+        "con_errores": errores,
         "insertadas": inserted,
         "por_categoria": dict(cats),
     }

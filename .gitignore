@@ -16,3 +16,4 @@ build/
 .DS_Store
 *.log
 *.sqlite
+QA_REPORT_POST_FIX.md

@@ -19,10 +19,10 @@ class TestCalcISR:
     def test_first_bracket(self):
         r = calc_isr(500)
         assert float(r["impuesto"]) > 0
-        # FIS-08: calc_isr now uses 2025 tariff by default
-        # 1st bracket: 0.00-416.34 (0%), 2nd bracket: 416.35-3508.42 (6.40%)
-        # ingreso 500 falls in bracket 2 with limite_inferior=416.35
-        assert r["rango_aplicado"]["limite_inferior"] == "416.35"
+        # FIS-08: calc_isr uses the 2026 tariff by default (AÑO_FISCAL=2026)
+        # 1st bracket: 0.00-435.08 (0%), 2nd bracket: 435.09-3666.30 (6.40%)
+        # ingreso 500 falls in bracket 2 with limite_inferior=435.09
+        assert r["rango_aplicado"]["limite_inferior"] == "435.09"
 
     def test_high_income(self):
         r = calc_isr(400000)
@@ -63,25 +63,25 @@ class TestCalcIMSS:
         assert "LSS" in r["referencia"]
 
     def test_known_value_sbc_1000(self):
-        """[36] Anchor to legal rate: SBC=1000, UMA=113.15 (2025).
+        """[36] Anchor to legal rate: SBC=1000, UMA=117.31 (2026).
 
-        With 2025 IMSS worker rates (30 dias) and UMA diaria 113.15:
+        With 2026 IMSS worker rates (30 dias) and UMA diaria 117.31:
           EYM base:      0.0025 × 1000 × 30 =  75.00
           prest_din:     0.0075 × 1000 × 30 = 225.00
           prest_esp:     0.00375 × 1000 × 30 = 112.50
-          excedente:     (1000 - 3×113.15) × 0.004 × 30 = 79.56
-          Subtotal EYM = 492.06
+          excedente:     (1000 - 3×117.31) × 0.004 × 30 = 77.70
+          Subtotal EYM = 490.20
           IV:            0.00625 × 1000 × 30 = 187.50
           RCVA:          0.01125 × 1000 × 30 = 337.50
           GMP:           0.00375 × 1000 × 30 = 112.50
-          Total = 1129.56
+          Total = 1127.70
         """
         r = calc_imss(1000)
         total = Decimal(r["total"])
-        # FIS-10: With UMA 2025=113.15, the correct total is 1129.20
+        # FIS-10: With UMA 2026=117.31, the correct total is 1127.70
         # (rounding accumulated from daily components × 30 days)
-        assert total == Decimal("1129.20"), (
-            f"IMSS total for SBC=1000, 30d should be 1129.20, got {total}. "
+        assert total == Decimal("1127.70"), (
+            f"IMSS total for SBC=1000, 30d should be 1127.70, got {total}. "
             "Check RATES constants against LSS arts. 105-109."
         )
 

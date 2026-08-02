@@ -892,14 +892,14 @@ class TestRoutesInvalidInput:
         c, db = client
         r = c.get("/api/v1/alerts?severity=invalid", headers=_auth())
         assert r.status_code == 422
-        assert "Invalid severity value" in r.json()["detail"]
+        assert "Invalid severity value" in r.json()["error"]["details"][0]["message"]
 
     def test_invalid_type_filter(self, client):
         """Invalid type returns 422 with descriptive message."""
         c, db = client
         r = c.get("/api/v1/alerts?type=invalid", headers=_auth())
         assert r.status_code == 422
-        assert "Invalid type value" in r.json()["detail"]
+        assert "Invalid type value" in r.json()["error"]["details"][0]["message"]
 
     def test_pagination_limit_too_large(self, client):
         c, db = client
@@ -1427,21 +1427,21 @@ class TestRegressionBugfixes:
         c, db = client
         r = c.get("/api/v1/alerts?severity=foo", headers=_auth())
         assert r.status_code == 422
-        assert "Invalid severity value" in r.json()["detail"]
+        assert "Invalid severity value" in r.json()["error"]["details"][0]["message"]
 
     def test_list_alerts_invalid_type_returns_422(self, client):
         """Passing type=bar to GET /alerts returns 422, not 500."""
         c, db = client
         r = c.get("/api/v1/alerts?type=bar", headers=_auth())
         assert r.status_code == 422
-        assert "Invalid type value" in r.json()["detail"]
+        assert "Invalid type value" in r.json()["error"]["details"][0]["message"]
 
     def test_list_alerts_invalid_status_returns_422(self, client):
         """Passing status=bogus to GET /alerts returns 422, not 500."""
         c, db = client
         r = c.get("/api/v1/alerts?status=bogus", headers=_auth())
         assert r.status_code == 422
-        assert "Invalid status value" in r.json()["detail"]
+        assert "Invalid status value" in r.json()["error"]["details"][0]["message"]
 
     def test_volume_rule_zero_limit_triggers_correctly(self):
         """volume_limit=0 with count=1 should trigger (1 > 0), not fall back to 50."""
