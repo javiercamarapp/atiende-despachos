@@ -15,16 +15,13 @@ Estrategia (consistente con el repo, p.ej. test_billing_onboarding_integration.p
   - El rate limiting se prueba de forma aislada (limiter en memoria).
 
 HALLAZGO QA (bug de producción, no de estos tests): `make_require_api_key()` en
-`b2b_ai/api/auth.py` (1) extrae la key vía APIKeyHeader pero FastAPI la expone
-como query param "key" en vez del header X-API-Key, y (2) devuelve el STRING de
-la key mientras los routers del piloto (onboarding-wizard, billing-piloto)
-hacen `auth_info.get("tenant_id")` esperando un dict. En la app real, POST
-/api/v1/onboarding-wizard/start responde 422 (query key faltante). Esto es un
-bug de contrato que requiere fix de Zuck; los tests de auth de abajo lo
+`b2b_ai/api/auth.py` (1) expone la key como query param "key" en vez de leer el
+header X-API-Key, y (2) devuelve el STRING de la key mientras los routers del
+piloto (onboarding-wizard, billing-piloto) hacen `auth_info.get("tenant_id")`
+esperando un dict. En la app real, POST /api/v1/onboarding-wizard/start responde
+422 (query key faltante). Requiere fix de Zuck; los tests de auth de abajo lo
 documentan y las suites E2E/contrato usan el auth-stub para no depender de él.
 """
-import os
-
 import pytest
 from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
