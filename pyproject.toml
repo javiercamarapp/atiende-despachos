@@ -44,3 +44,10 @@ include = ["b2b_ai*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "computer_use_e2e: End-to-end Computer Use tests that launch real Chromium via Playwright. These require the Playwright browsers installed (playwright install chromium).",
+    "e2e: End-to-end tests that require live external services.",
+]
+# Los E2E de Computer Use (Chromium real) se excluyen del CI estándar salvo que
+# PLAYWRIGHT_BROWSERS esté disponible; se ejecutan explícitamente.
+addopts = "--strict-markers"

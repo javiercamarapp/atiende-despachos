@@ -303,9 +303,19 @@ class _ComputerUseERPAdapter(ERPInterface):
 
     def get_invoice(self, folio_fiscal: str) -> dict | None:
         self._ensure_session()
-        result = self._run_async(
-            self._driver.verify_invoice_registered(folio_fiscal))
-        return result.to_dict() if hasattr(result, "to_dict") else result
+        verify = getattr(self._driver, "verify_invoice_registered", None)
+        if verify is not None:
+            result = self._run_async(verify(folio_fiscal))
+            return result.to_dict() if hasattr(result, "to_dict") else result
+        # Fallback: extract grid and search for the folio
+        try:
+            grid = self._run_async(self._driver.extract_invoices())
+            for inv in grid:
+                if str(inv.get("folio") or inv.get("folio_fiscal") or "") == str(folio_fiscal):
+                    return inv
+        except Exception:
+            pass
+        return None
 
     def health(self) -> dict:
         result = self._driver.health()

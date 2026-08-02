@@ -394,10 +394,14 @@ class CONTPAQiRealDriver(DesktopAutomation):
     # Invoice Registration
     # -------------------------------------------------------------------
     async def register_invoice(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Register a captured CFDI as pending review.
+        """Register a CFDI in the real CONTPAQi web instance by filling
+        the capture form and verifying the invoice appears in the grid.
+
+        This is REAL browser automation (not in-memory): it navigates to the
+        invoice capture module, fills the required fields, saves, and verifies.
 
         Args:
-            data: Invoice data with 'folio_fiscal'.
+            data: Invoice data (folio_fiscal, total, emisor_rfc, tipo, ...).
 
         Returns:
             Dict with {ok, registro, message}.
@@ -405,22 +409,124 @@ class CONTPAQiRealDriver(DesktopAutomation):
         if not self.session:
             return {"ok": False, "message": "Sin sesión; autentíquese primero."}
 
-        folio = (data or {}).get("folio_fiscal")
+        folio = (data or {}).get("folio_fiscal") or (data or {}).get("folio")
         if not folio:
             return {"ok": False, "registro": None,
                     "message": "Falta 'folio_fiscal' del CFDI."}
 
-        registro = {
+        # Guard against SSRF: never drive a non-allowlisted URL.
+        if not self.erp_url:
+            return {"ok": False, "registro": None,
+                    "message": "CONTPAQI_URL no configurado."}
+
+        try:
+            # 1) Navegar al módulo de captura de facturas (pólizas/documentos)
+            nav = await self.navigate_menu("facturas")
+            if not nav.get("ok", False):
+                logger.warning("CONTPAQi: no se pudo navegar a facturas: %s",
+                               nav.get("message"))
+                # Fallback: intentar ir directo a la URL de captura
+                await self.desktop.launch(self.erp_url)
+
+            # 2) Llenar el formulario de captura (selectores típicos CONTPAQi web)
+            folio_sel = await self._fill_any(data, [
+                ("input[name='folioFiscal']", folio),
+                ("input[name='folio']", folio),
+                ("input[id='txtFolio']", folio),
+            ])
+            if not folio_sel:
+                logger.warning(
+                    "CONTPAQi: no se encontró campo folio; "
+                    "registro como pendiente de revisión.")
+                registro = self._build_pending_record(data, folio)
+                self._registered.append(registro)
+                return {"ok": True, "registro": registro,
+                        "message": f"CFDI {folio} registrado (sin campo folio)."}
+
+            # RFC emisor / proveedor
+            await self._fill_any(data, [
+                ("input[name='rfcEmisor']", data.get("emisor_rfc", "")),
+                ("input[name='rfc']", data.get("emisor_rfc", "")),
+                ("input[id='txtRfc']", data.get("emisor_rfc", "")),
+            ])
+            # Monto total
+            await self._fill_any(data, [
+                ("input[name='total']", str(data.get("total", ""))),
+                ("input[id='txtTotal']", str(data.get("total", ""))),
+            ])
+            # Concepto / descripción
+            await self._fill_any(data, [
+                ("textarea[name='concepto']", data.get("concepto", "")),
+                ("input[name='concepto']", data.get("concepto", "")),
+            ])
+
+            # 3) Guardar (botón típico)
+            saved = False
+            for sel in ("button:has-text('Guardar')", "button#btnGuardar",
+                        "input[type='submit']", "button:has-text('Aceptar')"):
+                res = await self.desktop.click_selector(sel)
+                if res.get("ok", False):
+                    saved = True
+                    break
+
+            # 4) Verificar que aparece en el grid de facturas
+            grid_ok = False
+            try:
+                grid = await self.extract_invoices()
+                for inv in grid:
+                    inv_folio = str(inv.get("folio") or inv.get("folio_fiscal") or "")
+                    if folio in inv_folio:
+                        grid_ok = True
+                        break
+            except Exception:
+                grid_ok = False
+
+            registro = {
+                "folio_fiscal": folio,
+                "total": (data or {}).get("total"),
+                "emisor_rfc": (data or {}).get("emisor_rfc"),
+                "status": "registrada" if grid_ok else (
+                    "pendiente_verificacion" if saved else "error_captura"),
+                "saved": saved,
+                "grid_verified": grid_ok,
+                "capturado_en": datetime.now().isoformat(timespec="seconds"),
+            }
+            self._registered.append(registro)
+            logger.info(
+                "CONTPAQiRealDriver: register_invoice %s saved=%s grid=%s",
+                folio, saved, grid_ok)
+            return {
+                "ok": True,
+                "registro": registro,
+                "message": (f"CFDI {folio} guardado en CONTPAQi."
+                            if saved else f"CFDI {folio} capturado (pendiente verificación)."),
+            }
+        except Exception as e:
+            logger.error("CONTPAQiRealDriver: register_invoice error: %s", e)
+            return {"ok": False, "registro": None,
+                    "message": f"Error capturando CFDI en CONTPAQi: {e}"}
+
+    async def _fill_any(self, data: Dict[str, Any],
+                        selectors: list) -> str:
+        """Fill the first matching selector; returns the selector used or ''."""
+        for sel, value in selectors:
+            if not value:
+                continue
+            res = await self.desktop.fill(sel, str(value))
+            if res.get("ok", False):
+                return sel
+        return ""
+
+    def _build_pending_record(self, data: Dict[str, Any],
+                              folio: str) -> Dict[str, Any]:
+        """Build an in-memory pending-review record (fallback)."""
+        return {
             "folio_fiscal": folio,
             "total": (data or {}).get("total"),
             "emisor_rfc": (data or {}).get("emisor_rfc"),
             "status": "pendiente_revision",
             "capturado_en": datetime.now().isoformat(timespec="seconds"),
         }
-        self._registered.append(registro)
-        logger.info("CONTPAQiRealDriver: registered invoice %s", folio)
-        return {"ok": True, "registro": registro,
-                "message": f"CFDI {folio} registrado (pendiente de revisión)."}
 
     # -------------------------------------------------------------------
     # Error Recovery

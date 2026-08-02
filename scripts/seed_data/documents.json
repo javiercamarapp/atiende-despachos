@@ -19,8 +19,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant0",
-    "created_at": "2026-06-03T17:44:02.199041Z",
-    "updated_at": "2026-08-02T17:44:02.199711Z"
+    "created_at": "2026-06-03T17:49:06.018555Z",
+    "updated_at": "2026-08-02T17:49:06.021347Z"
   },
   {
     "id": "doc-6783282742263874",
@@ -42,8 +42,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant0",
-    "created_at": "2026-07-07T17:44:02.199747Z",
-    "updated_at": "2026-08-02T17:44:02.199752Z"
+    "created_at": "2026-07-07T17:49:06.021391Z",
+    "updated_at": "2026-08-02T17:49:06.021397Z"
   },
   {
     "id": "doc-2293865885735925",
@@ -65,8 +65,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant0",
-    "created_at": "2026-07-30T17:44:02.199767Z",
-    "updated_at": "2026-08-02T17:44:02.199771Z"
+    "created_at": "2026-07-30T17:49:06.021413Z",
+    "updated_at": "2026-08-02T17:49:06.021417Z"
   },
   {
     "id": "doc-4317904026090357",
@@ -88,8 +88,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant0",
-    "created_at": "2026-07-19T17:44:02.199783Z",
-    "updated_at": "2026-08-02T17:44:02.199787Z"
+    "created_at": "2026-07-19T17:49:06.021429Z",
+    "updated_at": "2026-08-02T17:49:06.021433Z"
   },
   {
     "id": "doc-3520216532902815",
@@ -111,8 +111,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant0",
-    "created_at": "2026-07-16T17:44:02.199798Z",
-    "updated_at": "2026-08-02T17:44:02.199802Z"
+    "created_at": "2026-07-16T17:49:06.021443Z",
+    "updated_at": "2026-08-02T17:49:06.021447Z"
   },
   {
     "id": "doc-9067911454174619",
@@ -134,8 +134,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant1",
-    "created_at": "2026-07-02T17:44:02.199834Z",
-    "updated_at": "2026-08-02T17:44:02.199839Z"
+    "created_at": "2026-07-02T17:49:06.021579Z",
+    "updated_at": "2026-08-02T17:49:06.021584Z"
   },
   {
     "id": "doc-4987440940247211",
@@ -157,8 +157,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant1",
-    "created_at": "2026-06-25T17:44:02.199856Z",
-    "updated_at": "2026-08-02T17:44:02.199861Z"
+    "created_at": "2026-06-25T17:49:06.021604Z",
+    "updated_at": "2026-08-02T17:49:06.021609Z"
   },
   {
     "id": "doc-4519452030202450",
@@ -180,8 +180,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant1",
-    "created_at": "2026-07-23T17:44:02.199877Z",
-    "updated_at": "2026-08-02T17:44:02.199881Z"
+    "created_at": "2026-07-23T17:49:06.021630Z",
+    "updated_at": "2026-08-02T17:49:06.021634Z"
   },
   {
     "id": "doc-7433977223414755",
@@ -203,8 +203,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant1",
-    "created_at": "2026-06-03T17:44:02.199892Z",
-    "updated_at": "2026-08-02T17:44:02.199897Z"
+    "created_at": "2026-06-03T17:49:06.021646Z",
+    "updated_at": "2026-08-02T17:49:06.021650Z"
   },
   {
     "id": "doc-8975292340752081",
@@ -226,8 +226,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant1",
-    "created_at": "2026-07-25T17:44:02.199906Z",
-    "updated_at": "2026-08-02T17:44:02.199910Z"
+    "created_at": "2026-07-25T17:49:06.021660Z",
+    "updated_at": "2026-08-02T17:49:06.021664Z"
   },
   {
     "id": "doc-4631879003342505",
@@ -249,8 +249,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant2",
-    "created_at": "2026-06-15T17:44:02.199930Z",
-    "updated_at": "2026-08-02T17:44:02.199934Z"
+    "created_at": "2026-06-15T17:49:06.021690Z",
+    "updated_at": "2026-08-02T17:49:06.021695Z"
   },
   {
     "id": "doc-4707780253786859",
@@ -272,8 +272,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant2",
-    "created_at": "2026-06-21T17:44:02.199944Z",
-    "updated_at": "2026-08-02T17:44:02.199948Z"
+    "created_at": "2026-06-21T17:49:06.021705Z",
+    "updated_at": "2026-08-02T17:49:06.021709Z"
   },
   {
     "id": "doc-6371097680285933",
@@ -295,8 +295,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant2",
-    "created_at": "2026-07-25T17:44:02.199957Z",
-    "updated_at": "2026-08-02T17:44:02.199961Z"
+    "created_at": "2026-07-25T17:49:06.021718Z",
+    "updated_at": "2026-08-02T17:49:06.021722Z"
   },
   {
     "id": "doc-1175300570019297",
@@ -318,8 +318,8 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant2",
-    "created_at": "2026-06-28T17:44:02.199970Z",
-    "updated_at": "2026-08-02T17:44:02.199973Z"
+    "created_at": "2026-06-28T17:49:06.021731Z",
+    "updated_at": "2026-08-02T17:49:06.021735Z"
   },
   {
     "id": "doc-1829288600662220",
@@ -341,7 +341,7 @@
     ],
     "status": "ACTIVO",
     "created_by": "admin@tenant2",
-    "created_at": "2026-06-16T17:44:02.199987Z",
-    "updated_at": "2026-08-02T17:44:02.199990Z"
+    "created_at": "2026-06-16T17:49:06.021743Z",
+    "updated_at": "2026-08-02T17:49:06.021747Z"
   }
 ]
