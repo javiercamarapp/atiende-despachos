@@ -197,6 +197,10 @@ class AgentLoop:
 
         # 5) Decidir
         # AG-1: Confidence gate — always hold if below threshold
+        # HARD GATE: confianza < 0.50 SIEMPRE requiere revisión, sin importar policy
+        _CONFIDENCE_FLOOR = 0.50
+        if clasif.get("confianza", 0) < _CONFIDENCE_FLOOR:
+            clasif["requires_human_review"] = True
         confidence_threshold = cfg.get("confidence_threshold", DEFAULT_CONFIDENCE_THRESHOLD)
         confianza = clasif.get("confianza", 0.0)
         low_confidence = confianza < confidence_threshold

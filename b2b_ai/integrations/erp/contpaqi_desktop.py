@@ -264,6 +264,21 @@ class CONTPAQiDesktopAdapter(ERPAdapter):
                     "fecha_registro": datetime.now().isoformat(), "metodo": "mock"}
         try:
             cursor = self._db_conn.cursor()
+            # IDEMPOTENCY: check if a poliza with same concepto+fecha+tipo already exists
+            # to prevent duplicate registration on retries.
+            cursor.execute(
+                "SELECT IdPoliza FROM CONTPAQi_Polizas "
+                "WHERE Concepto = %s AND Fecha = %s AND Tipo = %s",
+                (poliza.concepto, poliza.fecha, poliza.tipo)
+            )
+            existing = cursor.fetchone()
+            if existing:
+                existing_id = str(existing[0])
+                cursor.close()
+                return {"exito": True, "id_erp": existing_id,
+                        "mensaje": f"Poliza {existing_id} ya existente (idempotente)",
+                        "fecha_registro": datetime.now().isoformat(),
+                        "metodo": "sql_direct", "duplicate": True}
             cursor.execute(
                 "INSERT INTO CONTPAQi_Polizas (Fecha, Concepto, Tipo, Numero) "
                 "VALUES (%s, %s, %s, %s); SELECT SCOPE_IDENTITY()",
@@ -283,7 +298,10 @@ class CONTPAQiDesktopAdapter(ERPAdapter):
                     "mensaje": "Poliza creada (CONTPAQi Desktop SQL)",
                     "fecha_registro": datetime.now().isoformat(), "metodo": "sql_direct"}
         except Exception as e:
-            self._db_conn.rollback()
+            try:
+                self._db_conn.rollback()
+            except Exception:
+                pass
             return {"exito": False, "mensaje": str(e)}
 
     def get_chart_of_accounts(self) -> ChartOfAccounts:

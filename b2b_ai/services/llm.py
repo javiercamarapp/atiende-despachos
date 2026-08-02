@@ -330,7 +330,7 @@ class BaseLLM:
         raise NotImplementedError
 
 
-def _http_post_json(url, headers, body, timeout=15):
+def _http_post_json(url, headers, body, timeout=30):
     """POST JSON vía stdlib urllib. Devuelve el dict parseado o lanza LLMError."""
     import urllib.request
     import urllib.error
@@ -372,7 +372,7 @@ class OpenAIProvider(BaseLLM):
         data = _http_post_json(
             f"{self.base_url}/chat/completions",
             {"Authorization": f"Bearer {self.api_key}",
-             "Content-Type": "application/json"}, body)
+             "Content-Type": "application/json"}, body, timeout=30)
         return data["choices"][0]["message"]["content"]
 
 
@@ -395,7 +395,7 @@ class DeepSeekProvider(BaseLLM):
         data = _http_post_json(
             f"{self.base_url}/chat/completions",
             {"Authorization": f"Bearer {self.api_key}",
-             "Content-Type": "application/json"}, body)
+             "Content-Type": "application/json"}, body, timeout=30)
         return data["choices"][0]["message"]["content"]
 
 
@@ -426,7 +426,7 @@ class AnthropicProvider(BaseLLM):
         data = _http_post_json(
             f"{self.base_url}/v1/messages",
             {"x-api-key": self.api_key, "anthropic-version": "2023-06-01",
-             "Content-Type": "application/json"}, body)
+             "Content-Type": "application/json"}, body, timeout=30)
         return "".join(b.get("text", "") for b in data["content"]
                        if b.get("type") == "text")
 

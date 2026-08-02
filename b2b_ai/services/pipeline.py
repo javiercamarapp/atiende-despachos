@@ -119,6 +119,13 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
     # 3c. Approval flow (FASE 2) — gate humano ANTES de registrar en ERP
     aprobacion = _tool("evaluate_approval", logger_, tenant_id,
                        invoice=invoice)
+    # HARD GATE: confianza < 0.50 siempre requiere aprobación, sin importar monto
+    _CONFIDENCE_FLOOR = 0.50
+    if clasif.get("confianza", 0) < _CONFIDENCE_FLOOR and validacion.get("ok"):
+        aprobacion = {"decision": "requires_approval", "amount": 0,
+                      "threshold": 0, "requires_approval": True,
+                      "requires_efirma": True,
+                      "reason": f"Confianza {clasif['confianza']} < {_CONFIDENCE_FLOOR}: gate duro."}
     if not validacion.get("ok"):
         erp_res = {"ok": False, "poliza": None, "status": "rejected_invalid_cfdi"}
     elif aprobacion["decision"] in ("auto_approved", "approved"):

@@ -116,7 +116,7 @@ def classify_cfdi(datos: Dict[str, Any]) -> Dict[str, Any]:
     tie_penalty = 0.05 * max(0, tied_categories - 1)
     confianza = min(0.98, max(0.30, 0.55 + 0.20 * n_matches - tie_penalty))
     palabras = ", ".join(sorted(set(matched[best_cat])))
-    requires = confianza < 0.70 or best_cat == "desconocido"
+    requires = confianza < 0.50 or best_cat == "desconocido"
 
     return {
         "categoria": best_cat,
