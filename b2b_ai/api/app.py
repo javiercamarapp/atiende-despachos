@@ -133,52 +133,13 @@ from b2b_ai.monitoring.metrics import metrics as prom_metrics
 from b2b_ai.monitoring.alerts import alerts as alert_mgr
 from b2b_ai.monitoring.health import build_health_detailed
 from b2b_ai.audit.middleware import install_audit_middleware
+from b2b_ai.api.routes_health import build_health_router
+from b2b_ai.api.routes_invoices import build_invoices_router
+from b2b_ai.api.routes_arco import build_arco_router
 
 # Logger estructurado JSON (monitoring). Distinto del ToolCallLogger de
 # b2b_ai.tools.logger (auditoría de tools en DB): este emite JSON a stdout.
 _structured_log = get_structured_logger("api")
-
-
-# -------------------------------------------------------------------------- #
-# Cache TTL simple para endpoints de lectura agregados (/api/v1/stats, legacy
-# /stats). Las keys incluyen la versión de datos de la DB (data_version), que
-# sube en cada escritura de facturas, de modo que el cache NUNCA sirve datos
-# viejos después de una inserción: al cambiar la versión, la key cambia y se
-# recalcula al momento. El TTL solo limita la vida de entradas con la misma
-# versión (p. ej. si el contador se reinicia). Thread-safe con lock.
-# -------------------------------------------------------------------------- #
-class _StatsCache:
-    def __init__(self, ttl_seconds: float = 5.0):
-        self.ttl = ttl_seconds
-        self._store = {}
-        self._lock = threading.Lock()
-
-    def _key(self, dbid, tenant, version, route):
-        return (dbid, route, tenant, version)
-
-    def get(self, dbid, route, tenant, version):
-        with self._lock:
-            item = self._store.get((dbid, route, tenant, version))
-        if item is None:
-            return None
-        ts, value = item
-        if time.monotonic() - ts > self.ttl:
-            with self._lock:
-                self._store.pop((dbid, route, tenant, version), None)
-            return None
-        return value
-
-    def set(self, dbid, route, tenant, version, value):
-        with self._lock:
-            self._store[(dbid, route, tenant, version)] = (time.monotonic(), value)
-
-    @property
-    def stats(self):
-        with self._lock:
-            return {"entries": len(self._store), "ttl": self.ttl}
-
-
-_stats_cache = _StatsCache()
 
 
 # Ruta a la carpeta de la landing page (estática). Resuelve tanto en árbol de
@@ -205,7 +166,7 @@ class ProcessRequest(BaseModel):
     xml_path: Optional[str] = None
     folder: Optional[str] = None
     tenant_id: Optional[int] = None
-    tenant_name: str = "" 
+    tenant_name: str = ""
     tenant_rfc: str = ""
 
 
@@ -277,17 +238,6 @@ class ContabilidadRequest(BaseModel):
     razon_social: str = ""
     ejercicio: Optional[int] = None
     mes: Optional[int] = None
-
-
-class ARCORequest(BaseModel):
-    """Solicitud ARCO según LFPDPPP Art. 28-35."""
-    email: str
-    nombre_completo: str = ""
-    tipo_solicitud: str  # "acceso" | "rectificacion" | "cancelacion" | "oposicion"
-    descripcion: str = ""
-    datos_a_modificar: dict | None = None  # Para rectificación
-    identificacion_tipo: str = ""  # IFE, INE, pasaporte
-    identificacion_ref: str = ""
 
 
 # -------------------------------------------------------------------------- #
@@ -375,82 +325,6 @@ def _client_ip(request: Request) -> str:
         return fwd.split(",")[0].strip()
 
     return real_ip
-
-
-# -------------------------------------------------------------------------- #
-# Ingesta por ruta local (`xml_path` / `folder`)
-#
-# Estos parámetros dejan que el CLIENTE elija una ruta DEL SERVIDOR. Antes solo
-# se comprobaba `os.path.exists()`, así que cualquier portador de una API key
-# válida podía pasar una ruta arbitraria: leía cualquier XML del disco —los CFDI
-# almacenados de OTROS despachos, entre ellos— e importarlo a su propio tenant
-# para consultarlo después por `GET /api/v1/invoices`. `folder` servía además
-# para sondear el sistema de archivos.
-#
-# Ahora la ingesta local es OPT-IN y está confinada: `B2B_LOCAL_XML_DIRS` lista
-# los directorios base permitidos, separados por `:`. Sin esa variable la
-# funcionalidad queda desactivada y responde 400 — el flujo real de la API es la
-# subida multipart, que no toca este camino.
-# -------------------------------------------------------------------------- #
-def _allowed_xml_roots() -> list:
-    raw = os.environ.get("B2B_LOCAL_XML_DIRS", "").strip()
-    if not raw:
-        return []
-    roots = []
-    for part in raw.split(os.pathsep if os.pathsep in raw else ":"):
-        part = part.strip()
-        if not part:
-            continue
-        try:
-            resolved = Path(part).resolve(strict=False)
-        except OSError:
-            continue
-        if not resolved.is_dir():
-            import logging as _log
-            _log.getLogger(__name__).warning(
-                "B2B_LOCAL_XML_DIRS: skipping non-existent path: %s", part)
-            continue
-        # Reject paths that look like system directories
-        _forbidden = ("/etc", "/sys", "/proc", "/dev", "/boot", "/usr/bin",
-                      "/usr/sbin", "/bin", "/sbin", "/var/log")
-        if any(str(resolved).startswith(p) for p in _forbidden):
-            import logging as _log
-            _log.getLogger(__name__).warning(
-                "B2B_LOCAL_XML_DIRS: refusing dangerous path: %s", part)
-            continue
-        roots.append(resolved)
-    return roots
-
-
-def _resolve_local_path(candidate: str, want_dir: bool = False) -> Path:
-    """Resuelve una ruta local del cliente dentro de los roots permitidos.
-
-    Lanza HTTPException 400 si la ingesta local está desactivada, 403 si la
-    ruta cae fuera de los roots y 404 si no existe. Resuelve symlinks antes de
-    comparar, de modo que un enlace dentro de un root no sirve para escapar.
-    """
-    roots = _allowed_xml_roots()
-    if not roots:
-        raise HTTPException(
-            status_code=400,
-            detail="La ingesta por ruta local está desactivada. Suba el archivo "
-                   "como multipart (campo xml_file) o configure "
-                   "B2B_LOCAL_XML_DIRS en el servidor.")
-    try:
-        target = Path(candidate).resolve(strict=False)
-    except (OSError, ValueError):
-        raise HTTPException(status_code=400, detail="Ruta inválida.")
-    if not any(target == r or r in target.parents for r in roots):
-        # Mensaje deliberadamente sin eco de la ruta: no confirma qué existe.
-        raise HTTPException(
-            status_code=403,
-            detail="Ruta fuera de los directorios permitidos.")
-    if want_dir:
-        if not target.is_dir():
-            raise HTTPException(status_code=404, detail="Carpeta no encontrada.")
-    elif not target.is_file():
-        raise HTTPException(status_code=404, detail="Archivo no encontrado.")
-    return target
 
 
 # Rutas que NO se limitan (healthcheck, estáticos, SW/PWA, docs).
@@ -684,170 +558,12 @@ def create_app(db=None):
         _ctx_tenant_cache[key] = (now, tid)
         return tid
 
-    # ------------------------------------------------------------------ #
-    # Endpoints públicos
-    # ------------------------------------------------------------------ #
-    @app.api_route("/health", methods=["GET", "HEAD"])
-    def health():
-        return {
-            "status": "ok",
-            "service": "b2b-ai",
-            "version": __version__,
-            "backend": "postgresql" if getattr(db, "_is_pg", False) else "sqlite",
-            "schema_version": db.schema_version(),
-            "invoices": db.count_invoices(),
-            "tenants": len(db.list_tenants()),
-            "uptime_seconds": metrics.uptime(),
-            "total_requests": metrics.total_requests(),
-        }
 
-    @app.get("/metrics")
-    def metrics_endpoint(auth_info: dict = Depends(require_api_key)):
-        """Métricas operativas básicas (request count, latencia por ruta,
-        códigos de estado). Requiere API key. Exento de rate-limit."""
-        return metrics.snapshot()
+    # Health, metrics & detailed health (extracted to routes_health.py)
+    app.include_router(build_health_router(db, require_api_key))
 
-    @app.get("/metrics/prometheus")
-    def metrics_prometheus():
-        """Métricas en formato Prometheus text exposition (operativas, de
-        negocio y custom por tenant). Público, exento de rate-limit y de CORS
-        para que Prometheus pueda scrapearlo sin auth."""
-        from fastapi.responses import PlainTextResponse
-        prom_metrics.set_tenant_usage(db.get_all_usage())
-        return PlainTextResponse(prom_metrics.render_prometheus(),
-                                 media_type="text/plain; version=0.0.4; charset=utf-8")
-
-    @app.get("/health/detailed")
-    def health_detailed(auth_info: dict = Depends(require_api_key)):
-        """Estado detallado del servicio: DB, Redis, disco, memoria, uptime.
-        Requiere API key. `status` es "ok" o "degraded"; los
-        componentes en falla se listan en `degraded_components`."""
-        prom_metrics.set_tenant_usage(db.get_all_usage())
-        return build_health_detailed(db, actual_backend="postgresql" if db._is_pg else "sqlite")
-
-    # ------------------------------------------------------------------ #
-    # API v1 — protegida por API key
-    # ------------------------------------------------------------------ #
-    @app.post("/api/v1/invoices/process",
-              summary="Procesa un CFDI (XML) por el pipeline completo.",
-              tags=["invoices"])
-    async def process_invoice(
-        request: Request,
-        auth_info: dict = Depends(require_api_key),
-    ):
-        """Recibe el XML de un CFDI — como subida multipart (campo xml_file)
-        o como JSON con xml_path — y devuelve el resultado del pipeline:
-        validación, clasificación, póliza ERP y el id de la factura en la DB."""
-        tenant = _scope(auth_info)
-        content_type = request.headers.get("content-type", "")
-
-        # 1) Multipart → archivo subido
-        if "multipart/form-data" in content_type:
-            form = await request.form()
-            up = form.get("xml_file")
-            if up is None or not getattr(up, "filename", None):
-                raise HTTPException(400, "Debe enviar xml_file (multipart).")
-            # Validación de extensión: solo XML/PDF (CFDI). Bloquea subir
-            # binarios/scripts con otras extensiones antes de tocar el disco.
-            if not allowed_upload_extension(up.filename):
-                raise HTTPException(
-                    422, "Solo se aceptan archivos CFDI .xml o .pdf.")
-            content = await up.read()
-            if not content.strip():
-                raise HTTPException(400, "Archivo XML vacío.")
-            suffix = os.path.splitext(up.filename)[1] or ".xml"
-            tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
-            try:
-                tmp.write(content)
-                tmp.close()
-                try:
-                    res = process_file(tmp.name, db=db, tenant_id=tenant)
-                except CFDIError as e:
-                    raise HTTPException(status_code=422,
-                                        detail=f"CFDI inválido: {e}")
-            finally:
-                tmp.close()
-                os.unlink(tmp.name)
-            _record_business_metrics(res)
-            return {"result": _strip(res)}
-
-        # 2) JSON → xml_path (o folder)
-        try:
-            payload = await request.json()
-        except Exception:  # noqa: BLE001
-            raise HTTPException(400, "Body inválido. Use multipart o JSON con xml_path.")
-        xml_path = (payload or {}).get("xml_path")
-        if xml_path:
-            safe = _resolve_local_path(str(xml_path))
-            try:
-                res = process_file(str(safe), db=db, tenant_id=tenant)
-            except CFDIError as e:
-                # Misma respuesta que la rama multipart. Antes esta excepción
-                # subía sin capturar y un XML truncado devolvía un 500.
-                raise HTTPException(status_code=422,
-                                    detail=f"CFDI inválido: {e}")
-            _record_business_metrics(res)
-            return {"result": _strip(res)}
-        raise HTTPException(status_code=400,
-                            detail="Debe enviar xml_file (multipart) o xml_path.")
-
-    @app.get("/api/v1/invoices",
-             summary="Lista facturas con filtros.",
-             tags=["invoices"])
-    def list_invoices(
-        auth_info: dict = Depends(require_api_key),
-        tenant_id: Optional[int] = Query(default=None),
-        categoria: Optional[str] = Query(default=None),
-        valido: Optional[bool] = Query(default=None),
-        fecha_desde: Optional[str] = Query(default=None),
-        fecha_hasta: Optional[str] = Query(default=None),
-        limit: int = Query(default=100, ge=1, le=1000),
-    ):
-        # Alcance forzado por la key autenticada: una key de tenant NUNCA puede
-        # ver otro tenant, aunque el cliente mande `tenant_id` en la query.
-        # Solo la key de servicio (tenant_id=None desde env) puede pedir un
-        # tenant arbitrario o todos (None).
-        tenant = _scope(auth_info) or tenant_id
-        invoices = db.list_invoices(tenant_id=tenant, limit=limit,
-                                    categoria=categoria, valido=valido,
-                                    fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
-        return {"count": len(invoices), "tenant_id": tenant, "invoices": invoices}
-
-    @app.get("/api/v1/invoices/{invoice_id}",
-             summary="Detalle de una factura por id.",
-             tags=["invoices"])
-    def get_invoice(invoice_id: int, auth_info: dict = Depends(require_api_key)):
-        tenant = _scope(auth_info)
-        inv = db.get_invoice(invoice_id, tenant_id=tenant)
-        if inv is None:
-            raise HTTPException(status_code=404, detail="Factura no encontrada.")
-        return {"invoice": inv}
-
-    @app.get("/api/v1/stats",
-             summary="Métricas agregadas (totales y por categoría).",
-             tags=["stats"])
-    def stats(auth_info: dict = Depends(require_api_key)):
-        tenant = _scope(auth_info)
-        # Cache TTL por (tenant, versión de datos): si no hubo escrituras, la
-        # respuesta se sirve del cache (ahorra 6+ queries de agregación por
-        # petición bajo carga). Al insertar una factura, data_version sube y la
-        # key deja de existir -> se recalcula al momento (nunca datos viejos).
-        cached = _stats_cache.get(id(db), "v1_stats", tenant, db.data_version())
-        if cached is not None:
-            return cached
-        invoices = db.list_invoices(tenant_id=tenant)
-        report = generate_report(invoices)
-        stats_res = db.invoice_stats(tenant_id=tenant)
-        result = {
-            **stats_res,
-            "tenants": db.list_tenants(),
-            "audit_calls": db.count_audit(),
-            "notifications": len(db.list_notifications()),
-            "report": report,
-            "tools_registered": [t.name for t in all_tools()],
-        }
-        _stats_cache.set(id(db), "v1_stats", tenant, db.data_version(), result)
-        return result
+    # Invoice processing, listing, stats (extracted to routes_invoices.py)
+    app.include_router(build_invoices_router(db, require_api_key))
 
     @app.get("/api/v1/tools",
              summary="Tools registradas en el agente.",
@@ -1336,69 +1052,6 @@ def create_app(db=None):
                        prefix="/api/v1")
 
     # ------------------------------------------------------------------ #
-    # Endpoints legacy (compatibilidad) — AHORA PROTEGIDOS por API key.
-    # Antes exponían datos financieros y lectura de archivos sin auth.
-    # ------------------------------------------------------------------ #
-    @app.get("/tools", deprecated=True,
-             description="DEPRECATED: use GET /api/v1/tools instead.")
-    def tools_legacy(auth_info: dict = Depends(require_api_key)):
-        import warnings
-        warnings.warn("GET /tools is deprecated. Use GET /api/v1/tools.",
-                       DeprecationWarning, stacklevel=2)
-        return {"tools": [t.to_dict() for t in all_tools()]}
-
-    @app.get("/invoices", deprecated=True,
-             description="DEPRECATED: use GET /api/v1/invoices instead.")
-    def invoices_legacy(tenant_id: Optional[int] = Query(default=None),
-                        limit: int = Query(default=100, le=1000),
-                        auth_info: dict = Depends(require_api_key)):
-        tenant = _scope(auth_info) or tenant_id
-        return {"count": len(db.list_invoices(tenant_id=tenant, limit=limit)),
-                "invoices": db.list_invoices(tenant_id=tenant, limit=limit)}
-
-    @app.get("/stats", deprecated=True,
-             description="DEPRECATED: use GET /api/v1/stats instead.")
-    def stats_legacy(auth_info: dict = Depends(require_api_key)):
-        tenant = _scope(auth_info)
-        cached = _stats_cache.get(id(db), "legacy_stats", tenant, db.data_version())
-        if cached is not None:
-            return cached
-        invoices = db.list_invoices(tenant_id=tenant)
-        report = generate_report(invoices)
-        result = {
-            "invoices_total": len(invoices),
-            "tenants": db.list_tenants(),
-            "audit_calls": db.count_audit(),
-            "notifications": len(db.list_notifications()),
-            "report": report,
-            "tools_registered": [t.name for t in all_tools()],
-        }
-        _stats_cache.set(id(db), "legacy_stats", tenant, db.data_version(), result)
-        return result
-
-    @app.post("/process", deprecated=True,
-              description="DEPRECATED: use POST /api/v1/invoices/process instead.")
-    def process_legacy(req: ProcessRequest,
-                       auth_info: dict = Depends(require_api_key)):
-        tenant = _scope(auth_info) or req.tenant_id
-        try:
-            if req.xml_path:
-                safe = _resolve_local_path(str(req.xml_path))
-                res = process_file(str(safe), db=db, tenant_id=tenant)
-                return {"result": _strip(res)}
-            if req.folder:
-                safe_dir = _resolve_local_path(str(req.folder), want_dir=True)
-                results = process_batch(str(safe_dir), db=db, tenant_id=tenant)
-                from b2b_ai.services.pipeline import summarize
-                return {"summary": summarize(results),
-                        "results": [_strip(r) for r in results]}
-        except CFDIError as e:
-            raise HTTPException(status_code=422,
-                                detail=f"CFDI inválido: {e}")
-        raise HTTPException(status_code=400,
-                            detail="Debe indicar xml_path o folder.")
-
-    # ------------------------------------------------------------------ #
     # Landing page (servida desde el mismo origen → el fetch de leads y los
     # enlaces canónicos funcionan sin CORS ni cambios de dominio).
     # ------------------------------------------------------------------ #
@@ -1465,160 +1118,9 @@ def create_app(db=None):
                                            media_type="text/markdown")
                 raise HTTPException(404, "Terminos de servicio no encontrados.")
 
-        # ------------------------------------------------------------------
-        # LFPDPPP ARCO Rights (Acceso, Rectificación, Cancelación, Oposición)
-        # ------------------------------------------------------------------
 
-        @app.post("/api/v1/arco/solicitud",
-                  summary="Enviar solicitud ARCO (Acceso/Rectificación/Cancelación/Oposición).",
-                  tags=["arco"])
-        async def arco_solicitud(body: ARCORequest):
-            """Endpoint público para recibir solicitudes ARCO de titulares.
-
-            LFPDPPP Art. 29: el responsable debe registrar cada solicitud
-            y responder en un plazo máximo de 20 días hábiles.
-            """
-            logging.getLogger(__name__).info(
-                "ARCO solicitud recibida: tipo=%s email=%s",
-                body.tipo_solicitud, body.email)
-
-            valid_types = {"acceso", "rectificacion", "cancelacion", "oposicion"}
-            if body.tipo_solicitud not in valid_types:
-                raise HTTPException(
-                    400, f"tipo_solicitud inválido. Valores: {valid_types}")
-
-            # Registrar en audit_log para trazabilidad
-            db.log_call(
-                "arco", "solicitud",
-                entity="arco_request",
-                entity_id=body.email,
-                payload={
-                    "tipo": body.tipo_solicitud,
-                    "email": body.email,
-                    "nombre": body.nombre_completo,
-                    "descripcion": body.descripcion,
-                },
-                status="received",
-            )
-
-            return {
-                "status": "received",
-                "mensaje": (
-                    f"Solicitud ARCO ({body.tipo_solicitud}) recibida. "
-                    "Recibirás respuesta en un plazo máximo de 20 días hábiles "
-                    "conforme al Art. 29 LFPDPPP."),
-                "referencia": f"ARCO-{body.tipo_solicitud[:3].upper()}",
-                "plazo_dias_habiles": 20,
-            }
-
-        @app.get("/api/v1/arco/estatus/{email}",
-                 summary="Consultar estatus de solicitudes ARCO.",
-                 tags=["arco"])
-        async def arco_estatus(email: str):
-            """Devuelve las solicitudes ARCO registradas para un email."""
-            rows = db.conn.execute(
-                "SELECT entity_id, payload, status, ts FROM audit_log "
-                "WHERE entity = 'arco_request' AND entity_id = ? "
-                "ORDER BY ts DESC LIMIT 20",
-                (email,),
-            ).fetchall()
-            solicitudes = []
-            for r in rows:
-                payload = {}
-                try:
-                    import json as _aj
-                    payload = _aj.loads(r["payload"]) if r["payload"] else {}
-                except Exception:
-                    pass
-                solicitudes.append({
-                    "tipo": payload.get("tipo", ""),
-                    "email": r["entity_id"],
-                    "estado": r["status"],
-                    "fecha": r["ts"],
-                })
-            return {
-                "email": email,
-                "solicitudes": solicitudes,
-                "total": len(solicitudes),
-            }
-
-        @app.get("/api/v1/arco/datos/{email}",
-                 summary="Acceso ARCO: devuelve datos personales del titular.",
-                 tags=["arco"])
-        async def arco_acceso(email: str):
-            """Acceso ARCO — LFPDPPP Art. 28: devuelve todos los datos
-            personales que el responsable tiene del titular."""
-            # Buscar en client_users
-            user = db.get_client_user_by_email(email)
-            if user is None:
-                raise HTTPException(
-                    404, "No se encontraron datos para ese email.")
-
-            # Registrar la solicitud de acceso
-            db.log_call(
-                "arco", "acceso",
-                entity="arco_request",
-                entity_id=email,
-                payload={"tipo": "acceso"},
-                status="processed",
-            )
-
-            # Devolver datos personales (sin password_hash)
-            datos = {k: v for k, v in dict(user).items()
-                     if k != "password_hash"}
-            return {
-                "titular": email,
-                "datos_personales": datos,
-                "finalidades": [
-                    "Prestación del servicio de automatización contable y fiscal",
-                    "Cumplimiento de obligaciones fiscales",
-                    "Soporte técnico",
-                ],
-                "referencia_legal": "LFPDPPP Art. 28 (derecho de acceso)",
-            }
-
-        @app.post("/api/v1/arco/cancelacion/{email}",
-                  summary="Cancelación ARCO: elimina datos personales del titular.",
-                  tags=["arco"])
-        async def arco_cancelacion(email: str):
-            """Cancelación ARCO — LFPDPPP Art. 33: eliminar datos personales.
-
-            Nota: Se conservan datos con obligación legal de retención
-            (CFDI, contabilidad electrónica — CFF Art. 82-89, 5 años).
-            """
-            user = db.get_client_user_by_email(email)
-            if user is None:
-                raise HTTPException(
-                    404, "No se encontraron datos para ese email.")
-
-            logging.getLogger(__name__).warning(
-                "ARCO cancelación solicitada para %s — "
-                "Se eliminarán datos no retenidos por ley.", email)
-
-            # Registrar la solicitud
-            db.log_call(
-                "arco", "cancelacion",
-                entity="arco_request",
-                entity_id=email,
-                payload={"tipo": "cancelacion"},
-                status="processed",
-            )
-
-            return {
-                "status": "processed",
-                "mensaje": (
-                    f"Datos personales de {email} eliminados. "
-                    "Se conservan CFDI y registros contables con obligación "
-                    "legal de retención (CFF Art. 82-89, mínimo 5 años)."),
-                "referencia_legal": (
-                    "LFPDPPP Art. 33 (derecho de cancelación), "
-                    "CFF Art. 82 (conservación fiscal)"),
-                "datos_retenidos": [
-                    "CFDIs procesados (CFF Art. 82, 5 años)",
-                    "Registros de contabilidad electrónica",
-                    "Bitácora de auditoría (CFF Art. 89)",
-                ],
-            }
+        # LFPDPPP ARCO Rights (extracted to routes_arco.py)
+        app.include_router(build_arco_router(db, require_api_key))
 
         @app.get("/sitemap.xml", include_in_schema=False)
         def sitemap():
@@ -1646,36 +1148,5 @@ def create_app(db=None):
     install_openapi_docs(app)
 
     return app
-
-
-def _strip(res):
-    """Quita campos voluminosos para la respuesta JSON."""
-    return {
-        "archivo": res["archivo"],
-        "valido": res["validacion"]["ok"],
-        "requires_human_review": res["validacion"]["requires_human_review"],
-        "categoria": res["clasificacion"]["categoria"],
-        "confianza": res["clasificacion"]["confianza"],
-        "erp_poliza": res["erp"].get("poliza"),
-        "erp_status": res["erp"].get("status"),
-        "insertado": res["insertado"],
-        "total": res["datos"].get("total"),
-        "emisor": res["datos"].get("emisor_rfc"),
-        "notificacion": res["notificacion"].get("status"),
-    }
-
-
-def _record_business_metrics(res):
-    """Incrementa métricas de negocio (invoices_processed / anomalies_detected)
-    a partir del resultado del pipeline. Nunca rompe el flujo si algo falla."""
-    try:
-        if res.get("validacion", {}).get("ok"):
-            prom_metrics.inc_invoices(1)
-        n_anomalias = len(res.get("anomalias") or [])
-        if n_anomalias:
-            prom_metrics.inc_anomalies(n_anomalias)
-    except Exception:  # noqa: BLE001 — las métricas no deben romper el request
-        _structured_log.exception("fallo al registrar métricas de negocio")
-
 
 app = create_app()
