@@ -81,7 +81,7 @@ RATES = {
     # Para SBC ≤ 3 UMA, el total ≈ 0.025 + 0.00625 + 0.01125 + 0.00375
     # NOTA: Para SBC > 3 UMA hay un "excedente" adicional (art. 106 III-VII)
     # que se calcula sobre (SBC - 3*UMA_diario).
-    "imss_uma_diario": Decimal("108.57"),  # UMA diaria 2025 (se actualiza cada feb)
+    "imss_uma_diario": Decimal("113.15"),  # UMA diaria 2025 (DOF feb 2025, INEGI) — FIS-10 fix
     "imss_excedente_3uma_tasa": Decimal("0.004"),  # Tasa excedente (art. 106 fracc. III)
 
     # --- INFONAVIT (Ley INFONAVIT art. 29) ---
