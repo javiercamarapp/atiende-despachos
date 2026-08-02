@@ -20,6 +20,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -128,12 +129,63 @@ class ExportRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# JSON persistence helpers (BUG-3)
+# ---------------------------------------------------------------------------
+
+def _ser(obj: Any) -> Any:
+    """Recursively convert Pydantic objects / containers into JSON-able dicts."""
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+    if isinstance(obj, dict):
+        return {str(k): _ser(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_ser(x) for x in obj]
+    return obj
+
+
+def _load_typed(store: Dict, cls) -> None:
+    """Rehydrate a store's leaf values (tenant -> key -> Pydantic) from raw JSON.
+
+    Reports and adjustments MUST be Pydantic objects for their read paths
+    (.model_dump(), .status). Values that fail validation are kept as raw dicts
+    so the graceful dict-based code paths still work.
+    """
+    for tid, inner in list(store.items()):
+        if not isinstance(inner, dict):
+            continue
+        for key, val in list(inner.items()):
+            if isinstance(val, dict):
+                try:
+                    inner[key] = cls.model_validate(val)
+                except Exception:
+                    inner[key] = val
+            elif isinstance(val, list):
+                inner[key] = [
+                    cls.model_validate(x) if isinstance(x, dict) else x for x in val
+                ]
+
+
+def _load_state(path: str) -> Dict:
+    """Load raw JSON state from disk, returning {} on any failure."""
+    if path and os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return {}
+
+
+# ---------------------------------------------------------------------------
 # Router builder
 # ---------------------------------------------------------------------------
 
 def build_conciliacion_router(
     db: Any = None,
     require_api_key: Any = None,
+    data_dir: Optional[str] = None,
 ) -> APIRouter:
     """Construct the conciliación bancaria API router.
 
@@ -141,6 +193,8 @@ def build_conciliacion_router(
     ----------
     db : Database instance (unused for now; matching is in-memory).
     require_api_key : FastAPI dependency for auth.
+    data_dir : Directory where the JSON persistence file is stored. Defaults to
+        $CONCILIACION_DATA_DIR or `<package>/data`.
     """
     if require_api_key is None:
         raise ValueError(
@@ -149,14 +203,45 @@ def build_conciliacion_router(
         )
     auth_dep = require_api_key
 
+    # BUG-3: persist the tenant-isolated stores to a single JSON file so data
+    # survives router rebuilds / process restarts. Default location is overridable
+    # via env var or the data_dir argument (tests inject a tmp dir).
+    data_dir = data_dir or os.environ.get("CONCILIACION_DATA_DIR") or os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data"
+    )
+    _state_path = os.path.join(data_dir, "conciliacion_state.json")
+    _raw_state = _load_state(_state_path)
+
     # In-memory stores — tenant-isolated (P1-3): cada store está anidado por
     # tenant_id derivado SIEMPRE del token autenticado (auth_info). Ningún
     # endpoint puede leer o escribir datos de un tenant distinto al suyo.
-    _reports_store: Dict[str, Dict[str, ConciliationReport]] = {}
-    _discrepancies_store: Dict[str, Dict[str, list]] = {}
-    _reconciliation_results_store: Dict[str, Dict[str, dict]] = {}
-    _adjustments_store: Dict[str, Dict[str, Adjustment]] = {}
-    _uploaded_statements: Dict[str, Dict[str, dict]] = {}
+    _reports_store: Dict[str, Dict[str, ConciliationReport]] = _raw_state.get("reports", {})
+    _discrepancies_store: Dict[str, Dict[str, list]] = _raw_state.get("discrepancies", {})
+    _reconciliation_results_store: Dict[str, Dict[str, dict]] = _raw_state.get("results", {})
+    _adjustments_store: Dict[str, Dict[str, Adjustment]] = _raw_state.get("adjustments", {})
+    _uploaded_statements: Dict[str, Dict[str, dict]] = _raw_state.get("statements", {})
+
+    # Rehydrate the typed stores whose read paths need Pydantic objects.
+    _load_typed(_reports_store, ConciliationReport)
+    _load_typed(_adjustments_store, Adjustment)
+
+    def _persist() -> None:
+        """Atomically write all 5 stores to the JSON state file (tmp + rename)."""
+        try:
+            os.makedirs(data_dir, exist_ok=True)
+            payload = {
+                "reports": _ser(_reports_store),
+                "discrepancies": _ser(_discrepancies_store),
+                "results": _ser(_reconciliation_results_store),
+                "adjustments": _ser(_adjustments_store),
+                "statements": _ser(_uploaded_statements),
+            }
+            tmp = _state_path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, _state_path)
+        except Exception:
+            pass
 
     def _tenant(auth_info) -> str:
         """Resuelve el tenant autenticado para particionar los stores."""
@@ -235,6 +320,7 @@ def build_conciliacion_router(
             "file_name": file.filename,
             "transaction_count": len(bank_transactions),
         }
+        _persist()  # BUG-3: persist uploaded statement
 
         return {
             "ok": True,
@@ -331,6 +417,7 @@ def build_conciliacion_router(
         report = service.generate_report(all_matches, period=period)
         _tstore(_reports_store, auth_info)[period] = report
         _tstore(_discrepancies_store, auth_info)[period] = discrepancies
+        _persist()  # BUG-3: persist match results
 
         return {
             "ok": True,
@@ -444,6 +531,7 @@ def build_conciliacion_router(
         report = service.generate_report(matches, period=period)
         _tstore(_reports_store, auth_info)[period] = report
         _tstore(_discrepancies_store, auth_info)[period] = discrepancies
+        _persist()  # BUG-3: persist CSV match results
 
         return {
             "ok": True,
@@ -518,6 +606,7 @@ def build_conciliacion_router(
         for d in results.get("discrepancies", []):
             disc_dicts.append(d.model_dump() if hasattr(d, 'model_dump') else d)
         _tstore(_discrepancies_store, auth_info)[period] = disc_dicts
+        _persist()  # BUG-3: persist full reconciliation results
 
         return {
             "ok": True,
@@ -600,6 +689,8 @@ def build_conciliacion_router(
             adj.applied_at = datetime.now().isoformat()
             tenant_adjustments[adj_id] = adj
             applied.append(adj_id)
+
+        _persist()  # BUG-3: persist applied adjustments
 
         return {
             "ok": True,

@@ -210,7 +210,9 @@ class ConciliationService(ManualProcessMixin):
                 for pol in polizas:
                     if pol.id in used_polizas:
                         continue
-                    if txn.amount == pol.monto:
+                    # BUG-2 fix: float equality is unreliable; use same 0.01
+                    # tolerance as the EXACT pass.
+                    if abs(txn.amount - pol.monto) < 0.01:
                         date_diff = self._date_difference_days(txn.date, pol.fecha)
                         if date_diff is not None and date_diff <= self.date_tolerance_days:
                             confidence = max(0.8 - (date_diff * 0.05), 0.5)
@@ -353,7 +355,9 @@ class ConciliationService(ManualProcessMixin):
                 for cfdi in cfdi_list:
                     if cfdi.uuid in used_cfdi:
                         continue
-                    if txn.amount == cfdi.total:
+                    # BUG-2 fix: float equality is unreliable; use same 0.01
+                    # tolerance as the EXACT pass.
+                    if abs(txn.amount - cfdi.total) < 0.01:
                         date_diff = self._date_difference_days(txn.date, cfdi.fecha)
                         if date_diff is not None and date_diff <= self.date_tolerance_days:
                             confidence = max(0.8 - (date_diff * 0.05), 0.5)
@@ -765,7 +769,11 @@ class ConciliationService(ManualProcessMixin):
         unmatched_bank = results.get("unmatched_bank", [])
         unmatched_polizas = results.get("unmatched_polizas", [])
 
-        total = len(all_matches) + len(unmatched_bank)
+        # BUG-1 fix: all_matches (poliza_matches) ALREADY includes one UNMATCHED
+        # entry per bank transaction without a match, so summing unmatched_bank
+        # on top would double-count the unreconciled transactions. total must be
+        # just the number of transaction-level match results.
+        total = len(all_matches)
         matched = sum(1 for m in all_matches if m.status == MatchStatus.MATCHED)
         partial = sum(1 for m in all_matches if m.status == MatchStatus.PARTIAL)
         unmatched = len(unmatched_bank)

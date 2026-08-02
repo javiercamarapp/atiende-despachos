@@ -114,6 +114,7 @@ class SATSubmitter:
         periodo: str,
         rfc: str,
         declaration_id: Optional[str] = None,
+        confirm: bool = False,
     ) -> SubmissionResult:
         """Submit a signed declaration XML to SAT.
 
@@ -149,6 +150,21 @@ class SATSubmitter:
                 declaration_id=declaration_id,
             )
 
+        # BUG-2 fix: la presentación SAT exige confirmación explícita.
+        # Sin confirm=True nunca se procede (en simulación NI SE TIMBRA).
+        if not confirm:
+            return SubmissionResult(
+                status=SubmissionStatus.PENDING,
+                mensaje=(
+                    "Confirmación explícita requerida (confirm=True). "
+                    "Ninguna declaración se envía a SAT sin confirmación. "
+                    "Estado: PENDING — pendiente de confirmación."
+                ),
+                codigo_error="CONFIRM_REQUIRED",
+                declaration_id=declaration_id,
+                attempts=0,
+            )
+
         # Build submission record
         record = SubmissionRecord(
             declaration_id=declaration_id or "",
@@ -159,20 +175,26 @@ class SATSubmitter:
             submitted_at=datetime.now().isoformat(),
         )
 
-        # In test mode, simulate acceptance
+        # In test mode, do NOT simulate acceptance — this is a sandbox.
+        # BUG-2 fix: NUNCA devolver ACCEPTED en simulación (no hay timbre real).
         if self._test_mode:
             folio = f"SIM-{hashlib.md5(xml_signed).hexdigest()[:12].upper()}"
             result = SubmissionResult(
-                status=SubmissionStatus.ACCEPTED,
+                status=SubmissionStatus.PENDING,
                 folio=folio,
                 fecha_recepcion=datetime.now().isoformat(),
-                mensaje="Declaración aceptada (modo simulación)",
+                mensaje=(
+                    "SANDBOX (modo simulación): la declaración NO fue timbrada ni "
+                    "presentada ante el SAT. Estado PENDING. Para una presentación "
+                    "real se requiere modo producción (test_mode=False) y un "
+                    "acuse de SAT."
+                ),
                 declaration_id=declaration_id,
                 attempts=1,
             )
-            record.status = SubmissionStatus.ACCEPTED
+            record.status = SubmissionStatus.PENDING
             record.folio = folio
-            record.accepted_at = datetime.now().isoformat()
+            # NO set accepted_at: nunca se aceptó en simulación
         else:
             # Production: send via SOAP
             result = self._send_soap(xml_signed, declaration_type, periodo, rfc)

@@ -46,6 +46,12 @@ from b2b_ai.fiscal_tables import (
     ISR_ANUAL_2025 as ISR_TABLE_ANNUAL,
     get_isr_table,
 )
+from b2b_ai.features.declaraciones.engine import (
+    calculate_isr_pm as _engine_calculate_isr_pm,
+    calculate_isr_pf as _engine_calculate_isr_pf,
+    ISR_PM_MENSUAL_RESICO as ISR_TABLE_PM_RESICO,
+)
+
 
 
 class DeclaracionesService(ManualProcessMixin):
@@ -177,6 +183,7 @@ class DeclaracionesService(ManualProcessMixin):
         tenant_id: str,
         rfc: str = "",
         data: Optional[Dict[str, Any]] = None,
+        tipo_contribuyente: str = "PF",
     ) -> Declaracion:
         """Generate a provisional ISR declaration.
 
@@ -212,10 +219,23 @@ class DeclaracionesService(ManualProcessMixin):
             ingresos = float(data.get("ingresos", 0))
             deducciones = float(data.get("deducciones", 0))
             utilidad = round(ingresos - deducciones, 2)
-            # CFF Art. 113: ISR provisional se calcula sobre utilidad (ingresos - deducciones)
-            isr_calculated = self._calculate_isr_monthly(max(0, utilidad))
             pagos_provisionales = float(data.get("pagos_provisionales", 0))
-
+            # Engine unificado (engine.py): soporta PM (LISR Art. 9: 30% fijo)
+            # y PF (tabla progresiva LISR Art. 96). BUG-3 fix.
+            tipo = str(tipo_contribuyente or "PF").upper()
+            if tipo == "PM":
+                res = _engine_calculate_isr_pm(
+                    utilidad_fiscal=max(0, utilidad),
+                    pagos_provisionales=pagos_provisionales,
+                )
+            else:
+                res = _engine_calculate_isr_pf(
+                    base_gravable=max(0, utilidad),
+                    annual=False,
+                    pagos_provisionales=pagos_provisionales,
+                )
+            isr_calculated = res.isr_bruto
+            # BUG-F16: ISR PM (general 30%) es fijo, no usa tabla progresiva PF
             isr_data = IsrData(
                 ingresos=ingresos,
                 deducciones=deducciones,
@@ -273,6 +293,7 @@ class DeclaracionesService(ManualProcessMixin):
         tenant_id: str,
         rfc: str = "",
         data: Optional[Dict[str, Any]] = None,
+        tipo_contribuyente: str = "PF",
     ) -> Declaracion:
         """Generate an annual ISR declaration.
 
@@ -307,10 +328,21 @@ class DeclaracionesService(ManualProcessMixin):
             ingresos = float(data.get("ingresos", 0))
             deducciones = float(data.get("deducciones", 0))
             utilidad = round(ingresos - deducciones, 2)
-            # CFF Art. 113: ISR anual se calcula sobre utilidad (ingresos - deducciones)
-            isr_calculated = self._calculate_isr_annual(max(0, utilidad))
             pagos_provisionales = float(data.get("pagos_provisionales", 0))
-
+            # Engine unificado: PM (LISR Art. 9: 30% fijo) y PF (progresiva Art. 96)
+            tipo = str(tipo_contribuyente or "PF").upper()
+            if tipo == "PM":
+                res = _engine_calculate_isr_pm(
+                    utilidad_fiscal=max(0, utilidad),
+                    pagos_provisionales=pagos_provisionales,
+                )
+            else:
+                res = _engine_calculate_isr_pf(
+                    base_gravable=max(0, utilidad),
+                    annual=True,
+                    pagos_provisionales=pagos_provisionales,
+                )
+            isr_calculated = res.isr_bruto
             isr_data = IsrData(
                 ingresos=ingresos,
                 deducciones=deducciones,

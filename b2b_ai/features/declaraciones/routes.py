@@ -138,6 +138,7 @@ def build_declaraciones_router(
           - saldo_favor: If iva_pagado > iva_cobrado (credit)
           - saldo_contra: If iva_cobrado > iva_pagado (debit)
         """
+        _require_tenant(req.tenant_id, auth_info)
         try:
             declaracion = service.generate_monthly_iva(
                 month=req.month,
@@ -168,6 +169,7 @@ def build_declaraciones_router(
 
         ISR calculation uses the progressive tax table (CFF Art. 113).
         """
+        _require_tenant(req.tenant_id, auth_info)
         try:
             declaracion = service.generate_provisional_isr(
                 month=req.month,
@@ -199,6 +201,7 @@ def build_declaraciones_router(
         ISR Anual is due by April 30th of the following year.
         Uses the annual progressive tax table (CFF Art. 113).
         """
+        _require_tenant(req.tenant_id, auth_info)
         try:
             declaracion = service.generate_annual_isr(
                 year=req.year,
@@ -229,6 +232,7 @@ def build_declaraciones_router(
         Deadlines are sorted by fecha_limite ascending.
         Status is auto-updated: PENDING → URGENT (≤5 days) → OVERDUE.
         """
+        _require_tenant(tenant_id, auth_info)
         deadlines = service.calculate_deadlines(tenant_id)
         return {
             "ok": True,
@@ -251,6 +255,7 @@ def build_declaraciones_router(
 
         Only sends one reminder per deadline (track via recordatorio_enviado).
         """
+        _require_tenant(req.tenant_id, auth_info)
         reminders = service.send_reminders(
             tenant_id=req.tenant_id,
             days_before=req.days_before,
@@ -273,12 +278,7 @@ def build_declaraciones_router(
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
         """Retrieve a declaration by its unique ID."""
-        declaracion = service.get_declaracion(declaracion_id)
-        if declaracion is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Declaración '{declaracion_id}' no encontrada.",
-            )
+        declaracion = _get_owned_or_404(declaracion_id, auth_info)
         return {
             "ok": True,
             "declaracion": declaracion.model_dump(),
@@ -299,6 +299,7 @@ def build_declaraciones_router(
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
         """List all declarations for a tenant, optionally filtered by type."""
+        _require_tenant(tenant_id, auth_info)
         declaraciones = service.get_declaraciones_by_tenant(
             tenant_id=tenant_id,
             tipo=tipo,
@@ -326,6 +327,7 @@ def build_declaraciones_router(
         Valid transitions:
           - draft → pending → filed → accepted/rejected
         """
+        _get_owned_or_404(declaracion_id, auth_info)
         declaracion = service.update_status(
             declaracion_id=declaracion_id,
             status=req.status,
@@ -339,5 +341,37 @@ def build_declaraciones_router(
             "ok": True,
             "declaracion": declaracion.model_dump(),
         }
+
+    def _require_tenant(requested_tenant_id: str, auth_info: dict) -> None:
+        """Anti-IDOR: el tenant autenticado solo opera sobre su propio tenant.
+
+        Devuelve 404 (no 403) para no filtrar la existencia de otros tenants.
+        """
+        auth_tenant = auth_info.get("tenant_id")
+        if not auth_tenant or requested_tenant_id != auth_tenant:
+            raise HTTPException(
+                status_code=404,
+                detail="Recurso no encontrado.",
+            )
+
+    def _get_owned_or_404(declaracion_id: str, auth_info: dict) -> Declaracion:
+        """Obtiene una declaración validando pertenencia al tenant autenticado.
+
+        Anti-IDOR multi-tenant: si la declaración existe pero es de otro tenant
+        (o no existe) se devuelve 404 — nunca 403, para no filtrar existencia.
+        """
+        declaracion = service.get_declaracion(declaracion_id)
+        if declaracion is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Declaración '{declaracion_id}' no encontrada.",
+            )
+        auth_tenant = auth_info.get("tenant_id")
+        if not auth_tenant or declaracion.tenant_id != auth_tenant:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Declaración '{declaracion_id}' no encontrada.",
+            )
+        return declaracion
 
     return router

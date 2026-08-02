@@ -38,6 +38,18 @@ ISR_TABLE_ANNUAL: List[Tuple[float, float, float, float]] = ISR_ANUAL_2025
 # ISR PM flat rate (LISR Art. 9, personas morales)
 ISR_PM_RATE = 0.30
 
+# ISR PM mensual — RESICO / régimen simplificado de confianza (LISR Art. 206, 209).
+# Tasa progresiva mensual aplicable a personas morales del régimen simplificado
+# de confianza (RESICO). Formato: (limite_inferior, limite_superior, cuota_fija, tasa)
+ISR_PM_MENSUAL_RESICO: List[Tuple[float, float, float, float]] = [
+    (0.00,       25000.00,     0.0000, 0.010),
+    (25000.01,   50000.00,   250.0000, 0.011),
+    (50000.01,   83333.33,   525.0000, 0.015),
+    (83333.34,   208333.33,  1025.0000, 0.020),
+    (208333.34,  3500000.00, 3525.0000, 0.025),
+    (3500000.01, float("inf"), 86799.1675, 0.030),
+]
+
 # IVA rates (LIVA Art. 1, 2, 2-A)
 IVA_TASA_GENERAL = 0.16
 IVA_TASA_FRONTERA = 0.08
@@ -221,6 +233,32 @@ def calculate_isr_pm(
         tabla_aplicada="pm_30%",
         isr_neto=isr_neto,
         pagos_provisionales=pagos_provisionales,
+    )
+
+
+
+def calculate_isr_pm_resico(
+    ingreso_mensual: float,
+    pagos_provisionales: float = 0.0,
+) -> IsrResult:
+    """Calculate ISR for Persona Moral bajo RESICO (tabla mensual progresiva).
+
+    LISR Art. 206 y 209: régimen simplificado de confianza para personas
+    morales — ISR mensual sobre ingreso acumulable con tasa progresiva.
+    """
+    ingreso = max(0, ingreso_mensual)
+    isr_bruto = _apply_isr_table(ingreso, ISR_PM_MENSUAL_RESICO)
+    isr_neto = round(max(0, isr_bruto - pagos_provisionales), 2)
+    tasa_efectiva = round(isr_bruto / ingreso, 4) if ingreso > 0 else 0.0
+    return IsrResult(
+        base_gravable=ingreso,
+        isr_bruto=isr_bruto,
+        tasa_efectiva=tasa_efectiva,
+        tipo_contribuyente="PM",
+        tabla_aplicada="pm_resico",
+        isr_neto=isr_neto,
+        pagos_provisionales=pagos_provisionales,
+        referencia_legal="LISR Art. 206, 209 (RESICO PM)",
     )
 
 
@@ -443,6 +481,13 @@ class DeclarationEngine:
         pagos_provisionales: float = 0.0,
     ) -> IsrResult:
         return calculate_isr_pm(utilidad_fiscal, pagos_provisionales)
+
+    def calculate_isr_pm_resico(
+        self,
+        ingreso_mensual: float,
+        pagos_provisionales: float = 0.0,
+    ) -> IsrResult:
+        return calculate_isr_pm_resico(ingreso_mensual, pagos_provisionales)
 
     def calculate_isr_pf(
         self,

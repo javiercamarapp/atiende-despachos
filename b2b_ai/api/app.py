@@ -1119,6 +1119,10 @@ def create_app(db=None):
     app.include_router(build_ap_ar_router(require_api_key),
                        prefix="/api/v1")
 
+    # Pipeline de Prospectos/Leads (CRM): pipeline de ventas multi-tenant.
+    from b2b_ai.features.prospect_pipeline.routes import build_prospect_pipeline_router
+    app.include_router(build_prospect_pipeline_router(require_api_key))
+
     # ------------------------------------------------------------------ #
     # Landing page (servida desde el mismo origen → el fetch de leads y los
     # enlaces canónicos funcionan sin CORS ni cambios de dominio).
