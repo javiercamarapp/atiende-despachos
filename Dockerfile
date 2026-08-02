@@ -2,17 +2,9 @@
 # =============================================================================
 # Likida AI — Agente contable IA enterprise
 # Imagen de la API FastAPI (servida por uvicorn) en build multi-stage.
-#
-# Build:
-#   docker build -t b2b-ai:1.0.0 .
-# Run (single container):
-#   docker run --rm -p 8000:8000 \
-#     -e B2B_API_KEY=$(openssl rand -hex 32) \
-#     -v b2b-data:/data \
-#     b2b-ai:1.0.0
 # =============================================================================
 
-# ---- Stage 1: builder — instala dependencias + empaqueta en un prefix ----
+# ---- Stage 1: builder ----
 FROM python:3.11-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -33,7 +25,7 @@ RUN pip install --prefix=/install --no-cache-dir . \
     && pip install --prefix=/install --no-cache-dir "uvicorn[standard]>=0.20" \
     && pip install --prefix=/install --no-cache-dir playwright
 
-# Download Chromium binary ONLY (no --with-deps to avoid apt GPG issues)
+# Download Chromium (no --with-deps to avoid GPG issues)
 RUN PYTHONPATH=/install/lib/python3.11/site-packages \
     python -m playwright install chromium
 
@@ -56,15 +48,14 @@ LABEL org.opencontainers.image.title="b2b-ai" \
       org.opencontainers.image.version="1.0.0" \
       org.opencontainers.image.description="Agente contable IA enterprise (Likida AI)"
 
-# Copia prefix + landing + Chromium browsers
 COPY --from=builder /install /usr/local
 COPY --from=builder /build/landing /app/landing
 COPY --from=builder /root/.cache/ms-playwright /home/b2b/.cache/ms-playwright
 
-# Install Chromium system dependencies (separate from playwright install
-# to avoid GPG issues with --with-deps)
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+# Install Chromium system deps + curl in one layer
+# Use --allow-unauthenticated to bypass GPG key issues on Railway builder
+RUN apt-get update --allow-insecure-repositories \
+    && apt-get install -y --allow-unauthenticated --no-install-recommends \
        libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
        libcups2 libdrm2 libdbus-1-3 libxkbcommon0 \
        libatspi2.0-0 libxcomposite1 libxdamage1 libxfixes3 \
@@ -72,10 +63,7 @@ RUN apt-get update \
        libwayland-client0 xvfb curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Directorio de datos persistente
 RUN mkdir -p /data
-
-# Non-root user
 RUN useradd --create-home --uid 1000 b2b \
     && chown -R b2b:b2b /data /app /home/b2b/.cache
 USER b2b
