@@ -159,6 +159,13 @@ class PipelineJob(BaseModel):
     erp_references: List[str] = Field(default_factory=list)
     overrides_needed: int = Field(default=0)
 
+    # Reconciliation (Agente conciliación bancaria) — rellenado en la etapa
+    # RECONCILING por el motor real de conciliación.
+    reconciliation: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Resultado del motor de conciliación bancaria (match + discrepancias + ajustes)",
+    )
+
     # Error tracking
     errors: List[str] = Field(default_factory=list)
     started_at: Optional[datetime] = None

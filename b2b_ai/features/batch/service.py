@@ -22,6 +22,7 @@ import zipfile
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from b2b_ai.cfdi.adapter import to_bookkeeping_format
 from b2b_ai.cfdi.parser import CFDIError, parse_cfdi_4
 from b2b_ai.cfdi.validator import SATError, check_cfdi_compliance
 from b2b_ai.features.batch.models import BatchItem, BatchItemStatus, BatchJob, BatchJobStatus
@@ -243,7 +244,12 @@ class BatchService:
                 errors, warnings = check_cfdi_compliance(parsed)
                 item.total = _dec_to_float(parsed.get("total"))
                 item.uuid = parsed.get("uuid")
+                # Adapter: normaliza parse_cfdi_4 -> formato plano de bookkeeping.
+                # El CFDI adaptado se guarda en el result para que el pipeline
+                # bookkeeping lo consuma sin re-mapear (wire CFDI->bookkeeping).
+                adapted = to_bookkeeping_format(parsed)
                 item.result = _build_item_result(parsed, errors, warnings)
+                item.result["cfdi_adaptado"] = adapted
                 item.status = BatchItemStatus.SUCCESS
                 job.success_count += 1
                 if item.total:

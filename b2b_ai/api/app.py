@@ -112,6 +112,7 @@ from b2b_ai.features.reconciliacion_ingresos_egresos.routes import (
 from b2b_ai.features.vencimientos.routes import build_vencimientos_router
 from b2b_ai.features.close_management.routes import build_close_management_router
 from b2b_ai.features.bookkeeping.routes import build_bookkeeping_router
+from b2b_ai.features.pipeline.routes import build_pipeline_router
 from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
