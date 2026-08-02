@@ -107,7 +107,10 @@ def generate_idempotency_key(
     parts = [service, operation]
     if params:
         # Sort for determinism
-        sorted_params = sorted(str(params).items()) if isinstance(params, dict) else [str(params)]
+        if isinstance(params, dict):
+            sorted_params = sorted(params.items())
+        else:
+            sorted_params = [str(params)]
         parts.append(str(sorted_params))
     key_input = "|".join(parts)
     return hashlib.sha256(key_input.encode()).hexdigest()[:32]
