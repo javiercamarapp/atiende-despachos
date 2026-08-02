@@ -725,6 +725,67 @@ MIGRATIONS = [
         CREATE INDEX IF NOT EXISTS idx_recon_jobs_status ON reconciliation_jobs(status);
         """,
     },
+    {
+        "version": 17,
+        "name": "job_queue",
+        "sql": """
+        CREATE TABLE IF NOT EXISTS job_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tenant_id INTEGER NOT NULL,
+            job_type TEXT NOT NULL DEFAULT 'process_cfdi',
+            payload TEXT NOT NULL DEFAULT '{}',
+            status TEXT NOT NULL DEFAULT 'pending',
+            priority INTEGER NOT NULL DEFAULT 0,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            max_attempts INTEGER NOT NULL DEFAULT 3,
+            error TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            started_at TEXT,
+            completed_at TEXT,
+            FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_job_queue_tenant ON job_queue(tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_job_queue_status ON job_queue(status);
+        CREATE INDEX IF NOT EXISTS idx_job_queue_pending ON job_queue(status, priority DESC, id ASC);
+        """,
+    },
+    {
+        "version": 18,
+        "name": "conciliation_sessions",
+        "sql": """
+        CREATE TABLE IF NOT EXISTS conciliation_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tenant_id INTEGER NOT NULL,
+            user_id TEXT,
+            criteria TEXT NOT NULL DEFAULT '{}',
+            status TEXT NOT NULL DEFAULT 'proposed',
+            total_matches INTEGER NOT NULL DEFAULT 0,
+            total_unmatched INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            confirmed_at TEXT,
+            FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+        );
+        """,
+    },
+    {
+        "version": 19,
+        "name": "conciliation_matches",
+        "sql": """
+        CREATE TABLE IF NOT EXISTS conciliation_matches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            bank_transaction_id TEXT NOT NULL,
+            poliza_id TEXT,
+            cfdi_folio TEXT,
+            amount REAL NOT NULL,
+            match_score REAL NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'proposed',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            reverted_at TEXT,
+            FOREIGN KEY (session_id) REFERENCES conciliation_sessions(id)
+        );
+        """,
+    },
 ]
 
 

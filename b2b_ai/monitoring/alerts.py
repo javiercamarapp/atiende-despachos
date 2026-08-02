@@ -295,3 +295,23 @@ class AlertManager:
 
 # Singleton compartido por el proceso.
 alerts = AlertManager()
+
+
+# Dead man's switch: alert if no agent activity in 24 hours
+def check_dead_mans_switch(db=None):
+    """Alert if agent has been inactive for >24h with pending work."""
+    from b2b_ai.monitoring.metrics import _agent_last_activity
+    if _agent_last_activity is None:
+        return None
+    from datetime import datetime, timedelta
+    try:
+        last = datetime.fromisoformat(_agent_last_activity)
+    except Exception:
+        return None
+    if datetime.now() - last > timedelta(hours=24):
+        return {
+            "level": "warning",
+            "rule": "dead_mans_switch",
+            "message": f"Agent inactive since {_agent_last_activity} (>24h)",
+        }
+    return None

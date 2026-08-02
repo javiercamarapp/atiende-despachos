@@ -249,3 +249,39 @@ class MetricsRegistry:
 
 # Singleton compartido por el proceso.
 metrics = MetricsRegistry()
+
+
+# ---------------------------------------------------------------------------
+# Agent processing metrics (module-level globals)
+# ---------------------------------------------------------------------------
+_agent_processed_total = 0
+_agent_errors_total = 0
+_agent_confidence_sum = 0.0
+_agent_confidence_count = 0
+_agent_last_activity = None
+
+
+def record_agent_processing(confidence: float, success: bool = True):
+    """Record a CFDI processing event from the agent."""
+    global _agent_processed_total, _agent_errors_total
+    global _agent_confidence_sum, _agent_confidence_count, _agent_last_activity
+    from datetime import datetime
+    _agent_processed_total += 1
+    if not success:
+        _agent_errors_total += 1
+    _agent_confidence_sum += confidence
+    _agent_confidence_count += 1
+    _agent_last_activity = datetime.now().isoformat()
+
+
+def get_agent_metrics() -> dict:
+    """Get current agent metrics."""
+    avg = (_agent_confidence_sum / _agent_confidence_count
+           if _agent_confidence_count > 0 else 0)
+    return {
+        "processed_total": _agent_processed_total,
+        "errors_total": _agent_errors_total,
+        "confidence_avg": round(avg, 3),
+        "last_activity": _agent_last_activity,
+        "error_rate": round(_agent_errors_total / max(1, _agent_processed_total), 3),
+    }

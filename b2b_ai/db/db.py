@@ -1642,6 +1642,109 @@ class Database:
             "SELECT * FROM conciliation_matches WHERE session_id=? ORDER BY id",
             (session_id,)).fetchall()]
 
+    # ---- Job queue (persistent batch processing) ----
+    def enqueue_job(self, tenant_id, job_type='process_cfdi', payload=None, priority=0):
+        """Add a job to the persistent queue."""
+        payload_txt = json.dumps(payload or {}, default=str, ensure_ascii=False)
+        cur = self.conn.execute(
+            "INSERT INTO job_queue(tenant_id, job_type, payload, priority) VALUES (?,?,?,?)",
+            (tenant_id, job_type, payload_txt, priority))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def dequeue_job(self, tenant_id=None):
+        """Get the next pending job and mark it as running."""
+        q = "SELECT * FROM job_queue WHERE status='pending'"
+        params = []
+        if tenant_id is not None:
+            q += " AND tenant_id=?"
+            params.append(tenant_id)
+        q += " ORDER BY priority DESC, id ASC LIMIT 1"
+        row = self.conn.execute(q, params).fetchone()
+        if not row:
+            return None
+        job_id = row['id']
+        self.conn.execute(
+            "UPDATE job_queue SET status='running', started_at=datetime('now'), attempts=attempts+1 WHERE id=?",
+            (job_id,))
+        self.conn.commit()
+        result = dict(row)
+        try:
+            result['payload'] = json.loads(result.get('payload', '{}'))
+        except Exception:
+            pass
+        result['status'] = 'running'
+        result['attempts'] = result.get('attempts', 0) + 1
+        return result
+
+    def complete_job(self, job_id, error=None):
+        """Mark a job as completed or failed."""
+        status = 'failed' if error else 'completed'
+        self.conn.execute(
+            "UPDATE job_queue SET status=?, error=?, completed_at=datetime('now') WHERE id=?",
+            (status, error, job_id))
+        self.conn.commit()
+
+    def list_jobs(self, tenant_id=None, status=None, limit=50):
+        """List jobs with optional filters."""
+        q = "SELECT * FROM job_queue"
+        params = []
+        clauses = []
+        if tenant_id is not None:
+            clauses.append("tenant_id=?")
+            params.append(tenant_id)
+        if status:
+            clauses.append("status=?")
+            params.append(status)
+        if clauses:
+            q += " WHERE " + " AND ".join(clauses)
+        q += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        rows = self.conn.execute(q, params).fetchall()
+        results = []
+        for row in rows:
+            d = dict(row)
+            try:
+                d['payload'] = json.loads(d.get('payload', '{}'))
+            except Exception:
+                pass
+            results.append(d)
+        return results
+
+    def retry_failed_jobs(self, tenant_id=None, max_attempts=3):
+        """Reset failed jobs that haven't exceeded max_attempts."""
+        q = "UPDATE job_queue SET status='pending', started_at=NULL WHERE status='failed' AND attempts < ?"
+        params = [max_attempts]
+        if tenant_id is not None:
+            q += " AND tenant_id=?"
+            params.append(tenant_id)
+        cur = self.conn.execute(q, params)
+        self.conn.commit()
+        return cur.rowcount
+
+    # ---- Connection pool monitoring ----
+    @property
+    def connection_count(self) -> int:
+        """Number of tracked connections (for monitoring)."""
+        with self._conn_lock:
+            return len(self._connections)
+
+    def _purge_stale_connections(self):
+        """Remove closed/stale connections from the tracking set."""
+        with self._conn_lock:
+            stale = set()
+            for conn in self._connections:
+                try:
+                    if self._is_pg:
+                        if getattr(conn, '_released', False):
+                            stale.add(conn)
+                    else:
+                        conn.execute('SELECT 1')
+                except Exception:
+                    stale.add(conn)
+            self._connections -= stale
+            return len(stale)
+
 
 def main():
     import sys
