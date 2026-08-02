@@ -154,3 +154,123 @@ def jwt_token():
 @pytest.fixture
 def jwt_headers(jwt_token):
     return {"Authorization": f"Bearer {jwt_token}"}
+
+
+# ---------------------------------------------------------------------------
+# Fixtures compartidas del E2E del piloto (Leonardo, t_1b328fae)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mock_tenant():
+    """Tenant (despacho contable) de referencia para el flujo del piloto.
+
+    Reutiliza el shape de `seed.demo_data.generate_despacho()` para que los
+    tests E2E validen contra datos realistas (RFC, régimen, CP).
+    """
+    from seed import demo_data
+    return demo_data.generate_despacho()
+
+
+@pytest.fixture
+def mock_cfdi_data(mock_tenant):
+    """Lista de CFDIs de muestra (receptor = despacho del tenant).
+
+    Reutiliza `demo_data.generate_cfdis()` para reproducibilidad (seed fijo)
+    y para que el test de categorización tenga varios emisores/categorías.
+    """
+    from seed import demo_data
+    return demo_data.generate_cfdis(n=8, despacho_rfc=mock_tenant["rfc"])
+
+
+@pytest.fixture
+def mock_bank_transactions():
+    """Transacciones bancarias de muestra para conciliación."""
+    from seed import demo_data
+    return demo_data.generate_bank_transactions(n=6)
+
+
+@pytest.fixture
+def mock_conekta_responses():
+    """Respuestas Mock del cliente de Conekta.
+
+    Shape fiel a `features/billing` (service + conekta_client en modo mock):
+      - checkout: URL real de checkout.conekta.com + order/customer ids.
+      - subscription: suscripción activa (plan_code, status, price_mxn).
+    Permite testear billing sin red ni credenciales.
+    """
+    return {
+        "checkout": {
+            "ok": True,
+            "checkout_url": "https://checkout.conekta.com/pay/order_test_123",
+            "order_id": "order_test_123",
+            "customer_id": "cus_test_456",
+            "plan": "pro",
+            "amount_mxn": 20000,
+            "currency": "MXN",
+        },
+        "subscription": {
+            "ok": True,
+            "plan_code": "pro",
+            "status": "active",
+            "price_mxn": 20000,
+            "currency": "MXN",
+            "provider_subscription_id": "sub_test_789",
+        },
+        "webhook_paid": {
+            "type": "order.paid",
+            "data": {"order": {"id": "order_test_123"}},
+        },
+    }
+
+
+@pytest.fixture
+def pilot_client():
+    """TestClient con los routers del piloto (auth stub → tenant_id).
+
+    Patrón del repo (test_billing_onboarding_integration.py): se montan los
+    routers de onboarding-wizard, billing-piloto, batch, bank-feeds y reports
+    con una dependencia de auth que devuelve un dict con tenant_id, de modo
+    que los endpoints que hacen `auth_info.get("tenant_id")` funcionen.
+
+    NOTA: NO se usa create_app() completo para aislar el E2E del overhead de
+    toda la app (rate limit, audit, JWT). Los tests de contrato API cubren
+    create_app() por separado.
+    """
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from b2b_ai.features.onboarding.routes import build_onboarding_wizard_router
+    from b2b_ai.features.billing.routes import (
+        build_billing_router as build_pilot_billing_router,
+    )
+    from b2b_ai.features.batch.routes import build_batch_router
+    from b2b_ai.features.bank_feeds.routes import build_bank_feeds_router
+    from b2b_ai.reports.router import build_reports_router
+
+    def fake_require_api_key():
+        return {"tenant_id": "tenant_test_123", "api_key": "key"}
+
+    app = FastAPI()
+    app.include_router(build_onboarding_wizard_router(
+        db=None, require_api_key=fake_require_api_key))
+    app.include_router(build_pilot_billing_router(
+        db=None, require_api_key=fake_require_api_key))
+    app.include_router(build_batch_router(
+        db=None, require_api_key=fake_require_api_key))
+    app.include_router(build_bank_feeds_router(
+        db=None, require_api_key=fake_require_api_key))
+    app.include_router(build_reports_router(
+        db=None, require_api_key=fake_require_api_key))
+    return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _reset_pilot_state():
+    """Limpia el estado en memoria de onboarding/billing entre tests."""
+    from b2b_ai.features.onboarding.wizard import _reset_state as reset_onb
+    from b2b_ai.features.billing.models import _reset_state as reset_bill
+    reset_onb()
+    reset_bill()
+    yield
+    reset_onb()
+    reset_bill()
