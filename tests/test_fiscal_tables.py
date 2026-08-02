@@ -118,10 +118,10 @@ class TestGetISRTable:
         with pytest.raises(ValueError, match="No hay tabla"):
             get_isr_table(2025, "weekly")
 
-    def test_default_year_is_2025(self):
-        from b2b_ai.fiscal_tables import get_isr_table, FISCAL_YEAR, ISR_MENSUAL_2025
-        assert FISCAL_YEAR == 2025
-        assert get_isr_table() is ISR_MENSUAL_2025
+    def test_default_year_is_2026(self):
+        from b2b_ai.fiscal_tables import get_isr_table, FISCAL_YEAR, ISR_MENSUAL_2026
+        assert FISCAL_YEAR == 2026
+        assert get_isr_table() is ISR_MENSUAL_2026
 
 
 class TestGetSubsidioTable:

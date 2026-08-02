@@ -52,7 +52,7 @@ class AgentLoop:
     """Loop de agente para una factura, con árbol de decisión y HITL."""
 
     def __init__(self, db=None, llm=None, tenants=None, erp=None,
-                 email=None, logger_=None, notify=True):
+                 email=None, logger_=None, notify=True, cu_driver=None):
         self.db = db or Database()
         self.logger = logger_ or logger
         if self.db is not None:
@@ -62,6 +62,7 @@ class AgentLoop:
         self.erp = erp                    # override opcional
         self.email = email or EmailSender()
         self.notify = notify
+        self._cu_driver = cu_driver       # Computer Use driver (injected or lazy)
 
     # ---- herramientas con auditoría --------------------------------------
     def _call(self, name, tenant_id, **kwargs):
@@ -267,6 +268,10 @@ class AgentLoop:
         invoice = dict(datos)
         invoice["categoria"] = clasif["categoria"]
         invoice["confianza"] = clasif["confianza"]
+        # Prefer injected/initialized CU driver over factory
+        if self._cu_driver is not None:
+            return self._call("register_erp", tenant_id,
+                              invoice=invoice, erp=self._cu_driver)
         erp = self.tenants.erp_factory(tenant_id, erp=self.erp)
         return self._call("register_erp", tenant_id, invoice=invoice, erp=erp)
 

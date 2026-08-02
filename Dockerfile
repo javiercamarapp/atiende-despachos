@@ -86,7 +86,6 @@ RUN apt-get update \
 
 # Copy Playwright browsers from builder
 COPY --from=builder /root/.cache/ms-playwright /home/b2b/.cache/ms-playwright
-RUN chown -R b2b:b2b /home/b2b/.cache
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/b2b/.cache/ms-playwright
 
@@ -100,7 +99,7 @@ RUN mkdir -p /data
 
 # No corre como root (buena práctica en contenedores).
 RUN useradd --create-home --uid 1000 b2b \
-    && chown -R b2b:b2b /data /app
+    && chown -R b2b:b2b /data /app /home/b2b/.cache
 USER b2b
 
 EXPOSE 8000

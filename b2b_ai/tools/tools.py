@@ -70,20 +70,32 @@ def classify_expense(xml_path=None, datos=None):
       description="Registra una póliza/factura en el ERP (CONTPAQi mock o CSV).",
       category="erp",
       parameters=[{"name": "invoice", "type": "object", "required": True}])
-def register_erp(invoice, erp=None):
+def register_erp(invoice, erp=None, tenant_id=None):
     """Registra la factura en el ERP. Acepta un ERPInterface inyectado."""
     if erp is None:
-        erp = _get_default_erp()
+        erp = _get_default_erp(tenant_id=tenant_id)
     return erp.register_invoice(invoice)
 
 
 _tool_erp = None
 
 
-def _get_default_erp():
+def _get_default_erp(tenant_id=None):
     global _tool_erp
-    if _tool_erp is None:
-        _tool_erp = MockCONTPAQi()
+    if _tool_erp is not None:
+        return _tool_erp
+    try:
+        from b2b_ai.computer_use.factory import ComputerUseDriverFactory
+        from b2b_ai.computer_use.config import ComputerUseConfig
+        config = ComputerUseConfig.from_env()
+        if config.mode != "disabled":
+            _tool_erp = ComputerUseDriverFactory.create(
+                provider=config.provider, mode=config.mode,
+                tenant_id=tenant_id, config=config)
+            return _tool_erp
+    except Exception:
+        pass
+    _tool_erp = MockCONTPAQi()
     return _tool_erp
 
 

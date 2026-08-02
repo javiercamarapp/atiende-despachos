@@ -23,10 +23,10 @@ from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 # Configuración fiscal (versionada)
 # ---------------------------------------------------------------------------
 
-# Tarifa ISR centralizada en fiscal_tables.py (2025 + legacy 2024)
+# Tarifa ISR centralizada en fiscal_tables.py (2026 + legacy 2025, 2024)
 from b2b_ai.fiscal_tables import (
-    ISR_MENSUAL_2025, ISR_QUINCENAL_2025,
-    SUBSIDIO_EMPLEO_MENSUAL_2025, SUBSIDIO_EMPLEO_QUINCENAL_2025,
+    ISR_MENSUAL_2026, ISR_QUINCENAL_2026,
+    SUBSIDIO_EMPLEO_MENSUAL_2026, SUBSIDIO_EMPLEO_QUINCENAL_2026,
     ISR_MENSUAL_2024,
 )
 
@@ -36,11 +36,11 @@ def _to_str_tuples(table):
 
 TARIFA_ISR_2024_MENSUAL = _to_str_tuples(ISR_MENSUAL_2024)
 
-# FIS-08: Tarifa mensual ISR 2025 — tabla oficial (LISR art. 96)
-TARIFA_ISR_2025_MENSUAL = _to_str_tuples(ISR_MENSUAL_2025)
+# FIS-08: Tarifa mensual ISR 2026 — tabla oficial (LISR art. 96)
+TARIFA_ISR_2026_MENSUAL = _to_str_tuples(ISR_MENSUAL_2026)
 
-# Tarifa quincenal ISR — de fiscal_tables.py (2025)
-TARIFA_ISR_2024_QUINCENAL = _to_str_tuples(ISR_QUINCENAL_2025)
+# Tarifa quincenal ISR — de fiscal_tables.py (2026)
+TARIFA_ISR_2026_QUINCENAL = _to_str_tuples(ISR_QUINCENAL_2026)
 
 # Tarifa quincenal ISR — tabla oficial simplificada (LISR art. 96, Decreto DOF
 # anual). Se usa cuando periodicidad='quincenal'. Nota: la tabla exacta la
@@ -49,11 +49,11 @@ TARIFA_ISR_2024_QUINCENAL = _to_str_tuples(ISR_QUINCENAL_2025)
 # Para máxima precisión, se recomienda usar el método de equivalencia mensual
 # (calcular mensual × 2, obtener ISR mensual, dividir entre 2).
 
-# Subsidio para el empleo — centralizado en fiscal_tables.py (2025)
-SUBSIDIO_EMPLEO_MENSUAL = SUBSIDIO_EMPLEO_MENSUAL_2025
+# Subsidio para el empleo — centralizado en fiscal_tables.py (2026)
+SUBSIDIO_EMPLEO_MENSUAL = SUBSIDIO_EMPLEO_MENSUAL_2026
 
-# Subsidio quincenal — de fiscal_tables.py (2025)
-SUBSIDIO_EMPLEO_QUINCENAL = SUBSIDIO_EMPLEO_QUINCENAL_2025
+# Subsidio quincenal — de fiscal_tables.py (2026)
+SUBSIDIO_EMPLEO_QUINCENAL = SUBSIDIO_EMPLEO_QUINCENAL_2026
 
 
 
@@ -81,7 +81,7 @@ RATES = {
     # Para SBC ≤ 3 UMA, el total ≈ 0.025 + 0.00625 + 0.01125 + 0.00375
     # NOTA: Para SBC > 3 UMA hay un "excedente" adicional (art. 106 III-VII)
     # que se calcula sobre (SBC - 3*UMA_diario).
-    "imss_uma_diario": Decimal("113.15"),  # UMA diaria 2025 (DOF feb 2025, INEGI) — FIS-10 fix
+    "imss_uma_diario": Decimal("113.04"),  # UMA diaria 2026 (DOF feb 2026, INEGI)
     "imss_excedente_3uma_tasa": Decimal("0.004"),  # Tasa excedente (art. 106 fracc. III)
 
     # --- IMSS Patrón (LSS arts. 105-109, 147, 168) — FIS-09 ---
@@ -113,7 +113,7 @@ RATES = {
     "aguinaldo_dias_ley": 15,                    # 15 días (LFT art. 87)
 }
 
-AÑO_FISCAL = 2025
+AÑO_FISCAL = 2026
 
 
 def _dec(v, default=Decimal("0")):
@@ -147,10 +147,10 @@ def calc_isr(ingreso_gravado, tarifa=None, periodicidad="mensual"):
     """
     per = periodicidad.lower() if periodicidad else "mensual"
     if per == "quincenal":
-        tabla = tarifa or TARIFA_ISR_2024_QUINCENAL
+        tabla = tarifa or TARIFA_ISR_2026_QUINCENAL
         ref_label = "quincenal"
     else:
-        tabla = tarifa or TARIFA_ISR_2025_MENSUAL  # FIS-08: default 2025
+        tabla = tarifa or TARIFA_ISR_2026_MENSUAL  # FIS-08: default 2026
         ref_label = "mensual"
     ing = _dec(ingreso_gravado)
     if ing <= 0:
