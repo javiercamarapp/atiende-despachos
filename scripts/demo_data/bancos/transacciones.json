@@ -1,0 +1,96 @@
+{
+  "periodo": "2026-07",
+  "bancos": ["BBVA", "Banorte", "Santander"],
+  "transacciones": [
+    {
+      "id": "BBVA-202607-0001",
+      "date": "2026-07-03",
+      "description": "Transferencia SPEI — pago servicios contables",
+      "amount": 5800.00,
+      "type": "EGRESO",
+      "reference": "11111111-2222-4333-8444-555555555501",
+      "bank_account": "BBVA 4152 3133 8707 5678"
+    },
+    {
+      "id": "BBVA-202607-0002",
+      "date": "2026-07-08",
+      "description": "Pago de nómina quincenal",
+      "amount": 120000.00,
+      "type": "EGRESO",
+      "reference": "NOM-2026-07-08",
+      "bank_account": "BBVA 4152 3133 8707 5678"
+    },
+    {
+      "id": "BBVA-202607-0003",
+      "date": "2026-07-12",
+      "description": "Pago de impuestos SAT (IVA)",
+      "amount": 15400.00,
+      "type": "EGRESO",
+      "reference": "SAT-IVA-2026-07",
+      "bank_account": "BBVA 4152 3133 8707 5678"
+    },
+    {
+      "id": "BANORTE-202607-0001",
+      "date": "2026-07-02",
+      "description": "Pago papelería y útiles de oficina",
+      "amount": 1160.00,
+      "type": "EGRESO",
+      "reference": "21111111-2222-4333-8444-555555555501",
+      "bank_account": "Banorte 4915 6600 1234 4321"
+    },
+    {
+      "id": "BANORTE-202607-0002",
+      "date": "2026-07-10",
+      "description": "Pago proveedor publicidad digital",
+      "amount": 3480.00,
+      "type": "EGRESO",
+      "reference": "21111111-2222-4333-8444-555555555503",
+      "bank_account": "Banorte 4915 6600 1234 4321"
+    },
+    {
+      "id": "BANORTE-202607-0003",
+      "date": "2026-07-15",
+      "description": "Pago transporte de carga",
+      "amount": 5800.00,
+      "type": "EGRESO",
+      "reference": "21111111-2222-4333-8444-555555555504",
+      "bank_account": "Banorte 4915 6600 1234 4321"
+    },
+    {
+      "id": "BANORTE-202607-0004",
+      "date": "2026-07-18",
+      "description": "Abono de cliente — licencia software",
+      "amount": 29000.00,
+      "type": "INGRESO",
+      "reference": "11111111-2222-4333-8444-555555555504",
+      "bank_account": "Banorte 4915 6600 1234 4321"
+    },
+    {
+      "id": "SANTANDER-202607-0001",
+      "date": "2026-07-06",
+      "description": "Pago mantenimiento de cómputo",
+      "amount": 2900.00,
+      "type": "EGRESO",
+      "reference": "21111111-2222-4333-8444-555555555502",
+      "bank_account": "Santander 5579 1234 5678 9012"
+    },
+    {
+      "id": "SANTANDER-202607-0002",
+      "date": "2026-07-20",
+      "description": "Pago renta de oficina",
+      "amount": 8700.00,
+      "type": "EGRESO",
+      "reference": "21111111-2222-4333-8444-555555555505",
+      "bank_account": "Santander 5579 1234 5678 9012"
+    },
+    {
+      "id": "SANTANDER-202607-0003",
+      "date": "2026-07-25",
+      "description": "Abono de cliente — capacitación fiscal",
+      "amount": 8120.00,
+      "type": "INGRESO",
+      "reference": "11111111-2222-4333-8444-555555555505",
+      "bank_account": "Santander 5579 1234 5678 9012"
+    }
+  ]
+}

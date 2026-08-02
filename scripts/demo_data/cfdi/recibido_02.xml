@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+    xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd"
+    Version="4.0" Serie="R" Folio="1002"
+    Fecha="2026-07-06T10:00:00"
+    FormaPago="03" MetodoPago="PUE" Moneda="MXN"
+    TipoDeComprobante="I" Exportacion="01"
+    LugarExpedicion="06600" SubTotal="2500.00" Total="2900.00">
+    <cfdi:Emisor Rfc="STC880202MN7" Nombre="SERVICIOS TECNICOS COMPUTACIONALES, S.A. DE C.V." RegimenFiscal="601"/>
+    <cfdi:Receptor Rfc="LIK920101X01" Nombre="LIKIDA AI DESPACHO CONTABLE, S.C."
+        DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="G03"/>
+    <cfdi:Conceptos>
+        <cfdi:Concepto ClaveProdServ="81111800" Cantidad="1"
+            ClaveUnidad="E48" Unidad="Servicio"
+            Descripcion="Mantenimiento preventivo de equipo de cómputo y servidores"
+            ValorUnitario="2500.00" Importe="2500.00" ObjetoImp="02">
+            <cfdi:Impuestos>
+                <cfdi:Traslados>
+                    <cfdi:Traslado Base="2500.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="400.00"/>
+                </cfdi:Traslados>
+            </cfdi:Impuestos>
+        </cfdi:Concepto>
+    </cfdi:Conceptos>
+    <cfdi:Impuestos TotalImpuestosTrasladados="400.00">
+        <cfdi:Traslados>
+            <cfdi:Traslado Base="2500.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="400.00"/>
+        </cfdi:Traslados>
+    </cfdi:Impuestos>
+    <cfdi:Complemento>
+        <tfd:TimbreFiscalDigital Version="1.1" UUID="21111111-2222-4333-8444-555555555502"
+            FechaTimbrado="2026-07-06T10:00:00" RfcProvCertif="SAT970701NN3"
+            SelloCFD="AABBCC" NoCertificado="00001000000000000000" SelloSAT="DDEEFF"/>
+    </cfdi:Complemento>
+</cfdi:Comprobante>

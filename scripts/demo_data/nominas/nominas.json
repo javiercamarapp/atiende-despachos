@@ -1,0 +1,36 @@
+{
+  "periodo": "2026-07",
+  "tipo_regimen": ["02", "03", "10"],
+  "empleados": [
+    {
+      "nombre": "María Guadalupe López Hernández",
+      "rfc": "LOHG900101MNC",
+      "curp": "LOHG900101MMCPR01",
+      "salario_diario": 850.00,
+      "puesto": "Contadora Senior",
+      "sueldo_bruto": 25500.00,
+      "dias_pagados": 30,
+      "periodicidad": "mensual"
+    },
+    {
+      "nombre": "Luis Alberto García Martínez",
+      "rfc": "GAML881203KNP",
+      "curp": "GAML881203HDFRRL03",
+      "salario_diario": 600.00,
+      "puesto": "Auxiliar Contable",
+      "sueldo_bruto": 18000.00,
+      "dias_pagados": 30,
+      "periodicidad": "mensual"
+    },
+    {
+      "nombre": "Ana Sofía Ramírez Torres",
+      "rfc": "RATS920815PQL",
+      "curp": "RATS920815MCHMRN05",
+      "salario_diario": 1200.00,
+      "puesto": "Gerente de Cumplimiento",
+      "sueldo_bruto": 36000.00,
+      "dias_pagados": 30,
+      "periodicidad": "mensual"
+    }
+  ]
+}

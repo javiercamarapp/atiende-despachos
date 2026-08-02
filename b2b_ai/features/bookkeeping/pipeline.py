@@ -26,8 +26,64 @@ from b2b_ai.features.bookkeeping.rules_engine import AccountingRulesEngine
 from b2b_ai.features.bookkeeping.journal_generator import JournalEntryGenerator
 from b2b_ai.features.bookkeeping.erp_registrar import ERPRegistrar, ERPRegistrationResult
 from b2b_ai.features.bookkeeping.human_override import HumanOverrideManager
+from b2b_ai.features.conciliacion.service import ConciliationService
+from b2b_ai.features.conciliacion.models import (
+    BankTransaction as ConcilBankTransaction,
+    PolizaContable as ConcilPoliza,
+)
 
 log = logging.getLogger(__name__)
+
+
+def _dump(value):
+    """Serialize a pydantic model or dict to a JSON-safe dict."""
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, "model_dump"):
+        return value.model_dump()
+    if hasattr(value, "dict"):
+        return value.dict()
+    return value
+
+
+def _bank_txn_to_model(txn: Dict[str, Any]) -> ConcilBankTransaction:
+    """Convierte un dict de transacción bancaria a BankTransaction (conciliación).
+
+    Normaliza el tipo a mayúsculas (INGRESO/EGRESO/TRANSFERENCIA) porque el
+    enum de conciliación es case-sensitive y los datos pueden venir en
+    minúsculas (ingreso/egreso/transferencia).
+    """
+    t = dict(txn)
+    raw = str(t.get("type", "")).strip().upper()
+    if raw not in ("INGRESO", "EGRESO", "TRANSFERENCIA"):
+        raw = "TRANSFERENCIA" if raw == "TRANSFERENCIA" else ("INGRESO" if raw.startswith("IN") else "EGRESO")
+    t["type"] = raw
+    t.setdefault("date", "")
+    t.setdefault("description", "")
+    t.setdefault("reference", "")
+    t.setdefault("bank_account", "")
+    try:
+        t["amount"] = float(t.get("amount", 0))
+    except (TypeError, ValueError):
+        t["amount"] = 0.0
+    return ConcilBankTransaction(**t)
+
+
+def _poliza_to_concil(p: PolizaContable) -> ConcilPoliza:
+    """Mapea una póliza de bookkeeping a PolizaContable de conciliación."""
+    cuenta = ""
+    if p.lineas:
+        cuenta = p.lineas[0].cuenta or ""
+    return ConcilPoliza(
+        id=p.id,
+        fecha=p.fecha,
+        monto=float(p.total_debe or 0),
+        descripcion=p.concepto or "",
+        cuenta=cuenta,
+        concepto=p.concepto or "",
+        referencia=p.referencia or "",
+        rfc="",
+    )
 
 
 class PipelineOrchestrator:
@@ -81,6 +137,8 @@ class PipelineOrchestrator:
         periodo: str = "",
         fecha: Optional[str] = None,
         auto_register_erp: bool = True,
+        bank_transactions: Optional[List[Dict[str, Any]]] = None,
+        date_tolerance_days: int = 3,
     ) -> PipelineJob:
         """Process a batch of CFDIs through the full pipeline.
 
@@ -90,6 +148,10 @@ class PipelineOrchestrator:
             periodo: Period YYYY-MM
             fecha: Override date for journal entries
             auto_register_erp: Whether to auto-register in ERP
+            bank_transactions: Optional list of bank transaction dicts
+                (id, date, description, amount, type, reference, bank_account)
+                to reconcile against the generated pólizas in the RECONCILING stage.
+            date_tolerance_days: Date tolerance for the reconciliation matching.
 
         Returns:
             PipelineJob with results
@@ -164,13 +226,29 @@ class PipelineOrchestrator:
                 if failures:
                     job.errors.extend([r.error or "ERP registration failed" for r in failures])
 
-            # Stage 4-6: Coordination points (mark as ready for agents)
-            # These are informational — the actual work happens in the agents
+            # Stage 4: Reconciliation (motor real de conciliación bancaria).
+            # Coordinación con Agente conciliación: cruza las pólizas recién
+            # generadas contra las transacciones bancarias del periodo.
             job.stage = PipelineStage.RECONCILING
             job.progress_pct = 70.0
 
-            # Auto-advance past reconciliation/close/declaring for now
-            # In production, these would trigger agent tasks
+            try:
+                job.reconciliation = self._reconcile(
+                    polizas=polizas,
+                    bank_transactions=bank_transactions,
+                    periodo=periodo,
+                    date_tolerance_days=date_tolerance_days,
+                )
+            except Exception as exc:  # noqa: BLE001 — la conciliación nunca rompe el job
+                log.error("Reconciliation failed for job %s: %s", job.job_id, exc)
+                job.reconciliation = {
+                    "ok": False,
+                    "error": str(exc),
+                    "period": periodo,
+                }
+
+            # Stage 5-6: Coordination points (close / declarations).
+            # Informational — the actual work happens in the respective agents.
             job.stage = PipelineStage.COMPLETED
             job.progress_pct = 100.0
             job.completed_at = datetime.utcnow()
@@ -181,6 +259,57 @@ class PipelineOrchestrator:
             log.error("Pipeline job %s failed: %s", job.job_id, exc)
 
         return job
+
+    def _reconcile(
+        self,
+        polizas: List[PolizaContable],
+        bank_transactions: Optional[List[Dict[str, Any]]],
+        periodo: str = "",
+        date_tolerance_days: int = 3,
+    ) -> Optional[Dict[str, Any]]:
+        """Ejecuta el motor real de conciliación bancaria (conciliacion.service).
+
+        Cruza las pólizas contables generadas contra las transacciones
+        bancarias del periodo y devuelve un dict JSON-safe con el reporte,
+        matches, discrepancias y ajustes propuestos. Devuelve None si no hay
+        transacciones bancarias (no hay nada que conciliar).
+        """
+        if not bank_transactions:
+            return None
+
+        try:
+            bank_txns = [_bank_txn_to_model(t) for t in bank_transactions]
+        except Exception as exc:  # noqa: BLE001
+            log.error("Invalid bank_transactions: %s", exc)
+            return {
+                "ok": False,
+                "error": f"Transacciones bancarias inválidas: {exc}",
+                "period": periodo,
+            }
+
+        concil_polizas = [_poliza_to_concil(p) for p in polizas]
+
+        service = ConciliationService(date_tolerance_days=date_tolerance_days)
+        results = service.reconcile_bank_statement(
+            transactions=bank_txns,
+            polizas=concil_polizas if concil_polizas else None,
+            tolerance_days=date_tolerance_days,
+        )
+
+        period = periodo or (bank_txns[0].date[:7] if bank_txns and bank_txns[0].date else "")
+        report = service.generate_report(results["poliza_matches"], period=period)
+
+        return {
+            "ok": True,
+            "report": report.model_dump(),
+            "period": period,
+            "matches": [_dump(m) for m in results.get("matches", [])],
+            "poliza_matches": [_dump(m) for m in results.get("poliza_matches", [])],
+            "discrepancies": [_dump(m) for m in results.get("discrepancies", [])],
+            "adjustments": [_dump(m) for m in results.get("adjustments", [])],
+            "unmatched_bank": [_dump(m) for m in results.get("unmatched_bank", [])],
+            "unmatched_polizas": [_dump(m) for m in results.get("unmatched_polizas", [])],
+        }
 
     def _classify_cfdis(
         self, cfdis: List[Dict[str, Any]], tenant_id: str = ""
