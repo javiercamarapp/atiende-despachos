@@ -121,6 +121,8 @@ from b2b_ai.api.idempotency import install_idempotency
 from b2b_ai.api.rate_limiter import install_enterprise_rate_limit
 from b2b_ai.api.openapi_docs import install_openapi_docs
 from b2b_ai.api.versioning import install_versioning
+from b2b_ai.api.request_id import install_request_id
+from b2b_ai.api.logging_config import configure_logging
 from b2b_ai.infrastructure.graceful_shutdown import (
     ShutdownManager, request_tracker, is_draining)
 from b2b_ai.infrastructure.health import (
@@ -385,6 +387,9 @@ def create_app(db=None):
         # el handler instalado al importar el módulo; este punto corre DESPUÉS
         # de esa reconfiguración y garantiza que el JSON log quede activo.
         get_structured_logger("api")
+        # Configuración canónica del logging estructurado (JSON + rotación
+        # opcional) — idempotente.
+        configure_logging()
 
         # --- Graceful shutdown signal handlers ---
         _shutdown_logger = logging.getLogger("b2b_ai.shutdown")
@@ -452,6 +457,12 @@ def create_app(db=None):
 
     # Enterprise error handlers: structured JSON for ALL errors (no raw HTML).
     install_error_handlers(app)
+
+    # Versioning + request ID: capas externas de observabilidad. Request ID es
+    # la capa MÁS externa para envolver todo (incluidos errores). Versioning
+    # registra la versión efectiva (default v1) y agrega X-API-Version.
+    install_request_id(app)
+    install_versioning(app)
 
     # ------------------------------------------------------------------ #
     # CORS para producción. La landing se sirve same-origin (no requiere
@@ -537,7 +548,11 @@ def create_app(db=None):
     # registra ANTES del resto de middleware para envolver toda la petición.
     @app.middleware("http")
     async def _request_ctx_mw(request: Request, call_next):
-        with request_context(tenant_id=_ctx_tenant(request)):
+        # Reutiliza el request_id generado por RequestIDMiddleware (request_id
+        # middleware) para que logs y headers correlacionen con el mismo id.
+        rid = getattr(request.state, "request_id", None)
+        with request_context(request_id=rid,
+                             tenant_id=_ctx_tenant(request)):
             _structured_log.debug("request", extra={
                 "method": request.method, "path": request.url.path,
                 "client": _client_ip(request)})

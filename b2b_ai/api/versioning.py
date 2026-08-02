@@ -105,14 +105,21 @@ class VersioningMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         path = request.url.path
 
-        # Only apply to versioned API paths
-        if not _is_versioned_path(path):
-            return await call_next(request)
-
+        # Register effective version in request context (logs/handlers).
         path_version = _version_from_path(path)
         accept_version = _parse_accept_version(
             request.headers.get("accept-version")
         )
+        # Default v1 cuando no hay versión explícita (path ni header).
+        version = accept_version or path_version or DEFAULT_VERSION
+        request.state.api_version = version
+        set_api_version(version)
+
+        # Only apply negotiation to versioned API paths
+        if not _is_versioned_path(path):
+            response = await call_next(request)
+            response.headers["X-API-Version"] = version
+            return response
 
         # If Accept-Version conflicts with path version, return 400
         if accept_version and path_version and accept_version != path_version:
@@ -133,7 +140,6 @@ class VersioningMiddleware(BaseHTTPMiddleware):
             )
 
         # Check if requested version exists
-        version = accept_version or path_version
         if version and version not in VERSION_REGISTRY:
             from fastapi.responses import JSONResponse
             available = [v for v, info in VERSION_REGISTRY.items()
