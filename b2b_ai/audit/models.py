@@ -20,8 +20,10 @@
 from __future__ import annotations
 
 import enum
+import json
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 
 
 class Actions(str, enum.Enum):
@@ -97,6 +99,116 @@ class AuditEntry:
             action=row["action"],
             resource=row["resource"],
             resource_id=row["resource_id"],
+            details=details,
+            ip=row["ip"],
+            timestamp=row["timestamp"],
+        )
+
+
+# ===========================================================================
+# Audit logging system (quién / qué / cuándo / dónde / resultado)
+# ===========================================================================
+class AuditEvent(str, enum.Enum):
+    """Eventos sensibles que registra el AuditLogger (contracto de trazabilidad).
+
+    Cada evento se persiste como el verbo `action` en `audit_entries`. Usar
+    `.value` para persistir de forma portable entre SQLite y PostgreSQL.
+    """
+
+    LOGIN = "login"
+    LOGOUT = "logout"
+    TENANT_CREATE = "tenant.create"
+    TENANT_UPDATE = "tenant.update"
+    TENANT_DELETE = "tenant.delete"
+    CFDI_UPLOAD = "cfdi.upload"
+    CFDI_PROCESS = "cfdi.process"
+    DECLARATION_SUBMIT = "declaration.submit"
+    BILLING_CHANGE = "billing.change"
+    WEBHOOK_CONFIG_CHANGE = "webhook.config.change"
+
+
+def normalize_event(event) -> str:
+    """Devuelve el string de un evento, aceptando `AuditEvent` o string."""
+    if isinstance(event, AuditEvent):
+        return event.value
+    return str(event)
+
+
+@dataclass
+class AuditLog:
+    """Entrada del audit logging (who/what/when/where/result).
+
+    Estructura de trazabilidad completa de una acción sensible:
+
+      - who    : `actor` (usuario o sistema que ejecutó la acción).
+      - what   : `event` (AuditEvent) + `resource`/`resource_id` afectados.
+      - when   : `timestamp` (ISO, UTC).
+      - where  : `tenant_id` + `ip` (origen).
+      - result : `result` ('success' | 'failure' | ...) + `details` (JSON).
+
+    Se persiste en la misma tabla `audit_entries` (schema ya migrado), con el
+    resultado y detalles en el campo `details` (JSON estructurado) para que la
+    consulta sea directa tanto sobre SQLite como sobre PostgreSQL.
+    """
+
+    id: Optional[int] = None
+    actor: Optional[str] = None          # who
+    tenant_id: Optional[int] = None      # where
+    event: str = AuditEvent.LOGIN.value  # what
+    resource: str = ""                   # what
+    resource_id: Optional[str] = None    # what
+    result: str = "success"              # result
+    details: Optional[dict] = field(default=None)   # context
+    ip: Optional[str] = None             # where
+    timestamp: Optional[str] = None      # when (ISO UTC)
+
+    def to_dict(self) -> dict:
+        """Serialización estructurada para queryability."""
+        return {
+            "id": self.id,
+            "actor": self.actor,
+            "tenant_id": self.tenant_id,
+            "event": self.event,
+            "resource": self.resource,
+            "resource_id": self.resource_id,
+            "result": self.result,
+            "details": self.details or {},
+            "ip": self.ip,
+            "timestamp": self.timestamp,
+        }
+
+    @classmethod
+    def from_row(cls, row: Any) -> "AuditLog":
+        """Construye un AuditLog desde una fila de `audit_entries`.
+
+        El campo `action` de la tabla guarda el evento; `details` guarda el
+        JSON estructurado `{result, details}` o bien un dict directo.
+        """
+        details_raw = row["details"] if row["details"] is not None else None
+        details: Dict[str, Any] = {}
+        result = "success"
+        if isinstance(details_raw, str):
+            try:
+                parsed = json.loads(details_raw)
+            except (ValueError, TypeError):
+                parsed = None
+            if isinstance(parsed, dict):
+                # El logger guarda {"result": ..., "details": {...}}
+                if "result" in parsed and "details" in parsed:
+                    result = str(parsed.get("result") or "success")
+                    details = parsed.get("details") or {}
+                else:
+                    details = parsed
+        elif isinstance(details_raw, dict):
+            details = details_raw
+        return cls(
+            id=row["id"],
+            actor=row["user_id"],
+            tenant_id=row["tenant_id"],
+            event=row["action"],
+            resource=row["resource"],
+            resource_id=row["resource_id"],
+            result=result,
             details=details,
             ip=row["ip"],
             timestamp=row["timestamp"],

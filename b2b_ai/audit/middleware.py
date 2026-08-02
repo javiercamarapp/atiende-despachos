@@ -45,17 +45,23 @@ def _default_client_ip(request) -> str:
 
 def install_audit_middleware(app, db, auth=None,
                              client_ip_fn: Optional[Callable] = None,
-                             enabled: bool = True) -> Optional[AuditTrail]:
+                             enabled: bool = True,
+                             logger=None) -> Optional[AuditTrail]:
     """Instala el middleware de auditoría en `app`. Devuelve el AuditTrail
     usado (útil para tests) o None si `enabled` es False.
 
     `client_ip_fn(request)` permite reutilizar la resolución de IP con
     confianza de proxy de la app (p. ej. `_client_ip` de app.py).
+
+    Si se pasa un `AuditLogger` (`logger`), las mutaciones se registran a
+    través de él (async, no-bloqueante) con eventos estructurados; si no,
+    se usa el AuditTrail síncrono como antes.
     """
     if not enabled:
         return None
     trail = AuditTrail(db)
     get_ip = client_ip_fn or _default_client_ip
+    use_logger = logger is not None
 
     @app.middleware("http")
     async def audit_middleware(request, call_next):
@@ -75,6 +81,19 @@ def install_audit_middleware(app, db, auth=None,
                         tenant_id = info.get("tenant_id")
                 ip = get_ip(request)
                 action = _MUTATION_ACTIONS[method]
+                if use_logger:
+                    from b2b_ai.audit.logger import AuditLogger
+                    if isinstance(logger, AuditLogger):
+                        logger.log(
+                            event=action.value.lower(), actor=user_id,
+                            tenant_id=tenant_id, resource=request.url.path,
+                            result=("success" if response.status_code < 400
+                                    else "failure"),
+                            details={"method": method,
+                                     "status": response.status_code},
+                            ip=ip,
+                        )
+                        return response
                 await run_in_threadpool(
                     trail.log_action,
                     user_id, tenant_id, action, request.url.path,

@@ -119,8 +119,6 @@ from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
 from b2b_ai.api.errors import install_error_handlers
 from b2b_ai.api.idempotency import install_idempotency
 from b2b_ai.api.rate_limiter import install_enterprise_rate_limit
-from b2b_ai.middleware.rate_limiter import install_rate_limit
-from b2b_ai.middleware.request_validator import install_request_validator
 from b2b_ai.api.openapi_docs import install_openapi_docs
 from b2b_ai.api.versioning import install_versioning
 from b2b_ai.infrastructure.graceful_shutdown import (
@@ -136,10 +134,12 @@ from b2b_ai.monitoring.metrics import metrics as prom_metrics
 from b2b_ai.monitoring.alerts import alerts as alert_mgr
 from b2b_ai.monitoring.health import build_health_detailed
 from b2b_ai.audit.middleware import install_audit_middleware
+from b2b_ai.audit.routes import build_audit_logger_router
 from b2b_ai.api.routes_health import build_health_router
 from b2b_ai.api.routes_invoices import build_invoices_router
 from b2b_ai.api.routes_arco import build_arco_router
 from b2b_ai.api.routes.cfdi_validation import build_cfdi_validation_router
+from b2b_ai.features.batch.routes import build_batch_router
 
 # Logger estructurado JSON (monitoring). Distinto del ToolCallLogger de
 # b2b_ai.tools.logger (auditoría de tools en DB): este emite JSON a stdout.
@@ -490,12 +490,6 @@ def create_app(db=None):
     # and standard X-RateLimit-* headers.
     install_enterprise_rate_limit(app, redis_url=os.environ.get("B2B_REDIS_URL"))
 
-    # Middleware de seguridad: rate limiting por token bucket (clases por
-    # endpoint: auth 5/min, api 100/min, webhooks 30/min) y validación de
-    # peticiones (Content-Type, tamaño máx 10 MB, detección SQLi/XSS).
-    install_rate_limit(app, redis_url=os.environ.get("B2B_REDIS_URL"))
-    install_request_validator(app)
-
     # Métricas (request count + latencia). Se registra DESPUÉS del rate
     # limiter para ser la capa más externa y contar TODAS las peticiones,
     # incluidas las rechazadas con 429 y los healthchecks. Además alimenta el
@@ -538,6 +532,10 @@ def create_app(db=None):
     # Registered after all other middleware so it is the outermost layer.
     install_request_size_limit(app)
 
+    # Audit logging system: GET /api/v1/audit/logs (trazabilidad). Resuelve el
+    # tenant de la key autenticada para aislar la consulta por tenant.
+    app.include_router(build_audit_logger_router(db, require_api_key, auth))
+
     def _scope(info):
         """Devuelve el tenant_id efectivo a usar según la key."""
         return info.get("tenant_id")
@@ -575,6 +573,7 @@ def create_app(db=None):
     # Invoice processing, listing, stats (extracted to routes_invoices.py)
     app.include_router(build_invoices_router(db, require_api_key))
     app.include_router(build_cfdi_validation_router(require_api_key))
+    app.include_router(build_batch_router(db, require_api_key))
 
     @app.get("/api/v1/tools",
              summary="Tools registradas en el agente.",

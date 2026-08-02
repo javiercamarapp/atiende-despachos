@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field, field_validator
 class WebhookEventType(str, Enum):
     """Eventos que el sistema notifica a los suscriptores."""
     CFDI_PROCESSED = "cfdi.processed"
+    CFDI_BATCH_COMPLETED = "cfdi.batch.completed"
     DECLARATION_READY = "declaration.ready"
     ALERT_EXPIRING = "alert.expiring"
     RECONCILIATION_COMPLETED = "reconciliation.completed"
