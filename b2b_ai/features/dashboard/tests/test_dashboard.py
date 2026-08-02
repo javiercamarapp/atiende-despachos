@@ -177,7 +177,7 @@ class TestRoutes:
             return None
         db.get_tenant_by_id.side_effect = mock_get_tenant
         db.list_billing_subscriptions.return_value = []
-        router = build_dashboard_admin_router(db=db)
+        router = build_dashboard_admin_router(db=db, require_api_key=lambda: None)
         app.include_router(router)
         return TestClient(app)
 

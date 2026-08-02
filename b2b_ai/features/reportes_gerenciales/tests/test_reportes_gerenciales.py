@@ -320,7 +320,7 @@ class TestRoutes:
         from fastapi import FastAPI
 
         app = FastAPI()
-        router = build_reportes_gerenciales_router()
+        router = build_reportes_gerenciales_router(db=None, require_api_key=lambda: None)
         app.include_router(router)
         return TestClient(app)
 

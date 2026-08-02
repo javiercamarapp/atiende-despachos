@@ -352,7 +352,7 @@ class TestRoutes:
         from fastapi import FastAPI
 
         app = FastAPI()
-        router = build_email_processing_router()
+        router = build_email_processing_router(db=None, require_api_key=lambda: {"tenant_id": "test"})
         app.include_router(router)
         return TestClient(app)
 
