@@ -10,11 +10,9 @@
 #     -e B2B_API_KEY=$(openssl rand -hex 32) \
 #     -v b2b-data:/data \
 #     b2b-ai:1.0.0
-# En producción se orquesta con docker-compose.prod.yml (api+postgres+redis+nginx).
 # =============================================================================
 
 # ---- Stage 1: builder — instala dependencias + empaqueta en un prefix ----
-# Base de imagen fija para builds reproducibles.
 FROM python:3.11-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -23,31 +21,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /build
 
-# Instalar dependencias del sistema mínimas que algunas wheels compiladas
-# puedan necesitar (psycopg2-binary / lxml traen sus binaries: no requiere
-# compilación; se mantiene para futuras dependencias).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Primero el manifiesto de dependencias → capa cacheable por separado.
-# (El código cambia mucho más a menudo que pyproject.toml.)
 COPY pyproject.toml README.md ./
 COPY b2b_ai ./b2b_ai
 COPY landing ./landing
 
-# Instala en /install (prefix) para copiar solo lo necesario al runtime.
-# NOTA: se usa pip install directo (sin --mount=type=cache de BuildKit) para
-# que el Dockerfile funcione con el builder legacy y con BuildKit por igual.
 RUN pip install --prefix=/install --no-cache-dir . \
-    && pip install --prefix=/install --no-cache-dir "uvicorn[standard]>=0.20"
+    && pip install --prefix=/install --no-cache-dir "uvicorn[standard]>=0.20" \
+    && pip install --prefix=/install --no-cache-dir playwright
 
-# NOTE: Playwright + Chromium NOT installed in production image.
-# Computer Use is disabled by default (B2B_COMPUTER_USE_MODE=disabled).
-# When enabled, install playwright + chromium separately or use a dedicated image.
-# This avoids GPG/apt failures and reduces image size by ~400MB.
+# Download Chromium binary ONLY (no --with-deps to avoid apt GPG issues)
+RUN PYTHONPATH=/install/lib/python3.11/site-packages \
+    python -m playwright install chromium
 
-# ---- Stage 2: runtime — solo lo necesario para servir ----
+# ---- Stage 2: runtime ----
 FROM python:3.11-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -57,48 +47,42 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     B2B_WORKERS=1 \
     B2B_HOST=0.0.0.0 \
     B2B_PORT=8000 \
-    # Railway asigna PORT dinámicamente. Si $PORT existe, B2B_PORT se ignora
-    # porque el CMD usa ${PORT} como fallback. Esto permite compatibilidad con
-    # Railway (PORT dinámico) y Docker local (B2B_PORT=8000).
-    PORT=8000
+    PORT=8000 \
+    PLAYWRIGHT_BROWSERS_PATH=/home/b2b/.cache/ms-playwright
 
 WORKDIR /app
 
-# Etiquetas de trazabilidad de la imagen.
 LABEL org.opencontainers.image.title="b2b-ai" \
       org.opencontainers.image.version="1.0.0" \
       org.opencontainers.image.description="Agente contable IA enterprise (Likida AI)"
 
-# Copia solo el prefix instalado + la landing estática (no el builder completo).
+# Copia prefix + landing + Chromium browsers
 COPY --from=builder /install /usr/local
 COPY --from=builder /build/landing /app/landing
+COPY --from=builder /root/.cache/ms-playwright /home/b2b/.cache/ms-playwright
 
-# Herramienta mínima para el healthcheck sin traer toda la app.
+# Install Chromium system dependencies (separate from playwright install
+# to avoid GPG issues with --with-deps)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends \
+       libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+       libcups2 libdrm2 libdbus-1-3 libxkbcommon0 \
+       libatspi2.0-0 libxcomposite1 libxdamage1 libxfixes3 \
+       libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 \
+       libwayland-client0 xvfb curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Directorio de datos persistente (montar como volumen).
+# Directorio de datos persistente
 RUN mkdir -p /data
 
-# No corre como root (buena práctica en contenedores).
+# Non-root user
 RUN useradd --create-home --uid 1000 b2b \
-    && chown -R b2b:b2b /data /app
+    && chown -R b2b:b2b /data /app /home/b2b/.cache
 USER b2b
 
 EXPOSE 8000
 
-# Healthcheck del API vía curl (más robusto que urllib para stack).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8000/health || exit 1
 
-# NOTE: Build-time Playwright smoke test removed — Chromium cannot launch
-# during `docker build` (no X display, no --no-sandbox). Chromium availability
-# is verified at runtime when the first scraping/PDF endpoint is called.
-
-# Workers configurables vía B2B_WORKERS. En producción detrás de Nginx se
-# recomienda B2B_WORKERS=$(nproc). El contenedor con SQLite debe correr con 1
-# worker (concurrencia de escritura); el backend Postgres (en desarrollo) puede
-# escalar a N.
-# CMD: usa $PORT si existe (Railway), sino B2B_PORT (Docker local).
 CMD ["sh", "-c", "uvicorn b2b_ai.api.app:app --host ${B2B_HOST} --port ${PORT:-${B2B_PORT}} --workers ${B2B_WORKERS} --proxy-headers"]
