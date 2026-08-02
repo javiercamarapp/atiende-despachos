@@ -84,6 +84,24 @@ RATES = {
     "imss_uma_diario": Decimal("113.15"),  # UMA diaria 2025 (DOF feb 2025, INEGI) — FIS-10 fix
     "imss_excedente_3uma_tasa": Decimal("0.004"),  # Tasa excedente (art. 106 fracc. III)
 
+    # --- IMSS Patrón (LSS arts. 105-109, 147, 168) — FIS-09 ---
+    # Cuota fija patronal: 20.40 × UMA diario (art. 106 fracc. I patronal)
+    "imss_patron_cuota_fija_factor": Decimal("20.40"),
+    # Enf. y Mat. patronal excedente 3 UMA (art. 106 fracc. III-VII patronal)
+    "imss_patron_enf_mat_excedente": Decimal("0.011"),
+    # Enf. y Mat. patronal prestaciones en especie (art. 106 patronal)
+    "imss_patron_enf_mat_prest_esp": Decimal("0.007"),
+    # Invalidez y Vida patronal (art. 107)
+    "imss_patron_iv": Decimal("0.0175"),
+    # Retiro (art. 168 LSS): 2% SBC
+    "imss_patron_retiro": Decimal("0.02"),
+    # Cesantía y Vejez (art. 168 LSS): 3.150% SBC
+    "imss_patron_cesantia": Decimal("0.03150"),
+    # Gastos Médicos Pensionados patronal (art. 109)
+    "imss_patron_gmp": Decimal("0.0105"),
+    # Riesgo de trabajo: prima media 1% (art. 73 LSS) — varía por actividad
+    "imss_patron_riesgo_trabajo": Decimal("0.01"),
+
     # --- INFONAVIT (Ley INFONAVIT art. 29) ---
     # 5% del SBC es a cargo del PATRÓN (art. 29-II), NO del trabajador.
     # La amortización de crédito INFONAVIT (art. 29-III) es retención al
