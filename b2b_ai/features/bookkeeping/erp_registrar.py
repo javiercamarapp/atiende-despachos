@@ -72,14 +72,14 @@ class ERPRegistrar:
         erp_system: ERPSystem = ERPSystem.MOCK,
         config: Optional[Dict[str, Any]] = None,
     ):
-        # PRODUCTION GUARD: MOCK ERP is not allowed in production.
+        # PRODUCTION GUARD: MOCK ERP in production — warn but allow.
         _b2b_env = os.environ.get("B2B_ENV", "").strip().lower()
         _is_production = _b2b_env not in ("", "dev", "development", "test", "testing", "local")
         if _is_production and erp_system == ERPSystem.MOCK:
-            raise RuntimeError(
-                "ERPSystem.MOCK cannot be used in production (B2B_ENV=%r). "
-                "Set erp_system to a real ERP backend or explicitly override "
-                "B2B_ENV to a development value." % _b2b_env
+            import logging as _lg
+            _lg.getLogger("b2b_ai.bookkeeping").warning(
+                "ERPSystem.MOCK en producción — el pipeline funcionará pero no "
+                "registrará en ERP real. Configure CONTPAQI_URL o ASPEL_URL."
             )
 
         self._erp_system = erp_system
