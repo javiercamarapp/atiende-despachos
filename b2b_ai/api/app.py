@@ -338,10 +338,12 @@ _RATE_LIMIT_EXEMPT_PREFIXES = (
 
 
 def create_app(db=None):
-    # Support B2B_DATABASE_URL as the canonical PG connection string.
-    # Priority: explicit db arg > B2B_DATABASE_URL > B2B_DB_URL > B2B_DB_PATH > default SQLite.
+    # Support B2B_DATABASE_URL or DATABASE_URL (Railway standard) as the
+    # canonical PG connection string.
+    # Priority: explicit db arg > B2B_DATABASE_URL > DATABASE_URL > B2B_DB_URL > B2B_DB_PATH > default SQLite.
     if db is None:
-        pg_url = os.environ.get("B2B_DATABASE_URL")
+        pg_url = (os.environ.get("B2B_DATABASE_URL")
+                  or os.environ.get("DATABASE_URL"))
         if pg_url:
             # migrate=False: NO bloqueamos el arranque con Alembic en el
             # constructor. Las migraciones se corren en el lifespan startup

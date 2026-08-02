@@ -205,7 +205,11 @@ class Database:
                     break
         try:
             alembic_cfg = Config(alembic_ini)
-            command.upgrade(alembic_cfg, "head")
+            # Use "heads" instead of "head": el repo tiene migraciones con
+            # ramas (revisiones 0005/0006 duplicadas) que crean múltiples
+            # head revisions. "heads" aplica todas las ramas pendientes sin
+            # el error "Multiple head revisions are present".
+            command.upgrade(alembic_cfg, "heads")
         except Exception as e:
             raise RuntimeError(
                 f"Fallo la migración Alembic a PostgreSQL: {e}")

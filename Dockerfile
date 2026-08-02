@@ -60,6 +60,6 @@ USER b2b
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:8000/api/v1/health || exit 1
+  CMD curl -fsS http://127.0.0.1:8000/health || exit 1
 
 CMD ["sh", "-c", "uvicorn b2b_ai.api.app:app --host ${B2B_HOST} --port ${PORT:-${B2B_PORT}} --workers ${B2B_WORKERS} --proxy-headers"]
