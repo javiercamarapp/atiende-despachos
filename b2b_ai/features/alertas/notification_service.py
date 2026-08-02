@@ -100,7 +100,7 @@ LIKIDA_EMAIL_TEMPLATE = """\
         <!-- Footer -->
         <tr>
           <td style="background-color:#0b2545;padding:16px 32px;border-radius:0 0 12px 12px;">
-            <span style="color:#8bb0d6;font-size:12px;">© 2026 {brand_name}. Alertas automáticas de cumplimiento fiscal.</span>
+            <span style="color:#8bb0d6;font-size:12px;">© 2026 Likida · Alertas automáticas de cumplimiento fiscal.</span>
           </td>
         </tr>
       </table>

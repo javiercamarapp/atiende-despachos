@@ -40,6 +40,7 @@ from b2b_ai.features.alertas.models import (
 )
 from b2b_ai.features.alertas.engine import AlertEngine, evaluate_rules
 from b2b_ai.features.alertas.store import AlertStore
+from b2b_ai.features.alertas.deadline_engine import DeadlineEngine
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +82,43 @@ class EvaluateRequest(BaseModel):
     historical_values: Optional[dict] = Field(default=None, description="Historical values for anomaly detection")
     reference_date: Optional[str] = Field(default=None, description="Reference date for due_date rules")
     tenant_id: Optional[int] = Field(default=None, description="Tenant scope")
+
+
+def _filter_by_date_range(
+    alerts: List[Alert],
+    date_from: Optional[str],
+    date_to: Optional[str],
+) -> List[Alert]:
+    """Filter alerts by their created_at date (inclusive range, ISO)."""
+    from datetime import datetime as _dt
+
+    def _parse(value: str) -> Optional[_dt]:
+        try:
+            return _dt.fromisoformat(value.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            return None
+
+    start = _parse(date_from) if date_from else None
+    end = _parse(date_to) if date_to else None
+
+    if start is None and end is None:
+        return alerts
+
+    out = []
+    for a in alerts:
+        created = a.created_at
+        if not created:
+            continue
+        try:
+            ts = _dt.fromisoformat(created.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            continue
+        if start is not None and ts < start:
+            continue
+        if end is not None and ts > end:
+            continue
+        out.append(a)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +167,8 @@ def build_alertas_router(
         severity: Optional[str] = Query(default=None, description="Filter by severity"),
         type: Optional[str] = Query(default=None, description="Filter by type"),
         status: Optional[str] = Query(default=None, description="Filter by status"),
+        date_from: Optional[str] = Query(default=None, description="Filter by created_at >= (ISO date)"),
+        date_to: Optional[str] = Query(default=None, description="Filter by created_at <= (ISO date)"),
         limit: int = Query(default=100, ge=1, le=1000, description="Max results"),
         offset: int = Query(default=0, ge=0, description="Offset for pagination"),
     ) -> dict:
@@ -162,10 +202,64 @@ def build_alertas_router(
             limit=limit,
             offset=offset,
         )
+        # Optional date-range filter (applied on created_at, inclusive).
+        alerts = _filter_by_date_range(alerts, date_from, date_to)
         return {
             "count": len(alerts),
             "tenant_id": tenant,
             "alerts": [a.model_dump() for a in alerts],
+        }
+
+    # -- Upcoming fiscal deadlines ------------------------------------------
+    @router.get(
+        "/deadlines",
+        summary="Próximos vencimientos fiscales SAT (30 días).",
+        response_model=None,
+    )
+    def upcoming_deadlines(
+        auth_info: dict = Depends(auth_dep),
+        days: int = Query(default=30, ge=1, le=365,
+                          description="Horizonte en días"),
+        companies: Optional[str] = Query(
+            default=None,
+            description="JSON list of {rfc, name} company records"),
+    ) -> dict:
+        tenant = _scope(auth_info)
+        engine = DeadlineEngine()
+        import json as _json
+        company_records = []
+        if companies:
+            try:
+                company_records = _json.loads(companies)
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=422, detail="`companies` debe ser un JSON válido."
+                )
+        if not company_records:
+            company_records = [{"rfc": "GENERICO12345", "name": "Empresa"}]
+        # List ALL upcoming deadlines in the horizon (not just alert windows).
+        from datetime import date as _date
+        results = []
+        for company in company_records:
+            rfc = str(company.get("rfc", "")).strip().upper()
+            name = company.get("name") or company.get("company_name") or rfc
+            if not rfc:
+                continue
+            for ob, due in engine.upcoming_deadlines(rfc, days=days):
+                results.append({
+                    "obligation_code": ob.code,
+                    "obligation_name": ob.name,
+                    "company_rfc": rfc,
+                    "company_name": name,
+                    "due_date": due.isoformat(),
+                    "days_until": max((due - _date.today()).days, 0),
+                })
+        results.sort(key=lambda x: x["due_date"])
+        return {
+            "count": len(results),
+            "days": days,
+            "tenant_id": tenant,
+            "deadlines": results,
         }
 
     # -- List rules ---------------------------------------------------------
@@ -173,7 +267,7 @@ def build_alertas_router(
         "/rules",
         summary="List alert rules.",
         response_model=None,
-    )
+    ) 
     def list_rules(
         auth_info: dict = Depends(auth_dep),
         enabled_only: bool = Query(default=False, description="Only enabled rules"),

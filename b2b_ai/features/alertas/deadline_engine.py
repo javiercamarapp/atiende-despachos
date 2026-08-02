@@ -85,7 +85,7 @@ SAT_OBLIGATIONS_2026: List[FiscalObligation] = [
     # Declaración anual de ISR — personas morales (marzo)
     FiscalObligation(
         code="ISR-ANUAL-PM", name="Declaración anual ISR (personas morales)",
-        period="annual", due_day=31, due_month=3,
+        period="annual", due_day=31, due_month=3, rfc_prefix="PM",
     ),
     # Declaración anual de ISR — personas físicas (abril)
     FiscalObligation(
