@@ -111,6 +111,11 @@ class BalanzaRequest(BaseModel):
         le=12,
         description="Mes del ejercicio (1-12).",
     )
+    rfc: Optional[str] = Field(
+        default=None,
+        description="RFC del contribuyente (obligatorio en el XSD SAT).",
+        examples=["ABC850101T1A"],
+    )
     rows: List[BalanzaRow] = Field(
         default_factory=list,
         description="Líneas de la balanza de comprobación.",

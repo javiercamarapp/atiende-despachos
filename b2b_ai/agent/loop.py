@@ -181,6 +181,29 @@ class AgentLoop:
             clasif = {"categoria": "desconocido", "confianza": 0.0,
                       "razon": "Timeout en LLM", "source": "timeout_fallback",
                       "requires_human_review": True}
+        # REPAIR PASS (patrón CoT 02): si la clasificación es inválida o
+        # ambigua, reintentar UNA vez con instrucción de reparación antes de
+        # caer a fallback. Evita auto-registrar una categoría inválida.
+        if (not isinstance(clasif, dict)
+                or not clasif.get("categoria")
+                or clasif.get("categoria") in ("desconocido", "unknown", None)
+                or clasif.get("confianza", 0) <= 0):
+            try:
+                repair = {
+                    "role": "La clasificación previa fue inválida o de baja "
+                            "confianza. Vuelve a clasificar la factura y "
+                            "devuelve SOLO {categoria, confianza, razon} con "
+                            "una categoría válida del catálogo contable.",
+                }
+                clasif2 = with_timeout(
+                    self.llm.classify_invoice, TIMEOUT_LLM, "LLM"
+                )(datos_para_llm, repair_hint=repair["role"])
+                if (isinstance(clasif2, dict) and clasif2.get("categoria")
+                        and clasif2.get("confianza", 0) > 0):
+                    clasif = clasif2
+                    clasif["repair_pass"] = True
+            except Exception:  # noqa: BLE001
+                pass  # keep first result; gate de confianza aplica después
         self._llm_log(tenant_id, "classify", clasif)
         paso("clasificar", True,
              f"{clasif['categoria']} ({clasif['source']})")

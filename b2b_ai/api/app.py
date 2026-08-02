@@ -1040,6 +1040,9 @@ def create_app(db=None):
     app.include_router(build_close_management_router(db, require_api_key))
     app.include_router(build_bookkeeping_router(db, require_api_key))
 
+    # Pipeline end-to-end: CFDI → bookkeeping → conciliación (un solo endpoint).
+    app.include_router(build_pipeline_router(db, require_api_key))
+
     # Reportes PDF (FASE reportes): generación + descarga de PDFs.
     app.include_router(build_reports_router(db, require_api_key),
                        prefix="/api/v1")

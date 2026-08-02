@@ -13,8 +13,9 @@ Referencia:
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
+from typing import List, Optional
 from xml.dom import minidom
-from typing import List
 
 from b2b_ai.features.contabilidad_electronica.models import (
     BalanzaRequest,
@@ -35,6 +36,28 @@ _XSI_SCHEMALOC = (
 
 _BALANZA_VERSION = "1.3"
 _CATALOGO_VERSION = "1.3"
+
+
+def _fmt_fecha_creacion() -> str:
+    """Fecha de creación con formato ISO 8601 (AAAA-MM-DDThh:mm:ss).
+
+    La FechaCreacion es un atributo obligatorio del XSD SAT de Contabilidad
+    Electrónica y debe llevar marca de tiempo, no quedar vacía.
+    """
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _validar_rfc(rfc: str) -> None:
+    """Valida la presencia del RFC obligatorio en el XSD SAT.
+
+    El RFC del emisor es un atributo obligatorio de los elementos Balanza y
+    Catalogo. Si está vacío, el XML no pasaría la validación del SAT.
+    """
+    if not rfc or not str(rfc).strip():
+        raise ValueError(
+            "Contabilidad Electrónica: el RFC es obligatorio "
+            "(atributo RFC del XSD SAT) y no puede quedar vacío."
+        )
 
 
 def _indent_xml(xml_str: str) -> str:
@@ -60,15 +83,26 @@ def _indent_xml(xml_str: str) -> str:
 # Generador de Balanza de Comprobación
 # --------------------------------------------------------------------------- #
 
-def generate_balanza_xml(balanza: BalanzaRequest) -> str:
+def generate_balanza_xml(balanza: BalanzaRequest,
+                         rfc: Optional[str] = None) -> str:
     """Genera el XML de Balanza de Comprobación conforme al XSD del SAT.
+
+    El RFC se toma del parámetro `rfc` si se provee; si no, del atributo
+    opcional `balanza.rfc`; si ninguno, se deja el valor que tenga el modelo.
+    La validación estricta de campos requeridos (RFC obligatorio) se realiza
+    en `validators.validate_balanza()` antes de generar, conforme al XSD SAT.
 
     Args:
         balanza: Request con periodo, ejercicio, mes y líneas de la balanza.
+        rfc: RFC del contribuyente (obligatorio en el XSD del SAT).
 
     Returns:
         Cadena XML formateada con namespace SAT, listo para envío.
     """
+    # P1-7: poblar el RFC (obligatorio en el XSD) si está disponible.
+    rfc = (rfc or getattr(balanza, "rfc", None) or "").strip() or ""
+    rfc = str(rfc)
+
     # Registrar namespace para que lxml y minidom lo rendericen correctamente.
     ET.register_namespace(_NS_PREFIX, _NS_URI)
     ET.register_namespace("xsi", _XSI_NS)
@@ -87,10 +121,11 @@ def generate_balanza_xml(balanza: BalanzaRequest) -> str:
         f"{{{_NS_URI}}}Balanza",
         attrib={
             "Version": _BALANZA_VERSION,
-            "RFC": "",  # Se puede inyectar desde el caller
+            "RFC": rfc,
             "Ejercicio": str(balanza.ejercicio),
             "Mes": f"{balanza.mes:02d}",
-            "FechaCreacion": "",  # Se llena al timbrar
+            # P1-9: FechaCreacion obligatoria con marca de tiempo ISO 8601.
+            "FechaCreacion": _fmt_fecha_creacion(),
             "TipoBalance": "C",  # Comprobación
         },
     )
@@ -102,7 +137,7 @@ def generate_balanza_xml(balanza: BalanzaRequest) -> str:
             f"{{{_NS_URI}}}Cuenta",
             attrib={
                 "NumCta": row.codigo_cuenta,
-                "Desc": "",
+                "Desc": getattr(row, "descripcion", None) or row.codigo_cuenta,
                 "SaldoIni": _fmt_amount(row.saldo_inicial),
                 "Debe": _fmt_amount(row.debe),
                 "Haber": _fmt_amount(row.haber),
@@ -139,16 +174,21 @@ def _fmt_deudor_acreedor(row: BalanzaRow, tipo: str) -> str:
 def generate_catalogo_xml(
     cuentas: List[CatalogoCuenta],
     ejercicio: int,
+    rfc: Optional[str] = None,
 ) -> str:
     """Genera el XML del Catálogo de Cuentas conforme al XSD del SAT.
 
     Args:
         cuentas: Lista de cuentas del catálogo.
         ejercicio: Año del ejercicio fiscal.
+        rfc: RFC del contribuyente (obligatorio en el XSD del SAT).
 
     Returns:
         Cadena XML formateada con namespace SAT, listo para envío.
     """
+    # P1-7: poblar el RFC (obligatorio en el XSD) si está disponible.
+    rfc = (rfc or "").strip() or ""
+
     ET.register_namespace(_NS_PREFIX, _NS_URI)
     ET.register_namespace("xsi", _XSI_NS)
 
@@ -166,9 +206,10 @@ def generate_catalogo_xml(
         f"{{{_NS_URI}}}Catalogo",
         attrib={
             "Version": _CATALOGO_VERSION,
-            "RFC": "",  # Se puede inyectar desde el caller
+            "RFC": rfc,
             "Ejercicio": str(ejercicio),
-            "FechaCreacion": "",
+            # P1-9: FechaCreacion obligatoria con marca de tiempo ISO 8601.
+            "FechaCreacion": _fmt_fecha_creacion(),
         },
     )
 
@@ -178,7 +219,8 @@ def generate_catalogo_xml(
             catalogo_el,
             f"{{{_NS_URI}}}Cuenta",
             attrib={
-                "CodAgrup": cta.codigo,
+                # P1-8: El XSD SAT usa "NumCta", no "CodAgrup".
+                "NumCta": cta.codigo,
                 "Desc": cta.descripcion,
                 "Nivel": str(cta.nivel),
                 "Naturaleza": _naturaleza_from_tipo(cta.tipo.value),

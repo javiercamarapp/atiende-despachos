@@ -173,6 +173,7 @@ class TestRoutes:
     def test_generate_balanza(self, client):
         resp = client.post("/contabilidad-electronica/balanza", json={
             "periodo": "2025-01", "ejercicio": 2025, "mes": 1,
+            "rfc": "ABC850101T1A",
             "rows": [{"codigo_cuenta": "1001", "saldo_inicial": 0, "debe": 1000, "haber": 1000, "saldo_final": 0}]
         })
         assert resp.status_code == 200

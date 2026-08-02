@@ -423,7 +423,9 @@ class TestGeneratorCatalogo:
     def test_catalogo_xml_account_attributes(self, sample_catalogo_cuentas):
         """XML contiene los atributos de cuenta correctos."""
         xml = generate_catalogo_xml(sample_catalogo_cuentas, ejercicio=2025)
-        assert 'CodAgrup="101.01.01"' in xml
+        # P1-8: el XSD SAT usa NumCta, no CodAgrup.
+        assert 'NumCta="101.01.01"' in xml
+        assert 'CodAgrup' not in xml
         assert 'Desc="Caja"' in xml
         assert 'Nivel="3"' in xml
         assert 'TipoCta="Activo"' in xml

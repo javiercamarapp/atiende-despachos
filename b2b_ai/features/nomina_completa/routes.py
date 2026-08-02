@@ -61,12 +61,31 @@ def build_nomina_completa_router(require_api_key=None) -> APIRouter:
     """
     from fastapi import Depends as _Depends
     router = APIRouter(prefix="/nomina-completa", tags=["nomina-completa"])
+    _auth_dep = require_api_key  # dependencia de auth (callable) o None
     _auth = [_Depends(require_api_key)] if require_api_key else []
     if _auth:
         router.dependencies.extend(_auth)
 
     # Almacén de nóminas procesadas
     _processed: dict[str, dict] = {}
+
+    def _auth_tenant(auth_info: Optional[dict]) -> Optional[int]:
+        """Extrae el tenant_id del contexto autenticado.
+
+        El tenant de negocio en auth_info puede venir como 'tenant_id'
+        (int) o 'tenant' (str/int). Retorna None si no hay auth.
+        """
+        if not auth_info:
+            return None
+        t = auth_info.get("tenant_id")
+        if t is None:
+            t = auth_info.get("tenant")
+        if t is None:
+            return None
+        try:
+            return int(t)
+        except (TypeError, ValueError):
+            return None
 
     @router.post(
         "/process",
@@ -111,9 +130,17 @@ def build_nomina_completa_router(require_api_key=None) -> APIRouter:
         month: int = Query(..., ge=1, le=12),
         year: int = Query(..., ge=2020),
         tenant_id: Optional[int] = Query(default=None),
+        auth_info: dict = _Depends(_auth_dep) if _auth_dep else None,
     ):
-        """Retorna el recibo de nómina individual de un empleado."""
-        key = f"{tenant_id or 'default'}-{year}-{month:02d}"
+        """Retorna el recibo de nómina individual de un empleado.
+
+        El tenant se deriva SIEMPRE del contexto autenticado (auth_info),
+        no del query param del cliente, para evitar IDOR multi-tenant.
+        """
+        # Resolver el tenant autorizado: auth_info[tenant_id] manda.
+        auth_tenant = _auth_tenant(auth_info)
+        tenant = auth_tenant if auth_tenant is not None else tenant_id
+        key = f"{tenant or 'default'}-{year}-{month:02d}"
         period_data = _processed.get(key)
         if not period_data:
             raise HTTPException(
@@ -152,9 +179,16 @@ def build_nomina_completa_router(require_api_key=None) -> APIRouter:
         month: int = Query(..., ge=1, le=12),
         year: int = Query(..., ge=2020),
         tenant_id: Optional[int] = Query(default=None),
+        auth_info: dict = _Depends(_auth_dep) if _auth_dep else None,
     ):
-        """Retorna el resumen agregado de un periodo de nómina."""
-        key = f"{tenant_id or 'default'}-{year}-{month:02d}"
+        """Retorna el resumen agregado de un periodo de nómina.
+
+        El tenant se deriva SIEMPRE del contexto autenticado (auth_info),
+        no del query param del cliente, para evitar IDOR multi-tenant.
+        """
+        auth_tenant = _auth_tenant(auth_info)
+        tenant = auth_tenant if auth_tenant is not None else tenant_id
+        key = f"{tenant or 'default'}-{year}-{month:02d}"
         period_data = _processed.get(key)
         if not period_data:
             raise HTTPException(

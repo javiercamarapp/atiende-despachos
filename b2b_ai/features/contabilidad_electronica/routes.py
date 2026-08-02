@@ -32,6 +32,7 @@ from b2b_ai.features.contabilidad_electronica.validators import (
     validate_balanza,
     validate_catalogo,
     validate_balanza_totals,
+    validate_rfc,
 )
 
 
@@ -158,6 +159,9 @@ def build_contabilidad_electronica_router(require_api_key=None) -> APIRouter:
         """
         # Validar antes de generar
         errores = validate_balanza(req)
+        # P1-7: el RFC es obligatorio para generar XML válido del SAT.
+        if not (getattr(req, "rfc", None) or "").strip():
+            errores.append("El RFC es obligatorio para generar la balanza.")
         if errores:
             return ContabilidadElectronicaResponse(
                 estado="error",
@@ -165,7 +169,7 @@ def build_contabilidad_electronica_router(require_api_key=None) -> APIRouter:
             )
 
         try:
-            xml = generate_balanza_xml(req)
+            xml = generate_balanza_xml(req, rfc=getattr(req, "rfc", None))
             return ContabilidadElectronicaResponse(
                 estado="generado",
                 xml_content=xml,

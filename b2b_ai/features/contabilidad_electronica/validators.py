@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 
 from b2b_ai.features.contabilidad_electronica.models import (
     BalanzaRequest,
@@ -39,10 +39,63 @@ from b2b_ai.features.contabilidad_electronica.models import (
 _ACCOUNT_CODE_PATTERN = re.compile(r"^[\d.]{1,15}$")
 # Código agrupador SAT: dígitos con puntos (ej: "101.01.01")
 _AGRUPADOR_PATTERN = re.compile(r"^[\d.]+$")
+# RFC mexicano: 12 o 13 caracteres alfanuméricos (personas morales/físicas)
+_RFC_PATTERN = re.compile(r"^[A-ZÑ&0-9]{12,13}$")
 # Nivel válido
 _VALID_LEVELS = set(range(1, 6))
 # Tipos válidos
 _VALID_TIPOS = {t.value for t in TipoCuenta}
+# Regímenes fiscales válidos del SAT (catálogo c_RegimenFiscal)
+_VALID_REGIMENES = {
+    "601", "603", "606", "608", "610", "611", "612", "614", "616",
+    "621", "622", "623", "624", "625", "626", "628", "629", "630",
+    "631", "632", "634", "635", "636",
+}
+
+
+def validate_rfc(rfc: Optional[str]) -> List[str]:
+    """Valida el RFC del contribuyente contra el catálogo del SAT (P1-10).
+
+    Reglas:
+      - Obligatorio (no puede ser vacío): el XSD SAT exige RFC.
+      - Formato: 12-13 caracteres alfanuméricos (morales/físicas).
+
+    Args:
+        rfc: RFC a validar.
+
+    Returns:
+        Lista de errores (vacía si es válido).
+    """
+    errors: List[str] = []
+    if not rfc or not str(rfc).strip():
+        errors.append("El RFC es obligatorio (atributo RFC del XSD SAT).")
+        return errors
+    rfc = str(rfc).strip().upper()
+    if not _RFC_PATTERN.match(rfc):
+        errors.append(
+            f"RFC '{rfc}' inválido. Debe tener 12-13 caracteres alfanuméricos."
+        )
+    return errors
+
+
+def validate_regimen_fiscal(regimen: Optional[str]) -> List[str]:
+    """Valida el régimen fiscal contra el catálogo c_RegimenFiscal del SAT.
+
+    Args:
+        regimen: Código del régimen fiscal (ej: "601").
+
+    Returns:
+        Lista de errores (vacía si es válido).
+    """
+    errors: List[str] = []
+    if not regimen or not str(regimen).strip():
+        return errors  # opcional según el contexto
+    if str(regimen).strip() not in _VALID_REGIMENES:
+        errors.append(
+            f"Régimen fiscal '{regimen}' inválido. Debe ser un código "
+            "del catálogo c_RegimenFiscal del SAT."
+        )
+    return errors
 
 
 # --------------------------------------------------------------------------- #
@@ -73,6 +126,13 @@ def validate_balanza(balanza: BalanzaRequest) -> List[str]:
 
     if balanza.ejercicio < 2000 or balanza.ejercicio > 2100:
         errors.append(f"Ejercicio inválido: {balanza.ejercicio}.")
+
+    # P1-10/P1-7: Validar RFC contra el catálogo del SAT (si se proporciona).
+    # La exigencia de que el RFC esté presente la aplica el endpoint en la
+    # generación (XSD SAT), no aquí, para no romper cargas legacy.
+    balanza_rfc = getattr(balanza, "rfc", None)
+    if balanza_rfc is not None:
+        errors.extend(validate_rfc(balanza_rfc))
 
     # Validar cada fila
     for i, row in enumerate(balanza.rows):

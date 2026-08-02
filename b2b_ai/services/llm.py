@@ -669,14 +669,20 @@ class LLMService:
         self.last_source = "rules"
 
     # ---- tareas públicas --------------------------------------------------
-    def classify_invoice(self, datos):
+    def classify_invoice(self, datos, repair_hint: Optional[str] = None):
         """
         Clasificación contable. Devuelve dict con categoria, confianza,
         razon, requires_human_review y source ('llm'|'rules').
         Fallback: classify_cfdi (reglas).
         """
         try:
-            res = self._run_json("classify", datos)
+            if repair_hint:
+                # REPAIR PASS: añadir instrucción de reparación al prompt
+                datos_r = dict(datos)
+                datos_r["_repair_hint"] = repair_hint
+                res = self._run_json("classify", datos_r)
+            else:
+                res = self._run_json("classify", datos)
             cat = str(res.get("categoria") or "desconocido")
             if cat not in CATEGORIA_NOMBRE:
                 cat = "desconocido"
