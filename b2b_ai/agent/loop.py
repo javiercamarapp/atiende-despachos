@@ -191,8 +191,17 @@ class AgentLoop:
                 self.llm.detect_anomaly, TIMEOUT_LLM, "LLM"
             )(datos)
         except ServiceTimeoutError:
-            anomalia = {"nivel": "normal", "anomalias": [],
-                        "razon": "Timeout en LLM, asumiendo normal"}
+            # FAIL-CLOSED: On LLM timeout, DO NOT assume normal. Escalate to
+            # human review — a false positive is safer than a false negative
+            # that auto-registers a fraudulent/anomalous invoice in the ERP.
+            anomalia = {
+                "nivel": "alerta",
+                "anomalias": [
+                    "Detector de anomalías LLM no disponible (timeout) — "
+                    "requiere revisión humana por precaución."
+                ],
+                "razon": "Timeout en LLM — fail-closed a revisión humana.",
+            }
         self._llm_log(tenant_id, "anomaly", anomalia)
         paso("anomalia", anomalia["nivel"] == "normal",
              anomalia["nivel"])
