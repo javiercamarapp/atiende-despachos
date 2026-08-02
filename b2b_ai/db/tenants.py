@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 import logging
+import os
 
 from b2b_ai.db.db import Database
 from b2b_ai.erp.base import ERPInterface
@@ -37,7 +38,7 @@ CONFIG_DEFAULTS: Dict[str, str] = {
     "erp_type": "contpaqi",       # 'contpaqi' | 'csv' | 'aspel'
     "plantilla_contable": "SAT",  # plantilla de póliza contable
     "notif_channel": "email",     # canal de notificación del agente
-    "notif_recipient": "despacho@b2b-ai.local",
+    "notif_recipient": os.environ.get("B2B_DEFAULT_EMAIL", ""),
     "webhook_url": "",            # URL a la que se notifican los resultados
     "policy_human_review": "hold",  # 'hold' | 'auto_register'
 }

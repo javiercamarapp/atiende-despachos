@@ -24,14 +24,23 @@ from b2b_ai.notifications.sender import EmailSender
 from b2b_ai.services.classify import CATEGORIA_NOMBRE
 
 
-def ensure_tenant(db: "Database", tenant_id: int | None = None, name: str = "Despacho Demo", rfc: str = "") -> int:
-    """Devuelve un tenant_id existente (o crea el default)."""
+def ensure_tenant(db: "Database", tenant_id: int | None = None, name: str = "", rfc: str = "") -> int:
+    """Devuelve un tenant_id existente (o crea el default).
+
+    AG-03: In production, tenant_id must be provided explicitly.
+    Auto-creation of demo tenants only works when B2B_ENV is a dev value.
+    """
     if tenant_id is not None:
         return tenant_id
+    import os as _os
+    if _os.environ.get("B2B_ENV", "").strip().lower() not in ("dev", "development", "test", "testing", "local"):
+        raise ValueError(
+            "tenant_id is required in production. "
+            "Pass tenant_id explicitly or set B2B_ENV=dev for demo mode.")
     tenants = db.list_tenants()
     if tenants:
         return tenants[0]["id"]
-    return db.create_tenant(name, rfc)
+    return db.create_tenant(name or "Despacho Demo", rfc)
 
 
 def _tool(name: str, logger_: "ToolCallLogger", tenant_id: int, **kwargs) -> dict:
@@ -174,7 +183,7 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
                 "uuid": datos.get("folio_fiscal", ""),
             }
             notif = _tool("send_notification", logger_, tenant_id,
-                          event_type=event, to="despacho@b2b-ai.local",
+                          event_type=event, to=os.environ.get("B2B_DEFAULT_EMAIL", ""),
                           context=ctx, email=email or EmailSender())
         elif erp_res.get("status") == "pending_approval":
             # [33] Factura pendiente de aprobación: notificar que NO se registró.
@@ -188,7 +197,7 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
                 "uuid": datos.get("folio_fiscal", ""),
             }
             notif = _tool("send_notification", logger_, tenant_id,
-                          event_type=event, to="despacho@b2b-ai.local",
+                          event_type=event, to=os.environ.get("B2B_DEFAULT_EMAIL", ""),
                           context=ctx, email=email or EmailSender())
         elif validacion.get("ok"):
             event = "invoice_processed"
@@ -206,12 +215,12 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
                              else ""),
             }
             notif = _tool("send_notification", logger_, tenant_id,
-                          event_type=event, to="despacho@b2b-ai.local",
+                          event_type=event, to=os.environ.get("B2B_DEFAULT_EMAIL", ""),
                           context=ctx, email=email or EmailSender())
             if db is not None:
                 db.insert_notification(tenant_id, event,
                                        notif.get("status") == "sent" and "email" or "email",
-                                       "despacho@b2b-ai.local",
+                                       os.environ.get("B2B_DEFAULT_EMAIL", ""),
                                        notif.get("subject", ""),
                                        notif.get("message", ""),
                                        status=notif.get("status", "sent"))

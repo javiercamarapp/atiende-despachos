@@ -9,6 +9,7 @@ configura `host/port/user/password` y se envía por SMTP_SSL/SMTP.
 """
 from __future__ import annotations
 
+import os
 import smtplib
 import ssl
 from email.mime.text import MIMEText
@@ -17,7 +18,7 @@ from email.mime.multipart import MIMEMultipart
 
 class EmailSender:
     def __init__(self, host=None, port=465, user=None, password=None,
-                 from_addr="agente@b2b-ai.local", use_ssl=True):
+                 from_addr=os.environ.get("B2B_DEFAULT_EMAIL", ""), use_ssl=True):
         self.host = host
         self.port = port
         self.user = user

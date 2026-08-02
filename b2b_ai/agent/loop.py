@@ -43,6 +43,7 @@ from b2b_ai.tools.logger import logger
 import b2b_ai.tools.tools  # noqa: F401  (registra las tools del agente)
 from b2b_ai.notifications.sender import EmailSender
 from b2b_ai.monitoring.logger import mask_pii as _mask_pii
+from b2b_ai.auth.middleware import _is_dev_env
 
 # Confidence threshold for auto-processing invoices
 DEFAULT_CONFIDENCE_THRESHOLD = 0.7
@@ -87,7 +88,7 @@ class AgentLoop:
         if not self.notify:
             return {"status": "skipped"}
         cfg = self.tenants.get_config(tenant_id)
-        to = cfg.get("notif_recipient", "despacho@b2b-ai.local")
+        to = cfg.get("notif_recipient", "") or os.environ.get("B2B_DEFAULT_EMAIL", "")
         try:
             return self._call("send_notification", tenant_id,
                               event_type=event, to=to, context=context,
@@ -256,6 +257,14 @@ class AgentLoop:
             }
             notif = self._send(tenant_id, evento, ctx, channel)
 
+        # AG-01: Record agent processing metrics (confidence + success)
+        try:
+            from b2b_ai.monitoring.metrics import record_agent_processing
+            record_agent_processing(
+                confianza, decision == "auto_processed")
+        except Exception:  # noqa: BLE001 — metrics never break the pipeline
+            pass
+
         if decision == "needs_review":
             review_id = self._escalate(tenant_id, inv_id, review_reason)
 
@@ -279,6 +288,12 @@ class AgentLoop:
         if tenant_id is not None:
             self.tenants.get_tenant(tenant_id)  # valida existencia
             return tenant_id
+        # AG-03: In production, require explicit tenant_id instead of
+        # auto-creating a demo tenant.
+        if not _is_dev_env():
+            raise ValueError(
+                "tenant_id is required in production. "
+                "Pass tenant_id explicitly or set B2B_ENV=dev for demo mode.")
         tenants = self.db.list_tenants()
         if tenants:
             return tenants[0]["id"]

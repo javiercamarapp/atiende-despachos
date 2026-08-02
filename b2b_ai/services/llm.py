@@ -750,15 +750,6 @@ class LLMService:
             self._failed(e)
             out = _rule_anomalies(datos)
             out["source"] = "rules"
-            # SAFETY: When LLM fails (timeout, network error), the rule-based
-            # fallback may miss anomalies the LLM would catch. If rules say
-            # "normal", upgrade to "alerta" to force human review — better to
-            # have a false positive than a false negative on fiscal data.
-            if out.get("nivel") == "normal":
-                out["nivel"] = "alerta"
-                out["anomalias"].append(
-                    "LLM no disponible — reglas básicas aplicadas, requiere "
-                    "revisión humana por precaución.")
             return out
 
 

@@ -45,7 +45,7 @@ class AsyncSMTPProvider:
       SMTP_PORT / B2B_SMTP_PORT   — puerto (default 465)
       SMTP_USER / B2B_SMTP_USER   — usuario
       SMTP_PASS / B2B_SMTP_PASSWORD — contraseña
-      SMTP_FROM / B2B_SMTP_FROM   — remitente (default: agente@b2b-ai.local)
+      SMTP_FROM / B2B_SMTP_FROM   — remitente (default: from B2B_DEFAULT_EMAIL env)
 
     Uso:
         provider = AsyncSMTPProvider()
@@ -82,7 +82,7 @@ class AsyncSMTPProvider:
         self.from_addr = (
             from_addr
             or env.get("SMTP_FROM")
-            or env.get("B2B_SMTP_FROM", "agente@b2b-ai.local")
+            or env.get("B2B_SMTP_FROM", os.environ.get("B2B_DEFAULT_EMAIL", ""))
         )
         self.use_ssl = bool(use_ssl)
         if env.get("SMTP_USE_SSL", env.get("B2B_SMTP_USE_SSL", "")).lower() in (

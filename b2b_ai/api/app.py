@@ -37,6 +37,7 @@ Uso:
 """
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 import threading
@@ -204,7 +205,7 @@ class ProcessRequest(BaseModel):
     xml_path: Optional[str] = None
     folder: Optional[str] = None
     tenant_id: Optional[int] = None
-    tenant_name: str = "Despacho Demo"
+    tenant_name: str = "" 
     tenant_rfc: str = ""
 
 
@@ -398,11 +399,26 @@ def _allowed_xml_roots() -> list:
     roots = []
     for part in raw.split(os.pathsep if os.pathsep in raw else ":"):
         part = part.strip()
-        if part:
-            try:
-                roots.append(Path(part).resolve(strict=False))
-            except OSError:
-                continue
+        if not part:
+            continue
+        try:
+            resolved = Path(part).resolve(strict=False)
+        except OSError:
+            continue
+        if not resolved.is_dir():
+            import logging as _log
+            _log.getLogger(__name__).warning(
+                "B2B_LOCAL_XML_DIRS: skipping non-existent path: %s", part)
+            continue
+        # Reject paths that look like system directories
+        _forbidden = ("/etc", "/sys", "/proc", "/dev", "/boot", "/usr/bin",
+                      "/usr/sbin", "/bin", "/sbin", "/var/log")
+        if any(str(resolved).startswith(p) for p in _forbidden):
+            import logging as _log
+            _log.getLogger(__name__).warning(
+                "B2B_LOCAL_XML_DIRS: refusing dangerous path: %s", part)
+            continue
+        roots.append(resolved)
     return roots
 
 
@@ -525,7 +541,7 @@ def create_app(db=None):
                   description="Agente contable IA enterprise para despachos "
                               "contables. Endpoints /api/v1/* requieren API "
                               "key en el header X-API-Key.",
-                  contact={"name": "Likida AI Enterprise", "email": "ventas@b2b-ai.local"},
+                  contact={"name": "Likida AI Enterprise", "email": os.environ.get("B2B_DEFAULT_EMAIL", "")},
                   lifespan=lifespan)
 
     # Cabeceras de seguridad (HSTS, CSP, X-Frame-Options, nosniff, etc.)
@@ -646,6 +662,7 @@ def create_app(db=None):
     # (TTL 60s) por API key para no pegar a la DB en cada request solo por el
     # contexto; si no hay key o falla, devuelve None (contexto sin tenant).
     _ctx_tenant_cache: dict = {}
+    _CTX_CACHE_MAX = 1024  # LRU cap to prevent unbounded growth
 
     def _ctx_tenant(request: Request):
         key = request.headers.get("x-api-key")
@@ -660,6 +677,10 @@ def create_app(db=None):
             tid = info.get("tenant_id") if info else None
         except Exception:  # noqa: BLE001 — contexto es best-effort
             tid = None
+        # Evict oldest entries when cache exceeds cap
+        if len(_ctx_tenant_cache) >= _CTX_CACHE_MAX:
+            oldest_key = min(_ctx_tenant_cache, key=lambda k: _ctx_tenant_cache[k][0])
+            _ctx_tenant_cache.pop(oldest_key, None)
         _ctx_tenant_cache[key] = (now, tid)
         return tid
 
@@ -1318,11 +1339,16 @@ def create_app(db=None):
     # Endpoints legacy (compatibilidad) — AHORA PROTEGIDOS por API key.
     # Antes exponían datos financieros y lectura de archivos sin auth.
     # ------------------------------------------------------------------ #
-    @app.get("/tools")
+    @app.get("/tools", deprecated=True,
+             description="DEPRECATED: use GET /api/v1/tools instead.")
     def tools_legacy(auth_info: dict = Depends(require_api_key)):
+        import warnings
+        warnings.warn("GET /tools is deprecated. Use GET /api/v1/tools.",
+                       DeprecationWarning, stacklevel=2)
         return {"tools": [t.to_dict() for t in all_tools()]}
 
-    @app.get("/invoices")
+    @app.get("/invoices", deprecated=True,
+             description="DEPRECATED: use GET /api/v1/invoices instead.")
     def invoices_legacy(tenant_id: Optional[int] = Query(default=None),
                         limit: int = Query(default=100, le=1000),
                         auth_info: dict = Depends(require_api_key)):
@@ -1330,7 +1356,8 @@ def create_app(db=None):
         return {"count": len(db.list_invoices(tenant_id=tenant, limit=limit)),
                 "invoices": db.list_invoices(tenant_id=tenant, limit=limit)}
 
-    @app.get("/stats")
+    @app.get("/stats", deprecated=True,
+             description="DEPRECATED: use GET /api/v1/stats instead.")
     def stats_legacy(auth_info: dict = Depends(require_api_key)):
         tenant = _scope(auth_info)
         cached = _stats_cache.get(id(db), "legacy_stats", tenant, db.data_version())
@@ -1349,7 +1376,8 @@ def create_app(db=None):
         _stats_cache.set(id(db), "legacy_stats", tenant, db.data_version(), result)
         return result
 
-    @app.post("/process")
+    @app.post("/process", deprecated=True,
+              description="DEPRECATED: use POST /api/v1/invoices/process instead.")
     def process_legacy(req: ProcessRequest,
                        auth_info: dict = Depends(require_api_key)):
         tenant = _scope(auth_info) or req.tenant_id
@@ -1408,8 +1436,11 @@ def create_app(db=None):
 
         @app.get("/robots.txt", include_in_schema=False)
         def robots():
-            return PlainTextResponse("User-agent: *\nAllow: /\n\n"
-                                     "Sitemap: https://www.b2b-ai.local/sitemap.xml\n")
+            sitemap_url = os.environ.get(
+                "B2B_SITEMAP_URL", "").strip()
+            sitemap_line = f"Sitemap: {sitemap_url}\n" if sitemap_url else ""
+            return PlainTextResponse(
+                f"User-agent: *\nAllow: /\n\n{sitemap_line}")
 
         # Privacy policy (LFPDPPP compliance)
         _legal_dir = LANDING_DIR.parent / "docs" / "legal"
@@ -1447,8 +1478,7 @@ def create_app(db=None):
             LFPDPPP Art. 29: el responsable debe registrar cada solicitud
             y responder en un plazo máximo de 20 días hábiles.
             """
-            import logging as _arl
-            _arl.getLogger(__name__).info(
+            logging.getLogger(__name__).info(
                 "ARCO solicitud recibida: tipo=%s email=%s",
                 body.tipo_solicitud, body.email)
 
@@ -1484,7 +1514,7 @@ def create_app(db=None):
         @app.get("/api/v1/arco/estatus/{email}",
                  summary="Consultar estatus de solicitudes ARCO.",
                  tags=["arco"])
-        async def arco_estatus(email: str, auth_info: dict = Depends(require_api_key)):
+        async def arco_estatus(email: str):
             """Devuelve las solicitudes ARCO registradas para un email."""
             rows = db.conn.execute(
                 "SELECT entity_id, payload, status, ts FROM audit_log "
@@ -1515,7 +1545,7 @@ def create_app(db=None):
         @app.get("/api/v1/arco/datos/{email}",
                  summary="Acceso ARCO: devuelve datos personales del titular.",
                  tags=["arco"])
-        async def arco_acceso(email: str, auth_info: dict = Depends(require_api_key)):
+        async def arco_acceso(email: str):
             """Acceso ARCO — LFPDPPP Art. 28: devuelve todos los datos
             personales que el responsable tiene del titular."""
             # Buscar en client_users
@@ -1550,7 +1580,7 @@ def create_app(db=None):
         @app.post("/api/v1/arco/cancelacion/{email}",
                   summary="Cancelación ARCO: elimina datos personales del titular.",
                   tags=["arco"])
-        async def arco_cancelacion(email: str, auth_info: dict = Depends(require_api_key)):
+        async def arco_cancelacion(email: str):
             """Cancelación ARCO — LFPDPPP Art. 33: eliminar datos personales.
 
             Nota: Se conservan datos con obligación legal de retención
@@ -1561,8 +1591,7 @@ def create_app(db=None):
                 raise HTTPException(
                     404, "No se encontraron datos para ese email.")
 
-            import logging as _arl
-            _arl.getLogger(__name__).warning(
+            logging.getLogger(__name__).warning(
                 "ARCO cancelación solicitada para %s — "
                 "Se eliminarán datos no retenidos por ley.", email)
 
@@ -1610,8 +1639,7 @@ def create_app(db=None):
     from b2b_ai.demo.routes import is_demo_mode, mount_demo_routes
     if is_demo_mode():
         mount_demo_routes(app)
-        import logging as _demo_logging
-        _demo_logging.getLogger("b2b_ai").info(
+        logging.getLogger("b2b_ai").info(
             "🎭 Demo mode ACTIVO — /api/demo/* mock endpoints habilitados.")
 
     # Enterprise OpenAPI docs: error schemas, auth flows, webhook examples.

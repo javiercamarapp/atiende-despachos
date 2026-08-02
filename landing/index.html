@@ -700,7 +700,7 @@ ul { list-style: none; }
       <p class="section-desc center">Mira cómo nuestros agentes capturan, validan y concilian — de extremo a extremo, en tiempo real.</p>
     </div>
     <div class="video-wrapper reveal">
-      <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Likida AI Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+      <iframe src="about:blank" data-video-url="https://www.youtube.com/embed/REPLACE_WITH_REAL_DEMO_VIDEO" title="Likida AI Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
     </div>
   </div>
 </section>
@@ -712,7 +712,8 @@ ul { list-style: none; }
       <h2 class="section-title">¿Listo para recuperar tus horas?</h2>
       <p class="section-desc center" style="color:#9ca3af;">Agenda una demo personalizada. Te mostramos cómo Likida AI puede automatizar tu despacho en menos de 7 días.</p>
     </div>
-    <form class="cta-form reveal">
+    <form class="cta-form reveal" id="leadForm">
+      <input type="hidden" name="_csrf" id="csrfToken" value="">
       <input type="text" name="name" placeholder="Nombre completo" required>
       <input type="email" name="email" placeholder="Correo electrónico" required>
       <input type="text" name="company" placeholder="Nombre del despacho o empresa">
@@ -745,20 +746,20 @@ ul { list-style: none; }
         <h4>Empresa</h4>
         <a href="#pricing">Pricing</a>
         <a href="#contact">Contact</a>
-        <a href="#">Blog</a>
-        <a href="#">Careers</a>
+        <a href="#platform">Blog</a>
+        <a href="#contact">Careers</a>
       </div>
       <div class="footer-col">
         <h4>Contacto</h4>
         <a href="mailto:hola@likida.ai">hola@likida.ai</a>
-        <a href="#">Instagram</a>
-        <a href="#">LinkedIn</a>
-        <a href="#">X (Twitter)</a>
+        <a href="https://instagram.com/likidaai" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://linkedin.com/company/likidaai" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://x.com/likidaai" target="_blank" rel="noopener">X (Twitter)</a>
       </div>
     </div>
     <div class="footer-bottom">
       <p>&copy; 2025 Likida AI. Todos los derechos reservados.</p>
-      <p><a href="#" style="color:#9ca3af;">Aviso de Privacidad</a></p>
+      <p><a href="/legal/privacy" style="color:#9ca3af;">Aviso de Privacidad</a></p>
     </div>
   </div>
 </footer>

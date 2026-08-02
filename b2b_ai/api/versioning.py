@@ -30,7 +30,7 @@ VERSION_REGISTRY: dict[str, dict] = {
         "sunset_date": "2027-01-01",
         "message": (
             "API v1 is deprecated and will be removed on 2027-01-01. "
-            "Please migrate to v2. See https://docs.b2b-ai.local/migration/v1-to-v2"
+            "Please migrate to v2. See https://docs.likida.ai/migration/v1-to-v2"
         ),
     },
     "v2": {

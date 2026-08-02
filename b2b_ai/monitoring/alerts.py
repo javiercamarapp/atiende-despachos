@@ -155,7 +155,7 @@ class EmailChannel:
             from email.mime.text import MIMEText
             msg = MIMEText(json.dumps(alert.to_dict(), indent=2), "plain", "utf-8")
             msg["Subject"] = subject
-            msg["From"] = os.environ.get("B2B_SMTP_FROM", "monitor@b2b-ai.local")
+            msg["From"] = os.environ.get("B2B_SMTP_FROM", os.environ.get("B2B_DEFAULT_EMAIL", ""))
             msg["To"] = self.to
             with smtplib.SMTP(host, port, timeout=10) as s:
                 user = os.environ.get("B2B_SMTP_USER")

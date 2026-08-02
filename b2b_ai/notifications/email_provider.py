@@ -44,7 +44,7 @@ class EmailProvider:
         self.user = user or env.get("B2B_SMTP_USER")
         self.password = password or env.get("B2B_SMTP_PASSWORD")
         self.from_addr = from_addr or env.get(
-            "B2B_SMTP_FROM", "agente@b2b-ai.local")
+            "B2B_SMTP_FROM", os.environ.get("B2B_DEFAULT_EMAIL", ""))
         self.use_ssl = bool(use_ssl)
         if env.get("B2B_SMTP_USE_SSL", "").lower() in ("0", "false", "no"):
             self.use_ssl = False

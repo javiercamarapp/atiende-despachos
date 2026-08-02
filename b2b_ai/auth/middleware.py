@@ -36,7 +36,9 @@ from fastapi import Depends, Header, HTTPException, Request
 from b2b_ai.auth.roles import has_permission
 
 # In-memory token blacklist (JTI -> expiry timestamp).
-# In production, replace with Redis SET with TTL or DB table.
+# TODO: production MUST replace this with a Redis SET with TTL or a DB table.
+#       In-memory blacklist does not survive restarts and is not shared across
+#       replicas. Use B2B_REDIS_URL to enable Redis-backed blacklist.
 _token_blacklist: Dict[str, float] = {}
 
 # TTLs por tipo de token (segundos), ajustables por env.

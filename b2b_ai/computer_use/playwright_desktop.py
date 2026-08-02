@@ -38,7 +38,6 @@ import hashlib
 import logging
 import os
 import uuid
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -95,17 +94,6 @@ async def _retry_async(
                     attempt, operation, exc,
                 )
     raise last_exc  # type: ignore[misc]
-
-
-@dataclass
-class PlaywrightDesktopConfig:
-    """Configuration for PlaywrightDesktop instances."""
-    headless: bool = True
-    navigation_timeout_ms: int = 30000
-    action_timeout_ms: int = 10000
-    max_retries: int = 3
-    allowed_hosts: tuple = ()
-    allow_private_hosts: bool = True
 
 
 class PlaywrightDesktop(DesktopAutomation):

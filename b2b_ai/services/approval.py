@@ -28,6 +28,7 @@ CFF Art. 17-D (e.firma) y buenas prácticas de control interno (Código de
 from __future__ import annotations
 
 from datetime import datetime
+import os
 from typing import Any, Dict, List, Optional
 
 DEFAULT_AUTO_THRESHOLD = 50000  # $50,000 MXN
@@ -115,12 +116,14 @@ class ApprovalManager:
             return {"status": "queued", "channel": "none", "message": text}
         # WhatsApp mock y EmailSender comparten la firma send_message/send.
         if hasattr(self.notifier, "send_message"):
-            res = self.notifier.send_message("aprobaciones@b2b-ai.local", text,
+            _default_to = os.environ.get("B2B_DEFAULT_EMAIL", "")
+            res = self.notifier.send_message(_default_to, text,
                                              template_name="approval_required")
             return {"status": res.get("status", "sent"), "channel": "whatsapp",
                     "message": text, "detail": res}
         if hasattr(self.notifier, "send"):
-            res = self.notifier.send("despacho@b2b-ai.local",
+            _default_to = os.environ.get("B2B_DEFAULT_EMAIL", "")
+            res = self.notifier.send(_default_to,
                                      "Aprobación pendiente de factura", text)
             return {"status": res.get("status", "sent"), "channel": "email",
                     "message": text, "detail": res}
