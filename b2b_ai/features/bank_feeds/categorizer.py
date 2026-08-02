@@ -25,10 +25,13 @@ Uso:
 """
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Callable, Dict, List, Optional, Pattern, Tuple, Union
 
 from b2b_ai.features.bank_feeds.models import Category, Transaction, TransactionType
+
+logger = logging.getLogger("b2b_ai.bank_feeds")
 
 # ---------------------------------------------------------------------------
 # Reglas por defecto: (patrón regex insensible, categoría)
@@ -183,11 +186,34 @@ class TransactionCategorizer:
         """
         category = self._classify_rule_based(txn)
         if category is None and self.llm_router is not None:
+            logger.info("categorizer: no rule matched, invoking llm_router")
             candidate = self.llm_router(txn)
             category = self._coerce_category(candidate)
+            if category is not None:
+                logger.info("categorizer: llm_router matched rule -> %s", category.value)
         if category is None:
             category = self.default_category
+            logger.info("categorizer: no rule matched, default -> %s", category.value)
         return category.value if isinstance(category, Category) else str(category)
+
+    def classify_with_llm(self, txn: Any) -> str:
+        """Clasifica una transacción mediante un LLM (futuro).
+
+        Slot reservado para la integración con un modelo de lenguaje que
+        categorice transacciones que las reglas deterministas no alcanzan.
+
+        .. warning::
+            Aún no implementado. Lanza :class:`NotImplementedError` hasta que
+            el router LLM esté disponible en producción. La categorización
+            actual es 100% determinista (rule-based).
+
+        Args:
+            txn: la transacción a clasificar (:class:`Transaction` o dict).
+
+        Raises:
+            NotImplementedError: siempre, por diseño.
+        """
+        raise NotImplementedError("Future LLM integration")
 
     def _classify_rule_based(self, txn: Any) -> Optional[Category]:
         # 1) Regla por RFC (mayor prioridad)
@@ -195,30 +221,38 @@ class TransactionCategorizer:
         description = _lower(_get_field(txn, "description"))
         for rfc, cat in self._rfc_rules.items():
             if counterparty and (rfc == counterparty or rfc in counterparty):
+                logger.info("categorizer: matched RFC rule rfc=%s -> %s", rfc, cat.value)
                 return cat
             if rfc.lower() in description:
+                logger.info("categorizer: matched RFC rule (in description) rfc=%s -> %s", rfc, cat.value)
                 return cat
 
-        # 2) Reglas por monto (absoluto)
+        # 2) Palabras clave sobre descripción/referencia
+        reference = _lower(_get_field(txn, "reference"))
+        text = f"{description} {reference}"
+        for pattern, cat in self._keyword_rules:
+            if pattern.search(text):
+                logger.info("categorizer: matched keyword rule pattern=%r -> %s", pattern.pattern, cat.value)
+                return cat
+
+        # 3) Reglas por monto (absoluto)
         amount = _coerce_amount(_get_field(txn, "amount"))
         if amount is not None:
             for cat, lo, hi in self._amount_rules:
                 amt = abs(amount)
                 if (lo is None or amt >= lo) and (hi is None or amt <= hi):
+                    logger.info(
+                        "categorizer: matched amount rule range=[%s,%s] amount=%s -> %s",
+                        lo, hi, amt, cat.value,
+                    )
                     return cat
-
-        # 3) Palabras clave sobre descripción/referencia
-        reference = _lower(_get_field(txn, "reference"))
-        text = f"{description} {reference}"
-        for pattern, cat in self._keyword_rules:
-            if pattern.search(text):
-                return cat
 
         # 4) Pista de canal
         channel = _get_field(txn, "channel")
         if channel is not None:
             ch_key = str(channel).upper().replace(" ", "_")
             if ch_key in self._channel_hints:
+                logger.info("categorizer: matched channel hint channel=%s -> %s", ch_key, self._channel_hints[ch_key].value)
                 return self._channel_hints[ch_key]
 
         return None

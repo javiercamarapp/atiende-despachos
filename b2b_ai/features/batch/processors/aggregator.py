@@ -1,22 +1,37 @@
 # -*- coding: utf-8 -*-
 """
-aggregator.py — Agregación de resultados batch de CFDIs.
+aggregator.py — Agregación de resultados batch de CFDIs (clase BatchAggregator).
 
-Convierte una colección de resultados individuales (parseos o BatchItems)
-en un resumen agregado: total procesado, fallidos, suma de montos y un
-desglose por RFC emisor/receptor.
+Convierte una colección de resultados individuales (parseos de CFDIs) en un
+resumen agregado: total procesado, fallidos, suma de montos y un desglose por
+RFC emisor (items_by_rfc) con conteos y totales. Opcionalmente acepta un
+desglose por categoría si los resultados llevan la clave ``category``.
 
-Es independiente del servicio batch: trabaja sobre dicts normalizados
-(la salida de :mod:`bulk_parser`) o sobre objetos :class:`BatchItem`.
+La clase ``BatchAggregator`` es la API principal (entregable):
+
+    agg = BatchAggregator()
+    report = agg.aggregate(results)   # results: list[dict]
+
+Las funciones helper (``aggregate_results``, ``summarize_batch_job``) se
+conservan por compatibilidad con el test existente.
 """
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 from b2b_ai.features.batch.models import BatchItem, BatchItemStatus
 
+logger = logging.getLogger("b2b_ai.batch.processors.aggregator")
+
 DEFAULT_EMPTY_RFC = "(sin rfc)"
+DEFAULT_EMPTY_CATEGORY = "(sin categoría)"
+
+
+# ---------------------------------------------------------------------------
+# Helpers de extracción (compartidos)
+# ---------------------------------------------------------------------------
 
 
 def _rfc_from_result(result: Optional[dict]) -> str:
@@ -34,8 +49,6 @@ def _rfc_fill(result: Optional[dict]) -> dict:
     """Devuelve el dict manteniendo rfc_emisor en el resultado (no-op safe)."""
     if not isinstance(result, dict):
         return {}
-    # Ya incluye rfc_emisor en la forma de bulk_parser; de lo contrario lo
-    # derivamos de emisor.rfc para que _rfc_from_result lo encuentre.
     out = dict(result)
     if not out.get("rfc_emisor"):
         emisor = out.get("emisor") or {}
@@ -52,6 +65,31 @@ def _total_from_result(result: Optional[dict]) -> float:
         return float(total) if total is not None else 0.0
     except (TypeError, ValueError):
         return 0.0
+
+
+def _category_from_result(result: Optional[dict]) -> str:
+    """Extrae la categoría de un resultado (o el bucket vacío)."""
+    if not isinstance(result, dict):
+        return DEFAULT_EMPTY_CATEGORY
+    cat = result.get("category")
+    if cat is None or str(cat).strip() == "":
+        return DEFAULT_EMPTY_CATEGORY
+    return str(cat).strip()
+
+
+def _is_success(entry: dict, key: str = "parsed") -> bool:
+    """Determina si una entrada del lote se cuenta como procesada OK."""
+    ok = entry.get("ok")
+    if ok is not None:
+        return bool(ok)
+    # Entrada "desnuda": es un resultado parseado directamente.
+    return isinstance(entry.get(key), dict) or _total_from_result(entry) != 0.0 \
+        or bool(entry.get("rfc_emisor"))
+
+
+# ---------------------------------------------------------------------------
+# Funciones helper (compatibilidad con test_batch_processors.py)
+# ---------------------------------------------------------------------------
 
 
 def aggregate_results(
@@ -117,8 +155,6 @@ def summarize_batch_job(job: Any) -> Dict[str, Any]:
         if not isinstance(item, BatchItem):
             continue
         ok = item.status in (BatchItemStatus.SUCCESS,)
-        # El resultado normalizado (item.result) no expone "total" a nivel raíz
-        # (vive en comprobante.total); usamos item.total para el monto.
         parsed = item.result if isinstance(item.result, dict) else None
         if ok and item.total is not None:
             entries.append({"ok": True, "parsed": {**_rfc_fill(parsed), "total": item.total}})
@@ -126,9 +162,116 @@ def summarize_batch_job(job: Any) -> Dict[str, Any]:
             entries.append({"ok": ok, "parsed": parsed, "error": item.error})
 
     summary = aggregate_results(entries, key="parsed")
-    # Reconciliar con contadores oficiales del job si los tiene.
     if hasattr(job, "success_count"):
         summary["processed"] = job.success_count
     if hasattr(job, "failed_count"):
         summary["failed"] = job.failed_count
     return summary
+
+
+# ---------------------------------------------------------------------------
+# BatchAggregator — API de clase (entregable)
+# ---------------------------------------------------------------------------
+
+
+class BatchAggregator:
+    """Agrega resultados individuales de CFDIs en un resumen agregado.
+
+    Trabaja sobre dicts normalizados (la salida de :class:`BulkCfdiParser`)
+    o sobre la forma ``{ok, parsed, error}`` del lote. Soporta un desglose
+    opcional por categoría si los resultados llevan la clave ``category``.
+    """
+
+    def aggregate(
+        self,
+        results: List[Dict[str, Any]],
+        key: str = "parsed",
+    ) -> Dict[str, Any]:
+        """Agrega una lista de resultados a un reporte agregado.
+
+        Params:
+            results: lista de dicts. Cada entrada puede ser:
+                - la forma desnuda del parseo (con rfc_emisor/total/category),
+                  contada como procesada, o
+                - la forma ``{ok, parsed, error}`` del lote (con
+                  ``ok=False`` se cuenta como fallida).
+            key: campo que contiene el parseo normalizado (para la forma
+                ``{ok, parsed}``).
+
+        Returns:
+            dict:
+                {
+                    "total_processed": int,
+                    "total_failed": int,
+                    "items_by_rfc": {rfc: {"count": int, "total": float}},
+                    "summary": {
+                        "total": int,
+                        "processed": int,
+                        "failed": int,
+                        "total_amount": float,
+                    },
+                }
+            Si algún resultado trae la clave ``category``, además incluye:
+                {
+                    "items_by_category": {cat: {"count": int, "total": float}},
+                }
+        """
+        total_processed = 0
+        total_failed = 0
+        total_amount = 0.0
+
+        items_by_rfc: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"count": 0, "total": 0.0})
+        has_category = any(
+            isinstance(r, dict)
+            and (
+                "category" in r
+                or (
+                    isinstance(r.get(key), dict)
+                    and "category" in r.get(key)
+                )
+            )
+            for r in results
+        )
+        items_by_category: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {"count": 0, "total": 0.0}
+        )
+
+        for entry in results:
+            if not isinstance(entry, dict):
+                total_failed += 1
+                continue
+
+            ok = _is_success(entry, key=key)
+            if not ok:
+                total_failed += 1
+                continue
+
+            total_processed += 1
+            parsed = entry.get(key) if isinstance(entry.get(key), dict) else entry
+            rfc = _rfc_from_result(parsed)
+            amount = _total_from_result(parsed)
+            total_amount += amount
+
+            items_by_rfc[rfc]["count"] += 1
+            items_by_rfc[rfc]["total"] += amount
+
+            if has_category:
+                cat = _category_from_result(parsed)
+                items_by_category[cat]["count"] += 1
+                items_by_category[cat]["total"] += amount
+
+        report: Dict[str, Any] = {
+            "total_processed": total_processed,
+            "total_failed": total_failed,
+            "items_by_rfc": dict(items_by_rfc),
+            "summary": {
+                "total": total_processed + total_failed,
+                "processed": total_processed,
+                "failed": total_failed,
+                "total_amount": round(total_amount, 2),
+            },
+        }
+        if has_category:
+            report["items_by_category"] = dict(items_by_category)
+
+        return report

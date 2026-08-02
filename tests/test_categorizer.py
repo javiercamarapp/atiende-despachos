@@ -201,3 +201,76 @@ class TestServiceIntegration:
         custom.add_rfc_rule("PAP850101JKL", Category.COMPRAS)
         set_categorizer(custom)
         assert get_categorizer() is custom
+
+
+# ---------------------------------------------------------------------------
+# Slot LLM futuro
+# ---------------------------------------------------------------------------
+
+
+class TestFutureLlmSlot:
+    def test_classify_with_llm_raises_not_implemented(self):
+        cat = TransactionCategorizer()
+        with pytest.raises(NotImplementedError) as excinfo:
+            cat.classify_with_llm(txn(description="algo"))
+        assert "Future LLM integration" in str(excinfo.value)
+
+    def test_classify_with_llm_is_method_slot(self):
+        # El método existe y es llamable, solo aún no implementado.
+        assert callable(TransactionCategorizer.classify_with_llm)
+
+
+# ---------------------------------------------------------------------------
+# Orden de prioridad: RFC > keyword > amount > default
+# ---------------------------------------------------------------------------
+
+
+class TestPriorityOrder:
+    def test_keyword_before_amount(self):
+        # Configurar keyword (SERVICIOS para "renta") y amount (NOMINA >= 10000).
+        cat = TransactionCategorizer()
+        cat.add_keyword_rule(r"renta", Category.SERVICIOS)
+        cat.add_amount_rule(Category.NOMINA, min_amount=10000.0)
+        # Ambos aplicarían, pero la keyword gana por prioridad (spec).
+        result = cat.categorize_transaction(txn(description="Renta mensual", amount=15000.0))
+        assert result == "SERVICIOS"
+
+    def test_rfc_beats_keyword_and_amount(self):
+        cat = TransactionCategorizer()
+        cat.add_rfc_rule("PAP850101JKL", Category.COMPRAS)
+        cat.add_keyword_rule(r"renta", Category.SERVICIOS)
+        cat.add_amount_rule(Category.NOMINA, min_amount=10000.0)
+        result = cat.categorize_transaction(txn(
+            description="Renta oficina",
+            counterparty="PAP850101JKL",
+            amount=15000.0,
+        ))
+        assert result == "COMPRAS"
+
+    def test_default_when_no_rule(self):
+        cat = TransactionCategorizer()
+        assert cat.categorize_transaction(txn(description="concepto desconocido")) == "OTROS"
+
+
+# ---------------------------------------------------------------------------
+# Observabilidad: logging de la regla que hizo match
+# ---------------------------------------------------------------------------
+
+
+class TestObservability:
+    def test_logs_matched_rule(self, caplog):
+        import logging
+        cat = TransactionCategorizer()
+        with caplog.at_level(logging.INFO, logger="b2b_ai.bank_feeds"):
+            cat.categorize_transaction(txn(description="Pago de nomina quincenal"))
+        records = [r.getMessage() for r in caplog.records]
+        assert any("matched keyword rule" in m and "NOMINA" in m for m in records)
+
+    def test_logs_rfc_rule(self, caplog):
+        import logging
+        cat = TransactionCategorizer()
+        cat.add_rfc_rule("PAP850101JKL", Category.COMPRAS)
+        with caplog.at_level(logging.INFO, logger="b2b_ai.bank_feeds"):
+            cat.categorize_transaction(txn(counterparty="PAP850101JKL"))
+        records = [r.getMessage() for r in caplog.records]
+        assert any("matched RFC rule" in m and "COMPRAS" in m for m in records)
