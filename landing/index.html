@@ -227,12 +227,12 @@ ul { list-style: none; }
 </nav>
 <div class="nav-mobile-menu" id="mobileMenu">
   <button class="close-btn" id="mobileClose">&times;</button>
-  <a href="#platform" onclick="closeMenu()">Platform</a>
-  <a href="#agents" onclick="closeMenu()">Agents</a>
-  <a href="#security" onclick="closeMenu()">Security</a>
-  <a href="#pricing" onclick="closeMenu()">Pricing</a>
-  <a href="#contact" onclick="closeMenu()">Contact</a>
-  <a href="#contact" class="btn btn-primary" onclick="closeMenu()">Agendar demo</a>
+  <a href="#platform" class="mobile-menu-link">Platform</a>
+  <a href="#agents" class="mobile-menu-link">Agents</a>
+  <a href="#security" class="mobile-menu-link">Security</a>
+  <a href="#pricing" class="mobile-menu-link">Pricing</a>
+  <a href="#contact" class="mobile-menu-link">Contact</a>
+  <a href="#contact" class="btn btn-primary mobile-menu-link">Agendar demo</a>
 </div>
 
 <!-- ═══ HERO ═══ -->
@@ -400,7 +400,7 @@ ul { list-style: none; }
     <div class="accordion reveal">
       <!-- Agent 1 -->
       <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(this)">
+        <button class="accordion-header" >
           <div class="accordion-header-left">
             <span class="accordion-agent-num">AGENTE 01</span>
             <span class="accordion-agent-name">Captura CFDI</span>
@@ -422,7 +422,7 @@ ul { list-style: none; }
       </div>
       <!-- Agent 2 -->
       <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(this)">
+        <button class="accordion-header" >
           <div class="accordion-header-left">
             <span class="accordion-agent-num">AGENTE 02</span>
             <span class="accordion-agent-name">Validación Fiscal</span>
@@ -444,7 +444,7 @@ ul { list-style: none; }
       </div>
       <!-- Agent 3 -->
       <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(this)">
+        <button class="accordion-header" >
           <div class="accordion-header-left">
             <span class="accordion-agent-num">AGENTE 03</span>
             <span class="accordion-agent-name">Clasificación Contable</span>
@@ -465,7 +465,7 @@ ul { list-style: none; }
       </div>
       <!-- Agent 4 -->
       <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(this)">
+        <button class="accordion-header" >
           <div class="accordion-header-left">
             <span class="accordion-agent-num">AGENTE 04</span>
             <span class="accordion-agent-name">Conciliación Bancaria</span>
@@ -487,7 +487,7 @@ ul { list-style: none; }
       </div>
       <!-- Agent 5 -->
       <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(this)">
+        <button class="accordion-header" >
           <div class="accordion-header-left">
             <span class="accordion-agent-num">AGENTE 05</span>
             <span class="accordion-agent-name">Declaraciones Fiscales</span>

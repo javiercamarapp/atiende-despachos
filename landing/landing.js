@@ -43,6 +43,11 @@ navToggle.addEventListener('click', () => mobileMenu.classList.add('open'));
 mobileClose.addEventListener('click', () => mobileMenu.classList.remove('open'));
 function closeMenu() { mobileMenu.classList.remove('open'); }
 
+// Close mobile menu when any menu link is clicked (CSP-safe: no inline onclick)
+document.querySelectorAll('.mobile-menu-link').forEach(link => {
+  link.addEventListener('click', closeMenu);
+});
+
 // ─── Accordion ───
 function toggleAccordion(btn) {
   const item = btn.closest('.accordion-item');
@@ -62,6 +67,11 @@ function toggleAccordion(btn) {
     body.style.maxHeight = inner.scrollHeight + 40 + 'px';
   }
 }
+
+// Attach accordion handlers via addEventListener (CSP-safe: no inline onclick)
+document.querySelectorAll('.accordion-header').forEach(btn => {
+  btn.addEventListener('click', () => toggleAccordion(btn));
+});
 
 // ─── Form ───
 function handleSubmit(e) {
