@@ -17,3 +17,11 @@ build/
 *.log
 *.sqlite
 QA_REPORT_POST_FIX.md
+.venv_new/
+__pycache__/
+.venv/
+*.db
+node_modules/
+.env
+.venv_new/
+pyproject_restored.toml

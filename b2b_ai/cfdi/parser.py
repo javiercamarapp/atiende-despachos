@@ -51,7 +51,10 @@ def _str(text: Optional[str]) -> Optional[str]:
 
 def _find_first(root: ET.Element, tag: str, ns: Optional[dict] = None) -> Optional[ET.Element]:
     ns = ns or NS
-    return root.find(_tag(tag), ns) or root.find(f".//{tag}", {})
+    result = root.find(_tag(tag), ns)
+    if result is None:
+        result = root.find(f".//{tag}", {})
+    return result
 
 
 def _find_text(root: ET.Element, tag: str, ns: Optional[dict] = None) -> Optional[str]:
