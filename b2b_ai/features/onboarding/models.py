@@ -3,7 +3,7 @@
 
 Define los tres tipos centrales:
 
-    OnboardingStep   — los 5 pasos del flujo (orden secuencial estricto).
+    OnboardingStep   — los 6 pasos del flujo (orden secuencial estricto).
     OnboardingStatus — estado global de una sesión de onboarding.
     OnboardingSession— la sesión persistente (tenant + progreso + datos).
 
@@ -25,11 +25,12 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 class OnboardingStep(str, Enum):
-    """Los 5 pasos del onboarding del piloto, en orden estricto."""
+    """Los 6 pasos del onboarding del piloto, en orden estricto."""
     TENANT = "tenant"
     FISCAL = "fiscal"
     DATA_SOURCE = "data_source"
     TEST_CFDI = "test_cfdi"
+    CHECKOUT = "checkout"
     HEALTH_CHECK = "health_check"
 
 
@@ -39,6 +40,7 @@ STEP_ORDER: List[OnboardingStep] = [
     OnboardingStep.FISCAL,
     OnboardingStep.DATA_SOURCE,
     OnboardingStep.TEST_CFDI,
+    OnboardingStep.CHECKOUT,
     OnboardingStep.HEALTH_CHECK,
 ]
 
@@ -47,6 +49,7 @@ STEP_NAMES: Dict[str, str] = {
     "fiscal": "Datos fiscales (RFC, régimen, CP)",
     "data_source": "Conectar fuente de datos",
     "test_cfdi": "Primer CFDI de prueba",
+    "checkout": "Checkout y pago",
     "health_check": "Verificación completa",
 }
 

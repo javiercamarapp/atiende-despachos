@@ -14,6 +14,7 @@ Flujo:
     session = w.advance_step(sid, "fiscal", {...})
     session = w.advance_step(sid, "data_source", {...})
     session = w.advance_step(sid, "test_cfdi", {...})
+    session = w.advance_step(sid, "checkout", {"plan": "starter"})
     report = w.complete(sid)                             # health check
 """
 from __future__ import annotations
@@ -153,6 +154,20 @@ def _validate_test_cfdi(payload: Dict[str, Any]) -> List[str]:
     return errors
 
 
+def _validate_checkout(payload: Dict[str, Any]) -> List[str]:
+    """Valida el paso de checkout: requiere un plan de suscripción válido."""
+    errors: List[str] = []
+    plan = (payload.get("plan") or "").strip().lower()
+    if not plan:
+        errors.append("plan es obligatorio (starter, pro, business, enterprise)")
+        return errors
+    # Validación contra el catálogo de planes (import lazy para evitar ciclos).
+    from b2b_ai.features.billing.plans import get_plan_or_none
+    if get_plan_or_none(plan) is None:
+        errors.append(f"plan inválido '{plan}'. Válidos: starter, pro, business, enterprise")
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # Wizard
 # ---------------------------------------------------------------------------
@@ -231,6 +246,7 @@ class OnboardingWizard:
             OnboardingStep.FISCAL: _validate_fiscal,
             OnboardingStep.DATA_SOURCE: _validate_data_source,
             OnboardingStep.TEST_CFDI: _validate_test_cfdi,
+            OnboardingStep.CHECKOUT: _validate_checkout,
             OnboardingStep.HEALTH_CHECK: lambda p: [],
         }[target]
         errors = validate(payload)
@@ -247,6 +263,7 @@ class OnboardingWizard:
             OnboardingStep.FISCAL: self._run_fiscal,
             OnboardingStep.DATA_SOURCE: self._run_data_source,
             OnboardingStep.TEST_CFDI: self._run_test_cfdi,
+            OnboardingStep.CHECKOUT: self._run_checkout,
             OnboardingStep.HEALTH_CHECK: self._run_health_check,
         }[target]
         result = runner(session, payload)
@@ -324,24 +341,86 @@ class OnboardingWizard:
         tenant["test_cfdi"] = parsed
         return parsed
 
+    def _run_checkout(self, session: OnboardingSession, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Paso 5: inicia el checkout de Conekta para el plan elegido y
+        persiste la referencia de pago en la sesión."""
+        plan = (payload.get("plan") or "").strip().lower()
+        reference = self.start_checkout(session.session_id, plan)
+        return reference
+
     def _run_health_check(self, session: OnboardingSession, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Paso 5: ejecuta el health check completo (sin payload extra)."""
         return self._health_check(session)
+
+    # ------------------------------------------------------------------
+    # Checkout (integración con billing / Conekta)
+    # ------------------------------------------------------------------
+
+    def start_checkout(self, session_id: str, plan: str,
+                       success_url: str = "",
+                       cancel_url: str = "") -> Dict[str, Any]:
+        """Inicia el checkout de Conekta para el tenant y plan dados.
+
+        Crea la sesión de pago vía `BillingService.create_checkout` y persiste
+        la referencia (checkout_url, order_id, customer_id) en la sesión de
+        onboarding (`session.data["checkout"]`) y en el tenant.
+
+        Devuelve la referencia de pago (dict con checkout_url y metadatos).
+        """
+        session = self.get_session(session_id)
+        tenant = self._require_tenant(session)
+        plan = (plan or "").strip().lower()
+
+        from b2b_ai.features.billing.plans import get_plan_or_none
+        if get_plan_or_none(plan) is None:
+            raise OnboardingWizardError(
+                f"Plan inválido '{plan}'. Válidos: starter, pro, business, enterprise"
+            )
+
+        from b2b_ai.features.billing.conekta_client import ConektaClient
+        from b2b_ai.features.billing.service import BillingError, BillingService
+
+        billing = BillingService(client=ConektaClient())
+        try:
+            result = billing.create_checkout(
+                tenant_id=session.tenant_id,
+                plan=plan,
+                success_url=success_url,
+                cancel_url=cancel_url,
+            )
+        except BillingError as exc:
+            raise OnboardingWizardError(exc.message)
+
+        reference = {
+            "plan": plan,
+            "checkout_url": result.get("checkout_url", ""),
+            "order_id": result.get("order_id"),
+            "customer_id": result.get("customer_id"),
+            "amount_mxn": result.get("amount_mxn"),
+            "currency": result.get("currency", "MXN"),
+            "started_at": _utcnow(),
+            "status": "pending",
+        }
+        session.data["checkout"] = reference
+        if tenant:
+            tenant["config"]["checkout"] = reference
+        session.touch()
+        return reference
 
     # ------------------------------------------------------------------
     # Cierre / health check
     # ------------------------------------------------------------------
 
     def complete(self, session_id: str) -> Dict[str, Any]:
-        """Cierra el onboarding: corre el health check (paso 5) y completa."""
+        """Cierra el onboarding: corre el health check y completa."""
         session = self.get_session(session_id)
         if session.progress < 4:
             raise OnboardingWizardError(
                 f"No se puede completar: faltan pasos "
                 f"({session.current_step or 'health_check'}). "
-                f"Progreso {session.progress}/5."
+                f"Progreso {session.progress}/6."
             )
-        # El paso 5 (health_check) se ejecuta como parte del cierre si no se
+        # El paso final (health_check) se ejecuta como parte del cierre si no se
         # avanzó explícitamente antes.
         if OnboardingStep.HEALTH_CHECK.value not in session.completed_steps:
             session.completed_steps.append(OnboardingStep.HEALTH_CHECK.value)
@@ -359,30 +438,6 @@ class OnboardingWizard:
         """Devuelve el checklist de salud de una sesión sin cerrarla."""
         session = self.get_session(session_id)
         return self._health_check(session)
-
-    def billing_checkout(
-        self,
-        tenant_id: str,
-        plan: str = "starter",
-        success_url: str = "",
-        cancel_url: str = "",
-    ) -> Dict[str, Any]:
-        """Crea la sesión de checkout de Conekta para el plan elegido.
-
-        Es el puente del paso 5 del piloto hacia el módulo de billing: toma
-        el tenant ya creado en el onboarding y devuelve la URL de pago de
-        Conekta (modo mock en tests). Usa una instancia local de BillingService
-        para no acoplar el wizard al estado global del billing.
-        """
-        from b2b_ai.features.billing.service import BillingService
-
-        service = BillingService()
-        return service.create_checkout(
-            tenant_id=tenant_id,
-            plan=plan,
-            success_url=success_url or "https://app.likida.ai/billing/success",
-            cancel_url=cancel_url or "https://app.likida.ai/billing/cancel",
-        )
 
     def _health_check(self, session: OnboardingSession) -> Dict[str, Any]:
         """Checklist completo de los 5 pasos del piloto."""
@@ -419,7 +474,14 @@ class OnboardingWizard:
         else:
             add("test_cfdi", False, "no hay CFDI de prueba validado")
 
-        # 5. Verificación global
+        # 5. Checkout / pago
+        chk = session.data.get("checkout") or (tenant or {}).get("config", {}).get("checkout")
+        if chk and chk.get("checkout_url"):
+            add("checkout", True, f"checkout {chk.get('plan')} iniciado ({chk.get('checkout_url')})")
+        else:
+            add("checkout", False, "no se ha iniciado el checkout")
+
+        # 6. Verificación global
         all_ok = all(c["ok"] for c in checks)
         add("health_check", all_ok, "todo listo para producción" if all_ok else "quedan pasos por resolver")
 

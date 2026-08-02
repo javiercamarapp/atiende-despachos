@@ -105,6 +105,105 @@ class BillingService:
         store.save_subscription(sub)
         return sub
 
+    def create_trial(self, tenant_id: str) -> Subscription:
+        """Crea una suscripción de prueba de 30 días gratis para el tenant.
+
+        Alias de `start_trial` con el plan por defecto del piloto; si el
+        tenant ya tiene una suscripción activa o en trial, se rechaza.
+        """
+        return self.start_trial(tenant_id, plan=DEFAULT_TRIAL_PLAN)
+
+    def activate_pilot(self, tenant_id: str, plan: str,
+                       payment_method_id: Optional[str] = None) -> Subscription:
+        """Activa el plan del piloto de pago para un tenant.
+
+        Crea la suscripción en estado ACTIVE para el plan dado, registra el
+        método de pago (si se provee) y crea el cliente/suscripción en Conekta
+        (modo mock en tests). Emite la primera factura del periodo.
+
+        Reglas:
+          - tenant_id obligatorio;
+          - plan debe existir en el catálogo;
+          - si el tenant ya tiene una suscripción activa o en trial, se rechaza.
+        """
+        if not tenant_id:
+            raise BillingError("tenant_id es obligatorio", code="missing_tenant")
+        existing = store.get_subscription_by_tenant(tenant_id)
+        if existing and existing.status in (
+            SubscriptionStatus.TRIALING,
+            SubscriptionStatus.ACTIVE,
+        ):
+            raise BillingError(
+                "El tenant ya tiene una suscripción activa o en prueba.",
+                code="subscription_exists",
+            )
+
+        plan_code = (plan or "").lower()
+        plan_obj = get_plan_or_none(plan_code)
+        if plan_obj is None:
+            raise BillingError(f"Plan inválido '{plan_code}'", code="invalid_plan")
+
+        # Crea el cliente y la suscripción en Conekta (mock en tests).
+        try:
+            customer = self.client.create_customer(
+                rfc=plan_obj.code.value,
+                email=f"billing+{tenant_id}@likida.ai",
+                name=f"Tenant {tenant_id}",
+            )
+            customer_id = customer.get("id")
+        except ConektaAPIError as exc:
+            raise BillingError(f"Conekta: {exc.message}", code="conekta_error")
+
+        try:
+            provider_sub = self.client.create_subscription(
+                customer_id=customer_id,
+                plan_id=plan_obj.code.value,
+                payment_method_id=payment_method_id,
+            )
+            provider_sub_id = provider_sub.get("id")
+        except ConektaAPIError as exc:
+            raise BillingError(f"Conekta: {exc.message}", code="conekta_error")
+
+        now = _utcnow()
+        period_end = now + timedelta(days=30)
+
+        sub = Subscription(
+            tenant_id=tenant_id,
+            plan_code=plan_obj.code,
+            status=SubscriptionStatus.ACTIVE,
+            price_mxn=plan_obj.price_mxn,
+            provider_customer_id=customer_id,
+            provider_subscription_id=provider_sub_id,
+            current_period_start=_utcnow_iso(),
+            current_period_end=period_end.isoformat(),
+            metadata={"source": "pilot_activation", "payment_method_id": payment_method_id},
+        )
+        store.save_subscription(sub)
+
+        # Registra el medio de pago si viene.
+        if payment_method_id:
+            store.add_payment_method(PaymentMethod(
+                tenant_id=tenant_id,
+                provider_customer_id=customer_id,
+                provider_payment_method_id=payment_method_id,
+                method_type=PaymentMethodType.CARD,
+                is_default=True,
+            ))
+
+        # Emite la primera factura del periodo.
+        invoice = Invoice(
+            tenant_id=tenant_id,
+            subscription_id=sub.id,
+            amount_mxn=plan_obj.price_mxn,
+            status=InvoiceStatus.PAID,
+            period_start=sub.current_period_start,
+            period_end=sub.current_period_end,
+            paid_at=_utcnow_iso(),
+            metadata={"source": "pilot_activation"},
+        )
+        store.add_invoice(invoice)
+        return sub
+
     def convert_trial_to_paid(self, subscription_id: str) -> Subscription:
         """Convierte una suscripción en trial a activa (pago confirmado)."""
         sub = store.get_subscription_by_id(subscription_id)

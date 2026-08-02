@@ -83,6 +83,7 @@ from b2b_ai.portal.routes import build_portal_pages_router
 from b2b_ai.notifications.api import build_notifications_router
 from b2b_ai.billing.api import build_billing_router
 from b2b_ai.features.billing.routes import build_billing_router as build_pilot_billing_router
+from b2b_ai.features.onboarding.routes import build_onboarding_wizard_router
 from b2b_ai.reports.router import build_reports_router
 from b2b_ai.api.middleware import install_request_size_limit
 from b2b_ai.api.reconciliation import build_reconciliation_router
@@ -979,6 +980,11 @@ def create_app(db=None):
 
     # Onboarding wizard de nuevos clientes (wizard + checklist + score).
     app.include_router(build_onboarding_router(db, require_api_key))
+
+    # Onboarding wizard del piloto (Día 1): montado bajo
+    # /api/v1/onboarding-wizard para no colisionar con el onboarding comercial.
+    # Incluye el paso 6 de checkout que redirige al billing piloto (Conekta).
+    app.include_router(build_onboarding_wizard_router(db, require_api_key))
 
     # Integración SAT (FASE): descarga masiva de CFDI + verificación de
     # estatus + programación automática. Mock-first (sin e.firma real).

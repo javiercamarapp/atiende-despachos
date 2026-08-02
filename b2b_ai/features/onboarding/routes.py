@@ -30,10 +30,6 @@ from b2b_ai.features.onboarding.wizard import (
     OnboardingWizardError,
     _reset_state,
 )
-from b2b_ai.features.billing.service import (
-    BillingError,
-    BillingService,
-)
 
 ROUTER_PREFIX = "/api/v1/onboarding-wizard"
 
@@ -71,18 +67,36 @@ class CompleteResponse(BaseModel):
 
 
 class CheckoutRequest(BaseModel):
-    """Redirige al checkout de Conekta desde el paso final del onboarding."""
-    plan: str = Field(
-        default="starter", description="Código del plan (starter, pro, business, enterprise)"
+    """Inicia el checkout de Conekta para un plan del tenant."""
+    plan: str = Field(..., description="Código del plan (starter, pro, business, enterprise)")
+    success_url: str = Field(default="", description="URL de regreso tras pagar (opcional)")
+    cancel_url: str = Field(default="", description="URL de regreso si cancela (opcional)")
+
+
+class CheckoutResponse(BaseModel):
+    ok: bool
+    checkout_url: str
+    order_id: Optional[str] = None
+    customer_id: Optional[str] = None
+    plan_code: str
+    amount_mxn: int
+    currency: str = "MXN"
+
+
+class CheckoutCallbackRequest(BaseModel):
+    """Resultado del pago reportado por Conekta / el proveedor."""
+    status: str = Field(..., description="Estado del pago: paid | failed | canceled")
+    plan: str = Field(default="", description="Plan contratado")
+    payment_method_id: Optional[str] = Field(
+        default=None, description="ID del método de pago usado (opcional)"
     )
-    success_url: str = Field(
-        default="https://app.likida.ai/billing/success",
-        description="URL a la que regresa tras pagar",
-    )
-    cancel_url: str = Field(
-        default="https://app.likida.ai/billing/cancel",
-        description="URL a la que regresa si cancela",
-    )
+    order_id: Optional[str] = Field(default=None, description="ID de la orden en Conekta (opcional)")
+
+
+class CheckoutCallbackResponse(BaseModel):
+    ok: bool
+    status: str
+    subscription: Optional[dict] = None
 
 
 # ---------------------------------------------------------------------------
@@ -171,39 +185,89 @@ def build_onboarding_wizard_router(
 
     @router.post(
         "/{session_id}/checkout",
-        summary="Redirige al checkout de Conekta (paso 5 del piloto).",
+        summary="Inicia el checkout de Conekta para un plan del tenant.",
+        response_model=CheckoutResponse,
     )
     def checkout(
-        req: CheckoutRequest = CheckoutRequest(),
+        req: CheckoutRequest,
         session_id: str = Path(..., description="ID de la sesión"),
         auth_info: dict = Depends(auth_dep),
-    ):
-        """Crea la sesión de checkout de Conekta para el plan elegido.
+    ) -> CheckoutResponse:
+        """Crea la sesión de pago de Conekta y devuelve la URL de checkout."""
+        try:
+            reference = service.start_checkout(
+                session_id, req.plan,
+                success_url=req.success_url,
+                cancel_url=req.cancel_url,
+            )
+        except OnboardingWizardError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return CheckoutResponse(
+            ok=True,
+            checkout_url=reference["checkout_url"],
+            order_id=reference.get("order_id"),
+            customer_id=reference.get("customer_id"),
+            plan_code=reference["plan"],
+            amount_mxn=reference.get("amount_mxn") or 0,
+            currency=reference.get("currency", "MXN"),
+        )
 
-        Se apoya en la sesión ya completada (paso 5) para tomar el tenant_id
-        y redirigir al pago. Devuelve la URL de checkout de Conekta.
+    @router.post(
+        "/{session_id}/checkout/callback",
+        summary="Recibe el resultado del pago y activa/cancela la suscripción.",
+        response_model=CheckoutCallbackResponse,
+    )
+    def checkout_callback(
+        req: CheckoutCallbackRequest,
+        session_id: str = Path(..., description="ID de la sesión"),
+        auth_info: dict = Depends(auth_dep),
+    ) -> CheckoutCallbackResponse:
+        """Aplica el resultado del pago sobre el billing del tenant.
+
+        - paid    -> activa el plan (activate_pilot) y cierra la sesión.
+        - failed / canceled -> registra el fallo; no se activa nada.
         """
         try:
             session = service.get_session(session_id)
         except OnboardingWizardError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
 
-        if not session.tenant_id:
-            raise HTTPException(
-                status_code=422,
-                detail="La sesión de onboarding aún no tiene tenant asignado.",
-            )
+        from b2b_ai.features.billing.conekta_client import ConektaClient
+        from b2b_ai.features.billing.service import (
+            BillingError,
+            BillingService,
+            subscription_to_dict,
+        )
+        billing = BillingService(client=ConektaClient())
+        status = (req.status or "").strip().lower()
 
-        try:
-            result = service.billing_checkout(
-                tenant_id=session.tenant_id,
-                plan=req.plan,
-                success_url=req.success_url,
-                cancel_url=req.cancel_url,
-            )
-        except (BillingError, OnboardingWizardError) as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+        subscription = None
+        if status == "paid":
+            plan = (req.plan or "").strip().lower()
+            if not plan:
+                # Si no se indica plan, se usa el que se guardó en la sesión.
+                saved = (session.data.get("checkout") or {})
+                plan = (saved.get("plan") or "starter").lower()
+            try:
+                sub = billing.activate_pilot(
+                    tenant_id=session.tenant_id,
+                    plan=plan,
+                    payment_method_id=req.payment_method_id,
+                )
+                subscription = subscription_to_dict(sub)
+            except BillingError as exc:
+                raise HTTPException(status_code=400, detail=exc.message)
 
-        return {"ok": True, **result}
+        # Persiste el estado del pago en la sesión.
+        if "checkout" not in session.data:
+            session.data["checkout"] = {}
+        session.data["checkout"].update({"status": status})
+        session.touch()
+
+        return CheckoutCallbackResponse(
+            ok=True,
+            status=status,
+            subscription=subscription,
+        )
 
     return router
