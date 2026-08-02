@@ -85,10 +85,11 @@ def build_bookkeeping_router(
     )
 
     # SECURITY: Require API key on ALL bookkeeping endpoints.
+    # Auth is applied at router level so a forgotten per-endpoint dependency
+    # can never leave a route publicly exposed.
     if require_api_key is not None:
         router.dependencies.append(Depends(require_api_key))
-
-    # Shared components (in production, inject via DI)
+    auth_dep = require_api_key
     classifier = AutoClassifier()
     rules = AccountingRulesEngine()
     journal_gen = JournalEntryGenerator(rules)
@@ -116,18 +117,28 @@ def build_bookkeeping_router(
         "/process",
         summary="Process CFDIs through the bookkeeping pipeline",
     )
-    async def process_cfdis(request: ProcessRequest):
+    async def process_cfdis(
+        request: ProcessRequest,
+        auth_info: dict = Depends(auth_dep),
+    ):
         """Process a batch of CFDIs through the full bookkeeping pipeline:
         CFDI → classification → journal entry → ERP registration.
 
         Returns the pipeline job with all results.
+
+        SECURITY (P1-2): el tenant_id se deriva SIEMPRE del token autenticado
+        (auth_info). El tenant_id del body es un campo legado y se IGNORA por
+        completo — un cliente no puede falsificar el tenant para escribir en
+        el namespace de otro.
         """
         if not request.cfdis:
             raise HTTPException(400, "At least one CFDI is required")
 
+        tenant_id = str(auth_info.get("tenant_id") or "") if auth_info else ""
+
         job = orchestrator.process_cfdis(
             cfdis=request.cfdis,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             periodo=request.periodo,
             fecha=request.fecha,
             auto_register_erp=request.auto_register_erp,
@@ -152,15 +163,23 @@ def build_bookkeeping_router(
         summary="Get bookkeeping pipeline status",
     )
     async def get_status(
-        tenant_id: str = Query(default="", description="Filter by tenant"),
+        auth_info: dict = Depends(auth_dep),
+        tenant_id: str = Query(default="", description="[legacy] ignored; tenant comes from token"),
         job_id: Optional[str] = Query(default=None, description="Specific job ID"),
     ):
         """Get pipeline status. If job_id is provided, returns that job's
         details. Otherwise returns overall pipeline status.
+
+        SECURITY (P1-2): el tenant se deriva SIEMPRE del token (auth_info).
+        El query param tenant_id es legado y se ignora. Al consultar un job
+        concreto se verifica que pertenezca al tenant autenticado; un job
+        ajeno se trata como no encontrado (404, sin filtrar existencia).
         """
+        auth_tenant = str(auth_info.get("tenant_id") or "") if auth_info else ""
+
         if job_id:
             job = orchestrator.get_job(job_id)
-            if not job:
+            if not job or job.tenant_id != auth_tenant:
                 raise HTTPException(404, f"Job {job_id} not found")
             return {
                 "job_id": job.job_id,
@@ -175,7 +194,7 @@ def build_bookkeeping_router(
                 "completed_at": job.completed_at.isoformat() if job.completed_at else None,
             }
 
-        return orchestrator.get_pipeline_status(tenant_id)
+        return orchestrator.get_pipeline_status(auth_tenant)
 
     # -----------------------------------------------------------------------
     # POST /bookkeeping/override
@@ -184,12 +203,19 @@ def build_bookkeeping_router(
         "/override",
         summary="Submit a human override for a CFDI classification",
     )
-    async def submit_override(request: OverrideRequest):
+    async def submit_override(
+        request: OverrideRequest,
+        auth_info: dict = Depends(auth_dep),
+    ):
         """Allow a human accountant to correct the agent's classification.
 
         The agent learns from feedback: repeated corrections for the same
         RFC improve future predictions.
+
+        SECURITY (P1-2): tenant_id siempre del token; el del body se ignora.
         """
+        tenant_id = str(auth_info.get("tenant_id") or "") if auth_info else ""
+
         record = overrides.submit_override(
             cfdi_uuid=request.cfdi_uuid,
             action=request.action,
@@ -200,7 +226,7 @@ def build_bookkeeping_router(
             reason=request.reason,
             corrected_by=request.corrected_by,
             rfc_emisor=request.rfc_emisor,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
         )
 
         # Learn from the override
@@ -224,11 +250,15 @@ def build_bookkeeping_router(
         summary="Get CFDIs needing human review with suggestions",
     )
     async def get_suggestions(
-        tenant_id: str = Query(default="", description="Filter by tenant"),
+        auth_info: dict = Depends(auth_dep),
+        tenant_id: str = Query(default="", description="[legacy] ignored; tenant comes from token"),
     ):
         """Get CFDIs that the agent couldn't classify with high confidence,
         along with alternative suggestions.
+
+        SECURITY (P1-2): tenant siempre del token; el query param es legado.
         """
+        tenant_id = str(auth_info.get("tenant_id") or "") if auth_info else ""
         suggestions = orchestrator.get_suggestions(tenant_id)
         # Also include RFC-level feedback suggestions
         retraining_suggestions = overrides.get_suggestions_for_retraining()
