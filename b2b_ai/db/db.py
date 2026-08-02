@@ -195,6 +195,14 @@ class Database:
         root = os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__))))
         alembic_ini = os.path.join(root, "alembic.ini")
+        # If not found at the computed root (site-packages in Docker), fall back
+        # to the working directory (e.g. /app) and the cwd-relative path.
+        if not os.path.exists(alembic_ini):
+            for cand in ("alembic.ini",
+                         os.path.join(os.getcwd(), "alembic.ini")):
+                if os.path.exists(cand):
+                    alembic_ini = cand
+                    break
         try:
             alembic_cfg = Config(alembic_ini)
             command.upgrade(alembic_cfg, "head")

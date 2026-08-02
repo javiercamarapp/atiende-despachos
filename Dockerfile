@@ -16,9 +16,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md alembic.ini ./
 COPY b2b_ai ./b2b_ai
 COPY landing ./landing
+COPY migrations ./migrations
 
 RUN pip install --prefix=/install --no-cache-dir . \
     && pip install --prefix=/install --no-cache-dir "uvicorn[standard]>=0.20"
@@ -43,6 +44,9 @@ LABEL org.opencontainers.image.title="b2b-ai" \
 
 COPY --from=builder /install /usr/local
 COPY --from=builder /build/landing /app/landing
+# Alembic migrations (PostgreSQL) — must be present at /app for _pg_migrate
+COPY --from=builder /build/alembic.ini /app/alembic.ini
+COPY --from=builder /build/migrations /app/migrations
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
