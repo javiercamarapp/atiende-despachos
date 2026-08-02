@@ -143,6 +143,7 @@ from b2b_ai.features.document_management.routes import build_document_router
 from b2b_ai.features.roles.routes import build_roles_router
 from b2b_ai.features.pipeline.routes import build_pipeline_router
 from b2b_ai.features.bank_feeds.routes import build_bank_feeds_router
+from b2b_ai.features.monthly_close.routes import build_monthly_close_router
 
 # Logger estructurado JSON (monitoring). Distinto del ToolCallLogger de
 # b2b_ai.tools.logger (auditoría de tools en DB): este emite JSON a stdout.
@@ -1093,6 +1094,9 @@ def create_app(db=None):
 
     # Bank feeds: estados de cuenta y conciliación bancaria automatizada.
     app.include_router(build_bank_feeds_router(db, require_api_key))
+
+    # Cierre mensual automatizado: checklist inteligente + asignación de tareas.
+    app.include_router(build_monthly_close_router(db, require_api_key))
 
     # Reportes PDF (FASE reportes): generación + descarga de PDFs.
     app.include_router(build_reports_router(db, require_api_key),
