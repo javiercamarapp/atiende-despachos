@@ -171,7 +171,7 @@ class TestCfdiUploadAndProcessing:
         batch = r.json()["batch"]
         assert "batch_id" in batch
         assert "status" in batch
-        assert "total_items" in batch
+        assert "total" in batch
 
     def test_batch_rejects_empty_upload(self, pilot_client):
         r = pilot_client.post(
@@ -446,7 +446,7 @@ class TestFullPilotoLifecycle:
         r = pilot_client.get(f"/api/v1/cfdi/batch/{batch_id}")
         assert r.status_code == 200
         batch = r.json()["batch"]
-        assert batch["total_items"] == 3
+        assert batch["total"] == 3
 
         # --- Día 10: conciliación bancaria ---
         r = pilot_client.post(

@@ -108,6 +108,7 @@ from b2b_ai.features.conciliacion_fiscal.routes import build_fiscal_router
 from b2b_ai.features.declaraciones.routes import build_declaraciones_router
 from b2b_ai.features.devolucion_iva.routes import build_devolucion_iva_router
 from b2b_ai.features.diot.routes import build_diot_router
+from b2b_ai.features.document_management.routes import build_document_router
 from b2b_ai.features.declaraciones.declaration_api import build_declarations_api_router
 from b2b_ai.features.reconciliacion_ingresos_egresos.routes import (
     build_reconciliacion_ingresos_egresos_router,
@@ -1056,6 +1057,9 @@ def create_app(db=None):
 
     # DIOT: generación, validación e historial de DIOT mensuales.
     app.include_router(build_diot_router(db, require_api_key))
+
+    # Gestión documental: upload, búsqueda, versionado y compartición.
+    app.include_router(build_document_router(db, require_api_key))
 
     # Declarations API: cálculo, generación XML, firma FIEL, envío SAT.
     # Agente 2 — Declaraciones Fiscales Autónomas.

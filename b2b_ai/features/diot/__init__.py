@@ -13,6 +13,16 @@ from b2b_ai.features.diot.validators import (
     validate_rfc, validate_records,
 )
 from b2b_ai.features.diot.routes import build_diot_router
+from b2b_ai.features.diot.automation import (
+    DIOTAutomation,
+    DIOTAutomationError,
+    DIOTAutomationResult,
+    MissingProvider,
+    ProviderClassification,
+    ingest_cfdi,
+    register_provider,
+    _reset_state as _automation_reset_state,
+)
 
 __all__ = [
     "TipoOperacion", "TipoIVA", "DIOTStatus",
@@ -21,4 +31,7 @@ __all__ = [
     "ValidationResult", "validate_rfc", "is_valid_rfc", "validate_iva_rate",
     "validate_positive_amount", "validate_records",
     "build_diot_router",
+    "DIOTAutomation", "DIOTAutomationError", "DIOTAutomationResult",
+    "MissingProvider", "ProviderClassification",
+    "ingest_cfdi", "register_provider", "_automation_reset_state",
 ]
