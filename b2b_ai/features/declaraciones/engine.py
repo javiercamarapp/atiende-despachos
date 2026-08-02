@@ -19,38 +19,21 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 # ===================================================================
-# UNIFIED ISR TABLES — LISR Art. 96 (2024)
+# UNIFIED ISR TABLES — LISR Art. 96 (2025)
 # This is THE canonical copy.  compliance.py re-exports from here.
+# FIS-07/FIS-023: Migrated from hardcoded 2024 to centralized 2025 tables.
+# Legacy 2024 tables available in fiscal_tables.py for prior-year calculations.
 # ===================================================================
+from b2b_ai.fiscal_tables import (
+    ISR_MENSUAL_2025, ISR_ANUAL_2025,
+    get_isr_table as _get_isr_table,
+)
 
-# Monthly progressive table (LISR Art. 96, 2024)
-ISR_TABLE_MONTHLY: List[Tuple[float, float, float, float]] = [
-    # (limite_inferior, limite_superior, cuota_fija, tasa)
-    (0.00,     312.41,     0.00,     0.0192),
-    (312.42,   2636.28,    5.99,     0.0640),
-    (2636.29,  4623.01,    154.29,   0.1088),
-    (4623.02,  5409.82,    370.32,   0.1600),
-    (5409.83,  6447.11,    496.04,   0.2136),
-    (6447.12,  12904.06,   717.37,   0.2352),
-    (12904.07, 25808.11,   2235.28,  0.3000),
-    (25808.12, 34410.81,   6106.49,  0.3200),
-    (34410.82, 68821.62,   8857.35,  0.3400),
-    (68821.63, float("inf"), 20557.10, 0.3500),
-]
+# Monthly progressive table (LISR Art. 96, 2025)
+ISR_TABLE_MONTHLY: List[Tuple[float, float, float, float]] = ISR_MENSUAL_2025
 
-# Annual progressive table (LISR Art. 96, 2024)
-ISR_TABLE_ANNUAL: List[Tuple[float, float, float, float]] = [
-    (0.00,      3748.57,     0.00,      0.0192),
-    (3748.58,   31635.36,    71.92,     0.0640),
-    (31635.37,  55476.12,    1851.62,   0.1088),
-    (55476.13,  64917.85,    4443.84,   0.1600),
-    (64917.86,  77365.32,    5952.52,   0.2136),
-    (77365.33,  154854.73,   8608.45,   0.2352),
-    (154854.74, 309709.48,   26823.35,  0.3000),
-    (309709.49, 412946.06,   73267.78,  0.3200),
-    (412946.07, 825892.12,   106293.69, 0.3400),
-    (825892.13, float("inf"), 246695.13, 0.3500),
-]
+# Annual progressive table (LISR Art. 96, 2025)
+ISR_TABLE_ANNUAL: List[Tuple[float, float, float, float]] = ISR_ANUAL_2025
 
 # ISR PM flat rate (LISR Art. 9, personas morales)
 ISR_PM_RATE = 0.30
@@ -322,14 +305,20 @@ def is_generic_rfc(rfc: str) -> bool:
 
 
 def _map_iva_tipo(tasa_iva: float) -> str:
-    """Map IVA rate to DIOT TipoOperacion (RMF 3.10.7)."""
+    """Map IVA rate to DIOT TipoOperacion (RMF 3.10.7).
+
+    Valid TipoOperacion per SAT catalog (catalogs.py DIOT_TIPO_OPERACION):
+      "03" — Actos gravados a tasa general 16%
+      "06" — Actos gravados a tasa 0%
+      "85" — Otros (exentos, no objeto, tasa 8% frontera)
+    """
     if abs(tasa_iva - 0.16) < 0.001:
         return "03"  # Actos gravados a tasa general 16%
     elif abs(tasa_iva - 0.08) < 0.001:
-        return "03"  # Frontera also 03 with different tasa
+        return "85"  # Frontera: "Otros" per SAT catalog (FIS-012)
     elif abs(tasa_iva) < 0.001:
         return "06"  # Actos gravados a tasa 0%
-    return "03"
+    return "85"  # Exempt/other → "Otros" (FIS-011 fix)
 
 
 def aggregate_diot(

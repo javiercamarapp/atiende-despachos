@@ -57,12 +57,14 @@ def _validate_record(record: DiotRecord) -> List[str]:
     if not record.rfc_tercero or not record.rfc_tercero.strip():
         errors.append("RFC del tercero no puede estar vacío")
 
-    # TipoOperacion must be valid
-    valid_tipos = {"01", "02", "03", "04", "05", "06", "07", "08"}
+    # TipoOperacion must be valid — SAT catalog (Regla 3.10.7 RMF)
+    # FIS-011: Use official SAT catalog from catalogs.py instead of invented values
+    from b2b_ai.cfdi.catalogs import DIOT_TIPO_OPERACION
+    valid_tipos = set(DIOT_TIPO_OPERACION.keys())  # {"03", "06", "85"}
     if record.tipo_operacion not in valid_tipos:
         errors.append(
             f"TipoOperacion '{record.tipo_operacion}' no es válido. "
-            f"Válidos: {', '.join(sorted(valid_tipos))}"
+            f"Válidos según SAT: {', '.join(sorted(valid_tipos))}"
         )
 
     return errors
