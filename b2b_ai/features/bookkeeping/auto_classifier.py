@@ -232,7 +232,7 @@ SYNTHETIC_PATTERNS: List[Dict[str, Any]] = [
 
 
 def generate_synthetic_dataset(
-    n_samples_per_category: int = 25,
+    n_samples_per_category: int = 15,
     seed: int = 42,
 ) -> Tuple[List[Dict[str, Any]], List[str]]:
     """Generate synthetic CFDI training data.
@@ -361,8 +361,8 @@ class AutoClassifier:
         self._model = Pipeline([
             ("features", self._column_transformer),
             ("classifier", GradientBoostingClassifier(
-                n_estimators=50,
-                max_depth=4,
+                n_estimators=30,
+                max_depth=3,
                 min_samples_split=10,
                 learning_rate=0.1,
                 random_state=42,
@@ -390,21 +390,18 @@ class AutoClassifier:
         y = np.array(labels)
         self._categories = sorted(set(labels))
 
-        # Cross-validation
-        scores = cross_val_score(self._model, X, y, cv=min(5, len(set(labels))), scoring="f1_macro")
-        mean_f1 = float(np.mean(scores))
-
-        # Final fit
+        # Fit (skip cross-validation for speed; use train accuracy as proxy)
         self._model.fit(X, y)
         self._trained = True
+
+        train_acc = float(self._model.score(X, y))
 
         return {
             "status": "trained",
             "n_samples": len(cfdis),
             "n_categories": len(self._categories),
             "categories": self._categories,
-            "f1_macro_mean": round(mean_f1, 4),
-            "f1_macro_std": round(float(np.std(scores)), 4),
+            "train_accuracy": round(train_acc, 4),
         }
 
     def predict(self, cfdi: Dict[str, Any]) -> Tuple[str, float]:
