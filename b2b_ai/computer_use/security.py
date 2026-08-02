@@ -852,3 +852,11 @@ class SecurityConfig:
                 f"(>{168}h). Consider shorter retention for PII compliance."
             )
         return issues
+
+
+# ---------------------------------------------------------------------------
+# 12. SecurityPolicy alias (backward compat)
+# ---------------------------------------------------------------------------
+# SecurityPolicy is the legacy name for SecurityConfig.
+# Keep as alias for callers that import SecurityPolicy.
+SecurityPolicy = SecurityConfig
