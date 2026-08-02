@@ -38,12 +38,36 @@ import hashlib
 import logging
 import os
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from b2b_ai.computer_use.contpaqi_driver import DesktopAutomation
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Configuration dataclass for PlaywrightDesktop
+# ---------------------------------------------------------------------------
+@dataclass
+class PlaywrightDesktopConfig:
+    """Configuration for PlaywrightDesktop browser automation.
+
+    Attributes:
+        headless: Run browser without visible window.
+        navigation_timeout_ms: Timeout for page navigation in milliseconds.
+        action_timeout_ms: Timeout for individual actions in milliseconds.
+        max_retries: Maximum retry attempts for transient failures.
+        allowed_hosts: List of hostnames the browser is allowed to visit.
+        allow_private_hosts: Whether to allow private/internal IP addresses.
+    """
+    headless: bool = True
+    navigation_timeout_ms: int = 30_000
+    action_timeout_ms: int = 10_000
+    max_retries: int = 3
+    allowed_hosts: List[str] = field(default_factory=list)
+    allow_private_hosts: bool = False
 
 
 # ---------------------------------------------------------------------------
