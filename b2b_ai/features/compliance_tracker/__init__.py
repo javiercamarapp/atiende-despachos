@@ -1,2 +1,2 @@
 # -*- coding: utf-8 -*-
-"""Probe write test."""
+"""Módulo de tracking de obligaciones SAT (compliance_tracker)."""

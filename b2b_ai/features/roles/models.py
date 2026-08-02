@@ -68,6 +68,10 @@ class Permission:
     # score y ROI del cliente durante el piloto.
     PILOT_VIEW = "pilot:view"
     PILOT_MANAGE = "pilot:manage"
+    # Tracking de obligaciones SAT (compliance_tracker/routes.py): calendario
+    # y vencimientos de obligaciones fiscales del despacho.
+    COMPLIANCE_VIEW = "compliance:view"
+    COMPLIANCE_MANAGE = "compliance:manage"
 
     ALL = (
         CFDI_READ, CFDI_WRITE,
@@ -81,6 +85,7 @@ class Permission:
         DOCUMENTS_DELETE,
         CLOSE_VIEW, CLOSE_MANAGE,
         PILOT_VIEW, PILOT_MANAGE,
+        COMPLIANCE_VIEW, COMPLIANCE_MANAGE,
     )
 
 
