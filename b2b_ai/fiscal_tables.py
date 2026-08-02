@@ -93,9 +93,12 @@ SUBSIDIO_EMPLEO_MENSUAL_2025: List[Tuple[str, str, str]] = [
     ("6355.13", "7470.57", "294.17"),
     ("7470.58", "8455.60", "253.54"),
     ("8455.61", "9912.54", "217.61"),
-    ("9912.55", "11641.75", "209.13"),
-    ("11641.76", "13493.97", "0.00"),
+    ("9912.55", "11492.66", "209.13"),
+    ("11492.67", "13493.97", "0.00"),
 ]
+# NOTA: Los montos de subsidio por rango requieren verificación contra el
+# decreto oficial del subsidio para el empleo 2026 (DOF). El ingreso
+# máximo se actualizó a $11,492.66 según Anexo 8 RMF 2026.
 
 # ---------------------------------------------------------------------------
 # Subsidio quincenal 2025 — mitad del mensual.
@@ -196,9 +199,12 @@ SUBSIDIO_EMPLEO_MENSUAL_2026: List[Tuple[str, str, str]] = [
     ("6355.13", "7470.57", "294.17"),
     ("7470.58", "8455.60", "253.54"),
     ("8455.61", "9912.54", "217.61"),
-    ("9912.55", "11641.75", "209.13"),
-    ("11641.76", "13493.97", "0.00"),
+    ("9912.55", "11492.66", "209.13"),
+    ("11492.67", "13493.97", "0.00"),
 ]
+# NOTA: Los montos de subsidio por rango requieren verificación contra el
+# decreto oficial del subsidio para el empleo 2026 (DOF). El ingreso
+# máximo se actualizó a $11,492.66 según Anexo 8 RMF 2026.
 
 # ---------------------------------------------------------------------------
 # Subsidio quincenal 2026 — mitad del mensual.

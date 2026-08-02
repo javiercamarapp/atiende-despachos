@@ -37,7 +37,11 @@ class StripeAdapter(PaymentAdapter):
     def connect(self, credentials: Optional[Dict[str, Any]] = None) -> bool:
         api_key = (credentials or {}).get("api_key") or self.config.api_key or os.environ.get("STRIPE_SECRET_KEY", "")
         if not api_key:
-            logger.warning("StripeAdapter: no API key — MOCK mode")
+            if os.environ.get("B2B_ENV") == "production":
+                raise RuntimeError(
+                    "StripeAdapter: STRIPE_SECRET_KEY requerida en producción. "
+                    "No se permite modo MOCK en producción.")
+            logger.warning("StripeAdapter: no API key — MOCK mode (dev only)")
             self._connected = True
             self._client = None
             return True
@@ -50,15 +54,15 @@ class StripeAdapter(PaymentAdapter):
             logger.info("StripeAdapter: connected to Stripe API")
             return True
         except ImportError:
-            logger.warning("StripeAdapter: stripe not installed — MOCK mode")
+            if os.environ.get("B2B_ENV") == "production":
+                raise RuntimeError("StripeAdapter: stripe package not installed — required in production")
+            logger.warning("StripeAdapter: stripe not installed — MOCK mode (dev only)")
             self._connected = True
             self._client = None
             return True
         except Exception as e:
             logger.error(f"StripeAdapter: connection failed: {e}")
-            self._connected = True
-            self._client = None
-            return True
+            raise
 
     def create_payment(self, request: PaymentRequest) -> Payment:
         self._ensure_connected()
@@ -99,8 +103,10 @@ class StripeAdapter(PaymentAdapter):
             except Exception as e:
                 logger.error(f"StripeAdapter: verify_payment failed: {e}")
                 raise
+        if os.environ.get("B2B_ENV") == "production":
+            raise RuntimeError("StripeAdapter: verify_payment sin conexión a Stripe en producción.")
         return Payment(id=payment_id, amount=5000.00, currency=Currency.MXN, status=PaymentStatus.SUCCEEDED,
-                       method=PaymentMethod.CARD, description="Pago verificado", created_at=now, updated_at=now)
+                       method=PaymentMethod.CARD, description="Pago verificado (MOCK dev)", created_at=now, updated_at=now)
 
     def refund(self, request: RefundRequest) -> Refund:
         self._ensure_connected()

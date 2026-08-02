@@ -167,6 +167,11 @@ def build_diot_router(
                 status_code=404,
                 detail=f"DIOT report '{report_id}' not found.",
             )
+        # Multi-tenant: verify the report belongs to the requesting tenant
+        auth_tenant = auth_info.get("tenant_id") if auth_info else None
+        if auth_tenant and hasattr(report, "tenant_id") and report.tenant_id:
+            if report.tenant_id != auth_tenant:
+                raise HTTPException(status_code=403, detail="Acceso denegado: el reporte pertenece a otro tenant.")
 
         xml_content = service.export_diot_xml(report)
         return xml_content
@@ -183,8 +188,9 @@ def build_diot_router(
         tenant_id: Optional[str] = Query(default=None, description="Filter by tenant"),
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
-        """Get list of all DIOT reports."""
-        tid = tenant_id or (auth_info.get("tenant_id") if auth_info else None)
+        """Get list of all DIOT reports for the authenticated tenant."""
+        # Multi-tenant: ALWAYS use auth tenant, ignore query param override
+        tid = auth_info.get("tenant_id") if auth_info else tenant_id
         reports = service.get_history(tenant_id=tid)
 
         return {

@@ -73,7 +73,7 @@ class ERPRegistrar:
     ):
         self._erp_system = erp_system
         self._config = config or {}
-        self._registered: Dict[str, str] = {}  # poliza_id → erp_reference
+        self._registered: Dict[str, str] = {}  # "tenant_id:poliza_id" → erp_reference
         self._rollback_log: Dict[str, List[str]] = {}  # poliza_id → rollback actions
 
     @property
@@ -84,20 +84,29 @@ class ERPRegistrar:
     def registered_count(self) -> int:
         return len(self._registered)
 
-    def is_registered(self, poliza_id: str) -> bool:
-        """Check if a poliza has already been registered (idempotency)."""
-        return poliza_id in self._registered
+    @staticmethod
+    def _make_key(tenant_id: str, poliza_id: str) -> str:
+        """Build a tenant-scoped idempotency key."""
+        return f"{tenant_id}:{poliza_id}"
+
+    def is_registered(self, poliza_id: str, tenant_id: str = "") -> bool:
+        """Check if a poliza has already been registered (idempotency).
+
+        Includes tenant_id to prevent cross-tenant idempotency leaks.
+        """
+        return self._make_key(tenant_id, poliza_id) in self._registered
 
     def register(self, poliza: PolizaContable) -> ERPRegistrationResult:
         """Register a journal entry in the ERP.
 
         Idempotent: returns existing reference if already registered.
         """
-        # Idempotency check
-        if self.is_registered(poliza.id):
+        key = self._make_key(poliza.tenant_id, poliza.id)
+        # Idempotency check (tenant-scoped)
+        if key in self._registered:
             return ERPRegistrationResult(
                 success=True,
-                erp_reference=self._registered[poliza.id],
+                erp_reference=self._registered[key],
                 erp_system=self._erp_system.value,
                 idempotent_skip=True,
             )
@@ -112,7 +121,7 @@ class ERPRegistrar:
 
         try:
             ref = self._send_to_erp(poliza)
-            self._registered[poliza.id] = ref
+            self._registered[key] = ref
             poliza.erp_registered = True
             poliza.erp_reference = ref
 
