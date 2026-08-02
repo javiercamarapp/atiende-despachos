@@ -403,7 +403,6 @@ CREATE TABLE IF NOT EXISTS tenants (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     rfc TEXT,
-    blocked INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS users (
@@ -538,10 +537,10 @@ def poblar_db(conn: Any, ds: Dict[str, Any], placeholder: str = "?") -> None:
     crear_esquema(conn)
 
     tenants_rows = [
-        [i, t["name"], t["rfc"], t["blocked"]]
+        [i, t["name"], t["rfc"]]
         for i, t in enumerate(ds["tenants"], start=1)
     ]
-    _insert(conn, "tenants", ["id", "name", "rfc", "blocked"], tenants_rows, placeholder)
+    _insert(conn, "tenants", ["id", "name", "rfc"], tenants_rows, placeholder)
 
     users_rows: List[List[Any]] = []
     user_roles_rows: List[List[Any]] = []
