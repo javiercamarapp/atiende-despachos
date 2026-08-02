@@ -137,6 +137,10 @@ def _auth_app():
 @pytest.fixture
 def auth_client(monkeypatch):
     monkeypatch.setenv("B2B_API_KEY", "contract-test-key-123456")
+    # AISLAMIENTO MULTI-TENANT (P1 fix): una key válida sin tenant es rechazada
+    # con 400 y nunca degrada a "default". Para standalone, se configura un
+    # tenant explícito vía B2B_DEFAULT_TENANT_ID.
+    monkeypatch.setenv("B2B_DEFAULT_TENANT_ID", "1")
     return _auth_app()
 
 
@@ -153,18 +157,23 @@ class TestAuthOnProtectedEndpoints:
         assert r.status_code in (401, 422)
 
     def test_valid_key_via_query(self, auth_client):
-        """La key válida por query 'key' pasa la validación de auth."""
+        """La key NO se acepta como query param: el auth usa el header."""
         r = auth_client.get("/protected", params={"key": "contract-test-key-123456"})
-        assert r.status_code == 200
+        # Sin header X-API-Key → 401 (la key debe ir por header, no por query).
+        assert r.status_code == 401
 
     def test_valid_key_via_header(self, auth_client):
-        """Documenta el bug: la key en header X-API-Key NO se extrae.
+        """La key válida en el header X-API-Key autentica y devuelve dict.
 
-        El APIKeyHeader de auth.py no resuelve el header en la app real → 422.
-        Este test fija el contrato ACTUAL (bug de producción, requiere fix).
+        Antes del fix de Zuck (P1, QA 195) la dependencia devolvía el string y
+        trataba la key como query param, así que el header se ignoraba → 422.
+        Ahora `make_require_api_key` lee el header y devuelve un dict de
+        contexto de auth, así que una key válida por header da 200.
         """
         r = auth_client.get("/protected", headers={"X-API-Key": "contract-test-key-123456"})
-        assert r.status_code == 422  # bug: debería ser 200
+        assert r.status_code == 200
+        body = r.json()
+        assert isinstance(body["auth"], dict)  # auth_info es dict, no str
 
 
 # ---------------------------------------------------------------------------

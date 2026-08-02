@@ -10,12 +10,21 @@ Expone:
 
 El hash SHA-256 garantiza integridad del contenido; cada nueva subida del
 mismo documento (mismo hash) no duplica contenido y versiona.
+
+Persistencia opcional: si se pasa ``state_file`` (o la env ``DOCS_STATE_FILE``),
+el índice de documentos/versiones/comparticiones se vuelca a un archivo JSON
+después de cada mutación y se recarga al arrancar. El contenido binario sigue
+viviendo en el backend de storage. Si no se configura, el estado es solo en
+memoria (comportamiento por defecto, sin romper tests existentes).
 """
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import uuid as _uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from b2b_ai.features.document_management.models import (
@@ -54,16 +63,114 @@ def _tenant_key(tenant_id: str) -> str:
     return str(tenant_id).strip().upper()
 
 
+class _StateCodec:
+    """Codifica/decodifica el índice entre modelos Pydantic y JSON."""
+
+    @staticmethod
+    def encode_document(doc: Document) -> Dict[str, Any]:
+        return doc.to_dict()
+
+    @staticmethod
+    def decode_document(data: Dict[str, Any]) -> Document:
+        # status/category vienen como string en JSON → re-mapear a enum.
+        d = dict(data)
+        d["category"] = DocumentCategory(d["category"])
+        d["status"] = DocumentStatus(d["status"])
+        return Document.model_validate(d)
+
+    @staticmethod
+    def encode_version(v: DocumentVersion) -> Dict[str, Any]:
+        return v.to_dict()
+
+    @staticmethod
+    def decode_version(data: Dict[str, Any]) -> DocumentVersion:
+        return DocumentVersion.model_validate(data)
+
+    @staticmethod
+    def encode_share(s: DocumentShare) -> Dict[str, Any]:
+        return s.to_dict()
+
+    @staticmethod
+    def decode_share(data: Dict[str, Any]) -> DocumentShare:
+        d = dict(data)
+        d["permission"] = SharePermission(d["permission"])
+        return DocumentShare.model_validate(d)
+
+
 class DocumentService:
     """Servicio stateless para el sistema de gestión documental."""
 
-    def __init__(self, storage: Optional[BaseStorage] = None, kind: str = "local", **storage_kwargs):
+    def __init__(self, storage: Optional[BaseStorage] = None, kind: str = "local",
+                 state_file: Optional[str] = None, **storage_kwargs):
         if storage is not None:
             self.storage = storage
         else:
             self.storage = get_backend(kind, **storage_kwargs)
+        self._state_file = (
+            state_file or os.environ.get("DOCS_STATE_FILE")
+        )
+        if self._state_file:
+            self._load_state()
 
-    # -- Alta --------------------------------------------------------------
+    # -- Persistencia -----------------------------------------------------
+    def _load_state(self) -> None:
+        """Carga el índice desde el archivo JSON (si existe)."""
+        if not self._state_file:
+            return
+        p = Path(self._state_file)
+        if not p.exists():
+            return
+        try:
+            raw = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        _reset_state()
+        for d in raw.get("documents", []):
+            try:
+                doc = _StateCodec.decode_document(d)
+                _documents[doc.id] = doc
+            except Exception:
+                continue
+        for vid, vlist in raw.get("versions", {}).items():
+            _versions[vid] = [
+                _StateCodec.decode_version(v) for v in vlist
+            ]
+        for sid, slist in raw.get("shares", {}).items():
+            _shares[sid] = [
+                _StateCodec.decode_share(s) for s in slist
+            ]
+
+    def _save_state(self) -> None:
+        """Vuelca el índice a JSON (best-effort, nunca rompe la mutación)."""
+        if not self._state_file:
+            return
+        payload = {
+            "documents": [
+                _StateCodec.encode_document(d) for d in _documents.values()
+            ],
+            "versions": {
+                vid: [_StateCodec.encode_version(v) for v in vlist]
+                for vid, vlist in _versions.items()
+            },
+            "shares": {
+                sid: [_StateCodec.encode_share(s) for s in slist]
+                for sid, slist in _shares.items()
+            },
+        }
+        try:
+            p = Path(self._state_file)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            tmp = p.with_suffix(".tmp")
+            tmp.write_text(json.dumps(payload), encoding="utf-8")
+            tmp.replace(p)
+        except OSError:
+            pass
+
+    def _mutate(self) -> None:
+        """Persiste tras una mutación del índice."""
+        self._save_state()
+
+    # -- Alta -------------------------------------------------------------
     def upload_document(
         self,
         tenant_id: str,
@@ -133,6 +240,7 @@ class DocumentService:
             note="Versión inicial" if doc.version == 1 else f"Versión {doc.version}",
             created_by=created_by,
         ))
+        self._mutate()
         return doc
 
     # -- Búsqueda ----------------------------------------------------------
@@ -213,6 +321,7 @@ class DocumentService:
             expires_at=expires_at,
         )
         _shares.setdefault(document_id, []).append(share)
+        self._mutate()
         return share
 
     def list_shares(self, tenant_id: str, document_id: str) -> List[DocumentShare]:
@@ -226,12 +335,14 @@ class DocumentService:
         if tag and tag not in doc.tags:
             doc.tags.append(tag)
             _documents[doc.id] = doc
+        self._mutate()
         return doc
 
     def archive_document(self, tenant_id: str, document_id: str) -> Document:
         doc = self.get_document(tenant_id, document_id)
         doc.status = DocumentStatus.ARCHIVADO
         _documents[doc.id] = doc
+        self._mutate()
         return doc
 
     def _find_by_name(self, tenant_key: str, name: str) -> Optional[Document]:

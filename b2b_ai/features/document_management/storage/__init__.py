@@ -48,9 +48,13 @@ class LocalStorage(BaseStorage):
         self.root.mkdir(parents=True, exist_ok=True)
 
     def _resolve(self, relative_path: str) -> Path:
-        # Evita path traversal
+        # Evita path traversal: relative_to lanza ValueError si el path
+        # resultante escapa del root (a diferencia de startswith, que es un
+        # prefijo inseguro: /tmp/document_management_evil pasaba el check).
         p = (self.root / relative_path).resolve()
-        if not str(p).startswith(str(self.root)):
+        try:
+            p.relative_to(self.root)
+        except ValueError:
             raise StorageBackendError(f"Path fuera del root: {relative_path}")
         return p
 

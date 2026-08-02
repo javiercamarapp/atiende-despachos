@@ -41,6 +41,35 @@ ROUTER_PREFIX = "/api/v1/documents"
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 
 
+def _require_tenant(auth_info: dict) -> str:
+    """Extrae tenant_id del contexto de auth.
+
+    El dep de auth ya valida la API key y resuelve el tenant. Si el tenant
+    no está disponible, NO degradamos a un bucket compartido: rechazamos
+    con 400. Esto preserva el aislamiento multi-tenant en todos los casos.
+    """
+    tenant_id = (auth_info or {}).get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Falta tenant_id en el contexto de autenticación. "
+                   "No se permite acceder al bucket compartido.",
+        )
+    return str(tenant_id)
+
+
+def _sanitize_download_name(name: str) -> str:
+    """Devuelve solo el basename del nombre, sin comillas / CR / LF.
+
+    Previene header injection / response splitting vía Content-Disposition.
+    """
+    import os as _os
+    base = _os.path.basename(str(name or ""))
+    # Elimina caracteres peligrosos para headers HTTP.
+    return "".join(ch for ch in base if ch not in ('"', "'", "\r", "\n", ";"))
+
+
+
 def build_document_router(db: Any = None,
                           require_api_key: Any = None) -> APIRouter:
     """Construye el router /api/v1/documents/* de gestión documental."""
@@ -60,7 +89,7 @@ def build_document_router(db: Any = None,
         created_by: Optional[str] = Form(None),
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
-        tenant_id = auth_info.get("tenant_id") or "default"
+        tenant_id = _require_tenant(auth_info)
         data = await file.read()
         if not data:
             raise HTTPException(status_code=400, detail="El archivo está vacío.")
@@ -108,7 +137,7 @@ def build_document_router(db: Any = None,
         limit: int = Query(50, ge=1, le=200),
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
-        tenant_id = auth_info.get("tenant_id") or "default"
+        tenant_id = _require_tenant(auth_info)
         cat = None
         if category:
             try:
@@ -122,7 +151,7 @@ def build_document_router(db: Any = None,
 
     @router.get("/{document_id}", summary="Obtiene metadata de un documento.")
     def get_document(document_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
-        tenant_id = auth_info.get("tenant_id") or "default"
+        tenant_id = _require_tenant(auth_info)
         try:
             doc = service.get_document(tenant_id, document_id)
         except KeyError:
@@ -131,7 +160,7 @@ def build_document_router(db: Any = None,
 
     @router.get("/{document_id}/content", summary="Descarga el contenido del documento.")
     def get_content(document_id: str, auth_info: dict = Depends(auth_dep)) -> Response:
-        tenant_id = auth_info.get("tenant_id") or "default"
+        tenant_id = _require_tenant(auth_info)
         try:
             doc = service.get_document(tenant_id, document_id)
             data = service.read_document_bytes(tenant_id, document_id)
@@ -139,15 +168,19 @@ def build_document_router(db: Any = None,
             raise HTTPException(status_code=404, detail="Documento no encontrado.")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+        safe_name = _sanitize_download_name(doc.name)
         return Response(
             content=data,
             media_type=doc.content_type,
-            headers={"Content-Disposition": f'attachment; filename="{doc.name}"'},
+            headers={
+                "Content-Disposition":
+                    f'attachment; filename="{safe_name}"'
+            },
         )
 
     @router.get("/{document_id}/versions", summary="Historial de versiones.")
     def get_versions(document_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
-        tenant_id = auth_info.get("tenant_id") or "default"
+        tenant_id = _require_tenant(auth_info)
         try:
             versions = service.get_version_history(tenant_id, document_id)
         except KeyError:
@@ -160,7 +193,7 @@ def build_document_router(db: Any = None,
         payload: dict,
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
-        tenant_id = auth_info.get("tenant_id") or "default"
+        tenant_id = _require_tenant(auth_info)
         shared_with = (payload.get("shared_with") or "").strip()
         if not shared_with:
             raise HTTPException(status_code=400, detail="shared_with es obligatorio.")
@@ -177,7 +210,7 @@ def build_document_router(db: Any = None,
 
     @router.get("/{document_id}/shares", summary="Lista comparticiones.")
     def list_shares(document_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
-        tenant_id = auth_info.get("tenant_id") or "default"
+        tenant_id = _require_tenant(auth_info)
         try:
             shares = service.list_shares(tenant_id, document_id)
         except KeyError:
@@ -187,7 +220,7 @@ def build_document_router(db: Any = None,
     @router.post("/{document_id}/tags", summary="Añade un tag a un documento.")
     def add_tag(document_id: str, payload: dict,
                 auth_info: dict = Depends(auth_dep)) -> dict:
-        tenant_id = auth_info.get("tenant_id") or "default"
+        tenant_id = _require_tenant(auth_info)
         tag = (payload.get("tag") or "").strip()
         if not tag:
             raise HTTPException(status_code=400, detail="tag es obligatorio.")
