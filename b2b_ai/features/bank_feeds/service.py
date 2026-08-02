@@ -24,6 +24,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from b2b_ai.features.bank_feeds.adapters import get_adapter
+from b2b_ai.features.bank_feeds.categorizer import TransactionCategorizer
 from b2b_ai.features.bank_feeds.models import (
     BankAccount,
     BankProvider,
@@ -58,31 +59,34 @@ def _reset_state() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Heurísticas de categorización
+# Motor de categorización (nuevo)
 # ---------------------------------------------------------------------------
 
-_KEYWORDS: List[tuple] = [
-    # (regex-insensitive, category)
-    ("nomina|sueldo|salario|pago.*nomi", Category.NOMINA),
-    ("iva|impuesto|sat|retencion|isr", Category.IMPUESTOS),
-    ("comision|interes|membresia|anualidad", Category.FINANCIEROS),
-    ("proveedor|factura|compra|mercancia", Category.COMPRAS),
-    ("renta|luz|agua|internet|telefono|software|servicio", Category.SERVICIOS),
-    ("spei|transferencia|abono|clabe", Category.TRANSFERENCIAS),
-    ("cobro|codi|venta|ingreso|deposito|cliente", Category.VENTAS),
-]
+# Instancia por defecto reutilizada por el servicio. Se puede reconfigurar en
+# caliente (add_rfc_rule / add_keyword_rule) o sustituir con un motor custom.
+_categorizer = TransactionCategorizer()
 
-_DEFAULT_CATEGORY = Category.OTROS
+
+def set_categorizer(categorizer: TransactionCategorizer) -> None:
+    """Reemplaza el motor de categorización usado por el servicio (tests/custom)."""
+    global _categorizer
+    _categorizer = categorizer
+
+
+def get_categorizer() -> TransactionCategorizer:
+    """Devuelve el motor de categorización activo."""
+    return _categorizer
 
 
 def _categorize_text(description: str) -> Category:
     """Categoriza por heurística de palabras clave sobre la descripción."""
-    import re
-    text = (description or "").lower()
-    for pattern, category in _KEYWORDS:
-        if re.search(pattern, text):
-            return category
-    return _DEFAULT_CATEGORY
+    value = _categorizer.categorize_transaction(
+        {"description": description or "", "channel": "OTRO"}
+    )
+    try:
+        return Category(str(value))
+    except ValueError:
+        return Category.OTROS
 
 
 # ---------------------------------------------------------------------------
@@ -204,8 +208,29 @@ class BankFeedService:
             type=txn_type,
             channel=_to_channel(channel),
             counterparty=mapped.get("counterparty") or "",
-            category=_categorize_text(desc),
+            category=self._categorizer_category(
+                desc, channel=channel, amount=float(mapped["amount"])
+            ),
         )
+
+    @staticmethod
+    def _categorizer_category(
+        description: str,
+        channel: str = "OTRO",
+        amount: float = 0.0,
+        counterparty: str = "",
+    ) -> Optional[Category]:
+        """Categoriza una transacción con el motor de categorización activo."""
+        value = _categorizer.categorize_transaction({
+            "description": description or "",
+            "channel": channel or "OTRO",
+            "amount": amount,
+            "counterparty": counterparty or "",
+        })
+        try:
+            return Category(str(value))
+        except ValueError:
+            return None
 
     @staticmethod
     def _adapter_for(account: BankAccount):
@@ -247,7 +272,8 @@ class BankFeedService:
         """Asigna categoría a una transacción.
 
         - Si ``category`` se pasa, se asigna explícitamente.
-        - Si ``auto`` es True, se infiere por heurística de la descripción.
+        - Si ``auto`` es True, se infiere con el motor de categorización
+          (TransactionCategorizer) sobre la transacción completa.
         """
         txn = _transactions.get(txn_id)
         if txn is None:
@@ -255,7 +281,12 @@ class BankFeedService:
         if category is not None:
             txn.category = category
         elif auto:
-            txn.category = _categorize_text(txn.description)
+            txn.category = self._categorizer_category(
+                txn.description,
+                channel=(txn.channel.value if hasattr(txn, "channel") else "OTRO"),
+                amount=txn.amount,
+                counterparty=txn.counterparty,
+            )
         if txn.category is not None and txn.status == TransactionStatus.IMPORTED:
             txn.status = TransactionStatus.CATEGORIZED
         return txn

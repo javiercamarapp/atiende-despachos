@@ -28,6 +28,10 @@ from b2b_ai.features.bank_feeds.models import (
     TransactionStatus,
     TransactionType,
 )
+from b2b_ai.features.bank_feeds.categorizer import (
+    TransactionCategorizer,
+    categorize_transaction,
+)
 from b2b_ai.features.bank_feeds.service import BankFeedService
 from b2b_ai.features.bank_feeds.routes import build_bank_feeds_router
 
@@ -46,6 +50,9 @@ __all__ = [
     "FeedSyncResult",
     # Service
     "BankFeedService",
+    # Categorizer
+    "TransactionCategorizer",
+    "categorize_transaction",
     # Router
     "build_bank_feeds_router",
 ]
