@@ -224,6 +224,20 @@ class TestAutoClassifier:
         assert classifier.is_trained
         assert len(classifier.categories) > 10
 
+    def test_cross_validation_score(self):
+        """Cross-validation score is reported and above threshold."""
+        c = AutoClassifier()
+        metrics = c.train()
+        assert metrics["status"] == "trained"
+        assert "cross_val_mean" in metrics
+        assert "cross_val_std" in metrics
+        assert "cross_val_folds" in metrics
+        # With synthetic data and GradientBoosting, CV should be > 0.7
+        assert metrics["cross_val_mean"] > 0.7, (
+            f"cross_val_mean={metrics['cross_val_mean']} below 0.7 threshold"
+        )
+        assert metrics["cross_val_folds"] in (3, 5)
+
     def test_predict_returns_category_and_confidence(self, classifier, sample_cfdi):
         """Prediction returns category and confidence."""
         cat, conf = classifier.predict(sample_cfdi)

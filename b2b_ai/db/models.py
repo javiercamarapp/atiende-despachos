@@ -703,6 +703,28 @@ MIGRATIONS = [
         ALTER TABLE client_users ADD COLUMN accepted_privacy_at TIMESTAMP;
         """,
     },
+    {
+        "version": 16,
+        "name": "reconciliation_jobs",
+        "sql": """
+        CREATE TABLE IF NOT EXISTS reconciliation_jobs (
+            id INTEGER PRIMARY KEY,
+            job_id TEXT NOT NULL UNIQUE,
+            tenant_id INTEGER,
+            status TEXT NOT NULL DEFAULT 'pending',
+            progress REAL DEFAULT 0.0,
+            result_json TEXT,
+            bank TEXT DEFAULT 'generic',
+            format TEXT DEFAULT 'csv',
+            filename TEXT DEFAULT '',
+            error TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_recon_jobs_tenant ON reconciliation_jobs(tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_recon_jobs_status ON reconciliation_jobs(status);
+        """,
+    },
 ]
 
 

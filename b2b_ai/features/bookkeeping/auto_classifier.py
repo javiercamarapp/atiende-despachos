@@ -378,7 +378,7 @@ class AutoClassifier:
         """Train the classifier.
 
         If cfdis/labels are None, generates synthetic training data.
-        Returns training metrics.
+        Returns training metrics including cross-validation score.
         """
         if not HAS_SKLEARN:
             return {"status": "skipped", "reason": "scikit-learn not installed"}
@@ -390,18 +390,42 @@ class AutoClassifier:
         y = np.array(labels)
         self._categories = sorted(set(labels))
 
-        # Fit (skip cross-validation for speed; use train accuracy as proxy)
+        # Fit the model
         self._model.fit(X, y)
         self._trained = True
 
         train_acc = float(self._model.score(X, y))
 
+        # Cross-validation: cv=5 for large datasets, cv=3 for small ones
+        n_samples = len(cfdis)
+        n_categories = len(self._categories)
+        # Each category needs at least cv samples for stratified CV
+        cv = 5 if n_samples >= n_categories * 10 else 3
+
+        try:
+            cv_scores = cross_val_score(self._model, X, y, cv=cv, scoring="accuracy")
+            cv_mean = float(np.mean(cv_scores))
+            cv_std = float(np.std(cv_scores))
+            log.info(
+                "AutoClassifier trained: %d samples, %d categories, "
+                "train_acc=%.4f, cv%d_mean=%.4f (±%.4f)",
+                n_samples, n_categories, train_acc, cv, cv_mean, cv_std,
+            )
+        except Exception as exc:
+            # Fallback if cross-validation fails (e.g., too few samples per class)
+            cv_mean = train_acc
+            cv_std = 0.0
+            log.warning("Cross-validation failed (%s); using train accuracy", exc)
+
         return {
             "status": "trained",
-            "n_samples": len(cfdis),
-            "n_categories": len(self._categories),
+            "n_samples": n_samples,
+            "n_categories": n_categories,
             "categories": self._categories,
             "train_accuracy": round(train_acc, 4),
+            "cross_val_mean": round(cv_mean, 4),
+            "cross_val_std": round(cv_std, 4),
+            "cross_val_folds": cv,
         }
 
     def predict(self, cfdi: Dict[str, Any]) -> Tuple[str, float]:

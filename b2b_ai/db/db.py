@@ -1533,6 +1533,67 @@ class Database:
             self.conn.execute("DELETE FROM client_users WHERE id=?",
                               (user_id,))
 
+    # ---- Reconciliation Agent (Agente 1) — jobs en DB ----
+    def create_reconciliation_job(self, job_id, tenant_id, bank="generic",
+                                  fmt="csv", filename=""):
+        """Crea un job de conciliación en la DB. Devuelve el id."""
+        cur = self.conn.execute(
+            "INSERT INTO reconciliation_jobs(job_id, tenant_id, status, "
+            "bank, format, filename) VALUES (?,?,?,?,?,?)",
+            (job_id, tenant_id, "pending", bank, fmt, filename))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def update_reconciliation_job(self, job_id, status=None, progress=None,
+                                  result_json=None, error=None):
+        """Actualiza campos de un job de conciliación."""
+        sets, params = [], []
+        if status is not None:
+            sets.append("status=?")
+            params.append(status)
+        if progress is not None:
+            sets.append("progress=?")
+            params.append(float(progress))
+        if result_json is not None:
+            sets.append("result_json=?")
+            params.append(result_json)
+        if error is not None:
+            sets.append("error=?")
+            params.append(error)
+        if not sets:
+            return
+        sets.append("updated_at=CURRENT_TIMESTAMP")
+        params.append(job_id)
+        with self.conn:
+            self.conn.execute(
+                f"UPDATE reconciliation_jobs SET {', '.join(sets)} "
+                "WHERE job_id=?", params)
+
+    def get_reconciliation_job(self, job_id, tenant_id=None):
+        """Obtiene un job de conciliación por job_id (y opcionalmente tenant)."""
+        q = "SELECT * FROM reconciliation_jobs WHERE job_id=?"
+        params = [job_id]
+        if tenant_id is not None:
+            q += " AND tenant_id=?"
+            params.append(tenant_id)
+        row = self.conn.execute(q, params).fetchone()
+        return dict(row) if row else None
+
+    def list_reconciliation_jobs(self, tenant_id=None, status=None, limit=100):
+        """Lista jobs de conciliación filtrando por tenant y/o status."""
+        q = "SELECT * FROM reconciliation_jobs"
+        clauses, params = [], []
+        if tenant_id is not None:
+            clauses.append("tenant_id=?")
+            params.append(tenant_id)
+        if status is not None:
+            clauses.append("status=?")
+            params.append(status)
+        if clauses:
+            q += " WHERE " + " AND ".join(clauses)
+        q += f" ORDER BY created_at DESC LIMIT {int(limit)}"
+        return [dict(r) for r in self.conn.execute(q, params).fetchall()]
+
 
 def main():
     import sys

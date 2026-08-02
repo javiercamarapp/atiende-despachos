@@ -8,9 +8,13 @@ Endpoints:
     POST /api/v1/reconcile/approve  Approve/reject individual matches
 
 Extends the existing b2b_ai.api.reconciliation router with new capabilities.
+
+State is stored in the database (reconciliation_jobs table) instead of an
+in-memory dict, so jobs survive restarts and work across multiple workers.
 """
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import uuid
@@ -23,6 +27,7 @@ from b2b_ai.features.reconciliation_agent.models import (
     ApprovalRequest,
     BancoMX,
     BankFormat,
+    ReconciliationResult,
     ReconciliationStatus,
     UploadRequest,
 )
@@ -31,8 +36,26 @@ from b2b_ai.features.reconciliation_agent.matching_engine import MatchingEngine
 from b2b_ai.features.reconciliation_agent.alerts import AlertEngine
 
 
-# In-memory job store (in production, use DB/Redis)
-_JOBS: Dict[str, ReconciliationStatus] = {}
+def _job_to_status(row: dict) -> ReconciliationStatus:
+    """Reconstruct a ReconciliationStatus from a DB row."""
+    result = None
+    if row.get("result_json"):
+        try:
+            result = ReconciliationResult.model_validate_json(row["result_json"])
+        except Exception:
+            result = None
+    return ReconciliationStatus(
+        job_id=row["job_id"],
+        status=row["status"],
+        progress=row.get("progress", 0.0) or 0.0,
+        result=result,
+        created_at=str(row.get("created_at", "")),
+        updated_at=str(row.get("updated_at", "")),
+        error=row.get("error"),
+        bank=row.get("bank", "generic"),
+        format=row.get("format", "csv"),
+        filename=row.get("filename", ""),
+    )
 
 
 class ReconcileAgentRouter:
@@ -140,20 +163,25 @@ class ReconcileAgentRouter:
                 alerts = alert_engine.generate_alerts(result)
                 result.alerts = [a.model_dump() for a in alerts]
 
-                # Store job
+                # Store job in DB
                 job_id = str(uuid.uuid4())[:12]
-                status = ReconciliationStatus(
-                    job_id=job_id,
-                    status="completed",
-                    progress=100.0,
-                    result=result,
-                    bank=bank_norm,
-                    format=fmt or suffix.lstrip("."),
-                    filename=file.filename or "",
-                )
-                _JOBS[job_id] = status
+                result_json = result.model_dump_json()
 
-                # Persist to DB if available
+                if self.db:
+                    try:
+                        self.db.create_reconciliation_job(
+                            job_id, tenant, bank=bank_norm,
+                            fmt=fmt or suffix.lstrip("."),
+                            filename=file.filename or "",
+                        )
+                        self.db.update_reconciliation_job(
+                            job_id, status="completed",
+                            progress=100.0, result_json=result_json,
+                        )
+                    except Exception:
+                        pass  # Non-critical — job still returns to caller
+
+                # Persist movements to DB if available
                 if self.db and tenant:
                     try:
                         for mov in movements:
@@ -222,8 +250,14 @@ class ReconcileAgentRouter:
             Returns the full reconciliation result including matches,
             unmatched items, and alerts.
             """
-            status = _JOBS.get(job_id)
-            if status is None:
+            tenant = _scope(auth_info)
+
+            if self.db:
+                row = self.db.get_reconciliation_job(job_id, tenant_id=tenant)
+                if row is None:
+                    raise HTTPException(404, f"Job {job_id} no encontrado")
+                status = _job_to_status(row)
+            else:
                 raise HTTPException(404, f"Job {job_id} no encontrado")
 
             data = status.model_dump()
@@ -264,9 +298,15 @@ class ReconcileAgentRouter:
             Approved matches are persisted to the database.
             """
             tenant = _scope(auth_info)
-            status = _JOBS.get(req.job_id)
-            if status is None:
+
+            if self.db:
+                row = self.db.get_reconciliation_job(req.job_id, tenant_id=tenant)
+                if row is None:
+                    raise HTTPException(404, f"Job {req.job_id} no encontrado")
+                status = _job_to_status(row)
+            else:
                 raise HTTPException(404, f"Job {req.job_id} no encontrado")
+
             if status.result is None:
                 raise HTTPException(400, "El job aún no tiene resultados")
             if req.match_idx < 0 or req.match_idx >= len(status.result.matched):

@@ -114,6 +114,11 @@ from b2b_ai.api.metrics import metrics
 from b2b_ai.api.security_headers import install as install_security_headers
 from b2b_ai.api.security import (allowed_upload_extension, detect_pii,
                                  encrypt_field, decrypt_field)
+from b2b_ai.api.errors import install_error_handlers
+from b2b_ai.api.idempotency import install_idempotency
+from b2b_ai.api.rate_limiter import install_enterprise_rate_limit
+from b2b_ai.api.openapi_docs import install_openapi_docs
+from b2b_ai.features.reconciliation_agent.routes import build_reconcile_agent_router
 from b2b_ai.auth.api import build_auth_router
 from b2b_ai.auth.middleware import check_jwt_config, _is_dev_env
 from b2b_ai.monitoring.logger import (get_logger as get_structured_logger,
@@ -507,6 +512,9 @@ def create_app(db=None):
     # Cabeceras de seguridad (HSTS, CSP, X-Frame-Options, nosniff, etc.)
     install_security_headers(app)
 
+    # Enterprise error handlers: structured JSON for ALL errors (no raw HTML).
+    install_error_handlers(app)
+
     # ------------------------------------------------------------------ #
     # CORS para producción. La landing se sirve same-origin (no requiere
     # CORS), pero si una integración propia / portal hostea la UI en otro
@@ -534,6 +542,10 @@ def create_app(db=None):
             max_age=600,
         )
 
+    # Idempotency: duplicate-request protection for write endpoints.
+    # Caches responses keyed by Idempotency-Key header (24h TTL).
+    install_idempotency(app)
+
     # Rate limiting (on por defecto; ajustable via env, `off` lo desactiva).
     _rl_raw = os.environ.get("B2B_RATE_LIMIT_PER_MIN", "300")
     try:
@@ -559,6 +571,11 @@ def create_app(db=None):
                     headers={"Retry-After": str(int(_limiter.window))},
                 )
             return await call_next(request)
+
+    # Enterprise distributed rate limiter (Redis-backed, per-tenant/role).
+    # Supplements the basic IP-based limiter above with tenant-aware limits
+    # and standard X-RateLimit-* headers.
+    install_enterprise_rate_limit(app, redis_url=os.environ.get("B2B_REDIS_URL"))
 
     # Métricas (request count + latencia). Se registra DESPUÉS del rate
     # limiter para ser la capa más externa y contar TODAS las peticiones,
@@ -1179,6 +1196,9 @@ def create_app(db=None):
     # Conciliación bancaria real con upload (FASE reconciliation).
     app.include_router(build_reconciliation_router(db, require_api_key))
 
+    # Reconciliation Agent (Agente 1): upload, auto-match, approve/reject.
+    app.include_router(build_reconcile_agent_router(db, require_api_key))
+
     # Cobros (FASE billing): Stripe / Conekta. En demo/tests usa el provider
     # mock (sin red); en producción resuelve por env (B2B_STRIPE_KEY /
     # B2B_CONEKTA_KEY / B2B_PAYMENTS_PROVIDER).
@@ -1574,6 +1594,9 @@ def create_app(db=None):
         import logging as _demo_logging
         _demo_logging.getLogger("b2b_ai").info(
             "🎭 Demo mode ACTIVO — /api/demo/* mock endpoints habilitados.")
+
+    # Enterprise OpenAPI docs: error schemas, auth flows, webhook examples.
+    install_openapi_docs(app)
 
     return app
 

@@ -396,7 +396,7 @@ class TestContextSwitching:
         svc = _svc_with(1)
         tid = svc.list_tenants()[0].id
         svc.delete_tenant(tid)
-        with pytest.raises(TenantBlockedError):
+        with pytest.raises(TenantNotFoundError):
             svc.switch_tenant_context(tid)
 
     def test_switch_nonexistent_raises(self):

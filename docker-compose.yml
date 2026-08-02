@@ -26,9 +26,9 @@ services:
     env_file:
       - .env
     environment:
-      # Estado actual: la capa de datos (b2b_ai/db/db.py) es SQLite. Postgres y
-      # Redis se provisionan como infraestructura objetivo; el API persiste en
-      # SQLite sobre el volumen `app-data` hasta que aterrice el adaptador PG.
+      # DATABASE_URL: db.py detecta esta variable y usa PostgreSQL (psycopg3).
+      # Si no está seteada, fallback a SQLite (B2B_DB_PATH). Railway la inyecta.
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-b2b}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-b2b_ai}
       - B2B_DB_PATH=/data/b2b_ai.db
       - B2B_WORKERS=${B2B_WORKERS:-1}
       - REDIS_URL=redis://redis:6379/0
@@ -119,6 +119,6 @@ networks:
     driver: bridge
 
 volumes:
-  app-data:      # persistencia SQLite del API (estado actual)
-  db-data:       # datos de PostgreSQL (objetivo de la migración)
+  app-data:      # fallback SQLite (solo si no hay DATABASE_URL)
+  db-data:       # datos de PostgreSQL (producción)
   redis-data:    # AOF de Redis
