@@ -35,7 +35,9 @@ jobs:
       - name: Recopilar tests (sin bloqueos de import)
         run: |
           python -m compileall -q b2b_ai/
-          python -c "import b2b_ai.features.diot; import b2b_ai.api.app; print('imports OK')"
+          B2B_ENV=development python -c "import b2b_ai.features.diot; import b2b_ai.api.app; print('imports OK')"
+        env:
+          B2B_ENV: development
 
       - name: Ejecutar suite de tests
         run: pytest -q -m "not computer_use_e2e" --ignore=tests/test_computer_use_e2e.py
