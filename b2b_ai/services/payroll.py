@@ -36,6 +36,9 @@ def _to_str_tuples(table):
 
 TARIFA_ISR_2024_MENSUAL = _to_str_tuples(ISR_MENSUAL_2024)
 
+# FIS-08: Tarifa mensual ISR 2025 — tabla oficial (LISR art. 96)
+TARIFA_ISR_2025_MENSUAL = _to_str_tuples(ISR_MENSUAL_2025)
+
 # Tarifa quincenal ISR — de fiscal_tables.py (2025)
 TARIFA_ISR_2024_QUINCENAL = _to_str_tuples(ISR_QUINCENAL_2025)
 
@@ -92,7 +95,7 @@ RATES = {
     "aguinaldo_dias_ley": 15,                    # 15 días (LFT art. 87)
 }
 
-AÑO_FISCAL = 2024
+AÑO_FISCAL = 2025
 
 
 def _dec(v, default=Decimal("0")):
@@ -129,7 +132,7 @@ def calc_isr(ingreso_gravado, tarifa=None, periodicidad="mensual"):
         tabla = tarifa or TARIFA_ISR_2024_QUINCENAL
         ref_label = "quincenal"
     else:
-        tabla = tarifa or TARIFA_ISR_2024_MENSUAL
+        tabla = tarifa or TARIFA_ISR_2025_MENSUAL  # FIS-08: default 2025
         ref_label = "mensual"
     ing = _dec(ingreso_gravado)
     if ing <= 0:
