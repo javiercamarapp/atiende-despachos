@@ -1,0 +1,347 @@
+[
+  {
+    "id": "doc-6246357836198645",
+    "tenant_id": "0",
+    "name": "factura_demo.xml",
+    "category": "CFDI",
+    "content_type": "application/xml",
+    "size": 64,
+    "sha256": "dc2985b69e0140c0a25d8b759b03db75254b89c9b40d4e7584a68e84ccefe73b",
+    "storage_path": "T0/dc/dc2985b69e0140c0a25d8b759b03db75254b89c9b40d4e7584a68e84ccefe73b.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "CFDI",
+      "rfc": "TGD1311246DP"
+    },
+    "tags": [
+      "demo",
+      "cfdi"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant0",
+    "created_at": "2026-06-03T16:41:26.728583Z",
+    "updated_at": "2026-08-02T16:41:26.728768Z"
+  },
+  {
+    "id": "doc-6783282742263874",
+    "tenant_id": "0",
+    "name": "contrato_servicio.pdf",
+    "category": "contrato",
+    "content_type": "application/pdf",
+    "size": 64,
+    "sha256": "bc491956a603c3dc74e15ba5babfa7be864998bdfd8983d25aca384be7e78490",
+    "storage_path": "T0/bc/bc491956a603c3dc74e15ba5babfa7be864998bdfd8983d25aca384be7e78490.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "contrato",
+      "rfc": "TGD1311246DP"
+    },
+    "tags": [
+      "demo",
+      "contrato"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant0",
+    "created_at": "2026-07-07T16:41:26.728788Z",
+    "updated_at": "2026-08-02T16:41:26.728791Z"
+  },
+  {
+    "id": "doc-2293865885735925",
+    "tenant_id": "0",
+    "name": "carta_porte.pdf",
+    "category": "carta_porte",
+    "content_type": "application/pdf",
+    "size": 64,
+    "sha256": "cc423e1c847331424a94dc802282f9189755fa4ed9affcfa1c2789163623fda2",
+    "storage_path": "T0/cc/cc423e1c847331424a94dc802282f9189755fa4ed9affcfa1c2789163623fda2.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "carta_porte",
+      "rfc": "TGD1311246DP"
+    },
+    "tags": [
+      "demo",
+      "cartaporte"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant0",
+    "created_at": "2026-07-30T16:41:26.728800Z",
+    "updated_at": "2026-08-02T16:41:26.728802Z"
+  },
+  {
+    "id": "doc-4317904026090357",
+    "tenant_id": "0",
+    "name": "recibo_nomina_empleado.xml",
+    "category": "nomina_xml",
+    "content_type": "application/xml",
+    "size": 64,
+    "sha256": "11f634267db35325c2e501ad6f743b8a320b9c3e30f31c02df88ed4e960ddf2e",
+    "storage_path": "T0/11/11f634267db35325c2e501ad6f743b8a320b9c3e30f31c02df88ed4e960ddf2e.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "nomina_xml",
+      "rfc": "TGD1311246DP"
+    },
+    "tags": [
+      "demo",
+      "nominaxml"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant0",
+    "created_at": "2026-07-19T16:41:26.728807Z",
+    "updated_at": "2026-08-02T16:41:26.728809Z"
+  },
+  {
+    "id": "doc-3520216532902815",
+    "tenant_id": "0",
+    "name": "constancia_fiscal.pdf",
+    "category": "constancia",
+    "content_type": "application/pdf",
+    "size": 64,
+    "sha256": "d3b30e92738e1d8c9c04474a48577932913cfee60ba0f46fc0440dd337b090fa",
+    "storage_path": "T0/d3/d3b30e92738e1d8c9c04474a48577932913cfee60ba0f46fc0440dd337b090fa.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "constancia",
+      "rfc": "TGD1311246DP"
+    },
+    "tags": [
+      "demo",
+      "constancia"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant0",
+    "created_at": "2026-07-16T16:41:26.728814Z",
+    "updated_at": "2026-08-02T16:41:26.728815Z"
+  },
+  {
+    "id": "doc-9067911454174619",
+    "tenant_id": "1",
+    "name": "factura_demo.xml",
+    "category": "CFDI",
+    "content_type": "application/xml",
+    "size": 64,
+    "sha256": "c40042d5edb09e47720d551dac4e3b626d30f4abc1f034e9147163347590eb98",
+    "storage_path": "T1/c4/c40042d5edb09e47720d551dac4e3b626d30f4abc1f034e9147163347590eb98.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "CFDI",
+      "rfc": "SEJ811218HL1"
+    },
+    "tags": [
+      "demo",
+      "cfdi"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant1",
+    "created_at": "2026-07-02T16:41:26.728830Z",
+    "updated_at": "2026-08-02T16:41:26.728832Z"
+  },
+  {
+    "id": "doc-4987440940247211",
+    "tenant_id": "1",
+    "name": "contrato_servicio.pdf",
+    "category": "contrato",
+    "content_type": "application/pdf",
+    "size": 64,
+    "sha256": "ce16fbfff6f79a5a90a3418795ee9b9ebf67855f0a64f8425aec5fc437a63580",
+    "storage_path": "T1/ce/ce16fbfff6f79a5a90a3418795ee9b9ebf67855f0a64f8425aec5fc437a63580.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "contrato",
+      "rfc": "SEJ811218HL1"
+    },
+    "tags": [
+      "demo",
+      "contrato"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant1",
+    "created_at": "2026-06-25T16:41:26.728837Z",
+    "updated_at": "2026-08-02T16:41:26.728838Z"
+  },
+  {
+    "id": "doc-4519452030202450",
+    "tenant_id": "1",
+    "name": "carta_porte.pdf",
+    "category": "carta_porte",
+    "content_type": "application/pdf",
+    "size": 64,
+    "sha256": "9d9103043e7e982a56084f0b3f5a8a56a48ba62498a4a445758b6addc61e362d",
+    "storage_path": "T1/9d/9d9103043e7e982a56084f0b3f5a8a56a48ba62498a4a445758b6addc61e362d.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "carta_porte",
+      "rfc": "SEJ811218HL1"
+    },
+    "tags": [
+      "demo",
+      "cartaporte"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant1",
+    "created_at": "2026-07-23T16:41:26.728843Z",
+    "updated_at": "2026-08-02T16:41:26.728844Z"
+  },
+  {
+    "id": "doc-7433977223414755",
+    "tenant_id": "1",
+    "name": "recibo_nomina_empleado.xml",
+    "category": "nomina_xml",
+    "content_type": "application/xml",
+    "size": 64,
+    "sha256": "f9c903628b8804fd08b24d638421d5f88061cef42203384dce04cb4210e703f5",
+    "storage_path": "T1/f9/f9c903628b8804fd08b24d638421d5f88061cef42203384dce04cb4210e703f5.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "nomina_xml",
+      "rfc": "SEJ811218HL1"
+    },
+    "tags": [
+      "demo",
+      "nominaxml"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant1",
+    "created_at": "2026-06-03T16:41:26.728849Z",
+    "updated_at": "2026-08-02T16:41:26.728850Z"
+  },
+  {
+    "id": "doc-8975292340752081",
+    "tenant_id": "1",
+    "name": "constancia_fiscal.pdf",
+    "category": "constancia",
+    "content_type": "application/pdf",
+    "size": 64,
+    "sha256": "4ceec0446b677001fe4f3287c2daa7051ee22ca7d6e3c3f65c41f8d8c9edec9a",
+    "storage_path": "T1/4c/4ceec0446b677001fe4f3287c2daa7051ee22ca7d6e3c3f65c41f8d8c9edec9a.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "constancia",
+      "rfc": "SEJ811218HL1"
+    },
+    "tags": [
+      "demo",
+      "constancia"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant1",
+    "created_at": "2026-07-25T16:41:26.728854Z",
+    "updated_at": "2026-08-02T16:41:26.728856Z"
+  },
+  {
+    "id": "doc-4631879003342505",
+    "tenant_id": "2",
+    "name": "factura_demo.xml",
+    "category": "CFDI",
+    "content_type": "application/xml",
+    "size": 64,
+    "sha256": "9c3795dab0503e7b9eb99996a3ee11851f361effbf6bed74a6344af250b41931",
+    "storage_path": "T2/9c/9c3795dab0503e7b9eb99996a3ee11851f361effbf6bed74a6344af250b41931.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "CFDI",
+      "rfc": "TNC800527XVF"
+    },
+    "tags": [
+      "demo",
+      "cfdi"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant2",
+    "created_at": "2026-06-15T16:41:26.728866Z",
+    "updated_at": "2026-08-02T16:41:26.728868Z"
+  },
+  {
+    "id": "doc-4707780253786859",
+    "tenant_id": "2",
+    "name": "contrato_servicio.pdf",
+    "category": "contrato",
+    "content_type": "application/pdf",
+    "size": 64,
+    "sha256": "eeba2946ba25813763baefc37d0ee33081311276a737200ed6ff8a771c881b8f",
+    "storage_path": "T2/ee/eeba2946ba25813763baefc37d0ee33081311276a737200ed6ff8a771c881b8f.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "contrato",
+      "rfc": "TNC800527XVF"
+    },
+    "tags": [
+      "demo",
+      "contrato"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant2",
+    "created_at": "2026-06-21T16:41:26.728873Z",
+    "updated_at": "2026-08-02T16:41:26.728874Z"
+  },
+  {
+    "id": "doc-6371097680285933",
+    "tenant_id": "2",
+    "name": "carta_porte.pdf",
+    "category": "carta_porte",
+    "content_type": "application/pdf",
+    "size": 64,
+    "sha256": "722b14bb2c77b5b89f2b5fce6a66c8eaabfe3027f09599ec3363f50561a23b7e",
+    "storage_path": "T2/72/722b14bb2c77b5b89f2b5fce6a66c8eaabfe3027f09599ec3363f50561a23b7e.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "carta_porte",
+      "rfc": "TNC800527XVF"
+    },
+    "tags": [
+      "demo",
+      "cartaporte"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant2",
+    "created_at": "2026-07-25T16:41:26.728878Z",
+    "updated_at": "2026-08-02T16:41:26.728880Z"
+  },
+  {
+    "id": "doc-1175300570019297",
+    "tenant_id": "2",
+    "name": "recibo_nomina_empleado.xml",
+    "category": "nomina_xml",
+    "content_type": "application/xml",
+    "size": 64,
+    "sha256": "39369d06fe4a55654fc863f8b5a90262f6959eb39500766074138dca42ad6027",
+    "storage_path": "T2/39/39369d06fe4a55654fc863f8b5a90262f6959eb39500766074138dca42ad6027.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "nomina_xml",
+      "rfc": "TNC800527XVF"
+    },
+    "tags": [
+      "demo",
+      "nominaxml"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant2",
+    "created_at": "2026-06-28T16:41:26.728885Z",
+    "updated_at": "2026-08-02T16:41:26.728887Z"
+  },
+  {
+    "id": "doc-1829288600662220",
+    "tenant_id": "2",
+    "name": "constancia_fiscal.pdf",
+    "category": "constancia",
+    "content_type": "application/pdf",
+    "size": 64,
+    "sha256": "b2605ca02e95f6bba6345db8fe05f5e9ff19d94963cbf5b8fd3964738055427e",
+    "storage_path": "T2/b2/b2605ca02e95f6bba6345db8fe05f5e9ff19d94963cbf5b8fd3964738055427e.bin",
+    "version": 1,
+    "metadata": {
+      "tipo": "constancia",
+      "rfc": "TNC800527XVF"
+    },
+    "tags": [
+      "demo",
+      "constancia"
+    ],
+    "status": "ACTIVO",
+    "created_by": "admin@tenant2",
+    "created_at": "2026-06-16T16:41:26.728891Z",
+    "updated_at": "2026-08-02T16:41:26.728893Z"
+  }
+]

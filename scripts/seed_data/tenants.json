@@ -1,0 +1,29 @@
+[
+  {
+    "name": "Contadores Asociados del Bajío, S.C.",
+    "rfc": "CAB091012AB1",
+    "erp_type": "contpaqi",
+    "plantilla_contable": "SAT",
+    "ciudad": "León, Guanajuato",
+    "admin_email": "admin@bajio.contadores.mx",
+    "blocked": 0
+  },
+  {
+    "name": "Grupo Fiscal del Norte, S.C.",
+    "rfc": "GFN940523CD2",
+    "erp_type": "contpaqi",
+    "plantilla_contable": "SAT",
+    "ciudad": "Monterrey, Nuevo León",
+    "admin_email": "admin@norte.grupofiscal.mx",
+    "blocked": 0
+  },
+  {
+    "name": "Despacho Contable del Pacífico, S.C.",
+    "rfc": "DCP971108EF3",
+    "erp_type": "aspel",
+    "plantilla_contable": "CoA",
+    "ciudad": "Guadalajara, Jalisco",
+    "admin_email": "admin@pacifico.despacho.mx",
+    "blocked": 0
+  }
+]

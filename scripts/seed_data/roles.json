@@ -1,0 +1,35 @@
+{
+  "admin": [
+    "cfdi:read",
+    "cfdi:write",
+    "nominas:read",
+    "nominas:write",
+    "reportes:read",
+    "reportes:write",
+    "billing:read",
+    "billing:write",
+    "settings:read",
+    "settings:write",
+    "users:manage"
+  ],
+  "contador": [
+    "cfdi:read",
+    "cfdi:write",
+    "nominas:read",
+    "nominas:write",
+    "reportes:read",
+    "billing:read",
+    "settings:read"
+  ],
+  "auditor": [
+    "cfdi:read",
+    "nominas:read",
+    "reportes:read",
+    "billing:read",
+    "settings:read"
+  ],
+  "readonly": [
+    "cfdi:read",
+    "reportes:read"
+  ]
+}

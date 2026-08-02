@@ -1,0 +1,122 @@
+[
+  {
+    "tenant_idx": 0,
+    "name": "Manufacturera S.A. de C.V.",
+    "rfc": "TGD1311246DP",
+    "email": "contacto00@manufacturerasadecv",
+    "sector": "Manufactura",
+    "ciudad": "CDMX"
+  },
+  {
+    "tenant_idx": 0,
+    "name": "Inmobiliaria S.A. de C.V.",
+    "rfc": "NAF831218PQK",
+    "email": "contacto01@inmobiliariasadecv",
+    "sector": "Manufactura",
+    "ciudad": "Guadalajara"
+  },
+  {
+    "tenant_idx": 0,
+    "name": "Textilera S.A.P.I. de C.V.",
+    "rfc": "HFT130213D4V",
+    "email": "contacto02@textilerasapidecv",
+    "sector": "Manufactura",
+    "ciudad": "Puebla"
+  },
+  {
+    "tenant_idx": 0,
+    "name": "Constructora S.A. de C.V.",
+    "rfc": "ZJO801028NGC",
+    "email": "contacto03@constructorasadecv",
+    "sector": "Construcción",
+    "ciudad": "Monterrey"
+  },
+  {
+    "tenant_idx": 0,
+    "name": "Manufacturera S.A. de C.V.",
+    "rfc": "WJL460312MYZ",
+    "email": "contacto04@manufacturerasadecv",
+    "sector": "Comercio",
+    "ciudad": "Querétaro"
+  },
+  {
+    "tenant_idx": 1,
+    "name": "Industrial S. de R.L. de C.V.",
+    "rfc": "SEJ811218HL1",
+    "email": "contacto10@industrialsderldecv",
+    "sector": "Manufactura",
+    "ciudad": "Guadalajara"
+  },
+  {
+    "tenant_idx": 1,
+    "name": "Comercializadora S.A.P.I. de C.V.",
+    "rfc": "KBX721211HR5",
+    "email": "contacto11@comercializadorasapidecv",
+    "sector": "Salud",
+    "ciudad": "Guadalajara"
+  },
+  {
+    "tenant_idx": 1,
+    "name": "Logística S.A. de C.V.",
+    "rfc": "GOG740719OH9",
+    "email": "contacto12@logísticasadecv",
+    "sector": "Textil",
+    "ciudad": "Puebla"
+  },
+  {
+    "tenant_idx": 1,
+    "name": "Manufacturera S.A. de C.V.",
+    "rfc": "WDE870720CN9",
+    "email": "contacto13@manufacturerasadecv",
+    "sector": "Textil",
+    "ciudad": "Monterrey"
+  },
+  {
+    "tenant_idx": 1,
+    "name": "Constructora S.A. de C.V.",
+    "rfc": "RCX960525XEP",
+    "email": "contacto14@constructorasadecv",
+    "sector": "Salud",
+    "ciudad": "CDMX"
+  },
+  {
+    "tenant_idx": 2,
+    "name": "Logística S. de R.L. de C.V.",
+    "rfc": "TNC800527XVF",
+    "email": "contacto20@logísticasderldecv",
+    "sector": "Servicios",
+    "ciudad": "Querétaro"
+  },
+  {
+    "tenant_idx": 2,
+    "name": "Constructora S.A. de C.V.",
+    "rfc": "PMC460508C58",
+    "email": "contacto21@constructorasadecv",
+    "sector": "Comercio",
+    "ciudad": "Puebla"
+  },
+  {
+    "tenant_idx": 2,
+    "name": "Manufacturera S. de R.L. de C.V.",
+    "rfc": "TDM700309SV8",
+    "email": "contacto22@manufacturerasderldecv",
+    "sector": "Textil",
+    "ciudad": "Guadalajara"
+  },
+  {
+    "tenant_idx": 2,
+    "name": "Logística S.A.P.I. de C.V.",
+    "rfc": "ZQL660804ICA",
+    "email": "contacto23@logísticasapidecv",
+    "sector": "Textil",
+    "ciudad": "Guadalajara"
+  },
+  {
+    "tenant_idx": 2,
+    "name": "Distribuidora S.A. de C.V.",
+    "rfc": "ASB080128LSK",
+    "email": "contacto24@distribuidorasadecv",
+    "sector": "Salud",
+    "ciudad": "Guadalajara"
+  }
+]
