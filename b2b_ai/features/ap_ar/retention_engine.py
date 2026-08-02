@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-retention_engine.py — ISR retention calculator for AP suppliers.
+retention_engine.py — ISR/IVA retention calculator for AP suppliers.
 
 Calculates ISR retentions per LISR Art. 94-100:
   - Arrendamiento PF: 10% (Art. 94 fracc. III)
@@ -9,6 +9,10 @@ Calculates ISR retentions per LISR Art. 94-100:
   - Regalías nacional: 25% (Art. 178 fracc. I)
   - Regalías extranjero: 40% (Art. 178 fracc. I)
   - Subcontratación laboral: 6% (Art. 12 fracc. I, reforma 2021)
+
+And IVA retentions per LIVA Art. 1-A:
+  - Honorarios / arrendamiento: se retiene 2/3 del IVA trasladado (LIVA
+    Art. 1º-A fracc. II, III y IV).
 """
 from __future__ import annotations
 
@@ -24,36 +28,56 @@ RETENTION_CONFIG = {
         "fundamento": "LISR Art. 94 fracc. III",
         "aplica": "PF arrendadora de bienes inmuebles",
         "es_tabla": False,
+        "es_iva": False,
     },
     RetentionType.HONORARIOS_PF: {
         "tasa": "tabla_art_96",
         "fundamento": "LISR Art. 94 fracc. II — Tabla Art. 96",
         "aplica": "PF prestadora de servicios profesionales (honorarios)",
         "es_tabla": True,
+        "es_iva": False,
     },
     RetentionType.SERVICIOS_PROFESIONALES: {
         "tasa": 0.10,
         "fundamento": "LISR Art. 100",
         "aplica": "PF con Actividades Empresariales",
         "es_tabla": False,
+        "es_iva": False,
     },
     RetentionType.REGALIAS_NACIONAL: {
         "tasa": 0.25,
         "fundamento": "LISR Art. 178 fracc. I",
         "aplica": "Regalías a residentes nacionales",
         "es_tabla": False,
+        "es_iva": False,
     },
     RetentionType.REGALIAS_EXTRANJERO: {
         "tasa": 0.40,
         "fundamento": "LISR Art. 178 fracc. I",
         "aplica": "Regalías a residentes extranjeros",
         "es_tabla": False,
+        "es_iva": False,
     },
     RetentionType.SUBCONTRATACION: {
         "tasa": 0.06,
         "fundamento": "LISR Art. 12 fracc. I (reforma subcontratación 2021)",
         "aplica": "Subcontratación laboral (outsourcing)",
         "es_tabla": False,
+        "es_iva": False,
+    },
+    RetentionType.IVA_HONORARIOS: {
+        "tasa": 2.0 / 3.0,  # 2/3 del IVA trasladado (LIVA Art. 1-A fracc. IV)
+        "fundamento": "LIVA Art. 1º-A fracc. IV — retención IVA honorarios",
+        "aplica": "Retención del 2/3 del IVA trasladado (honorarios)",
+        "es_tabla": False,
+        "es_iva": True,
+    },
+    RetentionType.IVA_ARRENDAMIENTO: {
+        "tasa": 2.0 / 3.0,  # 2/3 del IVA trasladado (LIVA Art. 1-A fracc. III)
+        "fundamento": "LIVA Art. 1º-A fracc. III — retención IVA arrendamiento",
+        "aplica": "Retención del 2/3 del IVA trasladado (arrendamiento)",
+        "es_tabla": False,
+        "es_iva": True,
     },
 }
 
@@ -109,17 +133,50 @@ class RetentionEngine:
         tipo_servicio: RetentionType,
         monto_factura: float,
     ) -> RetentionResult:
-        """Calculate ISR retention for a given supplier invoice.
+        """Calculate ISR/IVA retention for a given supplier invoice.
 
         Args:
             proveedor_rfc: Supplier RFC (13 chars = PF, 12 = PM).
             tipo_servicio: Type of service/retention.
-            monto_factura: Invoice subtotal (before IVA).
+            monto_factura: Invoice subtotal (before IVA). For IVA retentions
+                this is the base used to derive the IVA trasladado (16%).
 
         Returns:
             RetentionResult with calculated retention details.
         """
         es_pf = _is_persona_fisica(proveedor_rfc)
+
+        config = RETENTION_CONFIG.get(tipo_servicio)
+        if config is None:
+            return RetentionResult(
+                proveedor_rfc=proveedor_rfc,
+                tipo_retencion=tipo_servicio,
+                monto_factura=monto_factura,
+                monto_neto=monto_factura,
+                es_pf=es_pf,
+                aplica_retencion=False,
+                motivo=f"Tipo de servicio '{tipo_servicio}' no sujeto a retención",
+            )
+
+        # Retención IVA (LIVA Art. 1-A) aplica por tipo de servicio y monto,
+        # independientemente de que el proveedor sea PF o PM.
+        if config.get("es_iva"):
+            iva_trasladado = round(monto_factura * 0.16, 2)  # 16% IVA trasladado
+            retencion = round(iva_trasladado * config["tasa"], 2)  # * 2/3
+            monto_neto = round(monto_factura + iva_trasladado - retencion, 2)
+            return RetentionResult(
+                proveedor_rfc=proveedor_rfc,
+                tipo_retencion=tipo_servicio,
+                tasa=round(config["tasa"], 4),
+                fundamento=config["fundamento"],
+                monto_factura=monto_factura,
+                iva_trasladado=iva_trasladado,
+                retencion=retencion,
+                monto_neto=monto_neto,
+                es_pf=es_pf,
+                aplica_retencion=True,
+                motivo=config["aplica"],
+            )
 
         if not es_pf:
             return RetentionResult(
@@ -129,18 +186,6 @@ class RetentionEngine:
                 es_pf=False,
                 aplica_retencion=False,
                 motivo="Persona Moral — no aplica retención ISR a PM",
-            )
-
-        config = RETENTION_CONFIG.get(tipo_servicio)
-        if config is None:
-            return RetentionResult(
-                proveedor_rfc=proveedor_rfc,
-                tipo_retencion=tipo_servicio,
-                monto_factura=monto_factura,
-                monto_neto=monto_factura,
-                es_pf=True,
-                aplica_retencion=False,
-                motivo=f"Tipo de servicio '{tipo_servicio}' no sujeto a retención",
             )
 
         if config["es_tabla"]:

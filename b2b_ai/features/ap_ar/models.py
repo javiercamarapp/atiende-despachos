@@ -58,13 +58,15 @@ class CreditNoteType(str, Enum):
 
 
 class RetentionType(str, Enum):
-    """ISR retention types per LISR Art. 94-100."""
+    """Retention types per LISR Art. 94-100 and LIVA Art. 1-A."""
     ARRENDAMIENTO_PF = "arrendamiento_pf"
     HONORARIOS_PF = "honorarios_pf"
     SERVICIOS_PROFESIONALES = "servicios_profesionales"
     REGALIAS_NACIONAL = "regalias_nacional"
     REGALIAS_EXTRANJERO = "regalias_extranjero"
     SUBCONTRATACION = "subcontratacion"
+    IVA_HONORARIOS = "iva_honorarios"
+    IVA_ARRENDAMIENTO = "iva_arrendamiento"
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +284,7 @@ class RetentionResult(BaseModel):
     tasa: float = 0.0
     fundamento: str = ""
     monto_factura: float = 0.0
+    iva_trasladado: float = 0.0
     retencion: float = 0.0
     monto_neto: float = 0.0
     es_pf: bool = False

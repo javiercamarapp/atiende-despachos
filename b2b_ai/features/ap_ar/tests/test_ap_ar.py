@@ -461,6 +461,32 @@ class TestRetentionEngine:
         assert result.aplica_retencion is False
         assert "Persona Moral" in result.motivo
 
+    def test_iva_honorarios_2_3_rule(self):
+        """P1: retención IVA = IVA trasladado (16%) × 2/3 (LIVA Art. 1-A fracc. IV)."""
+        engine = RetentionEngine()
+        result = engine.calcular_retencion(
+            "HEGA800615ABC",  # PF (13 chars)
+            RetentionType.IVA_HONORARIOS,
+            10000.00,  # subtotal
+        )
+        # IVA trasladado = 10000 × 16% = 1600 → retención = 1600 × 2/3 = 1066.67
+        assert result.aplica_retencion is True
+        assert result.iva_trasladado == pytest.approx(1600.00, abs=0.02)
+        assert result.retencion == pytest.approx(1066.67, abs=0.02)
+        assert "2/3" in result.fundamento or "2/3" in result.motivo or "1º-A" in result.fundamento
+
+    def test_iva_arrendamiento_applies_to_pm(self):
+        """Retención IVA aplica independientemente de PF/PM (LIVA Art. 1-A)."""
+        engine = RetentionEngine()
+        result = engine.calcular_retencion(
+            "EKU9003173C9",  # PM (12 chars)
+            RetentionType.IVA_ARRENDAMIENTO,
+            50000.00,
+        )
+        assert result.aplica_retencion is True
+        assert result.iva_trasladado == pytest.approx(8000.00, abs=0.02)
+        assert result.retencion == pytest.approx(5333.33, abs=0.02)
+
     def test_tabla_art96(self):
         # Test the progressive table
         assert _calcular_tabla_art96(0) == 0
