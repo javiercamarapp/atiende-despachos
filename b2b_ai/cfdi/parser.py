@@ -26,8 +26,13 @@ NS = {
     "pago10": "http://www.sat.gob.mx/Pagos",
     "pago20": "http://www.sat.gob.mx/Pagos20",
     "nomina12": "http://www.sat.gob.mx/nomina12",
+    "cartaporte31": "http://www.sat.gob.mx/CartaPorte31",  # FIS-01
+    "cartaporte30": "http://www.sat.gob.mx/CartaPorte30",  # FIS-01
     "xsi": "http://www.w3.org/2001/XMLSchema-instance",
 }
+
+# Generic RFCs for CFDI Global detection (CFF Art. 29, Anexo 20) — FIS-02
+_GENERIC_RFCS = {"XAXX010101000", "XEXX010101000", "XAXX010101001"}
 
 
 class CFDIError(Exception):
@@ -284,6 +289,57 @@ def parse_cfdi(xml_path):
         f_emi_dt is not None and f_timb_dt is not None and f_timb_dt >= f_emi_dt
     )
 
+    # ---- FIS-02: CFDI Global detection ----
+    es_cfdi_global = receptor_d.get("rfc", "").strip().upper() in _GENERIC_RFCS
+
+    # ---- FIS-01: Complemento Carta Porte ----
+    carta_porte = None
+    for cp_ns in ("cartaporte31", "cartaporte30"):
+        cp_node = None
+        for node in root.iter():
+            if _localname(node) == "CartaPorte":
+                cp_node = node
+                break
+        if cp_node is not None:
+            carta_porte = {
+                "version": cp_node.get("Version", ""),
+                "transp_internac": cp_node.get("TranspInternac", ""),
+                "total_distancia": cp_node.get("TotalDistRec", ""),
+                "origenes": [],
+                "destinos": [],
+                "mercancias": [],
+            }
+            for ub in _all_children(cp_node, "Ubicacion"):
+                tipo_ub = ub.get("TipoUbicacion", "")
+                entry = {
+                    "tipo": tipo_ub,
+                    "rfc": ub.get("RFCRemitenteDestinatario", ""),
+                    "nombre": ub.get("NombreRemitenteDestinatario", ""),
+                    "fecha_salida_llegada": ub.get("FechaHoraSalidaLlegada", ""),
+                    "distancia": ub.get("DistanciaRecorrida", ""),
+                }
+                domicilio = _find_first(ub, "Domicilio")
+                if domicilio is not None:
+                    entry["domicilio"] = {
+                        "calle": domicilio.get("Calle", ""),
+                        "codigo_postal": domicilio.get("CodigoPostal", ""),
+                        "estado": domicilio.get("Estado", ""),
+                        "pais": domicilio.get("Pais", ""),
+                    }
+                if tipo_ub == "Origen":
+                    carta_porte["origenes"].append(entry)
+                else:
+                    carta_porte["destinos"].append(entry)
+            for merc in _all_children(cp_node, "Mercancia"):
+                carta_porte["mercancias"].append({
+                    "bienes_transp": merc.get("BienesTransp", ""),
+                    "descripcion": merc.get("Descripcion", ""),
+                    "cantidad": merc.get("Cantidad", ""),
+                    "clave_unidad": merc.get("ClaveUnidad", ""),
+                    "peso_kg": merc.get("PesoEnKg", ""),
+                })
+            break  # found CartaPorte, stop searching
+
     return {
         # Identificación
         "archivo": os.path.basename(xml_path),
@@ -330,11 +386,16 @@ def parse_cfdi(xml_path):
         "fecha_timbrado_dt": _iso_to_date(fecha_timbrado).isoformat()
         if _iso_to_date(fecha_timbrado) else None,
         "cfdi_relacionados": relacionados,
+        "tipo_relacion": tipo_relacion,  # FIS-03: needed for credit note validation
         "pagos": pagos,
         "nomina": nomina,
         # Control de sellado
         "tiene_sello": sello_ok,
         "fechas_coherentes": fechas_validas,
+        # FIS-01: Carta Porte complement
+        "carta_porte": carta_porte,
+        # FIS-02: CFDI Global flag
+        "es_cfdi_global": es_cfdi_global,
     }
 
 

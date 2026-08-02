@@ -158,7 +158,28 @@ def validate_cfdi(datos):
     # ---- 4. Coherencia total ----
     # BUG-F3: Notas de crédito (TipoDeComprobante="E") can have total=0 with
     # subtotal>0 and descuento=subtotal+iva. SAT allows this.
+    # FIS-03: For tipo E, validate CfdiRelacionados have TipoRelacion="01"
     tdc_for_total = datos.get("tipo", "")
+    if tdc_for_total == "E":
+        relacionados = datos.get("cfdi_relacionados", [])
+        tipo_rel = datos.get("tipo_relacion", "")
+        if not relacionados:
+            _fail("nota_credito_sin_relacion",
+                  "Nota de crédito (tipo E) sin CfdiRelacionados. "
+                  "Debe referenciar al menos un UUID (Anexo 20).",
+                  "Anexo 20")
+        elif tipo_rel not in ("01", ""):
+            # 01 = Nota de crédito de los documentos relacionados
+            warnings.append(
+                f"Nota de crédito con TipoRelacion='{tipo_rel}' "
+                "(esperado '01' — Nota de crédito)."
+            )
+        elif tipo_rel == "01" and relacionados:
+            _ok("Nota de crédito con CfdiRelacionados y TipoRelacion=01")
+        if not tipo_rel and relacionados:
+            _fail("tipo_relacion_faltante",
+                  "TipoRelacion es obligatorio para notas de crédito (tipo E).",
+                  "Anexo 20")
     if subtotal is not None and total is not None:
         ret_tot = (ret_isr or Decimal("0")) + (ret_iva or Decimal("0"))
         esperado = (subtotal + (iva or Decimal("0")) - descuento - ret_tot)\

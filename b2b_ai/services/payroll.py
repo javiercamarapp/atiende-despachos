@@ -254,6 +254,73 @@ def calc_imss(salario_base_cotizacion, dias_pagados=30, rates=None):
     }
 
 
+def calc_imss_patronal(salario_base_cotizacion, dias_pagados=30, rates=None, prima_riesgo=None):
+    """Cuota patronal al IMSS (LSS arts. 105-109, 147, 168).
+
+    FIS-09: Calcula las 5 cuotas que el PATRÓN paga al IMSS:
+    1. Cuota fija: 20.40 × UMA_diario (art. 106 fracc. I)
+    2. EYM patronal: excedente + prestaciones (art. 106 fracc. III-VII)
+    3. RCV: Retiro 2% + Cesantía 3.150% (art. 168 LSS)
+    4. GMP patronal (art. 109)
+    5. Riesgo de trabajo: prima media (art. 73 LSS)
+
+    Devuelve dict con componentes, totales y referencia legal.
+    """
+    r = rates or RATES
+    sbc = _dec(salario_base_cotizacion)
+    dias = int(dias_pagados) if dias_pagados else 30
+    uma = r["imss_uma_diario"]
+
+    if sbc <= Decimal("0"):
+        raise ValueError(f"SBC ({sbc}) debe ser mayor a 0.")
+
+    # 1. Cuota fija patronal: 20.40 × UMA_diario × días (art. 106 fracc. I)
+    cuota_fija = _round2(r["imss_patron_cuota_fija_factor"] * uma * dias)
+
+    # 2. EYM patronal: excedente 3 UMA (solo si SBC > 3×UMA)
+    excedente_patron = Decimal("0")
+    if sbc > (uma * Decimal("3")):
+        excedente_patron = _round2(
+            (sbc - uma * Decimal("3")) * r["imss_patron_enf_mat_excedente"] * dias
+        )
+    # Prestaciones en especie patronal
+    prest_esp_patron = _round2(sbc * r["imss_patron_enf_mat_prest_esp"] * dias)
+
+    # 3. RCV patronal: Retiro + Cesantía y Vejez (art. 168 LSS)
+    retiro = _round2(sbc * r["imss_patron_retiro"] * dias)
+    cesantia = _round2(sbc * r["imss_patron_cesantia"] * dias)
+
+    # 4. GMP patronal (art. 109)
+    gmp = _round2(sbc * r["imss_patron_gmp"] * dias)
+
+    # 5. Riesgo de trabajo (art. 73 LSS): prima media % × SBC
+    prima = _dec(prima_riesgo) if prima_riesgo is not None else r["imss_patron_riesgo_trabajo"]
+    riesgo = _round2(sbc * prima * dias)
+
+    # Invalidez y vida patronal
+    iv = _round2(sbc * r["imss_patron_iv"] * dias)
+
+    total = cuota_fija + excedente_patron + prest_esp_patron + retiro + cesantia + gmp + riesgo + iv
+
+    return {
+        "cuota_fija": _fmt(cuota_fija),
+        "eym_excedente": _fmt(excedente_patron),
+        "eym_prest_esp": _fmt(prest_esp_patron),
+        "invalidez_vida": _fmt(iv),
+        "retiro": _fmt(retiro),
+        "cesantia_vejez": _fmt(cesantia),
+        "gmp": _fmt(gmp),
+        "riesgo_trabajo": _fmt(riesgo),
+        "total": _fmt(total),
+        "sbc": _fmt(sbc),
+        "dias_pagados": dias,
+        "referencia": (
+            "LSS arts. 105-109, 147, 168 (cuotas patronales IMSS: "
+            "cuota fija + EYM + RCV + GMP + riesgo trabajo)"
+        ),
+    }
+
+
 def calc_infonavit(salario_base_cotizacion, tasa=None, rates=None):
     """Aportación patronal INFONAVIT (5% del SBC).
 
@@ -547,7 +614,7 @@ def calculate_payroll(empleado, sueldo_bruto, dias_pagados=None,
 # ---------------------------------------------------------------------------
 
 def generate_payroll_cfdi(empleado, emisor, periodo, resultados=None,
-                          serie="N", folio="1"):
+                          serie="N", folio="1", tipo_nomina="O"):
     """Genera el XML de una nómina CFDI 4.0 (sin timbrar).
 
     `empleado`: {rfc, curp, nombre, salario_diario, num_seguridad_social,
@@ -556,6 +623,8 @@ def generate_payroll_cfdi(empleado, emisor, periodo, resultados=None,
     `periodo`: {fecha_pago, fecha_inicial, fecha_final, dias_pagados}
     `resultados`: opcional, salida de `calculate_payroll`. Si no se da, se
         calcula internamente con `sueldo_bruto` del periodo.
+    `tipo_nomina`: "O" (ordinaria) o "E" (extraordinaria — aguinaldo, PTU,
+        prima vacacional). FIS-015: previously hardcoded "O".
 
     Devuelve una cadena XML lista para timbrar (requiere e.firma / PAC).
     """
@@ -614,7 +683,7 @@ def generate_payroll_cfdi(empleado, emisor, periodo, resultados=None,
                    ObjetoImp="01"/>
   </cfdi:Conceptos>
   <cfdi:Complemento>
-    <nomina:Nomina Version="1.2" TipoNomina="O"
+    <nomina:Nomina Version="1.2" TipoNomina="{sx.escape(tipo_nomina)}"
                    FechaPago="{fechas['fecha_pago']}"
                    FechaInicialPago="{fechas['fecha_inicial']}"
                    FechaFinalPago="{fechas['fecha_final']}"

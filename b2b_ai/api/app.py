@@ -118,6 +118,11 @@ from b2b_ai.api.errors import install_error_handlers
 from b2b_ai.api.idempotency import install_idempotency
 from b2b_ai.api.rate_limiter import install_enterprise_rate_limit
 from b2b_ai.api.openapi_docs import install_openapi_docs
+from b2b_ai.api.versioning import install_versioning
+from b2b_ai.infrastructure.graceful_shutdown import (
+    GracefulShutdownHandler, request_tracker, is_draining)
+from b2b_ai.infrastructure.health import (
+    HealthCheckRegistry, database_health_check)
 from b2b_ai.features.reconciliation_agent.routes import build_reconcile_agent_router
 from b2b_ai.auth.api import build_auth_router
 from b2b_ai.auth.middleware import check_jwt_config, _is_dev_env
