@@ -69,8 +69,15 @@ class CancelRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 def build_billing_router(db: Any = None,
-                         require_api_key: Any = None) -> APIRouter:
-    """Construye el router /api/v1/billing/* del módulo de billing."""
+                         require_api_key: Any = None,
+                         require_permission: Any = None) -> APIRouter:
+    """Construye el router /api/v1/billing/* del módulo de billing.
+
+    Si se provee `require_permission` (fábrica RBAC de `features.roles`), los
+    endpoints de escritura (`checkout`, `cancel`) exigen el permiso
+    `billing:write`. Sin él, el router queda igual que antes (sin RBAC), para
+    no romper los usos existentes del piloto.
+    """
     if require_api_key is None:
         raise ValueError(
             "require_api_key es obligatorio. Nunca construir el router sin auth."
@@ -79,10 +86,21 @@ def build_billing_router(db: Any = None,
     service = BillingService(client=ConektaClient())
     router = APIRouter(prefix=ROUTER_PREFIX, tags=["billing", "piloto"])
 
+    # RBAC opcional: si hay fábrica de permisos, proteger los endpoints de
+    # escritura con `billing:write`.
+    if require_permission is not None:
+        billing_write_dep = require_permission("billing:write")
+    else:
+        billing_write_dep = None
+
+    def _deps() -> list:
+        return [Depends(billing_write_dep)] if billing_write_dep is not None else []
+
     @router.post(
         "/checkout",
         summary="Crea una sesión de checkout de Conekta para un plan.",
         response_model=CheckoutResponse,
+        dependencies=_deps(),
     )
     def create_checkout(
         req: CheckoutRequest,
@@ -146,6 +164,7 @@ def build_billing_router(db: Any = None,
     @router.post(
         "/cancel",
         summary="Cancela la suscripción del tenant.",
+        dependencies=_deps(),
     )
     def cancel_subscription(
         req: CancelRequest = CancelRequest(),

@@ -85,6 +85,7 @@ from b2b_ai.billing.api import build_billing_router
 from b2b_ai.features.billing.routes import build_billing_router as build_pilot_billing_router
 from b2b_ai.features.onboarding.routes import build_onboarding_wizard_router
 from b2b_ai.features.data_migration.routes import build_data_migration_router
+from b2b_ai.features.roles.routes import build_roles_router
 from b2b_ai.reports.router import build_reports_router
 from b2b_ai.api.middleware import install_request_size_limit
 from b2b_ai.api.reconciliation import build_reconciliation_router
@@ -988,6 +989,12 @@ def create_app(db=None):
     # Migración de datos desde sistemas existentes (CONTPAQi/Excel/CSV).
     # Prefijo /api/v1/migration — no colisiona con módulos existentes.
     app.include_router(build_data_migration_router(db, require_api_key))
+
+    # Roles y permisos (RBAC) multi-tenant. Prefijo /api/v1/roles.
+    # Los endpoints de administración exigen `users:manage`; la resolución de
+    # `user_id` depende de que `require_api_key` inyecte user_id/tenant_id en
+    # el contexto (patrón de los módulos del piloto).
+    app.include_router(build_roles_router(db, require_api_key))
 
     # Onboarding wizard de nuevos clientes (wizard + checklist + score).
     app.include_router(build_onboarding_router(db, require_api_key))
