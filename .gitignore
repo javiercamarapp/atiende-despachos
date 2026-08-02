@@ -1,8 +1,7 @@
-.venv/
-.venv_new/
 __pycache__/
 *.pyc
 *.pyo
+.venv/
 *.db
 *.db-shm
 *.db-wal
@@ -10,6 +9,3 @@ __pycache__/
 node_modules/
 .env
 .env.*
-*.sqlite3
-pyproject_restored.toml
-.venv_312/
