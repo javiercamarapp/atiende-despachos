@@ -60,6 +60,10 @@ class _LoginRateLimiter:
         self._attempts[key].append(now)
         return True
 
+    def reset(self):
+        """Clear all rate-limit buckets (for test isolation)."""
+        self._attempts.clear()
+
 _login_limiter = _LoginRateLimiter()
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"

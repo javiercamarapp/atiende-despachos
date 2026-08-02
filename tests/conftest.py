@@ -33,6 +33,15 @@ def fixture_path(name):
 
 
 @pytest.fixture(autouse=True)
+def _reset_login_limiter():
+    """Reset the portal login rate limiter between tests to avoid 429 collisions."""
+    from b2b_ai.portal.routes import _login_limiter
+    _login_limiter.reset()
+    yield
+    _login_limiter.reset()
+
+
+@pytest.fixture(autouse=True)
 def _ingesta_local_habilitada(monkeypatch, tmp_path_factory):
     """Habilita la ingesta por ruta local para toda la suite.
 
