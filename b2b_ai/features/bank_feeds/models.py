@@ -37,6 +37,7 @@ class BankProvider(str, Enum):
     BANORTE = "BANORTE"
     SANTANDER = "SANTANDER"
     HSBC = "HSBC"
+    PROMETEO = "PROMETEO"
 
 
 class TransactionType(str, Enum):

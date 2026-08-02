@@ -10,6 +10,7 @@ misma interfaz.
 Expone:
   - BaseBankAdapter      : clase base con interfaz común y helper de mapeo
   - BBVAAdapter, BanorteAdapter, SantanderAdapter, HSBCAdapter
+  - PrometeoAdapter     : conecta cuentas bancarias reales vía Prometeo API
   - MockBankAdapter      : genera movimientos de ejemplo (dev/demo/tests)
 """
 from __future__ import annotations
@@ -19,6 +20,7 @@ from b2b_ai.features.bank_feeds.adapters.bbva import BBVAAdapter
 from b2b_ai.features.bank_feeds.adapters.banorte import BanorteAdapter
 from b2b_ai.features.bank_feeds.adapters.santander import SantanderAdapter
 from b2b_ai.features.bank_feeds.adapters.hsbc import HSBCAdapter
+from b2b_ai.features.bank_feeds.adapters.prometeo import PrometeoAdapter
 from b2b_ai.features.bank_feeds.adapters.mock import MockBankAdapter
 
 _ADAPTERS = {
@@ -26,6 +28,7 @@ _ADAPTERS = {
     "BANORTE": BanorteAdapter,
     "SANTANDER": SantanderAdapter,
     "HSBC": HSBCAdapter,
+    "PROMETEO": PrometeoAdapter,
 }
 
 
@@ -43,6 +46,7 @@ __all__ = [
     "BanorteAdapter",
     "SantanderAdapter",
     "HSBCAdapter",
+    "PrometeoAdapter",
     "MockBankAdapter",
     "get_adapter",
 ]
