@@ -78,8 +78,28 @@ function handleSubmit(e) {
   e.preventDefault();
   const data = new FormData(e.target);
   const name = data.get('name');
-  alert('¡Gracias ' + name + '! Nos pondremos en contacto contigo pronto.');
-  e.target.reset();
+  const email = data.get('email') || data.get('contact') || '';
+  const payload = Object.fromEntries(data.entries());
+  const csrf = data.get('_csrf') || '';
+  delete payload._csrf;
+
+  // POST lead to the API (persists in DB)
+  fetch('/api/v1/leads', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+    .then(function (res) {
+      if (res.ok) {
+        alert('¡Gracias ' + name + '! Nos pondremos en contacto contigo pronto.');
+        e.target.reset();
+      } else {
+        alert('Ocurrió un error al enviar. Por favor inténtalo de nuevo.');
+      }
+    })
+    .catch(function () {
+      alert('Ocurrió un error al enviar. Por favor inténtalo de nuevo.');
+    });
 }
 
 // Attach form handler via addEventListener (replaces inline onsubmit for CSP compliance)
