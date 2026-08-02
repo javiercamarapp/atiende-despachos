@@ -94,11 +94,12 @@ def build_roles_router(db: Any = None,
         summary="Lista los roles (builtin + custom del tenant).",
     )
     def list_roles(
-        tenant_id: Optional[str] = Query(default=None,
-                                         description="Filtra roles por tenant"),
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
-        tid = tenant_id or auth_info.get("tenant_id")
+        # P1-2: SIEMPRE se usa el tenant del contexto de auth. Antes se
+        # aceptaba `tenant_id` como query param y cualquier usuario podía
+        # pasar ?tenant_id=<otro> para listar roles de otro tenant.
+        tid = auth_info.get("tenant_id")
         roles = service.list_roles(tenant_id=tid)
         return {"ok": True, "roles": [r.to_dict() for r in roles]}
 

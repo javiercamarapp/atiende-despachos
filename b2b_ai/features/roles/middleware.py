@@ -52,16 +52,21 @@ def make_require_permission(require_api_key: Callable[..., Any],
         def dependency(auth_info: Dict[str, Any] = Depends(require_api_key)) -> Dict[str, Any]:
             user_id = (auth_info or {}).get("user_id")
             tenant_id = (auth_info or {}).get("tenant_id")
-            if not user_id:
-                raise HTTPException(
-                    status_code=403,
-                    detail="RBAC: falta user_id en el contexto de autenticación.",
-                )
             if not tenant_id:
                 raise HTTPException(
                     status_code=403,
                     detail="RBAC: falta tenant_id en el contexto de autenticación.",
                 )
+            if not user_id:
+                # P1-1: modo standalone (API key de entorno sin fila en BD) —
+                # auth.get_user_id() devuelve None. El tenant_id resuelto es
+                # suficiente para conceder el permiso. Antes esto daba 403
+                # SIEMPRE en todo endpoint con require_permission.
+                logger.info("standalone grant tenant=%s perm=%s (sin user_id)",
+                            tenant_id, permission)
+                return auth_info
+            # P2-2: el primer usuario de un tenant se auto-asigna el rol admin.
+            svc.ensure_first_user_admin(user_id, tenant_id)
             if not svc.check_permission(user_id, tenant_id, permission):
                 logger.info("permission denied user=%s tenant=%s perm=%s",
                             user_id, tenant_id, permission)

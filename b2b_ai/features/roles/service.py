@@ -105,6 +105,12 @@ class RolesService:
         if not name:
             raise RolesError("El nombre del rol no puede estar vacío.",
                              code="invalid_name")
+        # P2-1: validar permisos explícitamente. Antes una ValidationError de
+        # pydantic escapaba como 500; ahora se traduce a RolesError -> 400.
+        for p in (permissions or []):
+            if not is_valid_permission(p):
+                raise RolesError(f"Permiso no reconocido: {p}",
+                                 code="invalid_permission")
         if find_role_by_name(name, tenant_id) is not None:
             raise RolesError(f"Ya existe un rol llamado '{name}'.",
                              code="duplicate")
@@ -118,8 +124,14 @@ class RolesService:
     def update_role(self, role_id: str, name: Optional[str] = None,
                     permissions: Optional[List[str]] = None,
                     description: Optional[str] = None) -> Role:
-        """Actualiza un rol custom (o la descripción/permisos de un builtin)."""
+        """Actualiza un rol custom. Los builtin (globales) NO se modifican."""
         role = self.get_role(role_id)
+        # P1-3: los roles builtin son globales (tenant_id=None). Permitir
+        # editarlos es escalación cross-tenant: un admin del tenant A podría
+        # alterar el rol global admin/contador y afectar a todos los tenants.
+        if role.builtin:
+            raise RolesError("No se puede modificar un rol por defecto.",
+                             code="builtin_protected")
         if name is not None:
             name = name.strip()
             if not name:
@@ -189,6 +201,30 @@ class RolesService:
 
     def remove_role(self, user_role_id: str) -> bool:
         return _delete_user_role(user_role_id)
+
+    def ensure_first_user_admin(self, user_id: str, tenant_id: str) -> bool:
+        """P2-2: auto-asigna el rol admin al primer usuario de un tenant.
+
+        En modo DB, `user_id = api_keys.id` pero nada asigna roles de forma
+        automática. La primera vez que un usuario aparece en un tenant sin
+        ningún rol asignado, se le otorga el rol builtin `admin` (bootstrap),
+        de modo que RBAC nunca quede "muerto" por falta de vínculo user->rol.
+        Devuelve True si asignó el rol admin.
+        """
+        if not user_id or not tenant_id:
+            return False
+        # Si el usuario ya tiene roles efectivos en el tenant, no reasignamos.
+        if self.get_user_roles(user_id, tenant_id):
+            return False
+        admin = find_role_by_name("admin")
+        if admin is None:
+            seed_default_roles()
+            admin = find_role_by_name("admin")
+        if admin is None:
+            return False
+        self.assign_role(user_id=user_id, tenant_id=tenant_id,
+                         role_id=admin.id, assigned_by="bootstrap:first_user")
+        return True
 
     def remove_user_roles(self, user_id: str, tenant_id: str) -> int:
         """Quita todas las asignaciones de un usuario en un tenant."""
