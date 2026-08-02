@@ -143,6 +143,15 @@ def default_monthly_close_template() -> CloseTemplate:
             auto_check_query="reportes_gerenciales",
             key="reportes",
         ),
+        CloseTemplateTask(
+            title="Conciliar cuentas por cobrar / pagar",
+            description=(
+                "Revisar saldos de clientes y proveedores contra auxiliares "
+                "y conciliar diferencias."
+            ),
+            category=TaskCategory.CUSTOM,
+            depends_on=["auxiliares"],
+        ),
         # --- Cierre / validación final -------------------------------------
         CloseTemplateTask(
             title="Revisión final del contador",
@@ -160,6 +169,15 @@ def default_monthly_close_template() -> CloseTemplate:
             category=TaskCategory.CUSTOM,
             depends_on=["revision_final"],
             key="cerrar_periodo",
+        ),
+        CloseTemplateTask(
+            title="Resguardar documentación del cierre",
+            description=(
+                "Archivar y resguardar la documentación soporte del cierre "
+                "en el gestor documental."
+            ),
+            category=TaskCategory.CUSTOM,
+            depends_on=["cerrar_periodo"],
         ),
     ]
     return t
