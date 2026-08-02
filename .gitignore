@@ -25,3 +25,4 @@ node_modules/
 .env
 .venv_new/
 pyproject_restored.toml
+.venv_312/
