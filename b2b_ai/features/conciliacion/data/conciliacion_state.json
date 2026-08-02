@@ -1,0 +1,208 @@
+{
+  "reports": {
+    "1": {
+      "2024-01": {
+        "period": "2024-01",
+        "total_transactions": 1,
+        "matched": 1,
+        "unmatched": 0,
+        "discrepancies": 1,
+        "match_rate": 100.0,
+        "total_polizas": 1,
+        "polizas_matched": 1,
+        "adjustments_proposed": 1,
+        "adjustments_applied": 0,
+        "total_variance": 500.0,
+        "details": [
+          {
+            "bank_transaction_id": "TXN001",
+            "cfdi_uuid": null,
+            "poliza_id": "POL001",
+            "match_type": "PARTIAL_REFERENCE",
+            "confidence_score": 0.6,
+            "status": "PARTIAL"
+          }
+        ],
+        "discrepancy_details": [
+          {
+            "id": "DISC-TXN001-POL001",
+            "type": "sobrante",
+            "bank_transaction_id": "TXN001",
+            "poliza_id": "POL001",
+            "cfdi_uuid": null,
+            "bank_amount": 10500.0,
+            "poliza_amount": 10000.0,
+            "expected_amount": 10000.0,
+            "actual_amount": 10500.0,
+            "variance": 5.0,
+            "variance_amount": 500.0,
+            "date_diff_days": null,
+            "details": "Diferencia de monto: banco=10500.0, póliza=10000.0, varianza=5.0%"
+          }
+        ],
+        "adjustment_details": [
+          {
+            "id": "ADJ-DISC-TXN001-POL001",
+            "discrepancy_id": "DISC-TXN001-POL001",
+            "proposal": "Reclasificar póliza POL001: diferencia de $500.00",
+            "adjustment_type": "reclassify",
+            "journal_entry": {
+              "tipo": "reclasificacion",
+              "descripcion": "Reclasificación por diferencia de conciliación",
+              "cuenta_debito": "101.01",
+              "cuenta_credito": "101.02",
+              "monto": 500.0,
+              "referencia": "POL001"
+            },
+            "reason": "Sobrante requiere reclasificación contable",
+            "status": "PROPOSED",
+            "applied_by": null,
+            "applied_at": null
+          }
+        ],
+        "requires_human_review": false,
+        "referencia_legal": null,
+        "escalation_path": null
+      }
+    }
+  },
+  "discrepancies": {
+    "1": {
+      "2024-01": [
+        {
+          "id": "DISC-TXN001-POL001",
+          "type": "sobrante",
+          "bank_transaction_id": "TXN001",
+          "poliza_id": "POL001",
+          "cfdi_uuid": null,
+          "bank_amount": 10500.0,
+          "poliza_amount": 10000.0,
+          "expected_amount": 10000.0,
+          "actual_amount": 10500.0,
+          "variance": 5.0,
+          "variance_amount": 500.0,
+          "date_diff_days": null,
+          "details": "Diferencia de monto: banco=10500.0, póliza=10000.0, varianza=5.0%"
+        }
+      ]
+    }
+  },
+  "results": {
+    "1": {
+      "2024-01": {
+        "matches": [],
+        "poliza_matches": [
+          {
+            "bank_transaction_id": "TXN001",
+            "cfdi_uuid": null,
+            "poliza_id": "POL001",
+            "match_type": "PARTIAL_REFERENCE",
+            "confidence_score": 0.6,
+            "status": "PARTIAL"
+          }
+        ],
+        "discrepancies": [
+          {
+            "id": "DISC-TXN001-POL001",
+            "type": "sobrante",
+            "bank_transaction_id": "TXN001",
+            "poliza_id": "POL001",
+            "cfdi_uuid": null,
+            "bank_amount": 10500.0,
+            "poliza_amount": 10000.0,
+            "expected_amount": 10000.0,
+            "actual_amount": 10500.0,
+            "variance": 5.0,
+            "variance_amount": 500.0,
+            "date_diff_days": null,
+            "details": "Diferencia de monto: banco=10500.0, póliza=10000.0, varianza=5.0%"
+          }
+        ],
+        "adjustments": [
+          {
+            "id": "ADJ-DISC-TXN001-POL001",
+            "discrepancy_id": "DISC-TXN001-POL001",
+            "proposal": "Reclasificar póliza POL001: diferencia de $500.00",
+            "adjustment_type": "reclassify",
+            "journal_entry": {
+              "tipo": "reclasificacion",
+              "descripcion": "Reclasificación por diferencia de conciliación",
+              "cuenta_debito": "101.01",
+              "cuenta_credito": "101.02",
+              "monto": 500.0,
+              "referencia": "POL001"
+            },
+            "reason": "Sobrante requiere reclasificación contable",
+            "status": "APPLIED",
+            "applied_by": "test_user",
+            "applied_at": "2026-08-02T17:11:06.781491"
+          }
+        ],
+        "unmatched_bank": [],
+        "unmatched_polizas": []
+      }
+    }
+  },
+  "adjustments": {
+    "1": {
+      "ADJ-DISC-TXN001-POL001": {
+        "id": "ADJ-DISC-TXN001-POL001",
+        "discrepancy_id": "DISC-TXN001-POL001",
+        "proposal": "Reclasificar póliza POL001: diferencia de $500.00",
+        "adjustment_type": "reclassify",
+        "journal_entry": {
+          "tipo": "reclasificacion",
+          "descripcion": "Reclasificación por diferencia de conciliación",
+          "cuenta_debito": "101.01",
+          "cuenta_credito": "101.02",
+          "monto": 500.0,
+          "referencia": "POL001"
+        },
+        "reason": "Sobrante requiere reclasificación contable",
+        "status": "APPLIED",
+        "applied_by": "test_user",
+        "applied_at": "2026-08-02T17:11:06.781491"
+      }
+    }
+  },
+  "statements": {
+    "1": {
+      "stmt-2024-01-1": {
+        "id": "stmt-2024-01-1",
+        "period": "2024-01",
+        "transactions": [
+          {
+            "id": "TXN001",
+            "date": "2024-01-15",
+            "description": "Pago factura",
+            "amount": 10000.0,
+            "type": "INGRESO",
+            "reference": "REF001",
+            "bank_account": "1234"
+          }
+        ],
+        "uploaded_at": "2026-08-02T17:09:07.817768",
+        "file_name": "statement.csv",
+        "transaction_count": 1
+      },
+      "stmt-2024-01-2": {
+        "id": "stmt-2024-01-2",
+        "period": "2024-01",
+        "transactions": [
+          {
+            "id": "TXN001",
+            "date": "2024-01-15",
+            "description": "Pago factura",
+            "amount": 10000.0,
+            "type": "INGRESO",
+            "reference": "REF001",
+            "bank_account": "1234"
+          }
+        ],
+        "uploaded_at": "2026-08-02T17:11:05.008050",
+        "file_name": "statement.csv",
+        "transaction_count": 1
+      }
+    }
+  }
+}

@@ -35,11 +35,27 @@ from fastapi import Depends, Header, HTTPException, Request
 
 from b2b_ai.auth.roles import has_permission
 
-# In-memory token blacklist (JTI -> expiry timestamp).
-# TODO: production MUST replace this with a Redis SET with TTL or a DB table.
-#       In-memory blacklist does not survive restarts and is not shared across
-#       replicas. Use B2B_REDIS_URL to enable Redis-backed blacklist.
+# Token blacklist (JTI -> expiry timestamp).
+# Uses Redis when B2B_REDIS_URL is set (survives restarts, shared across
+# replicas). Falls back to in-memory dict for dev/test.
 _token_blacklist: Dict[str, float] = {}
+
+_redis_client = None
+def _get_redis():
+    """Lazy Redis connection for token blacklist."""
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
+    redis_url = os.environ.get("B2B_REDIS_URL") or os.environ.get("REDIS_URL")
+    if not redis_url:
+        return None
+    try:
+        import redis
+        _redis_client = redis.from_url(redis_url, decode_responses=True)
+        _redis_client.ping()
+        return _redis_client
+    except Exception:
+        return None
 
 # TTLs por tipo de token (segundos), ajustables por env.
 ACCESS_TTL = int(os.environ.get("B2B_JWT_ACCESS_TTL", "1800"))      # 30 min
@@ -247,6 +263,15 @@ class JWTAuth:
                                 detail="Token no es de acceso.")
         # Check token blacklist (revoked tokens)
         jti = claims.get("jti")
+        r = _get_redis()
+        if jti and r:
+            try:
+                if r.exists(f"blacklist:{jti}"):
+                    raise HTTPException(status_code=401, detail="Token revocado.")
+            except HTTPException:
+                raise
+            except Exception:
+                pass
         if jti and jti in _token_blacklist:
             raise HTTPException(status_code=401, detail="Token revocado.")
         try:
@@ -307,8 +332,15 @@ class JWTAuth:
         if not jti:
             return
         exp = claims.get("exp", time.time() + ACCESS_TTL)
-        _token_blacklist[jti] = float(exp)
-        # Cleanup expired entries
+        r = _get_redis()
+        if r:
+            try:
+                r.setex(f"blacklist:{jti}", int(exp - time.time()), "1")
+            except Exception:
+                _token_blacklist[jti] = float(exp)
+        else:
+            _token_blacklist[jti] = float(exp)
+        # Cleanup expired entries (in-memory only)
         now = time.time()
         expired = [k for k, v in _token_blacklist.items() if v < now]
         for k in expired:

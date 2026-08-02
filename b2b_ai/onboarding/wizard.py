@@ -22,6 +22,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from b2b_ai.db.tenants import TenantManager, TenantNotFoundError
+from b2b_ai.computer_use.security import encrypt_credential, decrypt_credential
 
 # Orden canónico de los pasos (1..5).
 STEP_ORDER: List[int] = [1, 2, 3, 4, 5]
@@ -144,9 +145,70 @@ class OnboardingWizard:
         if not raw:
             return None
         try:
-            return json.loads(raw)
+            data = json.loads(raw)
         except (TypeError, ValueError):
             return None
+        return self._decrypt_sensitive_fields(step, data)
+
+    # ------------------------------------------------------------------ #
+    # Encrypt/decrypt sensitive fields (CIEC, e.firma, ERP credentials)
+    # ------------------------------------------------------------------ #
+    # Fields containing credentials that must be encrypted at rest.
+    # NOTE: For production, use a managed KMS/Vault (AWS KMS, HashiCorp Vault)
+    # instead of Fernet with env-based keys.
+    _SENSITIVE_FLAT_FIELDS = {
+        2: {"ciec", "efirma_certificado", "efirma_cert", "efirma_llave",
+            "efirma_password"},
+        3: {"credentials_host", "credentials_user", "credentials_password",
+            "host", "user", "password"},
+    }
+    _SENSITIVE_NESTED = {
+        2: {"efirma": ("certificado", "llave_privada", "password")},
+        3: {"credentials": ("host", "user", "password")},
+    }
+
+    def _encrypt_sensitive_fields(self, step: int,
+                                  data: Dict[str, Any]) -> Dict[str, Any]:
+        """Encrypt credential fields before persisting to DB."""
+        encrypted = dict(data)
+        for field_name in self._SENSITIVE_FLAT_FIELDS.get(step, set()):
+            val = encrypted.get(field_name)
+            if isinstance(val, str) and val:
+                encrypted[field_name] = encrypt_credential(val)
+        for nest_key, sub_keys in self._SENSITIVE_NESTED.get(step, {}).items():
+            nest = encrypted.get(nest_key)
+            if isinstance(nest, dict):
+                encrypted[nest_key] = {
+                    k: encrypt_credential(v) if isinstance(v, str) and v else v
+                    for k, v in nest.items()
+                }
+        return encrypted
+
+    def _decrypt_sensitive_fields(self, step: int,
+                                  data: Dict[str, Any]) -> Dict[str, Any]:
+        """Decrypt credential fields read from DB."""
+        decrypted = dict(data)
+        for field_name in self._SENSITIVE_FLAT_FIELDS.get(step, set()):
+            val = decrypted.get(field_name)
+            if isinstance(val, str) and val:
+                try:
+                    decrypted[field_name] = decrypt_credential(val)
+                except Exception:
+                    pass  # unencrypted legacy data, return as-is
+        for nest_key, sub_keys in self._SENSITIVE_NESTED.get(step, {}).items():
+            nest = decrypted.get(nest_key)
+            if isinstance(nest, dict):
+                out = {}
+                for k, v in nest.items():
+                    if isinstance(v, str) and v:
+                        try:
+                            out[k] = decrypt_credential(v)
+                        except Exception:
+                            out[k] = v
+                    else:
+                        out[k] = v
+                decrypted[nest_key] = out
+        return decrypted
 
     # ------------------------------------------------------------------ #
     # Validación por paso
@@ -332,9 +394,10 @@ class OnboardingWizard:
         data = dict(data)
         self._VALIDATORS[step](self, data)  # lanza OnboardingError si es inválido
 
-        # Persiste el data del paso.
+        # Persiste el data del paso (credentials encrypted at rest).
+        persisted = self._encrypt_sensitive_fields(step, data)
         self.db.set_tenant_config(self.tenant_id, self._step_key(step),
-                                  json.dumps(data, ensure_ascii=False))
+                                  json.dumps(persisted, ensure_ascii=False))
 
         if advance:
             # Recalcula el paso en curso: el primero (en orden) que aún no

@@ -108,7 +108,9 @@ def build_diot_router(
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
         """Generate a DIOT report for the given period from invoice data."""
-        tenant_id = auth_info.get("tenant_id") if auth_info else req.tenant_id
+        if not auth_info or not auth_info.get("tenant_id"):
+            raise HTTPException(status_code=401, detail="Autenticación requerida para generar DIOT.")
+        tenant_id = auth_info["tenant_id"]
 
         report = service.generate_diot(
             month=req.month,
@@ -189,8 +191,11 @@ def build_diot_router(
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
         """Get list of all DIOT reports for the authenticated tenant."""
-        # Multi-tenant: ALWAYS use auth tenant, ignore query param override
-        tid = auth_info.get("tenant_id") if auth_info else tenant_id
+        # Multi-tenant: ALWAYS use auth tenant, never fall back to query param
+        # to prevent cross-tenant data leaks even if auth_info is unexpectedly None.
+        if not auth_info or not auth_info.get("tenant_id"):
+            raise HTTPException(status_code=401, detail="Autenticación requerida para consultar historial DIOT.")
+        tid = auth_info["tenant_id"]
         reports = service.get_history(tenant_id=tid)
 
         return {

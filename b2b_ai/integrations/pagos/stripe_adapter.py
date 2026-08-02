@@ -127,6 +127,8 @@ class StripeAdapter(PaymentAdapter):
 
     def get_transactions(self, date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[Transaction]:
         self._ensure_connected()
+        if not self._client and os.environ.get("B2B_ENV") == "production":
+            raise RuntimeError("StripeAdapter: get_transactions sin conexión a Stripe en producción.")
         if self._client:
             try:
                 params: Dict[str, Any] = {"limit": 100}

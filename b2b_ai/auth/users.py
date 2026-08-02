@@ -19,7 +19,7 @@ from typing import Any, Dict, Optional
 import bcrypt
 
 from b2b_ai.db.db import Database
-from b2b_ai.auth.middleware import JWTAuth, JWTError, _public_user
+from b2b_ai.auth.middleware import JWTAuth, JWTError, _public_user, _token_blacklist
 from b2b_ai.auth.roles import is_valid_role, normalize_role
 
 # Rounds bcrypt (ajustable por env para acelerar tests / CI).
@@ -165,6 +165,9 @@ class UserManager:
 
         VULN-12: Invalidates the old refresh token (rotation) so a stolen
         token cannot be reused indefinitely.
+
+        SECURITY: Checks the token blacklist before allowing refresh, so a
+        revoked token cannot be reused even if not yet expired.
         """
         try:
             claims = self.jwt.decode(token)
@@ -172,6 +175,10 @@ class UserManager:
             raise InvalidTokenError("Token inválido o caducado.")
         if claims.get("type") != "refresh":
             raise InvalidTokenError("No es un token de refresco.")
+        # SECURITY: Reject already-revoked refresh tokens.
+        jti = claims.get("jti")
+        if jti and jti in _token_blacklist:
+            raise InvalidTokenError("Token de refresco revocado.")
         # VULN-12: Revoke the old refresh token before issuing new ones
         self.jwt.revoke_token(token)
         try:
