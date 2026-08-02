@@ -184,7 +184,14 @@ class TenantManager:
                     tenant_id=tenant_id,
                     config=cu_config,
                 )
-                return _ComputerUseERPAdapter(driver)
+                return _ComputerUseERPAdapter(driver, credentials={
+                    "usuario": os.environ.get(
+                        "CONTPAQI_USERNAME"
+                        if erp_type == "contpaqi" else "ASPEL_USERNAME", ""),
+                    "password": os.environ.get(
+                        "CONTPAQI_PASSWORD"
+                        if erp_type == "contpaqi" else "ASPEL_PASSWORD", ""),
+                })
         except Exception as e:
             # FAIL-HARD in production: do NOT silently fall back to mock
             if os.environ.get("B2B_ENV") == "production":
@@ -237,17 +244,67 @@ def erp_factory(db: Database, tenant_id: int,
 
 
 class _ComputerUseERPAdapter(ERPInterface):
-    """Adapts ComputerUseDriver to the ERPInterface contract."""
+    """Adapts the async ComputerUseDriver to the sync ERPInterface contract.
 
-    def __init__(self, driver) -> None:
+    Lifecycle: on first use it ensures connect() → login(credentials) →
+    verify session, then registers. Runs async driver methods through the
+    driver's shared event loop (async → sync bridge).
+    """
+
+    def __init__(self, driver, credentials: Optional[dict] = None) -> None:
         self._driver = driver
+        self._credentials = credentials or {}
+        self._session_ready = False
+
+    def _run_async(self, coro):
+        """Bridge async driver method to sync via the driver's loop."""
+        run_sync = getattr(self._driver, "_run_sync", None)
+        if run_sync is not None:
+            return run_sync(coro)
+        # Fallback: run in a fresh event loop
+        import asyncio
+        try:
+            asyncio.get_running_loop()
+            return asyncio.new_event_loop().run_until_complete(coro)
+        except RuntimeError:
+            return asyncio.run(coro)
+
+    def _ensure_session(self) -> None:
+        """Ensure the driver is connected and authenticated before any op."""
+        if self._session_ready:
+            return
+
+        # connect()
+        conn = self._run_async(self._driver.connect())
+        if not (isinstance(conn, dict) and conn.get("ok", False)):
+            raise RuntimeError(
+                "Computer Use: connect() failed — "
+                f"{conn.get('message') if isinstance(conn, dict) else conn}")
+
+        # login()
+        if not self._credentials:
+            raise RuntimeError(
+                "Computer Use: no credentials provided for login(). "
+                "Configure CONTPAQI_USERNAME/CONTPAQI_PASSWORD "
+                "or ASPEL_USERNAME/ASPEL_PASSWORD.")
+        login = self._run_async(self._driver.login(self._credentials))
+        if not (isinstance(login, dict) and login.get("ok", False)):
+            raise RuntimeError(
+                "Computer Use: login() failed — "
+                f"{login.get('message') if isinstance(login, dict) else login}")
+
+        self._session_ready = True
 
     def register_invoice(self, invoice: dict) -> dict:
-        result = self._driver.register_invoice(invoice)
+        # Ensure authenticated session before registering (never silent)
+        self._ensure_session()
+        result = self._run_async(self._driver.register_invoice(invoice))
         return result.to_dict() if hasattr(result, "to_dict") else result
 
     def get_invoice(self, folio_fiscal: str) -> dict | None:
-        result = self._driver.verify_invoice_registered(folio_fiscal)
+        self._ensure_session()
+        result = self._run_async(
+            self._driver.verify_invoice_registered(folio_fiscal))
         return result.to_dict() if hasattr(result, "to_dict") else result
 
     def health(self) -> dict:

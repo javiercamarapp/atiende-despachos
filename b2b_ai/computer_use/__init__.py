@@ -2,11 +2,6 @@
 """
 computer_use — Computer use para navegación de ERPs web y de escritorio.
 
-Re-exporta la interfaz abstracta BrowserAutomation, el mock funcional y las
-funciones helper para ERPs web (CONTPAQi web, SAP, Odoo...) así como los
-drivers de escritorio para las suites on-premise (CONTPAQi y Aspel), que no
-exponen API REST y se automatizan viendo la ventana.
-
 Los drivers reales de Playwright (PlaywrightDesktop, CONTPAQiRealDriver,
 AspelRealDriver) se importan de forma LAZY vía __getattr__ para que importar
 este paquete no cargue Playwright/Chromium (reduce startup time y evita
@@ -14,7 +9,7 @@ dependencias innecesarias cuando Computer Use está deshabilitado).
 """
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from b2b_ai.computer_use.browser import (
     BrowserAutomation,

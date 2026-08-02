@@ -70,6 +70,7 @@ def build_batch_router(db: Any = None, require_api_key: Any = None) -> APIRouter
             )
 
         filename = file.filename or "upload.zip"
+        tenant_id = str(auth_info.get("tenant_id") or "") if auth_info else ""
 
         try:
             xmls = service.extract_xmls(data, filename)
@@ -77,14 +78,14 @@ def build_batch_router(db: Any = None, require_api_key: Any = None) -> APIRouter
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         try:
-            job = service.create_job(xmls)
+            job = service.create_job(tenant_id, xmls)
         except BatchLimitError as exc:
             raise HTTPException(status_code=413, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         # Procesamiento asíncrono (BackgroundTasks corre después de la respuesta).
-        background_tasks.add_task(service.process_job, job.id)
+        background_tasks.add_task(service.process_job, tenant_id, job.id)
 
         return {
             "ok": True,
@@ -100,7 +101,8 @@ def build_batch_router(db: Any = None, require_api_key: Any = None) -> APIRouter
     @router.get("/batch/{batch_id}", summary="Estado, progreso y resumen del batch.",
                 response_model=None)
     def get_batch(batch_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
-        job = service.get_job(batch_id)
+        tenant_id = str(auth_info.get("tenant_id") or "") if auth_info else ""
+        job = service.get_job(tenant_id, batch_id)
         if job is None:
             raise HTTPException(status_code=404, detail="Batch no encontrado.")
         return {"ok": True, "batch": job.to_dict()}

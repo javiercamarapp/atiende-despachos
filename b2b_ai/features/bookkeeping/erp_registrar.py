@@ -19,6 +19,33 @@ from b2b_ai.features.bookkeeping.models import (
 log = logging.getLogger(__name__)
 
 
+def _build_erp_adapter(tenant_id: int) -> Any:
+    """Build a Computer Use ERP adapter for a tenant (or None)."""
+    try:
+        from b2b_ai.db.tenants import TenantManager
+        from b2b_ai.db.db import Database
+        db = Database()
+        return TenantManager(db).erp_factory(tenant_id)
+    except Exception:
+        return None
+
+
+def _poliza_to_invoice_dict(poliza: "PolizaContable") -> Dict[str, Any]:
+    """Convert a PolizaContable to an invoice dict for the ERP adapter."""
+    return {
+        "id": poliza.id,
+        "folio": poliza.erp_reference or poliza.id,
+        "fecha": getattr(poliza, "fecha", None),
+        "tipo": poliza.tipo.value if hasattr(poliza.tipo, "value") else str(poliza.tipo),
+        "concepto": poliza.concepto,
+        "debe": poliza.total_debe,
+        "haber": poliza.total_haber,
+        "cuadrada": poliza.cuadrada,
+        "tenant_id": poliza.tenant_id,
+    }
+
+
+
 @dataclass
 class ERPRegistrationResult:
     """Result of registering a poliza in the ERP."""
@@ -147,12 +174,34 @@ class ERPRegistrar:
             log.info("MOCK ERP: registered poliza %s as %s", poliza.id, ref)
             return ref
 
-        # Production: delegate to IntegrationHub
-        # This would call the appropriate adapter (CONTPAQi, Aspel, etc.)
-        # For now, raise NotImplementedError for non-mock systems
-        raise NotImplementedError(
-            f"ERP adapter for {self._erp_system.value} not yet connected via IntegrationHub"
-        )
+        # Production: delegate to Computer Use ERP adapter
+        try:
+            tenant_id = int(poliza.tenant_id or 0)
+            adapter = _build_erp_adapter(tenant_id)
+            if adapter is None:
+                raise RuntimeError(
+                    f"No ERP adapter available for {self._erp_system.value}")
+
+            invoice_payload = _poliza_to_invoice_dict(poliza)
+            result = adapter.register_invoice(invoice_payload)
+
+            if isinstance(result, dict):
+                ref = str(result.get("folio") or result.get("id")
+                          or result.get("reference") or f"ERP-{poliza.id}")
+            else:
+                ref = str(getattr(result, "folio", None)
+                          or getattr(result, "id", None)
+                          or getattr(result, "reference", None)
+                          or f"ERP-{poliza.id}")
+            log.info(
+                "ERP %s: registered poliza %s as %s",
+                self._erp_system.value, poliza.id, ref)
+            return ref
+        except Exception as exc:
+            log.error(
+                "ERP %s: failed to register poliza %s: %s",
+                self._erp_system.value, poliza.id, exc)
+            raise
 
     def _attempt_rollback(self, poliza: PolizaContable) -> bool:
         """Attempt to rollback a failed registration."""

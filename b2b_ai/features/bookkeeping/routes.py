@@ -85,8 +85,6 @@ def build_bookkeeping_router(
     )
 
     # SECURITY: Require API key on ALL bookkeeping endpoints.
-    # Auth is applied at router level so a forgotten per-endpoint dependency
-    # can never leave a route publicly exposed.
     if require_api_key is not None:
         router.dependencies.append(Depends(require_api_key))
 

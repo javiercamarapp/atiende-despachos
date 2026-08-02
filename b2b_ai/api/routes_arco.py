@@ -9,6 +9,8 @@ from __future__ import annotations
 import json as _json
 import logging
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -37,6 +39,22 @@ def build_arco_router(db, require_api_key) -> APIRouter:
         POST /api/v1/arco/cancelacion/{email} — cancel/delete data (public)
     """
     router = APIRouter(tags=["arco"])
+
+    def _require_tenant(auth_info: dict) -> Optional[str]:
+        """Return the tenant_id from the authenticated API key, or None if
+        the system is single-tenant. Multi-tenant authorization: the data
+        being accessed MUST belong to the API key's tenant.
+        """
+        return (auth_info or {}).get("tenant_id")
+
+    def _resolve_user(email: str, auth_info: dict):
+        """Get the client user for an email scoped to the API key's tenant."""
+        tenant_id = _require_tenant(auth_info)
+        user = db.get_client_user_by_email(email, tenant_id=tenant_id)
+        if user is None:
+            raise HTTPException(
+                404, "No se encontraron datos para ese email.")
+        return user, tenant_id
 
     @router.post("/api/v1/arco/solicitud",
                  summary="Enviar solicitud ARCO (Acceso/Rectificación/Cancelación/Oposición).",
@@ -115,10 +133,7 @@ def build_arco_router(db, require_api_key) -> APIRouter:
     async def arco_acceso(email: str, auth_info: dict = Depends(require_api_key)):
         """Acceso ARCO — LFPDPPP Art. 28: devuelve todos los datos
         personales que el responsable tiene del titular."""
-        user = db.get_client_user_by_email(email)
-        if user is None:
-            raise HTTPException(
-                404, "No se encontraron datos para ese email.")
+        user, _tenant_id = _resolve_user(email, auth_info)
 
         db.log_call(
             "arco", "acceso",
@@ -150,10 +165,7 @@ def build_arco_router(db, require_api_key) -> APIRouter:
         Nota: Se conservan datos con obligación legal de retención
         (CFDI, contabilidad electrónica — CFF Art. 82-89, 5 años).
         """
-        user = db.get_client_user_by_email(email)
-        if user is None:
-            raise HTTPException(
-                404, "No se encontraron datos para ese email.")
+        user, _tenant_id = _resolve_user(email, auth_info)
 
         user_id = user.get("id")
         logger.warning(

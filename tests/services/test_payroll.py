@@ -20,9 +20,8 @@ class TestCalcISR:
         r = calc_isr(500)
         assert float(r["impuesto"]) > 0
         # FIS-08: calc_isr uses the 2026 tariff by default (AÑO_FISCAL=2026)
-        # 1st bracket: 0.00-435.08 (0%), 2nd bracket: 435.09-3666.30 (6.40%)
-        # ingreso 500 falls in bracket 2 with limite_inferior=435.09
-        assert r["rango_aplicado"]["limite_inferior"] == "435.09"
+        # 1st bracket: 0.01-844.59 (1.92%), so ingreso 500 falls in bracket 1
+        assert r["rango_aplicado"]["limite_inferior"] == "0.01"
 
     def test_high_income(self):
         r = calc_isr(400000)
@@ -42,9 +41,9 @@ class TestCalcISR:
         r = calc_isr(10000)
         assert r["rango_aplicado"] is not None
         imp = float(r["impuesto"])
-        # FIS-08: 2025 tariff — bracket 6 (8564.68-17128.42, cuota 952.82, 23.52%)
-        # impuesto = 952.82 + (10000-8564.68)*0.2352 = 1290.33
-        assert 1200 < imp < 1400
+        # FIS-08: 2026 tariff — bracket (6936.24-13074.34, cuota 406.08, 10.88%)
+        # impuesto = 406.08 + (10000-6936.24)*0.1088 = 739.42
+        assert 700 < imp < 780
 
 
 class TestCalcIMSS:

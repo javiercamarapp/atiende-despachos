@@ -149,12 +149,23 @@ def build_conciliacion_router(
         )
     auth_dep = require_api_key
 
-    # In-memory stores
-    _reports_store: Dict[str, ConciliationReport] = {}
-    _discrepancies_store: Dict[str, list] = {}
-    _reconciliation_results_store: Dict[str, dict] = {}
-    _adjustments_store: Dict[str, Adjustment] = {}
-    _uploaded_statements: Dict[str, dict] = {}
+    # In-memory stores — tenant-isolated (P1-3): cada store está anidado por
+    # tenant_id derivado SIEMPRE del token autenticado (auth_info). Ningún
+    # endpoint puede leer o escribir datos de un tenant distinto al suyo.
+    _reports_store: Dict[str, Dict[str, ConciliationReport]] = {}
+    _discrepancies_store: Dict[str, Dict[str, list]] = {}
+    _reconciliation_results_store: Dict[str, Dict[str, dict]] = {}
+    _adjustments_store: Dict[str, Dict[str, Adjustment]] = {}
+    _uploaded_statements: Dict[str, Dict[str, dict]] = {}
+
+    def _tenant(auth_info) -> str:
+        """Resuelve el tenant autenticado para particionar los stores."""
+        return str(auth_info.get("tenant_id") or "") if auth_info else ""
+
+    def _tstore(store: dict, auth_info) -> dict:
+        """Devuelve el sub-store del tenant, creándolo si no existe."""
+        tid = _tenant(auth_info)
+        return store.setdefault(tid, {})
 
     router = APIRouter(prefix="/api/v1/conciliacion", tags=["conciliacion"])
 
@@ -213,9 +224,10 @@ def build_conciliacion_router(
             except (IndexError, ValueError):
                 period = datetime.now().strftime("%Y-%m")
 
-        # Store the uploaded statement
-        statement_id = f"stmt-{period}-{len(_uploaded_statements) + 1}"
-        _uploaded_statements[statement_id] = {
+        # Store the uploaded statement (tenant-isolated, P1-3)
+        tenant_store = _tstore(_uploaded_statements, auth_info)
+        statement_id = f"stmt-{period}-{len(tenant_store) + 1}"
+        tenant_store[statement_id] = {
             "id": statement_id,
             "period": period,
             "transactions": bank_transactions,
@@ -317,8 +329,8 @@ def build_conciliacion_router(
 
         all_matches = poliza_matches + cfdi_matches
         report = service.generate_report(all_matches, period=period)
-        _reports_store[period] = report
-        _discrepancies_store[period] = discrepancies
+        _tstore(_reports_store, auth_info)[period] = report
+        _tstore(_discrepancies_store, auth_info)[period] = discrepancies
 
         return {
             "ok": True,
@@ -430,8 +442,8 @@ def build_conciliacion_router(
 
         period = bank_txns[0].date[:7] if bank_txns else "unknown"
         report = service.generate_report(matches, period=period)
-        _reports_store[period] = report
-        _discrepancies_store[period] = discrepancies
+        _tstore(_reports_store, auth_info)[period] = report
+        _tstore(_discrepancies_store, auth_info)[period] = discrepancies
 
         return {
             "ok": True,
@@ -494,18 +506,18 @@ def build_conciliacion_router(
 
         # Generate report
         report = service.generate_reconciliation_report(results, period=period)
-        _reports_store[period] = report
-        _reconciliation_results_store[period] = results
+        _tstore(_reports_store, auth_info)[period] = report
+        _tstore(_reconciliation_results_store, auth_info)[period] = results
 
-        # Store adjustments
+        # Store adjustments (tenant-isolated, P1-3)
         for adj in results.get("adjustments", []):
-            _adjustments_store[adj.id] = adj
+            _tstore(_adjustments_store, auth_info)[adj.id] = adj
 
         # Store discrepancies
         disc_dicts = []
         for d in results.get("discrepancies", []):
             disc_dicts.append(d.model_dump() if hasattr(d, 'model_dump') else d)
-        _discrepancies_store[period] = disc_dicts
+        _tstore(_discrepancies_store, auth_info)[period] = disc_dicts
 
         return {
             "ok": True,
@@ -534,13 +546,18 @@ def build_conciliacion_router(
         period: str,
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
-        """Retrieve a previously generated reconciliation report by period (YYYY-MM)."""
-        if period not in _reports_store:
+        """Retrieve a previously generated reconciliation report by period (YYYY-MM).
+
+        SECURITY (P1-3): el reporte se lee SOLO del namespace del tenant
+        autenticado; un periodo de otro tenant responde 404.
+        """
+        tenant_reports = _tstore(_reports_store, auth_info)
+        if period not in tenant_reports:
             raise HTTPException(
                 status_code=404,
                 detail=f"No se encontró reporte para el período '{period}'.",
             )
-        return {"report": _reports_store[period].model_dump()}
+        return {"report": tenant_reports[period].model_dump()}
 
     # -----------------------------------------------------------------------
     # POST /apply — Apply approved adjustments
@@ -554,17 +571,22 @@ def build_conciliacion_router(
         req: ApplyAdjustmentsRequest,
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
-        """Apply approved adjustments. Updates status to APPLIED."""
+        """Apply approved adjustments. Updates status to APPLIED.
+
+        SECURITY (P1-3): solo ajustes del tenant autenticado; un adjustment_id
+        de otro tenant se reporta como not_found.
+        """
+        tenant_adjustments = _tstore(_adjustments_store, auth_info)
         applied = []
         not_found = []
         already_applied = []
 
         for adj_id in req.adjustment_ids:
-            if adj_id not in _adjustments_store:
+            if adj_id not in tenant_adjustments:
                 not_found.append(adj_id)
                 continue
 
-            adj = _adjustments_store[adj_id]
+            adj = tenant_adjustments[adj_id]
             if adj.status == AdjustmentStatus.APPLIED:
                 already_applied.append(adj_id)
                 continue
@@ -576,7 +598,7 @@ def build_conciliacion_router(
             adj.status = AdjustmentStatus.APPLIED
             adj.applied_by = req.applied_by
             adj.applied_at = datetime.now().isoformat()
-            _adjustments_store[adj_id] = adj
+            tenant_adjustments[adj_id] = adj
             applied.append(adj_id)
 
         return {
@@ -601,9 +623,13 @@ def build_conciliacion_router(
         discrepancy_type: Optional[str] = Query(default=None, description="Filter by type: monto, fecha, faltante, sobrante, duplicado"),
         min_variance: float = Query(default=0.0, ge=0, description="Minimum variance % to include"),
     ) -> dict:
-        """List discrepancy records with optional period, type, and variance filters."""
+        """List discrepancy records with optional period, type, and variance filters.
+
+        SECURITY (P1-3): solo discrepancias del tenant autenticado.
+        """
+        tenant_discs = _tstore(_discrepancies_store, auth_info)
         all_discs = []
-        for p, discs in _discrepancies_store.items():
+        for p, discs in tenant_discs.items():
             if period and p != period:
                 continue
             for d in discs:
@@ -633,9 +659,13 @@ def build_conciliacion_router(
         auth_info: dict = Depends(auth_dep),
         status: Optional[str] = Query(default=None, description="Filter by status: PROPOSED, APPROVED, REJECTED, APPLIED"),
     ) -> dict:
-        """List adjustment proposals with optional status filter."""
+        """List adjustment proposals with optional status filter.
+
+        SECURITY (P1-3): solo ajustes del tenant autenticado.
+        """
+        tenant_adjustments = _tstore(_adjustments_store, auth_info)
         adjustments = []
-        for adj in _adjustments_store.values():
+        for adj in tenant_adjustments.values():
             if status and adj.status.value != status:
                 continue
             adjustments.append(adj.model_dump())

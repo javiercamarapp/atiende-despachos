@@ -192,8 +192,7 @@ class AgentLoop:
             )(datos)
         except ServiceTimeoutError:
             # FAIL-CLOSED: On LLM timeout, DO NOT assume normal. Escalate to
-            # human review — a false positive is safer than a false negative
-            # that auto-registers a fraudulent/anomalous invoice in the ERP.
+            # human review — false positive safer than false negative.
             anomalia = {
                 "nivel": "alerta",
                 "anomalias": [

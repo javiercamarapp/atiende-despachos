@@ -82,10 +82,6 @@ from b2b_ai.api import portal as portal_mod
 from b2b_ai.portal.routes import build_portal_pages_router
 from b2b_ai.notifications.api import build_notifications_router
 from b2b_ai.billing.api import build_billing_router
-from b2b_ai.features.billing.routes import build_billing_router as build_pilot_billing_router
-from b2b_ai.features.onboarding.routes import build_onboarding_wizard_router
-from b2b_ai.features.data_migration.routes import build_data_migration_router
-from b2b_ai.features.roles.routes import build_roles_router
 from b2b_ai.reports.router import build_reports_router
 from b2b_ai.api.middleware import install_request_size_limit
 from b2b_ai.api.reconciliation import build_reconciliation_router
@@ -109,7 +105,6 @@ from b2b_ai.features.conciliacion_fiscal.routes import build_fiscal_router
 from b2b_ai.features.declaraciones.routes import build_declaraciones_router
 from b2b_ai.features.devolucion_iva.routes import build_devolucion_iva_router
 from b2b_ai.features.diot.routes import build_diot_router
-from b2b_ai.features.document_management.routes import build_document_router
 from b2b_ai.features.declaraciones.declaration_api import build_declarations_api_router
 from b2b_ai.features.reconciliacion_ingresos_egresos.routes import (
     build_reconciliacion_ingresos_egresos_router,
@@ -139,14 +134,9 @@ from b2b_ai.monitoring.metrics import metrics as prom_metrics
 from b2b_ai.monitoring.alerts import alerts as alert_mgr
 from b2b_ai.monitoring.health import build_health_detailed
 from b2b_ai.audit.middleware import install_audit_middleware
-from b2b_ai.audit.routes import build_audit_logger_router
 from b2b_ai.api.routes_health import build_health_router
-from b2b_ai.api.health_routes import build_health_routes
 from b2b_ai.api.routes_invoices import build_invoices_router
 from b2b_ai.api.routes_arco import build_arco_router
-from b2b_ai.api.routes.cfdi_validation import build_cfdi_validation_router
-from b2b_ai.features.batch.routes import build_batch_router
-from b2b_ai.features.bank_feeds.routes import build_bank_feeds_router
 
 # Logger estructurado JSON (monitoring). Distinto del ToolCallLogger de
 # b2b_ai.tools.logger (auditoría de tools en DB): este emite JSON a stdout.
@@ -539,10 +529,6 @@ def create_app(db=None):
     # Registered after all other middleware so it is the outermost layer.
     install_request_size_limit(app)
 
-    # Audit logging system: GET /api/v1/audit/logs (trazabilidad). Resuelve el
-    # tenant de la key autenticada para aislar la consulta por tenant.
-    app.include_router(build_audit_logger_router(db, require_api_key, auth))
-
     def _scope(info):
         """Devuelve el tenant_id efectivo a usar según la key."""
         return info.get("tenant_id")
@@ -577,15 +563,8 @@ def create_app(db=None):
     # Health, metrics & detailed health (extracted to routes_health.py)
     app.include_router(build_health_router(db, require_api_key))
 
-    # Health check del MVP (readiness por módulo): /api/v1/health y
-    # /api/v1/health/deep. Públicos (endpoints de monitoreo, sin auth).
-    app.include_router(build_health_routes(db))
-
     # Invoice processing, listing, stats (extracted to routes_invoices.py)
     app.include_router(build_invoices_router(db, require_api_key))
-    app.include_router(build_cfdi_validation_router(require_api_key))
-    app.include_router(build_batch_router(db, require_api_key))
-    app.include_router(build_bank_feeds_router(db, require_api_key))
 
     @app.get("/api/v1/tools",
              summary="Tools registradas en el agente.",
@@ -982,27 +961,8 @@ def create_app(db=None):
     # B2B_CONEKTA_KEY / B2B_PAYMENTS_PROVIDER).
     app.include_router(build_billing_router(db, require_api_key))
 
-    # Billing del piloto (Conekta, suscripción por plan): montado bajo
-    # /api/v1/billing-piloto para no colisionar con el billing comercial.
-    app.include_router(build_pilot_billing_router(db, require_api_key))
-
-    # Migración de datos desde sistemas existentes (CONTPAQi/Excel/CSV).
-    # Prefijo /api/v1/migration — no colisiona con módulos existentes.
-    app.include_router(build_data_migration_router(db, require_api_key))
-
-    # Roles y permisos (RBAC) multi-tenant. Prefijo /api/v1/roles.
-    # Los endpoints de administración exigen `users:manage`; la resolución de
-    # `user_id` depende de que `require_api_key` inyecte user_id/tenant_id en
-    # el contexto (patrón de los módulos del piloto).
-    app.include_router(build_roles_router(db, require_api_key))
-
     # Onboarding wizard de nuevos clientes (wizard + checklist + score).
     app.include_router(build_onboarding_router(db, require_api_key))
-
-    # Onboarding wizard del piloto (Día 1): montado bajo
-    # /api/v1/onboarding-wizard para no colisionar con el onboarding comercial.
-    # Incluye el paso 6 de checkout que redirige al billing piloto (Conekta).
-    app.include_router(build_onboarding_wizard_router(db, require_api_key))
 
     # Integración SAT (FASE): descarga masiva de CFDI + verificación de
     # estatus + programación automática. Mock-first (sin e.firma real).
@@ -1064,9 +1024,6 @@ def create_app(db=None):
 
     # DIOT: generación, validación e historial de DIOT mensuales.
     app.include_router(build_diot_router(db, require_api_key))
-
-    # Gestión documental: upload, búsqueda, versionado y compartición.
-    app.include_router(build_document_router(db, require_api_key))
 
     # Declarations API: cálculo, generación XML, firma FIEL, envío SAT.
     # Agente 2 — Declaraciones Fiscales Autónomas.

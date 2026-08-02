@@ -40,7 +40,10 @@ class BatchLimitError(Exception):
 
 
 # Store en memoria, coherente con el patrón del módulo de webhooks.
-_jobs: Dict[str, BatchJob] = {}
+# Tenant-isolated: _jobs[tenant_id][batch_id] — un lote jamás es visible
+# para otro tenant (P1-1). La clave tenant_id se deriva SIEMPRE del token
+# autenticado (auth_info), nunca del body del cliente.
+_jobs: Dict[str, Dict[str, BatchJob]] = {}
 
 
 def _dec_to_float(value) -> Optional[float]:
@@ -180,8 +183,12 @@ class BatchService:
     # ------------------------------------------------------------------
     # Creación y consulta de lotes
     # ------------------------------------------------------------------
-    def create_job(self, xmls: List[Tuple[str, str]]) -> BatchJob:
-        """Crea el BatchJob y sus BatchItems. Valida el límite de 500 ítems."""
+    def create_job(self, tenant_id: str, xmls: List[Tuple[str, str]]) -> BatchJob:
+        """Crea el BatchJob y sus BatchItems. Valida el límite de 500 ítems.
+
+        El job se guarda en el namespace del tenant: _jobs[tenant_id][job.id]
+        para garantizar aislamiento entre tenants (P1-1).
+        """
         if not xmls:
             raise ValueError("No se encontraron CFDIs en el archivo subido.")
         if len(xmls) > MAX_ITEMS:
@@ -200,19 +207,26 @@ class BatchService:
         # Guardamos el contenido en el item para poder procesar después.
         for item, (_name, content) in zip(job.items, xmls):
             item.result = {"_pending_xml": content}
-        _jobs[job.id] = job
-        logger.info("batch created id=%s items=%d", job.id, job.total_items)
+        _jobs.setdefault(tenant_id, {})[job.id] = job
+        logger.info("batch created tenant=%s id=%s items=%d", tenant_id, job.id, job.total_items)
         return job
 
-    def get_job(self, job_id: str) -> Optional[BatchJob]:
-        return _jobs.get(job_id)
+    def get_job(self, tenant_id: str, job_id: str) -> Optional[BatchJob]:
+        """Consulta un job SOLO dentro del namespace del tenant autenticado.
+
+        Un tenant jamás puede leer el job de otro tenant (P1-1).
+        """
+        return _jobs.get(tenant_id, {}).get(job_id)
 
     # ------------------------------------------------------------------
     # Procesamiento
     # ------------------------------------------------------------------
-    def process_job(self, job_id: str) -> BatchJob:
-        """Procesa cada CFDI del lote y emite el webhook al terminar."""
-        job = _jobs.get(job_id)
+    def process_job(self, tenant_id: str, job_id: str) -> BatchJob:
+        """Procesa cada CFDI del lote y emite el webhook al terminar.
+
+        Opera únicamente dentro del namespace del tenant autenticado (P1-1).
+        """
+        job = _jobs.get(tenant_id, {}).get(job_id)
         if job is None:
             raise KeyError(f"Batch job no encontrado: {job_id}")
         if job.status in (BatchJobStatus.COMPLETED, BatchJobStatus.FAILED):
