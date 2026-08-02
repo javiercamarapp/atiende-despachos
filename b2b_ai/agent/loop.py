@@ -44,6 +44,9 @@ import b2b_ai.tools.tools  # noqa: F401  (registra las tools del agente)
 from b2b_ai.notifications.sender import EmailSender
 from b2b_ai.monitoring.logger import mask_pii as _mask_pii
 
+# Confidence threshold for auto-processing invoices
+DEFAULT_CONFIDENCE_THRESHOLD = 0.7
+
 
 class AgentLoop:
     """Loop de agente para una factura, con árbol de decisión y HITL."""
