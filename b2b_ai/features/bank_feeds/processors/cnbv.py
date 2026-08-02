@@ -156,6 +156,9 @@ def _norm(h: str) -> str:
 def _detect_delimiter(lines) -> str:
     """Detecta coma / tab / punto y coma contando su frecuencia en la 1ª línea."""
     first = lines[0] if lines else ""
-    counts = {",": first.count(","), "\t": first.count("\t"), ";": first.count(";")}
-    best = max(counts, key=counts.get)
-    return best if counts[best] > 0 else ","
+    candidates = [(",", first.count(",")), ("\t", first.count("\t")), (";", first.count(";"))]
+    best = candidates[0]
+    for cand, cnt in candidates[1:]:
+        if cnt > best[1]:
+            best = (cand, cnt)
+    return best[0] if best[1] > 0 else ","
