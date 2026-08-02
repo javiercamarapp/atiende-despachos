@@ -1484,7 +1484,7 @@ def create_app(db=None):
         @app.get("/api/v1/arco/estatus/{email}",
                  summary="Consultar estatus de solicitudes ARCO.",
                  tags=["arco"])
-        async def arco_estatus(email: str):
+        async def arco_estatus(email: str, auth_info: dict = Depends(require_api_key)):
             """Devuelve las solicitudes ARCO registradas para un email."""
             rows = db.conn.execute(
                 "SELECT entity_id, payload, status, ts FROM audit_log "
@@ -1515,7 +1515,7 @@ def create_app(db=None):
         @app.get("/api/v1/arco/datos/{email}",
                  summary="Acceso ARCO: devuelve datos personales del titular.",
                  tags=["arco"])
-        async def arco_acceso(email: str):
+        async def arco_acceso(email: str, auth_info: dict = Depends(require_api_key)):
             """Acceso ARCO — LFPDPPP Art. 28: devuelve todos los datos
             personales que el responsable tiene del titular."""
             # Buscar en client_users
@@ -1550,7 +1550,7 @@ def create_app(db=None):
         @app.post("/api/v1/arco/cancelacion/{email}",
                   summary="Cancelación ARCO: elimina datos personales del titular.",
                   tags=["arco"])
-        async def arco_cancelacion(email: str):
+        async def arco_cancelacion(email: str, auth_info: dict = Depends(require_api_key)):
             """Cancelación ARCO — LFPDPPP Art. 33: eliminar datos personales.
 
             Nota: Se conservan datos con obligación legal de retención
