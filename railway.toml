@@ -1,10 +1,14 @@
 # =============================================================================
 # railway.toml — Configuración de Railway para Likida AI Enterprise
 # =============================================================================
-# Docs: https://docs.railway.com/reference/configuration
-#
 # Railway auto-detecta este archivo en la raíz del repo.
 # Railway CLI: railway up | railway variables set | railway logs
+# Docs: https://docs.railway.com/reference/configuration
+#
+# REQUISITO previo (una vez): crear el plugin PostgreSQL desde el dashboard o:
+#   railway add --plugin postgresql
+# Ese add-on inyecta automáticamente la variable DATABASE_URL que la app lee
+# para conectar a PostgreSQL (ver b2b_ai/api/app.py). No la configures a mano.
 # =============================================================================
 
 [build]
@@ -13,10 +17,10 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Puerto dinámico (Railway asigna un PORT aleatorio)
+# Puerto dinámico (Railway asigna un PORT aleatorio que uvicorn debe escuchar)
 startCommand = "sh -c 'uvicorn b2b_ai.api.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${B2B_WORKERS:-1} --proxy-headers'"
 
-# Health check endpoint (Railway lo llama para verificar que el servicio está vivo)
+# Health check (Railway lo llama para verificar que el servicio está vivo)
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 healthcheckInterval = 15
@@ -26,5 +30,5 @@ healthcheckStartPeriod = 60
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
 
-# Auto-deploy al push a main (configurable desde Railway dashboard)
+# Nº de réplicas (escala con un clic desde el dashboard)
 numReplicas = 1

@@ -1,135 +1,186 @@
 # Likida AI Enterprise — Guía de despliegue (DEPLOY.md)
 
-**Última actualización:** 2026-07-31
+**Última actualización:** 2026-08-02
 
-Guía rápida para poner Likida AI Enterprise en producción. Para el detalle completo
-(requisitos, opción VPS vs cloud, variables, rollback) consulta
-[`README-DEPLOY.md`](./README-DEPLOY.md) — este archivo es el resumen ejecutivo.
+Guía paso a paso para poner Likida AI Enterprise en producción. El MVP usa
+**FastAPI + PostgreSQL 15** y está listo para **Railway** (recomendado, managed)
+o un **VPS con Docker Compose** (más control).
+
+Para el detalle arquitectónico/operativo completo consulta
+[`README-DEPLOY.md`](./README-DEPLOY.md). Este archivo es la guía ejecutiva.
+
+---
 
 ## Arquitectura en producción
 
 | Componente | Qué es | Dónde se sirve |
 |---|---|---|
-| **API** (FastAPI + SQLite) | Backend real: `/api/v1/*`, `/health`, `/docs` | Railway (managed) o VPS con Docker |
-| **Landing A** (`landing/`) | Landing principal + dashboard | Vercel/Netlify (static) o el mismo origen de la API |
-| **Landing B** (`landing-b/`) | Landing alternativa estilo usehandle (solo HTML estático + vídeos) | Vercel/Netlify (static, standalone) |
+| **API** (FastAPI + PostgreSQL) | Backend real: `/api/v1/*`, `/health`, `/docs` | Railway (managed) o VPS con Docker Compose |
+| **PostgreSQL 15** | Base de datos real (la app la detecta vía `DATABASE_URL`) | Railway Plugin o contenedor `postgres:15` |
+| **Nginx** | Reverse proxy + TLS + rate limit (solo en Docker Compose) | Mismo VPS |
+| **Landing A / B** (`landing/`, `landing-b/`) | HTML estático | Vercel/Netlify o el mismo origen |
 
-> La landing se sirve desde el **mismo origen** que la API, por lo que el
-> `fetch('/api/v1/leads')` de la landing funciona **sin CORS**. CORS solo se
-> necesita si hosteas la UI en un dominio distinto al de la API (ver abajo).
+> La app **aplica las migraciones de esquema automáticamente** al arrancar cuando
+> detecta PostgreSQL (en un hilo de fondo, sin bloquear el healthcheck). **No hay
+> paso manual de migración.** Solo conecta la DB y levanta.
 
 ---
 
-## Opción 1 — Cloud (recomendada): Vercel + Railway
+## Opción 1 — Railway (recomendada, one-click)
 
-### API → Railway (ya configurado)
-
-El repo ya trae `railway.json`, `Procfile` y `runtime.txt`. Desde la raíz:
+### 1. Requisitos previos (una vez)
 
 ```bash
+brew install railway        # o: npm i -g @railway/cli
 railway login
-railway init
-railway up
 ```
 
-Variables obligatorias en Railway: `B2B_API_KEY` (genera con
-`openssl rand -hex 32`), `B2B_PORT=8000`. Ver el health check:
-`curl https://<tu-app>.up.railway.app/health`.
-
-### Landings → Vercel (static)
-
-Cada landing es estática y se despliega sola. Ya trae su `vercel.json`.
+### 2. Deploy one-click
 
 ```bash
-# Landing B (estilo usehandle)
-cd landing-b
-npx vercel --prod        # despliega desde ./landing-b
-
-# Landing A (principal + dashboard)
-cd ../landing
-npx vercel --prod
+# Desde la raíz del repo:
+./scripts/deploy-railway.sh
 ```
 
-O desde el dashboard de Vercel: *Add New → Project → importa el repo* y fija
-**Root Directory** a `landing/` o `landing-b/`. No necesitas build command ni
-output directory (es HTML estático puro).
+El script hace todo automáticamente:
 
-### CORS (solo si UI y API están en dominios distintos)
+1. Verifica CLI + login + proyecto vinculado (crea `b2b-ai-api` si falta).
+2. **Crea el plugin PostgreSQL** (inyecta `DATABASE_URL`).
+3. **Genera y fija los secretos**: `B2B_JWT_SECRET`, `B2B_ENCRYPTION_KEY`, `B2B_API_KEY`.
+4. Fija las variables de configuración (`B2B_ENV=production`, rate limit, CORS…).
+5. Sube el build y espera a que `/health` responda.
 
-En el deploy de la API (Railway/Vercel function), define:
+### 3. Verificación
 
 ```bash
-B2B_CORS_ORIGINS=https://tu-landing.vercel.app,https://www.tu-landing.com
-B2B_CORS_ALLOW_CREDENTIALS=false   # la API autentica con X-API-Key, no cookies
+curl -s https://<tu-app>.up.railway.app/health | jq .status   # → "ok"
 ```
 
-Vacío = CORS desactivado (solo same-origin). La lista de orígenes permite
-llamar a la API desde esos dominios. Se verifica con un preflight `OPTIONS`.
+### 4. Variables de entorno (Railway)
 
----
+Railway inyecta automáticamente `DATABASE_URL` (PostgreSQL) y `PORT`. Las demás
+las fija el script. Si quieres tocarlas a mano, el panel → **Variables**:
 
-## Opción 2 — VPS (Docker Compose)
+| Variable | Requerida | Ejemplo |
+|---|---|---|
+| `DATABASE_URL` | ✔ (auto) | Postgres DSN inyectado por el plugin |
+| `B2B_JWT_SECRET` | ✔ | `openssl rand -hex 32` |
+| `B2B_ENCRYPTION_KEY` | ✔ | `openssl rand -hex 24` |
+| `B2B_API_KEY` | ✔ | `openssl rand -hex 32` (dásela a tus clientes) |
+| `B2B_ENV` | ✔ | `production` |
+| `B2B_CORS_ORIGINS` | solo multi-dominio | `https://app.likida.ai,...` |
+
+> **Importante:** sin `B2B_JWT_SECRET` o `B2B_ENCRYPTION_KEY` la app **falla al
+> arrancar** (fail-fast de seguridad) — es intencional.
+
+### 5. Dominio custom (opcional)
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d
-curl http://localhost:8000/health   # health check
+./scripts/deploy-railway.sh --domain api.likida.ai
 ```
 
-Sirve API + landing A en el mismo origen. Para landing B, súbela a un static
-host o sírvela por Nginx apuntando a la carpeta `landing-b/`.
-
----
-
-## Arranque local / desarrollo
+### 6. Debugging
 
 ```bash
-./start.sh            # Docker Compose (prod-like) o
-./start.sh --local    # uvicorn local sin Docker
-```
-
-Para servir la landing B como estática sin la API:
-
-```bash
-cd landing-b && python3 -m http.server 8000
-# → http://localhost:8000
+./scripts/deploy-railway.sh --logs      # logs en tiempo real
+./scripts/deploy-railway.sh --status    # estado del servicio
 ```
 
 ---
 
-## Verificación post-deploy (checklist)
+## Opción 2 — VPS con Docker Compose
+
+### 1. Preparar el entorno
 
 ```bash
-# 1. Health check de la API
-curl -s <API_URL>/health | jq .status            # → "ok"
+cp .env.example .env.production
+vi .env.production          # rellena POSTGRES_PASSWORD y los secretos
+```
+
+Genera los secretos:
+
+```bash
+openssl rand -hex 32    # B2B_JWT_SECRET
+openssl rand -hex 24    # B2B_ENCRYPTION_KEY
+openssl rand -hex 32    # B2B_API_KEY
+```
+
+### 2. Levantar el stack
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+Esto levanta: **postgres:15** → **api** (FastAPI) → **nginx** (proxy en :80/:443).
+
+### 3. Verificación
+
+```bash
+curl -s http://<IP>/health | jq .status    # → "ok"
+```
+
+### 4. TLS con Let's Encrypt (producción con dominio)
+
+1. Instala `certbot` en el VPS.
+2. Genera los certs y colócalos en `nginx/certs/fullchain.pem` y `privkey.pem`.
+3. Descomenta el bloque `listen 443 ssl` en `nginx/nginx.conf`.
+4. Recrea nginx: `docker compose -f docker-compose.prod.yml up -d nginx`.
+
+---
+
+## Variables de entorno — referencia completa
+
+Ver [`.env.example`](./.env.example) para la lista completa con comentarios.
+Las obligatorias en producción son:
+
+| Variable | Propósito |
+|---|---|
+| `DATABASE_URL` | DSN PostgreSQL (Railway la inyecta; Compose la arma desde `POSTGRES_*`) |
+| `B2B_JWT_SECRET` | Firma de tokens HS256 (mín 32 chars) |
+| `B2B_ENCRYPTION_KEY` | Cifrado AES-GCM de datos en reposo (mín 16 chars) |
+| `B2B_API_KEY` | API key de los clientes (header `X-API-Key`) |
+| `B2B_ENV` | `production` |
+
+---
+
+## Rollback
+
+**Railway:** `railway up` sobre un commit anterior, o en el dashboard
+*Deployments → Restart previous*.
+
+**Docker Compose:**
+
+```bash
+# Volver a una imagen anterior (el volumen postgres-data conserva la DB)
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d \
+  --build --no-recreate
+# Si cambiaste solo variables: restart sin rebuild
+docker compose -f docker-compose.prod.yml --env-file .env.production restart api
+```
+
+> El volumen `postgres-data` persiste la base entre deploys. No lo borres a menos
+> que quieras destruir datos.
+
+---
+
+## Checklist post-deploy
+
+```bash
+# 1. Health check
+curl -s <API_URL>/health | jq .status                    # → "ok"
 
 # 2. Un endpoint protegido (debe dar 401 sin key)
 curl -s -o /dev/null -w "%{http_code}\n" <API_URL>/api/v1/stats   # → 401
 
 # 3. Con API key
-curl -s -H "X-API-Key: $B2B_API_KEY" <API_URL>/api/v1/stats | jq .invoices_total
+curl -s -H "X-API-Key: <KEY>" <API_URL>/api/v1/stats | jq .invoices_total
 
-# 4. Leads (público) — mismo origen sin CORS
+# 4. Leads (público, mismo origen sin CORS)
 curl -s -X POST <API_URL>/api/v1/leads \
   -H 'Content-Type: application/json' \
-  -d '{"nombre":"Demo","email":"demo@x.com"}'    # → {"ok":true,...}
+  -d '{"nombre":"Demo","email":"demo@x.com"}'            # → {"ok":true,...}
 
-# 5. CORS (si UI separada): el preflight del origen permitido responde 200
-#    con access-control-allow-origin; el no permitido NO lo trae.
-
-# 6. Landings: cada una responde 200 y carga sus vídeos assets/
-curl -s -o /dev/null -w "%{http_code}\n" <LANDING_B_URL>/        # → 200
+# 5. CORS (si UI separada): preflight del origen permitido responde 200
+# 6. Landings: cada una responde 200
+curl -s -o /dev/null -w "%{http_code}\n" <LANDING_URL>/  # → 200
 ```
-
-## Endpoints principales
-
-| Método | Ruta | Auth | Descripción |
-|---|---|---|---|
-| GET | `/health` | no | Health check + versión + estado DB |
-| GET | `/metrics` | no | Métricas operativas (count/latencia) |
-| POST | `/api/v1/leads` | no | Alta de lead desde la landing |
-| POST | `/api/v1/invoices/process` | sí | Procesa un CFDI |
-| GET | `/api/v1/invoices` | sí | Lista facturas con filtros |
-| GET | `/api/v1/stats` | sí | Métricas agregadas |
-| GET | `/api/v1/accounting/balance` | sí | Balanza de comprobación |
-| ... | `/api/v1/*` (resto) | sí | Conciliación, nómina, cobranza, contab. electrónica |
-| GET | `/docs` | no | Documentación OpenAPI |
