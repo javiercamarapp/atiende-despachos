@@ -46,7 +46,12 @@ class ReconcileAgentRouter:
 
     def __init__(self, db=None, require_api_key=None):
         self.db = db
-        self.require_api_key = require_api_key or (lambda: {})
+        if require_api_key is None:
+            raise ValueError(
+                "require_api_key es obligatorio. "
+                "Nunca construir el router sin dependencia de auth."
+            )
+        self.require_api_key = require_api_key
 
     def build(self) -> APIRouter:
         router = APIRouter(
