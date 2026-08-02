@@ -18,6 +18,8 @@ como siguiente iteración.
 """
 from __future__ import annotations
 
+import csv
+import io
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -82,7 +84,8 @@ class MigrationService:
                 imp = ImportCSVData()
                 return imp.parse_text(text, filename=filename)
             if file_type == MigrationFileType.CONTPAQI:
-                # CONTPAQi: reusamos el parser según la extensión real del archivo.
+                # CONTPAQi: el mapper convierte las columnas de la exportación
+                # al esquema canónico de Likida antes de producir los ítems.
                 return self._parse_contpaqi(file_path, filename)
         except (ExcelImportError, CSVImportError) as exc:
             raise MigrationError(str(exc), code="invalid_file") from exc
@@ -91,18 +94,71 @@ class MigrationService:
         )
 
     def _parse_contpaqi(self, file_path: str, filename: str) -> List[MigrationItem]:
-        """Parsea una exportación CONTPAQi (xlsx o csv) y la mapea."""
+        """Parsea una exportación CONTPAQi (xlsx o csv) y la mapea.
+
+        A diferencia del flujo genérico (que usa normalize_row del importer
+        base), aquí las filas crudas de cada hoja se pasan por
+        ``self.mapper.map_sheet()``, que conoce las columnas de exportación de
+        CONTPAQi (rfc, razón social, folio fiscal, etc.) y las convierte al
+        esquema canónico de Likida.
+        """
         lower = (filename or "").lower()
         if lower.endswith(".xlsx"):
-            items = ImportClientData().parse_excel(file_path)
-        else:
-            text = Path(file_path).read_text(encoding="utf-8-sig",
-                                             errors="replace")
-            imp = ImportCSVData()
-            items = imp.parse_text(text, filename=filename)
-        # Los ítems ya vienen normalizados por los importers base; el mapper
-        # asegura coherencia con el esquema CONTPAQi.
+            return self._parse_contpaqi_excel(file_path, filename)
+        text = Path(file_path).read_text(encoding="utf-8-sig", errors="replace")
+        return self._parse_contpaqi_csv(text, filename)
+
+    def _parse_contpaqi_excel(self, file_path: str,
+                              filename: str) -> List[MigrationItem]:
+        """Abre el .xlsx, agrupa filas por hoja y las mapea con ContpaqiMapper."""
+        from openpyxl import load_workbook
+
+        try:
+            wb = load_workbook(file_path, read_only=True, data_only=True)
+        except Exception as exc:  # noqa: BLE001
+            raise ExcelImportError(f"No se pudo abrir el Excel: {exc}") from exc
+
+        items: List[MigrationItem] = []
+        try:
+            for sheet_name in wb.sheetnames:
+                rows = self._sheet_to_rows(wb[sheet_name])
+                mapped = self.mapper.map_sheet(sheet_name, rows)
+                if not mapped:
+                    logger.info("hoja sin ítems mapeables (CONTPAQi): %s", sheet_name)
+                    continue
+                items.extend(mapped)
+        finally:
+            wb.close()
         return items
+
+    def _parse_contpaqi_csv(self, text: str, filename: str) -> List[MigrationItem]:
+        """Parsea el CSV como lista de dicts y lo mapea con ContpaqiMapper."""
+        try:
+            reader = csv.DictReader(io.StringIO(text))
+            rows = [dict(r) for r in reader
+                    if any((v or "").strip() for v in r.values())]
+        except Exception as exc:  # noqa: BLE001
+            raise CSVImportError(f"CSV inválido: {exc}") from exc
+        return self.mapper.map_sheet(filename, rows)
+
+    @staticmethod
+    def _sheet_to_rows(ws) -> List[Dict[str, Any]]:
+        """Convierte una hoja de openpyxl a una lista de dicts (columna->valor)."""
+        header: Optional[List[Any]] = None
+        rows: List[Dict[str, Any]] = []
+        for row in ws.iter_rows(values_only=True):
+            if row is None or all(v is None or str(v).strip() == "" for v in row):
+                continue
+            if header is None:
+                header = [str(c) if c is not None else "" for c in row]
+                continue
+            record: Dict[str, Any] = {
+                col_name: value for col_name, value in zip(header, row)
+                if col_name != ""
+            }
+            if any((v or "").strip() != "" for v in record.values()):
+                rows.append(record)
+        return rows
 
     # ------------------------------------------------------------------
     # Ciclo de migración

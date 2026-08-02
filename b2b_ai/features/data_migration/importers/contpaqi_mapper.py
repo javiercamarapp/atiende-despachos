@@ -12,10 +12,26 @@ el nombre de hoja/archivo y por inspección de columnas.
 """
 from __future__ import annotations
 
+import unicodedata
 from typing import Any, Dict, List, Optional
 
 from b2b_ai.features.data_migration.importers.base import detect_sheet_type
 from b2b_ai.features.data_migration.models import MigrationDataType, MigrationItem
+
+
+def _norm_key(k: str) -> str:
+    """Normaliza un nombre de columna: minúsculas, sin acentos, compacto.
+
+    Los encabezados de CONTPAQi vienen en español y pueden llevar acentos o no
+    según la exportación (\"Razón Social\" vs \"RAZON SOCIAL\", \"Régimen\" vs
+    \"Regimen\"). Para mapear ambos de forma robusta se eliminan los diacríticos
+    antes de comparar contra las columnas candidatas.
+    """
+    if not k:
+        return ""
+    text = unicodedata.normalize("NFD", str(k))
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return text.strip().lower().replace("_", " ").replace("-", " ")
 
 # Columna canónica -> posibles columnas CONTPAQi (nombres de export reales).
 _CONTPAQI_COLUMNS = {
@@ -76,11 +92,11 @@ class ContpaqiMapper:
     def map_row(self, row: Dict[str, Any], data_type: MigrationDataType) -> Dict[str, Any]:
         """Convierte una fila CONTPAQi al dict canónico."""
         col_map = _CONTPAQI_COLUMNS.get(data_type, {})
-        norm_row = {str(k).strip().lower(): v for k, v in (row or {}).items()}
+        norm_row = {_norm_key(k): v for k, v in (row or {}).items()}
         out: Dict[str, Any] = {}
         for canonical, candidates in col_map.items():
             for cand in candidates:
-                hit = norm_row.get(cand.lower())
+                hit = norm_row.get(_norm_key(cand))
                 if hit is not None and str(hit).strip() != "":
                     out[canonical] = hit
                     break
@@ -95,7 +111,7 @@ class ContpaqiMapper:
             return by_name
         if rows:
             first = rows[0]
-            norm = {str(k).strip().lower() for k in first.keys()}
+            norm = {_norm_key(k) for k in first.keys()}
             if "rfc" in norm and any("razon" in c or "nombre" in c for c in norm):
                 return MigrationDataType.CLIENTE
             if "uuid" in norm or "folio" in norm:

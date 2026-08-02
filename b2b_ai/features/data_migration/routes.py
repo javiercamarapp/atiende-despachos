@@ -124,7 +124,7 @@ def build_data_migration_router(db: Any = None,
     )
     def execute_migration(job_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
         """Importa los ítems válidos del job y reporta resultados."""
-        job = _get_or_404(job_id)
+        _get_owned_or_404(job_id, auth_info)
         try:
             job = service.execute_migration(job_id)
         except MigrationError as exc:
@@ -147,7 +147,7 @@ def build_data_migration_router(db: Any = None,
     )
     def migration_status(job_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
         """Devuelve el estado y resumen del job."""
-        job = _get_or_404(job_id)
+        job = _get_owned_or_404(job_id, auth_info)
         return {"ok": True, "job": job.to_dict()}
 
     @router.get(
@@ -156,7 +156,7 @@ def build_data_migration_router(db: Any = None,
     )
     def migration_errors(job_id: str, auth_info: dict = Depends(auth_dep)) -> dict:
         """Devuelve la lista de ítems inválidos con sus errores."""
-        job = _get_or_404(job_id)
+        job = _get_owned_or_404(job_id, auth_info)
         return {"ok": True, "errors": job.errors}
 
     @router.get(
@@ -172,9 +172,18 @@ def build_data_migration_router(db: Any = None,
         jobs = service.get_tenant_jobs(tenant_id or "", limit=limit)
         return {"ok": True, "migrations": [j.to_dict() for j in jobs]}
 
-    def _get_or_404(job_id: str) -> MigrationJob:
+    def _get_owned_or_404(job_id: str, auth_info: dict) -> MigrationJob:
+        """Obtiene un job validando que pertenece al tenant autenticado.
+
+        Anti-IDOR multi-tenant: si el job existe pero es de otro tenant se
+        devuelve 404 (mismo error que un job inexistente, para no filtrar la
+        existencia de recursos ajenos), nunca 403.
+        """
         job = get_job(job_id)
         if job is None:
+            raise HTTPException(status_code=404, detail="Migración no encontrada.")
+        tenant_id = auth_info.get("tenant_id")
+        if not tenant_id or job.tenant_id != tenant_id:
             raise HTTPException(status_code=404, detail="Migración no encontrada.")
         return job
 
