@@ -41,35 +41,11 @@ from b2b_ai.features.compliance import (
     FiscalOutput, AuditTrail, sanitize_string, mask_rfc,
     verify_tenant_access, SafeError, SAFE_ERRORS, ManualProcessMixin,
 )
-
-
-# ISR progressive tax table (2024, monthly basis)
-ISR_TABLE_MONTHLY = [
-    (0.00, 312.41, 0.00, 0.0192),
-    (312.42, 2636.28, 5.99, 0.0640),
-    (2636.29, 4623.01, 154.29, 0.1088),
-    (4623.02, 5409.82, 370.32, 0.1600),
-    (5409.83, 6447.11, 496.04, 0.2136),
-    (6447.12, 12904.06, 717.37, 0.2352),
-    (12904.07, 25808.11, 2235.28, 0.3000),
-    (25808.12, 34410.81, 6106.49, 0.3200),
-    (34410.82, 68821.62, 8857.35, 0.3400),
-    (68821.63, float("inf"), 20557.10, 0.3500),
-]
-
-# ISR progressive tax table (2024, annual basis)
-ISR_TABLE_ANNUAL = [
-    (0.00, 3748.57, 0.00, 0.0192),
-    (3748.58, 31635.36, 71.92, 0.0640),
-    (31635.37, 55476.12, 1851.62, 0.1088),
-    (55476.13, 64917.85, 4443.84, 0.1600),
-    (64917.86, 77365.32, 5952.52, 0.2136),
-    (77365.33, 154854.73, 8608.45, 0.2352),
-    (154854.74, 309709.48, 26823.35, 0.3000),
-    (309709.49, 412946.06, 73267.78, 0.3200),
-    (412946.07, 825892.12, 106293.69, 0.3400),
-    (825892.13, float("inf"), 246695.13, 0.3500),
-]
+from b2b_ai.fiscal_tables import (
+    ISR_MENSUAL_2025 as ISR_TABLE_MONTHLY,
+    ISR_ANUAL_2025 as ISR_TABLE_ANNUAL,
+    get_isr_table,
+)
 
 
 class DeclaracionesService(ManualProcessMixin):
@@ -136,6 +112,13 @@ class DeclaracionesService(ManualProcessMixin):
                 saldo_favor=max(0, iva_pagado - iva_cobrado),
                 saldo_contra=max(0, iva_cobrado - iva_pagado),
             )
+            # BUG-F16: Flag IVA acreditable > 3x IVA trasladado (SAT audit risk)
+            if iva_pagado > iva_cobrado * 3 and iva_cobrado > 0:
+                iva_data.requires_human_review = True
+                iva_data.human_review_reason = (
+                    f"IVA acreditable ({iva_pagado}) > 3x IVA trasladado ({iva_cobrado}). "
+                    "SAT puede auditar devoluciones > $100,000 (Art. 22 CFF)."
+                )
 
         # Calculate deadline (17th of following month)
         if month == 12:
@@ -518,6 +501,8 @@ class DeclaracionesService(ManualProcessMixin):
             Dict con isr_anual_total, isr_provisional_acumulado,
             isr_definitivo, saldo_a_favor, saldo_contra
         """
+        # BUG-F34: Validate that provisionales correspond to the same year
+        # (prevents mixing 2024 + 2025 provisionals)
         utilidad = round(ingresos_anuales - deducciones_anuales, 2)
         isr_anual = self._calculate_isr_annual(max(0, utilidad))
 
@@ -563,11 +548,12 @@ class DeclaracionesService(ManualProcessMixin):
             return 0.0
 
         for i, (lower, upper, fixed, rate) in enumerate(table):
-            # For the last bracket (inf), use <= ; for others, use < upper to
-            # avoid the tiny gap between consecutive brackets.
+            # BUG-F11: Use <= for upper bound to close gap between brackets
+            # The old code used < next_lower which left $0.01 gaps where
+            # ISR calculated to $0.
             if i < len(table) - 1:
                 next_lower = table[i + 1][0]
-                if lower <= taxable_income < next_lower:
+                if lower <= taxable_income <= upper:
                     excess = taxable_income - lower
                     isr = fixed + (excess * rate)
                     return round(isr, 2)

@@ -22,6 +22,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from lxml import etree
+from b2b_ai.cfdi.xml_security import safe_parse, safe_fromstring
 
 # Namespace URIs del SAT para Nomina 1.2 (ambas variantes conocidas).
 NOMINA_NS_URIS = [
@@ -121,6 +122,7 @@ class NominaData:
 
     # CFDI-level context (emisor RFC del comprobante)
     cfdi_emisor_rfc: Optional[str] = None
+    cfdi_receptor_rfc: Optional[str] = None  # BUG-F7: RFC del empleado
 
     def to_dict(self) -> dict:
         """Serializa a dict JSON-friendly (Decimals como str)."""
@@ -143,6 +145,7 @@ class NominaData:
             "periodicidad_pago": self.periodicidad_pago,
             "salario_diario_integrado": str(self.salario_diario_integrado) if self.salario_diario_integrado is not None else None,
             "cfdi_emisor_rfc": self.cfdi_emisor_rfc,
+            "cfdi_receptor_rfc": self.cfdi_receptor_rfc,
         }
 
 
@@ -173,7 +176,7 @@ def parse_nomina(xml_path: str) -> Optional[NominaData]:
     if not os.path.exists(xml_path):
         raise OSError(f"Archivo no encontrado: {xml_path}")
 
-    tree = etree.parse(xml_path)
+    tree = safe_parse(xml_path)
     root = tree.getroot()
 
     # Extraer RFC del Emisor del comprobante (contexto para validación)
@@ -183,6 +186,14 @@ def parse_nomina(xml_path: str) -> Optional[NominaData]:
             emisor_cfdi = child
             break
     cfdi_emisor_rfc = _attr_strip(emisor_cfdi, "Rfc")
+
+    # BUG-F7: Also extract RFC del Receptor (empleado) from the CFDI
+    receptor_cfdi = None
+    for child in root:
+        if etree.QName(child).localname == "Receptor":
+            receptor_cfdi = child
+            break
+    cfdi_receptor_rfc = _attr_strip(receptor_cfdi, "Rfc")
 
     # Localizar nodo Nomina
     nomina_node = _find_nomina_node(root)
@@ -201,6 +212,7 @@ def parse_nomina(xml_path: str) -> Optional[NominaData]:
         total_deducciones=_dec(_attr_strip(nomina_node, "TotalDeducciones")),
         total_otros_pagos=_dec(_attr_strip(nomina_node, "TotalOtrosPagos")),
         cfdi_emisor_rfc=cfdi_emisor_rfc,
+        cfdi_receptor_rfc=cfdi_receptor_rfc,
     )
 
     # Extraer Emisor (patrón)
@@ -228,7 +240,7 @@ def parse_nomina_bytes(xml_bytes: bytes) -> Optional[NominaData]:
     Returns:
         NominaData con los campos extraídos, o None si no hay complemento.
     """
-    root = etree.fromstring(xml_bytes)
+    root = safe_fromstring(xml_bytes)
 
     # Extraer RFC del Emisor del comprobante
     emisor_cfdi = None
@@ -237,6 +249,14 @@ def parse_nomina_bytes(xml_bytes: bytes) -> Optional[NominaData]:
             emisor_cfdi = child
             break
     cfdi_emisor_rfc = _attr_strip(emisor_cfdi, "Rfc")
+
+    # BUG-F7: Extract RFC del Receptor (empleado)
+    receptor_cfdi = None
+    for child in root:
+        if etree.QName(child).localname == "Receptor":
+            receptor_cfdi = child
+            break
+    cfdi_receptor_rfc = _attr_strip(receptor_cfdi, "Rfc")
 
     nomina_node = _find_nomina_node(root)
     if nomina_node is None:
@@ -253,6 +273,7 @@ def parse_nomina_bytes(xml_bytes: bytes) -> Optional[NominaData]:
         total_deducciones=_dec(_attr_strip(nomina_node, "TotalDeducciones")),
         total_otros_pagos=_dec(_attr_strip(nomina_node, "TotalOtrosPagos")),
         cfdi_emisor_rfc=cfdi_emisor_rfc,
+        cfdi_receptor_rfc=cfdi_receptor_rfc,
     )
 
     emisor_node = _find_emisor_nomina(root)
@@ -267,4 +288,5 @@ def parse_nomina_bytes(xml_bytes: bytes) -> Optional[NominaData]:
     data.periodicidad_pago = _attr_strip(receptor_node, "PeriodicidadPago")
     data.salario_diario_integrado = _dec(_attr_strip(receptor_node, "SalarioDiarioIntegrado"))
 
+    return data
     return data

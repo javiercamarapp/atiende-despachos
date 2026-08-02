@@ -986,7 +986,7 @@ class TestAPIRoutes:
     @pytest.fixture
     def app(self):
         app = FastAPI()
-        app.include_router(build_multi_tenant_router())
+        app.include_router(build_multi_tenant_router(db=None, require_api_key=lambda: {"tenant_id": "test", "key": "test"}))
         return app
 
     @pytest.fixture
@@ -1308,7 +1308,7 @@ class TestAPIRouteEdgeCases:
     @pytest.fixture
     def app(self):
         app = FastAPI()
-        app.include_router(build_multi_tenant_router())
+        app.include_router(build_multi_tenant_router(db=None, require_api_key=lambda: {"tenant_id": "test", "key": "test"}))
         return app
 
     @pytest.fixture

@@ -25,7 +25,7 @@ class TestCalcISR:
         r = calc_isr(400000)
         imp = float(r["impuesto"])
         assert imp > 100000
-        assert r["rango_aplicado"]["porcentaje_excedente"] == "0.3500"
+        assert r["rango_aplicado"]["porcentaje_excedente"] == "0.35"
 
     def test_negative_income(self):
         r = calc_isr(-100)
@@ -50,8 +50,8 @@ class TestCalcIMSS:
         assert float(r["rcva"]) > 0
 
     def test_zero_sbc(self):
-        r = calc_imss(0)
-        assert r["total"] == "0.00"
+        with pytest.raises(ValueError, match="SBC.*mayor a 0"):
+            calc_imss(0)
 
     def test_references(self):
         r = calc_imss(5000)

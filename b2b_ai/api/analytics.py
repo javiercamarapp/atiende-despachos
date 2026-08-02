@@ -476,7 +476,12 @@ def build_analytics_router(db: Any, require_api_key: Optional[Any] = None) -> AP
         db: Database instance.
         require_api_key: FastAPI dependency for API key auth (optional).
     """
-    auth_dep = require_api_key or (lambda: None)
+    if require_api_key is None:
+        raise ValueError(
+            "require_api_key es obligatorio. "
+            "Nunca construir el router sin dependencia de auth."
+        )
+    auth_dep = require_api_key
     router = APIRouter(tags=["analytics"])
 
     @router.get("/dashboard/analytics",

@@ -188,20 +188,19 @@ class Database:
 
     def _pg_migrate(self):
         """Lleva la base PostgreSQL a `head` con Alembic (idempotente)."""
-        import subprocess
-        import sys
-        env = dict(os.environ)
-        env["B2B_DB_URL"] = self.path
+        from alembic.config import Config
+        from alembic import command
+
+        os.environ["B2B_DB_URL"] = self.path
         root = os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__))))
+        alembic_ini = os.path.join(root, "alembic.ini")
         try:
-            subprocess.run(
-                [sys.executable, "-m", "alembic", "upgrade", "head"],
-                cwd=root, env=env, check=True,
-                capture_output=True, text=True, timeout=120)
-        except subprocess.CalledProcessError as e:
+            alembic_cfg = Config(alembic_ini)
+            command.upgrade(alembic_cfg, "head")
+        except Exception as e:
             raise RuntimeError(
-                f"Fallo la migración Alembic a PostgreSQL: {e.stderr[-800:]}")
+                f"Fallo la migración Alembic a PostgreSQL: {e}")
         # Defensive: ensure the unique constraint needed by
         # upsert_outstanding_invoice() exists even if Alembic head
         # hasn't applied it yet (DB drift / partial migration).
@@ -343,7 +342,8 @@ class Database:
             q += " WHERE " + " AND ".join(clauses)
         q += " ORDER BY id DESC"
         if limit:
-            q += f" LIMIT {int(limit)}"
+            q += " LIMIT ?"
+            params.append(int(limit))
         return [dict(r) for r in self.conn.execute(q, params).fetchall()]
 
     def invoice_stats(self, tenant_id=None):

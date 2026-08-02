@@ -22,6 +22,7 @@ from decimal import Decimal, InvalidOperation
 from typing import List, Optional
 
 from lxml import etree
+from b2b_ai.cfdi.xml_security import safe_parse, safe_fromstring
 
 # Namespace URIs del SAT para Contabilidad Electrónica
 CONTABILIDAD_NS_URIS = [
@@ -258,14 +259,14 @@ def parse_balanza_xml(xml_path: str) -> Optional[BalanzaData]:
     if not os.path.exists(xml_path):
         raise OSError(f"Archivo no encontrado: {xml_path}")
 
-    tree = etree.parse(xml_path)
+    tree = safe_parse(xml_path)
     root = tree.getroot()
     return _parse_balanza_from_root(root)
 
 
 def parse_balanza_bytes(xml_bytes: bytes) -> Optional[BalanzaData]:
     """Parsea la Balanza de Comprobación desde bytes XML en memoria."""
-    root = etree.fromstring(xml_bytes)
+    root = safe_fromstring(xml_bytes)
     return _parse_balanza_from_root(root)
 
 
@@ -339,14 +340,14 @@ def parse_catalogo_xml(xml_path: str) -> Optional[CatalogoData]:
     if not os.path.exists(xml_path):
         raise OSError(f"Archivo no encontrado: {xml_path}")
 
-    tree = etree.parse(xml_path)
+    tree = safe_parse(xml_path)
     root = tree.getroot()
     return _parse_catalogo_from_root(root)
 
 
 def parse_catalogo_bytes(xml_bytes: bytes) -> Optional[CatalogoData]:
     """Parsea el Catálogo de Cuentas desde bytes XML en memoria."""
-    root = etree.fromstring(xml_bytes)
+    root = safe_fromstring(xml_bytes)
     return _parse_catalogo_from_root(root)
 
 
@@ -430,7 +431,7 @@ def parse_estado_resultados_xml(xml_path: str) -> Optional[EstadoResultadosData]
     if not os.path.exists(xml_path):
         raise OSError(f"Archivo no encontrado: {xml_path}")
 
-    tree = etree.parse(xml_path)
+    tree = safe_parse(xml_path)
     root = tree.getroot()
     return _parse_estado_resultados_from_root(root)
 

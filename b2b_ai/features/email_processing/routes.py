@@ -89,7 +89,12 @@ def build_email_processing_router(
     db : Database instance.
     require_api_key : FastAPI dependency for auth.
     """
-    auth_dep = require_api_key or (lambda: None)
+    if require_api_key is None:
+        raise ValueError(
+            "require_api_key es obligatorio. "
+            "Nunca construir el router sin dependencia de auth."
+        )
+    auth_dep = require_api_key
 
     # In-memory stores
     _services: Dict[str, EmailProcessingService] = {}
@@ -115,7 +120,9 @@ def build_email_processing_router(
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
         """Scan a list of emails for attachments that could be CFDI invoices."""
-        service = _get_service(req.tenant_id)
+        # VULN-13: Derive tenant_id from authenticated user, not request body
+        tenant_id = str(auth_info.get("tenant_id", req.tenant_id))
+        service = _get_service(tenant_id)
 
         # Convert dicts to EmailMessage objects
         emails: List[EmailMessage] = []
@@ -168,7 +175,9 @@ def build_email_processing_router(
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
         """Validate and process extracted CFDI invoices."""
-        service = _get_service(req.tenant_id)
+        # VULN-13: Derive tenant_id from authenticated user, not request body
+        tenant_id = str(auth_info.get("tenant_id", req.tenant_id))
+        service = _get_service(tenant_id)
 
         # Convert dicts to ExtractedInvoice objects
         invoices: List[ExtractedInvoice] = []

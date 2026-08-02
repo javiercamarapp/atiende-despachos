@@ -28,11 +28,16 @@ import json
 import os
 import secrets
 import time
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import Depends, Header, HTTPException, Request
 
 from b2b_ai.auth.roles import has_permission
+
+# In-memory token blacklist (JTI -> expiry timestamp).
+# In production, replace with Redis SET with TTL or DB table.
+_token_blacklist: Dict[str, float] = {}
 
 # TTLs por tipo de token (segundos), ajustables por env.
 ACCESS_TTL = int(os.environ.get("B2B_JWT_ACCESS_TTL", "1800"))      # 30 min
@@ -203,7 +208,8 @@ class JWTAuth:
         return encode_token(
             {"type": "access", "sub": str(user["id"]),
              "tenant_id": user["tenant_id"], "role": user.get("role"),
-             "email": user.get("email")},
+             "email": user.get("email"),
+             "jti": secrets.token_urlsafe(16)},
             self._secret, ACCESS_TTL)
 
     def refresh_token(self, user: Dict[str, Any]) -> str:
@@ -237,6 +243,10 @@ class JWTAuth:
         if claims.get("type") != "access":
             raise HTTPException(status_code=401,
                                 detail="Token no es de acceso.")
+        # Check token blacklist (revoked tokens)
+        jti = claims.get("jti")
+        if jti and jti in _token_blacklist:
+            raise HTTPException(status_code=401, detail="Token revocado.")
         try:
             user_id = int(claims["sub"])
         except (KeyError, ValueError, TypeError):
@@ -284,6 +294,32 @@ class JWTAuth:
                                     detail=f"Permiso denegado: falta '{perm}'.")
             return ctx
         return dep
+
+    def revoke_token(self, token: str) -> None:
+        """Blacklist a token so it cannot be reused after logout."""
+        try:
+            claims = self.decode(token)
+        except JWTError:
+            return
+        jti = claims.get("jti")
+        if not jti:
+            return
+        exp = claims.get("exp", time.time() + ACCESS_TTL)
+        _token_blacklist[jti] = float(exp)
+        # Cleanup expired entries
+        now = time.time()
+        expired = [k for k, v in _token_blacklist.items() if v < now]
+        for k in expired:
+            _token_blacklist.pop(k, None)
+
+    def is_token_revoked(self, token: str) -> bool:
+        """Check if a token has been revoked."""
+        try:
+            claims = self.decode(token)
+            jti = claims.get("jti")
+            return jti is not None and jti in _token_blacklist
+        except JWTError:
+            return True
 
     def require_tenant_admin(self):
         """Dependencia: exige ser admin del tenant del path param `tenant_id`.

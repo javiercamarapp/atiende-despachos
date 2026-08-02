@@ -129,7 +129,12 @@ def build_reports_router(db: Any, require_api_key: Optional[Any] = None,
     `require_api_key` es la dependency FastAPI de auth (se inyecta desde
     app.py para usar la misma protección que el resto de /api/v1).
     """
-    auth_dep = require_api_key or (lambda: None)
+    if require_api_key is None:
+        raise ValueError(
+            "require_api_key es obligatorio. "
+            "Nunca construir el router sin dependencia de auth."
+        )
+    auth_dep = require_api_key
     router = APIRouter(prefix="/reports", tags=["reports"])
     gen = PDFGenerator(db=db)
 

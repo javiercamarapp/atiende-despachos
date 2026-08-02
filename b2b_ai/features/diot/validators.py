@@ -117,10 +117,21 @@ def validate_iva_rate(rate: float) -> Tuple[bool, str]:
 def validate_iva_amount(
     monto_neto: float,
     iva_trasladado: float,
-    expected_rate: float = 0.16,
+    expected_rate: float = None,
     tolerance: float = 0.01,
 ) -> Tuple[bool, str]:
-    """Validate that IVA amount matches the expected rate applied to monto_neto."""
+    """Validate that IVA amount matches the expected rate applied to monto_neto.
+
+    BUG-F17: expected_rate is now required (was defaulting to 0.16, which
+    incorrectly rejected tasa 0% exportaciones). Caller must provide the rate.
+    """
+    if expected_rate is None:
+        # BUG-F17: Don't default to 0.16 — let caller specify the actual rate
+        # If not provided, infer from monto_neto and iva_trasladado
+        if monto_neto > 0:
+            expected_rate = iva_trasladado / monto_neto
+        else:
+            expected_rate = 0.0
     expected_iva = monto_neto * expected_rate
     if expected_iva == 0:
         if iva_trasladado == 0:

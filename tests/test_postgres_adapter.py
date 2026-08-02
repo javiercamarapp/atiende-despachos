@@ -546,12 +546,10 @@ class TestMigrationCompatibility:
         """PostgreSQL adapter should call Alembic for migrations."""
         with patch.dict(os.environ, {}, clear=True), \
              patch("psycopg_pool.ConnectionPool", return_value=_make_mock_pg_pool()), \
-             patch("subprocess.run") as mock_subprocess, \
-             patch("sys.executable", "/usr/bin/python3"):
-            mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
+             patch("alembic.command.upgrade") as mock_upgrade:
             adapter = PostgresAdapter("postgresql://localhost/test", migrate=True)
-            # Alembic should have been called
-            mock_subprocess.assert_called()
+            # Alembic upgrade should have been called
+            mock_upgrade.assert_called_once()
 
     def test_pg_adapter_schema_version_returns_alembic(self):
         """PG adapter schema_version reads from alembic_version table."""

@@ -82,5 +82,20 @@ def install_request_size_limit(app, max_bytes: Optional[int] = None) -> None:
                         ),
                     },
                 )
+        else:
+            # VULN-17: Transfer-Encoding: chunked bypasses Content-Length.
+            # Read the body with a size limit to catch oversized chunked payloads.
+            body = await request.body()
+            if len(body) > _limit:
+                return JSONResponse(
+                    status_code=413,
+                    content={
+                        "detail": (
+                            f"Request body too large. "
+                            f"Maximum allowed size is {_limit} bytes "
+                            f"({_limit // (1024 * 1024)} MB)."
+                        ),
+                    },
+                )
 
         return await call_next(request)

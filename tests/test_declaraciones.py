@@ -84,7 +84,7 @@ def service():
 def client():
     """FastAPI test client with declaraciones router."""
     app = FastAPI()
-    router = build_declaraciones_router()
+    router = build_declaraciones_router(db=None, require_api_key=lambda: {"tenant_id": "test", "key": "test"})
     app.include_router(router)
     return TestClient(app)
 

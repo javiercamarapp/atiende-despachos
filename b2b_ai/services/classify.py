@@ -63,9 +63,13 @@ def classify_cfdi(datos: Dict[str, Any]) -> Dict[str, Any]:
     scores = {cat: 0 for cat in KEYWORDS}
     matched = {cat: [] for cat in KEYWORDS}
 
+    import re as _re
     for cat, words in KEYWORDS.items():
         for w in words:
-            if w in texto:
+            # BUG-F26: Use word boundaries to avoid substring collisions
+            # e.g., "licencia" matching in "licencia de conducir" for activo_fijo
+            # when it should be gasto_operativo
+            if _re.search(r'\b' + _re.escape(w) + r'\b', texto):
                 scores[cat] += 1
                 matched[cat].append(w)
 

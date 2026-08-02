@@ -130,7 +130,11 @@ def validate_fechas(data: NominaData) -> List[str]:
         errors.append("FechaInicialPago es posterior a FechaFinalPago.")
 
     if fecha_pago and fecha_inicio and fecha_fin:
-        if fecha_pago < fecha_inicio or fecha_pago > fecha_fin:
+        # FIS-4: Tolerancia para nómina de fin de año: FechaPago puede estar
+        # hasta 10 días después de FechaFinalPago (ej: nómina dic pagada en enero).
+        from datetime import timedelta
+        tolerance = timedelta(days=10)
+        if fecha_pago < fecha_inicio or fecha_pago > fecha_fin + tolerance:
             errors.append(
                 f"FechaPago '{data.fecha_pago}' está fuera del rango "
                 f"[{data.fecha_inicial_pago}, {data.fecha_final_pago}]."
@@ -146,7 +150,11 @@ def validate_num_dias_pagados(data: NominaData) -> List[str]:
         errors.append("NumDiasPagados ausente.")
         return errors
 
-    if data.num_dias_pagados <= 0:
+    # FIS-4: NumDiasPagados=0 es válido para TipoNomina="E" (extraordinaria)
+    # Ejemplo: aguinaldo puro sin días laborados en el periodo.
+    if data.tipo_nomina and data.tipo_nomina.strip().upper() == "E" and data.num_dias_pagados == 0:
+        pass  # Válido para nóminas extraordinarias de aguinaldo puro
+    elif data.num_dias_pagados <= 0:
         errors.append(f"NumDiasPagados ({data.num_dias_pagados}) debe ser mayor a 0.")
         return errors
 

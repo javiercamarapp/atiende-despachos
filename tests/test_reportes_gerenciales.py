@@ -25,10 +25,14 @@ def svc():
     return ReportesGerencialesService()
 
 
+def _mock_require_api_key():
+    return {"tenant_id": "test-tenant", "key": "test-key"}
+
+
 @pytest.fixture
 def app():
     app = FastAPI()
-    app.include_router(build_reportes_gerenciales_router())
+    app.include_router(build_reportes_gerenciales_router(db=None, require_api_key=_mock_require_api_key))
     return app
 
 

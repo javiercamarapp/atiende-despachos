@@ -870,40 +870,30 @@ class TestAlembicMigrationDetection:
         assert v >= 1
 
     def test_pg_migrate_calls_alembic_upgrade(self):
-        """PostgresAdapter migrate() calls subprocess with alembic upgrade head."""
+        """PostgresAdapter migrate() calls alembic.command.upgrade('head')."""
         with patch.dict(os.environ, {}, clear=True), \
              patch("psycopg_pool.ConnectionPool", return_value=_make_mock_pg_pool()), \
-             patch("subprocess.run") as mock_sub, \
-             patch("sys.executable", "/usr/bin/python3"):
-            mock_sub.return_value = Mock(returncode=0, stdout="", stderr="")
+             patch("alembic.command.upgrade") as mock_upgrade:
             adapter = PostgresAdapter("postgresql://localhost/test", migrate=True)
-            # Verify alembic was called
-            mock_sub.assert_called()
-            args = mock_sub.call_args
-            assert "alembic" in str(args)
-            assert "upgrade" in str(args)
-            assert "head" in str(args)
+            # Verify alembic upgrade was called with "head"
+            mock_upgrade.assert_called_once()
+            args, kwargs = mock_upgrade.call_args
+            assert args[1] == "head"
 
     def test_pg_migrate_sets_b2b_db_url_env(self):
-        """migrate() passes B2B_DB_URL env to subprocess."""
-        dsn = "postgresql://user:pass@pg-host:5432/mydb"
+        """migrate() sets B2B_DB_URL env var for Alembic."""
+        dsn = "postgresql://user:***@pg-host:5432/mydb"
         with patch.dict(os.environ, {}, clear=True), \
              patch("psycopg_pool.ConnectionPool", return_value=_make_mock_pg_pool()), \
-             patch("subprocess.run") as mock_sub, \
-             patch("sys.executable", "/usr/bin/python3"):
-            mock_sub.return_value = Mock(returncode=0, stdout="", stderr="")
+             patch("alembic.command.upgrade"):
             adapter = PostgresAdapter(dsn, migrate=True)
-            env_passed = mock_sub.call_args[1].get("env") or mock_sub.call_args[0][1] if len(mock_sub.call_args[0]) > 1 else mock_sub.call_args[1].get("env", {})
-            # The B2B_DB_URL should be in the subprocess env
-            if "env" in (mock_sub.call_args[1] if mock_sub.call_args[1] else {}):
-                assert env_passed.get("B2B_DB_URL") == dsn
+            assert os.environ.get("B2B_DB_URL") == dsn
 
     def test_pg_migrate_gracefully_handles_alembic_failure(self):
         """If Alembic fails, adapter still initializes (warning logged)."""
         with patch.dict(os.environ, {}, clear=True), \
              patch("psycopg_pool.ConnectionPool", return_value=_make_mock_pg_pool()), \
-             patch("subprocess.run", side_effect=FileNotFoundError("no alembic")), \
-             patch("sys.executable", "/usr/bin/python3"):
+             patch("alembic.command.upgrade", side_effect=RuntimeError("no alembic")):
             # Should not raise
             adapter = PostgresAdapter("postgresql://localhost/test", migrate=True)
             assert adapter is not None
@@ -912,8 +902,7 @@ class TestAlembicMigrationDetection:
         """After Alembic, adapter creates idx_outstanding_unique index."""
         with patch.dict(os.environ, {}, clear=True), \
              patch("psycopg_pool.ConnectionPool", return_value=_make_mock_pg_pool()), \
-             patch("subprocess.run") as mock_sub:
-            mock_sub.return_value = Mock(returncode=0, stdout="", stderr="")
+             patch("alembic.command.upgrade"):
             adapter = PostgresAdapter("postgresql://localhost/test", migrate=True)
             # The unique index creation should have been attempted
             # (via connection.execute in migrate())

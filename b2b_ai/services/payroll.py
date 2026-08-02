@@ -23,37 +23,21 @@ from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 # Configuración fiscal (versionada)
 # ---------------------------------------------------------------------------
 
-# Tarifa mensual ISR — LISR art. 96 (año fiscal 2024, DOF diciembre 2023).
-# Estandarizada con compliance.py y declaraciones/service.py.
-# (limite_inferior, limite_superior, cuota_fija, porcentaje_excedente)
-TARIFA_ISR_2024_MENSUAL = [
-    ("0.00", "312.41", "0.00", "0.0192"),
-    ("312.42", "2636.28", "5.99", "0.0640"),
-    ("2636.29", "4623.01", "154.29", "0.1088"),
-    ("4623.02", "5409.82", "370.32", "0.1600"),
-    ("5409.83", "6447.11", "496.04", "0.2136"),
-    ("6447.12", "12904.06", "717.37", "0.2352"),
-    ("12904.07", "25808.11", "2235.28", "0.3000"),
-    ("25808.12", "34410.81", "6106.49", "0.3200"),
-    ("34410.82", "68821.62", "8857.35", "0.3400"),
-    ("68821.63", None, "20557.10", "0.3500"),
-]
+# Tarifa ISR centralizada en fiscal_tables.py (2025 + legacy 2024)
+from b2b_ai.fiscal_tables import (
+    ISR_MENSUAL_2025, ISR_QUINCENAL_2025,
+    SUBSIDIO_EMPLEO_MENSUAL_2025, SUBSIDIO_EMPLEO_QUINCENAL_2025,
+    ISR_MENSUAL_2024,
+)
 
-# Tarifa quincenal ISR — tabla oficial 2024 derivada de la mensual.
-# Se calcula el ISR mensual equivalente y se divide entre 2 (LISR art. 96).
-# (limite_inferior, limite_superior, cuota_fija, porcentaje_excedente)
-TARIFA_ISR_2024_QUINCENAL = [
-    ("0.00", "156.21", "0.00", "0.0192"),
-    ("156.22", "1318.14", "3.00", "0.0640"),
-    ("1318.15", "2311.51", "77.15", "0.1088"),
-    ("2311.52", "2704.91", "185.16", "0.1600"),
-    ("2704.92", "3223.56", "248.02", "0.2136"),
-    ("3223.57", "6452.03", "358.69", "0.2352"),
-    ("6452.04", "12904.06", "1117.64", "0.3000"),
-    ("12904.07", "17205.41", "3053.25", "0.3200"),
-    ("17205.42", "34410.81", "4428.68", "0.3400"),
-    ("34410.82", None, "10278.55", "0.3500"),
-]
+def _to_str_tuples(table):
+    return [(str(li), str(ls) if ls != float("inf") else None, str(cf), str(pct))
+            for li, ls, cf, pct in table]
+
+TARIFA_ISR_2024_MENSUAL = _to_str_tuples(ISR_MENSUAL_2024)
+
+# Tarifa quincenal ISR — de fiscal_tables.py (2025)
+TARIFA_ISR_2024_QUINCENAL = _to_str_tuples(ISR_QUINCENAL_2025)
 
 # Tarifa quincenal ISR — tabla oficial simplificada (LISR art. 96, Decreto DOF
 # anual). Se usa cuando periodicidad='quincenal'. Nota: la tabla exacta la
@@ -62,40 +46,13 @@ TARIFA_ISR_2024_QUINCENAL = [
 # Para máxima precisión, se recomienda usar el método de equivalencia mensual
 # (calcular mensual × 2, obtener ISR mensual, dividir entre 2).
 
-# Subsidio para el empleo — LISR art. 174, Decreto DOF (tablas del ejercicio
-# fiscal vigente). Formato: (ingreso_gravado_desde, ingreso_gravado_hasta,
-# subsidio_mensual).
-# Fuente: Tabla del subsidio para el empleo publicada por el SAT (anual).
-# NOTA: Esta tabla debe actualizarse cada ejercicio fiscal con el decreto
-# del DOF. Los montos corresponden al ejercicio fiscal 2025.
-SUBSIDIO_EMPLEO_MENSUAL = [
-    ("0.01", "2154.70", "407.02"),
-    ("2154.71", "3477.60", "406.83"),
-    ("3477.61", "3832.27", "406.62"),
-    ("3832.28", "4565.55", "392.77"),
-    ("4565.56", "5042.58", "382.46"),
-    ("5042.59", "6286.40", "354.24"),
-    ("6286.41", "7388.47", "294.17"),
-    ("7388.48", "8356.38", "253.54"),
-    ("8356.39", "9797.60", "217.61"),
-    ("9797.61", "11508.50", "209.13"),
-    ("11508.51", "13340.00", "0.00"),
-]
+# Subsidio para el empleo — centralizado en fiscal_tables.py (2025)
+SUBSIDIO_EMPLEO_MENSUAL = SUBSIDIO_EMPLEO_MENSUAL_2025
 
-# Subsidio quincenal — mitad del mensual (proporción del periodo).
-SUBSIDIO_EMPLEO_QUINCENAL = [
-    ("0.01", "1077.35", "203.51"),
-    ("1077.36", "1738.80", "203.42"),
-    ("1738.81", "1916.14", "203.31"),
-    ("1916.15", "2282.78", "196.39"),
-    ("2282.79", "2521.29", "191.23"),
-    ("2521.30", "3143.20", "177.12"),
-    ("3143.21", "3694.24", "147.09"),
-    ("3694.25", "4178.19", "126.77"),
-    ("4178.20", "4898.80", "108.81"),
-    ("4898.81", "5754.25", "104.57"),
-    ("5754.26", "6670.00", "0.00"),
-]
+# Subsidio quincenal — de fiscal_tables.py (2025)
+SUBSIDIO_EMPLEO_QUINCENAL = SUBSIDIO_EMPLEO_QUINCENAL_2025
+
+
 
 # Cuotas/tasas de ley (configurables, con supuesto documentado).
 RATES = {
@@ -224,6 +181,19 @@ def calc_imss(salario_base_cotizacion, dias_pagados=30, rates=None):
     r = rates or RATES
     sbc = _dec(salario_base_cotizacion)
     dias = int(dias_pagados) if dias_pagados else 30
+
+    # FIS-3: Validate SBC > 0 and SBC >= UMA diaria (Art. 107 LSS)
+    uma = r["imss_uma_diario"]
+    if sbc <= Decimal("0"):
+        raise ValueError(
+            f"SBC ({sbc}) debe ser mayor a 0. "
+            "Un empleado sin salario base de cotización no existe ante el IMSS."
+        )
+    if sbc < uma:
+        raise ValueError(
+            f"SBC ({sbc}) no puede ser menor a UMA diaria ({uma}). "
+            "Art. 107 LSS: el SBC no puede ser inferior a la UMA."
+        )
 
     # Componentes diarios del trabajador
     enf_mat_base = _round2(sbc * r["imss_trabajador_enf_mat_base"])
@@ -364,7 +334,12 @@ def calc_aguinaldo(salario_diario, dias_trabajados=None, dias_ley=None, rates=No
             "referencia": "LFT art. 87 (aguinaldo ≥ 15 días)",
         }
     dt = _dec(dias_trabajados)
-    monto = sd * dias_ley * (dt / Decimal("365"))
+    # BUG-F8: Use actual days in year (366 for leap years)
+    from calendar import isleap
+    from datetime import date as _date
+    year = _date.today().year
+    dias_año = 366 if isleap(year) else 365
+    monto = sd * dias_ley * (dt / Decimal(str(dias_año)))
     return {
         "aguinaldo": _fmt(_round2(monto)),
         "dias": dias_ley,

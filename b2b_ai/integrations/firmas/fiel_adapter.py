@@ -11,6 +11,18 @@ from b2b_ai.integrations.firmas.models import (
 )
 logger = logging.getLogger(__name__)
 
+
+def _decrypt_fiel_password(raw: str) -> str:
+    """VULN-15: If B2B_ENCRYPTION_KEY is set, try to decrypt the FIEL password.
+    Otherwise return as-is (env var plaintext — acceptable only in dev)."""
+    if not raw:
+        return raw
+    try:
+        from b2b_ai.api.security import decrypt_field
+        return decrypt_field(raw)
+    except Exception:  # noqa: BLE001
+        return raw
+
 class FIELAdapter(SignatureAdapter):
     """Adapter for FIEL/SAT e.firma. Requires FIEL_CERT_PATH and FIEL_KEY_PATH."""
     def __init__(self, config: Optional[SignatureConfig] = None):
@@ -18,7 +30,7 @@ class FIELAdapter(SignatureAdapter):
             provider=SignatureProvider.FIEL,
             fiel_cert_path=os.environ.get("FIEL_CERT_PATH", ""),
             fiel_key_path=os.environ.get("FIEL_KEY_PATH", ""),
-            fiel_password=os.environ.get("FIEL_PASSWORD", ""),
+            fiel_password=_decrypt_fiel_password(os.environ.get("FIEL_PASSWORD", "")),
         )
         super().__init__(config=config)
         self._cert = None

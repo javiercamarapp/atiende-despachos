@@ -97,3 +97,51 @@ def tmp_db(tmp_path):
 def parsed_consultoria(sample_consultoria):
     from b2b_ai.cfdi.parser import parse_cfdi
     return parse_cfdi(sample_consultoria)
+
+# ---------------------------------------------------------------------------
+# Enterprise hardening fixtures (from conftest_enterprise.py)
+# ---------------------------------------------------------------------------
+import secrets
+
+@pytest.fixture
+def db_session(tmp_path):
+    """Fresh SQLite database per test, fully migrated."""
+    from b2b_ai.db.db import Database
+    db_path = str(tmp_path / "test_enterprise.db")
+    db = Database(db_path)
+    yield db
+    try:
+        db.close()
+    except Exception:
+        pass
+
+@pytest.fixture
+def tenant_context():
+    """Simulated tenant context."""
+    return {
+        "tenant_id": 1,
+        "name": "Test Despacho",
+        "rfc": "TDE220101AB1",
+    }
+
+@pytest.fixture
+def api_key():
+    return "test-api-key-enterprise-12345678"
+
+@pytest.fixture
+def auth_headers(api_key):
+    return {"X-API-Key": api_key}
+
+@pytest.fixture
+def jwt_token():
+    from b2b_ai.auth.middleware import encode_token
+    return encode_token(
+        {"type": "access", "sub": "1", "tenant_id": 1,
+         "role": "admin", "email": "test@test.com",
+         "jti": secrets.token_urlsafe(16)},
+        ttl_seconds=3600,
+    )
+
+@pytest.fixture
+def jwt_headers(jwt_token):
+    return {"Authorization": f"Bearer {jwt_token}"}

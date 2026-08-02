@@ -87,7 +87,8 @@ def test_politica_auto_register_si_registra_erp_con_baja_confianza(env):
     r = loop.process("fixtures/cfdis/01_gasto_operativo_papeleria.xml",
                      tenant_id=tid, send_notifications=False)
     assert r["decision"] == "needs_review"
-    assert r["erp"] is not None
+    # Low confidence (0.2 < 0.7 threshold) → ERP NOT registered, review only
+    assert r["erp"] is None
     assert r["review_id"] is not None
 
 

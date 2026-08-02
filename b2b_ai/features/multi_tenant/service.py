@@ -11,6 +11,7 @@ This service:
 """
 from __future__ import annotations
 
+import contextvars
 import uuid as _uuid
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -89,7 +90,11 @@ class MultiTenantService:
         self._configs: Dict[str, Dict[str, TenantConfig]] = {}
         self._audit_logs: Dict[str, List[TenantAuditLog]] = {}
         self._schema_registry: Dict[str, str] = {}  # schema_name -> tenant_id
-        self._current_context: Optional[TenantContext] = None
+        # SECURITY: Use contextvars for thread-safe tenant isolation.
+        # Instance variables are shared across threads in async servers.
+        self._current_context_var: contextvars.ContextVar[Optional[TenantContext]] = (
+            contextvars.ContextVar("tenant_context", default=None)
+        )
 
     # -------------------------------------------------------------------
     # 1. Tenant CRUD
@@ -423,7 +428,7 @@ class MultiTenantService:
             raise TenantBlockedError(err)
 
         # Capture old context BEFORE switching (for audit trail)
-        old_context = self._current_context
+        old_context = self._current_context_var.get()
 
         context = TenantContext(
             tenant_id=tenant.id,
@@ -435,7 +440,7 @@ class MultiTenantService:
             ip_address=ip_address,
         )
 
-        self._current_context = context
+        self._current_context_var.set(context)
 
         self._log_audit(
             tenant_id,
@@ -448,18 +453,18 @@ class MultiTenantService:
         return context
 
     def get_current_context(self) -> Optional[TenantContext]:
-        """Get the current active tenant context.
+        """Get the current active tenant context (thread-safe).
 
         Returns
         -------
         Optional[TenantContext]
             The current context, or None if no context is set.
         """
-        return self._current_context
+        return self._current_context_var.get()
 
     def clear_context(self) -> None:
-        """Clear the current tenant context."""
-        self._current_context = None
+        """Clear the current tenant context (thread-safe)."""
+        self._current_context_var.set(None)
 
     # -------------------------------------------------------------------
     # 3. Tenant-scoped queries

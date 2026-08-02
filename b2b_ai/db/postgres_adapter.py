@@ -349,23 +349,16 @@ class PostgresAdapter:
     def migrate(self):
         """Run Alembic migrations to bring PostgreSQL to head."""
         try:
-            import subprocess
-            import sys
+            from alembic.config import Config
+            from alembic import command
 
-            env = dict(os.environ)
-            env["B2B_DB_URL"] = self.dsn
+            os.environ["B2B_DB_URL"] = self.dsn
             root = os.path.dirname(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             )
-            subprocess.run(
-                [sys.executable, "-m", "alembic", "upgrade", "head"],
-                cwd=root,
-                env=env,
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
+            alembic_ini = os.path.join(root, "alembic.ini")
+            alembic_cfg = Config(alembic_ini)
+            command.upgrade(alembic_cfg, "head")
         except Exception as e:
             logger.warning("Alembic migration failed (may not be configured): %s", e)
 

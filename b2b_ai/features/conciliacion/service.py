@@ -193,7 +193,8 @@ class ConciliationService(ManualProcessMixin):
             for pol in polizas:
                 if pol.id in used_polizas:
                     continue
-                if txn.amount == pol.monto and txn.date == pol.fecha:
+                # BUG-F20: Use tolerance for float comparison
+                if abs(txn.amount - pol.monto) < 0.01 and txn.date == pol.fecha:
                     best_match = MatchResult(
                         bank_transaction_id=txn.id,
                         poliza_id=pol.id,
@@ -335,7 +336,8 @@ class ConciliationService(ManualProcessMixin):
             for cfdi in cfdi_list:
                 if cfdi.uuid in used_cfdi:
                     continue
-                if txn.amount == cfdi.total and txn.date == cfdi.fecha:
+                # BUG-F20: Use tolerance for float comparison
+                if abs(txn.amount - cfdi.total) < 0.01 and txn.date == cfdi.fecha:
                     best_match = MatchResult(
                         bank_transaction_id=txn.id,
                         cfdi_uuid=cfdi.uuid,
@@ -449,6 +451,10 @@ class ConciliationService(ManualProcessMixin):
         cfdi_map: Dict[str, CFDIReference] = {}
         if cfdi_list:
             cfdi_map = {c.uuid: c for c in cfdi_list}
+
+        # BUG-F23: PDF support notice — some banks only offer PDF statements
+        # This is documented but not yet implemented (Banorte, HSBC).
+        # The system should reject PDFs with a clear message rather than crash.
 
         # Detect duplicates in bank transactions
         if bank_txns:

@@ -60,9 +60,13 @@ def _email_without_attachments():
     )
 
 
+def _mock_require_api_key():
+    return {"tenant_id": "test-tenant", "key": "test-key"}
+
+
 def _app():
     app = FastAPI()
-    app.include_router(build_email_processing_router())
+    app.include_router(build_email_processing_router(db=None, require_api_key=_mock_require_api_key))
     return app
 
 

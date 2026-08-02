@@ -85,11 +85,40 @@ def default_post(url: str, payload: Any, timeout: int = 15) -> int:
 
 def _assert_http_scheme(url: str) -> None:
     """Rechaza esquemas que no sean http/https (bloquea file:, etc.) para
-    prevenir SSRF cuando la URL llega de un Subscription (input del usuario)."""
+    prevenir SSRF cuando la URL llega de un Subscription (input del usuario).
+
+    VULN-08: Also blocks private/internal IP ranges to prevent SSRF to
+    cloud metadata (169.254.169.254), localhost, and RFC1918 addresses.
+    """
+    import ipaddress
+    import socket
     from urllib.parse import urlparse
-    scheme = (urlparse(url).scheme or "").lower()
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
     if scheme not in ("http", "https"):
         raise ValueError(f"Esquema de URL no permitido: {scheme!r}")
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL sin hostname.")
+    # Block localhost and metadata endpoints
+    _BLOCKED_HOSTS = {"localhost", "metadata.google.internal", "169.254.169.254"}
+    if hostname in _BLOCKED_HOSTS:
+        raise ValueError(f"Hostname bloqueado (SSRF): {hostname}")
+    # Resolve hostname and check against private IP ranges
+    _PRIVATE_RANGES = [
+        ipaddress.ip_network("10.0.0.0/8"),
+        ipaddress.ip_network("172.16.0.0/12"),
+        ipaddress.ip_network("192.168.0.0/16"),
+        ipaddress.ip_network("169.254.0.0/16"),
+        ipaddress.ip_network("127.0.0.0/8"),
+    ]
+    try:
+        ip = ipaddress.ip_address(socket.gethostbyname(hostname))
+    except (socket.gaierror, ValueError):
+        raise ValueError(f"No se pudo resolver: {hostname}")
+    for range_ in _PRIVATE_RANGES:
+        if ip in range_:
+            raise ValueError(f"URL en red privada no permitida: {url}")
 
 
 def retry_deliver(url: str, payload: Any, max_attempts: int = 3,

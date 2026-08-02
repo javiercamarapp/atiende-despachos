@@ -29,6 +29,11 @@ from __future__ import annotations
 
 import os
 
+from b2b_ai.services.timeouts import (
+    with_timeout, ServiceTimeoutError,
+    TIMEOUT_SAT, TIMEOUT_LLM, TIMEOUT_ERP,
+)
+
 from b2b_ai.db.db import Database
 from b2b_ai.db.tenants import TenantManager
 from b2b_ai.services.llm import LLMService
@@ -38,6 +43,9 @@ from b2b_ai.tools.logger import logger
 import b2b_ai.tools.tools  # noqa: F401  (registra las tools del agente)
 from b2b_ai.notifications.sender import EmailSender
 from b2b_ai.monitoring.logger import mask_pii as _mask_pii
+
+# Confidence threshold for auto-processing invoices
+DEFAULT_CONFIDENCE_THRESHOLD = 0.7
 
 
 class AgentLoop:
@@ -163,38 +171,58 @@ class AgentLoop:
             for k, v in datos.items()
             if k not in _SENSITIVE_KEYS
         }
-        clasif = self.llm.classify_invoice(datos_para_llm)
+        try:
+            clasif = with_timeout(
+                self.llm.classify_invoice, TIMEOUT_LLM, "LLM"
+            )(datos_para_llm)
+        except ServiceTimeoutError:
+            clasif = {"categoria": "desconocido", "confianza": 0.0,
+                      "razon": "Timeout en LLM", "source": "timeout_fallback",
+                      "requires_human_review": True}
         self._llm_log(tenant_id, "classify", clasif)
         paso("clasificar", True,
              f"{clasif['categoria']} ({clasif['source']})")
 
         # 4) Detectar anomalía
-        anomalia = self.llm.detect_anomaly(datos)
+        try:
+            anomalia = with_timeout(
+                self.llm.detect_anomaly, TIMEOUT_LLM, "LLM"
+            )(datos)
+        except ServiceTimeoutError:
+            anomalia = {"nivel": "normal", "anomalias": [],
+                        "razon": "Timeout en LLM, asumiendo normal"}
         self._llm_log(tenant_id, "anomaly", anomalia)
         paso("anomalia", anomalia["nivel"] == "normal",
              anomalia["nivel"])
 
         # 5) Decidir
+        # AG-1: Confidence gate — always hold if below threshold
+        confidence_threshold = cfg.get("confidence_threshold", DEFAULT_CONFIDENCE_THRESHOLD)
+        confianza = clasif.get("confianza", 0.0)
+        low_confidence = confianza < confidence_threshold
         requiere_rev = (clasif.get("requires_human_review", False)
-                        or anomalia["nivel"] == "alerta")
+                        or anomalia["nivel"] == "alerta"
+                        or low_confidence)
         decision = None
         if requiere_rev:
             paso("decidir", False, "requiere revisión humana")
             decision = "needs_review"
-            if policy == "auto_register":
+            if policy == "auto_register" and not low_confidence:
                 erp_res = self._register(tenant_id, datos, clasif)
                 inv_id, inserted = self.db.insert_invoice(
                     tenant_id, datos, clasif, validacion, erp=erp_res)
                 review_reason = ("clasificación de baja confianza"
                                  if clasif.get("requires_human_review")
                                  else "anomalía detectada")
-            else:  # 'hold'
+            else:  # 'hold' or low confidence gate
                 erp_res = None
                 inv_id, inserted = self.db.insert_invoice(
                     tenant_id, datos, clasif, validacion)
                 review_reason = ("clasificación de baja confianza"
                                  if clasif.get("requires_human_review")
                                  else "anomalía detectada")
+                if low_confidence:
+                    review_reason = f"confianza ({confianza}) bajo umbral ({confidence_threshold})"
         else:
             paso("decidir", True, "auto")
             decision = "auto_processed"
