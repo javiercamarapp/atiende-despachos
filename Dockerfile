@@ -42,11 +42,10 @@ COPY landing ./landing
 RUN pip install --prefix=/install --no-cache-dir . \
     && pip install --prefix=/install --no-cache-dir "uvicorn[standard]>=0.20"
 
-# Install Playwright + Chromium for browser automation (scraping / PDF render).
-# PYTHONPATH is needed because --prefix installs to /install, not the system site-packages.
-RUN pip install --prefix=/install --no-cache-dir playwright \
-    && PYTHONPATH=/install/lib/python3.11/site-packages \
-       python -m playwright install --with-deps chromium
+# NOTE: Playwright + Chromium NOT installed in production image.
+# Computer Use is disabled by default (B2B_COMPUTER_USE_MODE=disabled).
+# When enabled, install playwright + chromium separately or use a dedicated image.
+# This avoids GPG/apt failures and reduces image size by ~400MB.
 
 # ---- Stage 2: runtime — solo lo necesario para servir ----
 FROM python:3.11-slim-bookworm AS runtime
@@ -74,21 +73,6 @@ LABEL org.opencontainers.image.title="b2b-ai" \
 COPY --from=builder /install /usr/local
 COPY --from=builder /build/landing /app/landing
 
-# Install Chromium dependencies for Playwright
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
-       libcups2 libdrm2 libdbus-1-3 libxkbcommon0 \
-       libatspi2.0-0 libxcomposite1 libxdamage1 libxfixes3 \
-       libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 \
-       libwayland-client0 xvfb \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy Playwright browsers from builder
-COPY --from=builder /root/.cache/ms-playwright /home/b2b/.cache/ms-playwright
-
-ENV PLAYWRIGHT_BROWSERS_PATH=/home/b2b/.cache/ms-playwright
-
 # Herramienta mínima para el healthcheck sin traer toda la app.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
@@ -99,7 +83,7 @@ RUN mkdir -p /data
 
 # No corre como root (buena práctica en contenedores).
 RUN useradd --create-home --uid 1000 b2b \
-    && chown -R b2b:b2b /data /app /home/b2b/.cache
+    && chown -R b2b:b2b /data /app
 USER b2b
 
 EXPOSE 8000
