@@ -260,7 +260,7 @@ def pilot_client():
     app.include_router(build_bank_feeds_router(
         db=None, require_api_key=fake_require_api_key))
     app.include_router(build_reports_router(
-        db=None, require_api_key=fake_require_api_key))
+        db=None, require_api_key=fake_require_api_key), prefix="/api/v1")
     return TestClient(app)
 
 

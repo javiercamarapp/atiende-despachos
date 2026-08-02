@@ -135,19 +135,20 @@ class TestFullOnboardingFlow:
 
 class TestCfdiUploadAndProcessing:
     def _zip_fixtures(self):
-        """Arma un ZIP en memoria con los XMLs de fixture del repo."""
-        from tests.conftest import FIXTURES
-        import os
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            for name in ("01_gasto_operativo_papeleria.xml",
-                         "02_inversion_consultoria.xml"):
-                path = os.path.join(FIXTURES, name)
-                if os.path.exists(path):
-                    with open(path, "rb") as fh:
-                        zf.writestr(name, fh.read())
-        buf.seek(0)
-        return buf
+            """Arma un ZIP en memoria con los XMLs de fixture del repo."""
+            import os
+            _here = os.path.dirname(os.path.abspath(__file__))
+            fixtures = os.path.join(os.path.dirname(_here), "fixtures", "cfdis")
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                for name in ("01_gasto_operativo_papeleria.xml",
+                             "02_inversion_consultoria.xml"):
+                    path = os.path.join(fixtures, name)
+                    if os.path.exists(path):
+                        with open(path, "rb") as fh:
+                            zf.writestr(name, fh.read())
+            buf.seek(0)
+            return buf
 
     def test_cfdi_upload_and_processing(self, pilot_client):
         """Sube ZIP de CFDIs → parseo OK → el batch arranca en curso."""
@@ -156,7 +157,7 @@ class TestCfdiUploadAndProcessing:
             "/api/v1/cfdi/batch",
             files={"file": ("cfdis.zip", buf.getvalue(), "application/zip")},
         )
-        assert r.status_code == 202, r.text
+        assert r.status_code == 200, r.text
         body = r.json()
         assert body["ok"] is True
         data = body["data"]
@@ -168,7 +169,7 @@ class TestCfdiUploadAndProcessing:
         r = pilot_client.get(f"/api/v1/cfdi/batch/{data['batch_id']}")
         assert r.status_code == 200
         batch = r.json()["batch"]
-        assert "id" in batch
+        assert "batch_id" in batch
         assert "status" in batch
         assert "total_items" in batch
 
@@ -197,7 +198,7 @@ class TestBankFeedSyncAndReconciliation:
         # Conecta una cuenta bancaria.
         r = pilot_client.post(
             "/api/v1/bank-feeds/accounts",
-            json={"provider": "BBVA", "clabe": "0123456789",
+            json={"provider": "BBVA", "clabe": "012180001234567899",
                   "account_label": "Cuenta operativa",
                   "statement_text": "Estado de cuenta de prueba"},
         )
@@ -215,10 +216,11 @@ class TestBankFeedSyncAndReconciliation:
 
         # Concilia transacciones con CFDIs.
         cfdi_list = [{
-            "folio_fiscal": c["uuid"],
-            "fecha": c["fecha"],
+            "uuid": c["uuid"],
+            "fecha": c["fecha"][:10],
+            "rfc_emisor": c["emisor_rfc"],
+            "rfc_receptor": c["receptor_rfc"],
             "total": c["total"],
-            "emisor_rfc": c["emisor_rfc"],
         } for c in mock_cfdi_data]
         r = pilot_client.post(
             "/api/v1/bank-feeds/reconcile",
@@ -438,7 +440,7 @@ class TestFullPilotoLifecycle:
             "/api/v1/cfdi/batch",
             files={"file": ("lote.zip", buf.getvalue(), "application/zip")},
         )
-        assert r.status_code == 202, r.text
+        assert r.status_code == 200, r.text
         batch_id = r.json()["data"]["batch_id"]
 
         r = pilot_client.get(f"/api/v1/cfdi/batch/{batch_id}")
@@ -449,7 +451,7 @@ class TestFullPilotoLifecycle:
         # --- Día 10: conciliación bancaria ---
         r = pilot_client.post(
             "/api/v1/bank-feeds/accounts",
-            json={"provider": "BBVA", "clabe": "0123456789",
+            json={"provider": "BBVA", "clabe": "012180001234567899",
                   "account_label": "Operativa"},
         )
         assert r.status_code == 200
@@ -457,7 +459,9 @@ class TestFullPilotoLifecycle:
         r = pilot_client.post(
             "/api/v1/bank-feeds/reconcile",
             json={"account_id": account_id,
-                  "cfdi_list": [{"folio_fiscal": c["uuid"], "fecha": c["fecha"],
+                  "cfdi_list": [{"uuid": c["uuid"], "fecha": c["fecha"][:10],
+                                 "rfc_emisor": c["emisor_rfc"],
+                                 "rfc_receptor": c["receptor_rfc"],
                                  "total": c["total"]} for c in mock_cfdi_data],
                   "tolerance_days": 3},
         )

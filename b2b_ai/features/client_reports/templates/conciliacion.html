@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Conciliación Bancaria — Likida AI</title>
+<style>
+  body { font-family: Arial, sans-serif; color: #222; margin: 2.5em; }
+  .header { border-bottom: 4px solid #0F5EA8; padding-bottom: 0.8em; margin-bottom: 1.5em; }
+  .logo { color: #0F5EA8; font-size: 1.6em; font-weight: bold; }
+  .despacho { color: #555; font-size: 0.85em; }
+  h1 { color: #0F5EA8; font-size: 1.4em; }
+  .meta { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.9em; }
+  .meta td { padding: 0.35em 0.5em; }
+  .meta .k { font-weight: bold; width: 22%; }
+  h2 { color: #0F5EA8; font-size: 1.05em; margin-top: 1.6em; }
+  .status { display: inline-block; padding: 0.25em 0.8em; border-radius: 3px;
+            font-size: 0.9em; font-weight: bold; }
+  .ok { background: #DFF2D8; color: #2E7D32; }
+  .diff { background: #FDE7E9; color: #C62828; }
+  table.data { width: 100%; border-collapse: collapse; margin: 0.6em 0; font-size: 0.9em; }
+  table.data th { background: #0F5EA8; color: #fff; text-align: left; padding: 0.5em; }
+  table.data td { border: 1px solid #ccc; padding: 0.45em 0.5em; }
+  table.data tr:nth-child(even) td { background: #F2F6FB; }
+  .amount { text-align: right; }
+  .nota { font-size: 0.75em; color: #666; font-style: italic; margin-top: 2em; }
+  .footer { margin-top: 3em; border-top: 1px solid #ccc; padding-top: 0.6em;
+            font-size: 0.72em; color: #888; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">Likida AI</div>
+    <div class="despacho">{{ despacho.nombre }} &middot; RFC {{ despacho.rfc }}<br>
+    {{ despacho.calle }} &middot; {{ despacho.ciudad }} &middot; {{ despacho.telefono }} &middot; {{ despacho.correo }}</div>
+  </div>
+
+  <h1>Conciliación Bancaria</h1>
+  <p>Cuenta: {{ account_id or '—' }}</p>
+  <table class="meta">
+    <tr><td class="k">Cliente:</td><td>{{ tenant_name or '—' }}</td>
+        <td class="k">RFC:</td><td>{{ tenant_rfc or '—' }}</td></tr>
+    <tr><td class="k">Período:</td><td>{{ period_label }}</td>
+        <td class="k">Generado:</td><td>{{ generated_at }}</td></tr>
+  </table>
+
+  <h2>Saldos</h2>
+  <table class="data">
+    <tr><th>Concepto</th><th style="text-align:right">Importe</th></tr>
+    <tr><td>Saldo según banco</td><td class="amount">{{ conciliacion.saldo_banco or 0 }}</td></tr>
+    <tr><td>Saldo según contabilidad</td><td class="amount">{{ conciliacion.saldo_contable or 0 }}</td></tr>
+    <tr><td>Diferencia</td><td class="amount">{{ conciliacion.diferencia or 0 }}</td></tr>
+  </table>
+  {% if conciliacion.conciliado %}
+  <p><span class="status ok">CONCILIADO ✓</span></p>
+  {% else %}
+  <p><span class="status diff">CON DIFERENCIAS</span></p>
+  {% endif %}
+
+  <h2>Detalle de movimientos</h2>
+  <table class="data">
+    <tr><th>Fecha</th><th>Descripción</th><th style="text-align:right">Monto</th><th>Conciliado</th></tr>
+    {% for m in conciliacion.movimientos or [] %}
+    <tr><td>{{ m.fecha }}</td><td>{{ m.descripcion }}</td>
+        <td class="amount">{{ m.monto }}</td><td>{{ '✓' if m.conciliado else '—' }}</td></tr>
+    {% endfor %}
+  </table>
+
+  <p class="nota">Nota: la conciliación compara los movimientos del banco con los registros contables y señala diferencias no aclaradas.</p>
+  <div class="footer">Este documento fue generado automáticamente por Likida AI. No constituye asesoría fiscal o legal. Página reporte generado por Likida AI Reportes.</div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Balanza de Comprobación — Likida AI</title>
+<style>
+  body { font-family: Arial, sans-serif; color: #222; margin: 2.5em; }
+  .header { border-bottom: 4px solid #0F5EA8; padding-bottom: 0.8em; margin-bottom: 1.5em; }
+  .logo { color: #0F5EA8; font-size: 1.6em; font-weight: bold; }
+  .despacho { color: #555; font-size: 0.85em; }
+  h1 { color: #0F5EA8; font-size: 1.4em; }
+  .meta { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.9em; }
+  .meta td { padding: 0.35em 0.5em; }
+  .meta .k { font-weight: bold; width: 22%; }
+  h2 { color: #0F5EA8; font-size: 1.05em; margin-top: 1.6em; }
+  table.data { width: 100%; border-collapse: collapse; margin: 0.6em 0; font-size: 0.9em; }
+  table.data th { background: #0F5EA8; color: #fff; text-align: left; padding: 0.5em; }
+  table.data td { border: 1px solid #ccc; padding: 0.45em 0.5em; }
+  table.data tr:nth-child(even) td { background: #F2F6FB; }
+  table.data tr.total td { background: #DDE7F3; font-weight: bold; }
+  .amount { text-align: right; }
+  .cuadre-ok { color: #2E7D32; font-weight: bold; }
+  .cuadre-bad { color: #C62828; font-weight: bold; }
+  .nota { font-size: 0.75em; color: #666; font-style: italic; margin-top: 2em; }
+  .footer { margin-top: 3em; border-top: 1px solid #ccc; padding-top: 0.6em;
+            font-size: 0.72em; color: #888; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">Likida AI</div>
+    <div class="despacho">{{ despacho.nombre }} &middot; RFC {{ despacho.rfc }}<br>
+    {{ despacho.calle }} &middot; {{ despacho.ciudad }} &middot; {{ despacho.telefono }} &middot; {{ despacho.correo }}</div>
+  </div>
+
+  <h1>Balanza de Comprobación</h1>
+  <p>Saldos por cuenta contable</p>
+  <table class="meta">
+    <tr><td class="k">Cliente:</td><td>{{ tenant_name or '—' }}</td>
+        <td class="k">RFC:</td><td>{{ tenant_rfc or '—' }}</td></tr>
+    <tr><td class="k">Período:</td><td>{{ period_label }}</td>
+        <td class="k">Generado:</td><td>{{ generated_at }}</td></tr>
+  </table>
+
+  <h2>Cuentas</h2>
+  <table class="data">
+    <tr><th>Cuenta</th><th>Nombre</th><th style="text-align:right">Saldo deudor</th><th style="text-align:right">Saldo acreedor</th></tr>
+    {% for c in cuentas %}
+    <tr><td>{{ c.cuenta }}</td><td>{{ c.nombre }}</td>
+        <td class="amount">{{ c.saldo_deudor }}</td><td class="amount">{{ c.saldo_acreedor }}</td></tr>
+    {% endfor %}
+    {% if totales %}
+    <tr class="total"><td>TOTALES</td><td></td>
+        <td class="amount">{{ totales.total_deudor }}</td><td class="amount">{{ totales.total_acreedor }}</td></tr>
+    {% endif %}
+  </table>
+
+  <p>Cuadre de la balanza:
+    {% if cuadra %}
+    <span class="cuadre-ok">SÍ ✓ (deudor = acreedor)</span>
+    {% else %}
+    <span class="cuadre-bad">NO — revisar asientos</span>
+    {% endif %}
+  </p>
+
+  <p class="nota">Nota: la balanza resume los saldos de todas las cuentas contables. La suma de deudores debe ser igual a la de acreedores.</p>
+  <div class="footer">Este documento fue generado automáticamente por Likida AI. No constituye asesoría fiscal o legal. Página reporte generado por Likida AI Reportes.</div>
+</body>
+</html>

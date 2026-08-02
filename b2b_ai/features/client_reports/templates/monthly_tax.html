@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Resumen Fiscal Mensual — Likida AI</title>
+<style>
+  body { font-family: Arial, sans-serif; color: #222; margin: 2.5em; }
+  .header { border-bottom: 4px solid #0F5EA8; padding-bottom: 0.8em; margin-bottom: 1.5em; }
+  .logo { color: #0F5EA8; font-size: 1.6em; font-weight: bold; }
+  .despacho { color: #555; font-size: 0.85em; }
+  h1 { color: #0F5EA8; font-size: 1.4em; }
+  .meta { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.9em; }
+  .meta td { padding: 0.35em 0.5em; }
+  .meta .k { font-weight: bold; width: 22%; }
+  h2 { color: #0F5EA8; font-size: 1.05em; margin-top: 1.6em; }
+  table.data { width: 100%; border-collapse: collapse; margin: 0.6em 0; font-size: 0.9em; }
+  table.data th { background: #0F5EA8; color: #fff; text-align: left; padding: 0.5em; }
+  table.data td { border: 1px solid #ccc; padding: 0.45em 0.5em; }
+  table.data tr:nth-child(even) td { background: #F2F6FB; }
+  .amount { text-align: right; }
+  .nota { font-size: 0.75em; color: #666; font-style: italic; margin-top: 2em; }
+  .footer { margin-top: 3em; border-top: 1px solid #ccc; padding-top: 0.6em;
+            font-size: 0.72em; color: #888; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">Likida AI</div>
+    <div class="despacho">{{ despacho.nombre }} &middot; RFC {{ despacho.rfc }}<br>
+    {{ despacho.calle }} &middot; {{ despacho.ciudad }} &middot; {{ despacho.telefono }} &middot; {{ despacho.correo }}</div>
+  </div>
+
+  <h1>Resumen Fiscal Mensual</h1>
+  <table class="meta">
+    <tr><td class="k">Cliente:</td><td>{{ tenant_name or '—' }}</td>
+        <td class="k">RFC:</td><td>{{ tenant_rfc or '—' }}</td></tr>
+    <tr><td class="k">Período:</td><td>{{ period_label }}</td>
+        <td class="k">Generado:</td><td>{{ generated_at }}</td></tr>
+  </table>
+
+  <h2>1. Impuesto al Valor Agregado (IVA)</h2>
+  <table class="data">
+    <tr><th>Concepto</th><th style="text-align:right">Importe</th></tr>
+    <tr><td>IVA acreditable (pagado)</td><td class="amount">{{ iva.iva_pagado or 0 }}</td></tr>
+    <tr><td>IVA trasladado (cobrado)</td><td class="amount">{{ iva.iva_cobrado or 0 }}</td></tr>
+    {% if iva.saldo_favor %}<tr><td>Saldo a favor</td><td class="amount">{{ iva.saldo_favor }}</td></tr>{% endif %}
+    {% if iva.saldo_contra %}<tr><td>A cargo (por pagar)</td><td class="amount">{{ iva.saldo_contra }}</td></tr>{% endif %}
+  </table>
+
+  <h2>2. Impuesto Sobre la Renta (ISR provisional)</h2>
+  <table class="data">
+    <tr><th>Concepto</th><th style="text-align:right">Importe</th></tr>
+    <tr><td>Ingresos acumulables</td><td class="amount">{{ isr.ingresos or isr.ingresos_acumulables or 0 }}</td></tr>
+    <tr><td>Deducciones autorizadas</td><td class="amount">{{ isr.deducciones or 0 }}</td></tr>
+    <tr><td>Base gravable (utilidad fiscal)</td><td class="amount">{{ isr.utilidad or isr.base_gravable or 0 }}</td></tr>
+    <tr><td>ISR causado (a pagar)</td><td class="amount">{{ isr.isr_calculated or isr.isr_causado or 0 }}</td></tr>
+  </table>
+
+  <p class="nota">Nota: cifras con base en los registros contables del contribuyente al período indicado. Consulte las declaraciones oficiales.</p>
+  <div class="footer">Este documento fue generado automáticamente por Likida AI. No constituye asesoría fiscal o legal. Página reporte generado por Likida AI Reportes.</div>
+</body>
+</html>
