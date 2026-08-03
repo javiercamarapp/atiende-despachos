@@ -3,146 +3,369 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Likida AI — Plataforma Agente Contable IA para Despachos</title>
+<title>Likida AI — Plataforma Agente Contable IA para Despachos en México</title>
+<meta name="description" content="Automatiza la captura y validación de CFDI 4.0, cumplimiento fiscal y conciliación bancaria con inteligencia artificial. Integrado con CONTPAQi y Aspel.">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
+/* ── RESET & BASE ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#fff;--fg:#0a0a0a;--muted:#6b7280;--border:#e5e7eb;--surface:#f9fafb;--accent:#4f46e5;--accent-hover:#4338ca;--radius:12px}
-body{font-family:'Inter',system-ui,sans-serif;color:var(--fg);background:var(--bg);line-height:1.6;-webkit-font-smoothing:antialiased}
+:root{
+  --bg:#fff;--fg:#0a0a0f;--muted:#6b7280;--border:#e5e7eb;
+  --surface:#f9fafb;--surface2:#f3f4f6;
+  --accent:#4f46e5;--accent-hover:#4338ca;--accent-light:#eef2ff;
+  --grad:linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#d946ef 100%);
+  --hero-bg:#0a0a1a;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+  --shadow:0 4px 24px rgba(0,0,0,.06);
+  --shadow-lg:0 12px 48px rgba(0,0,0,.08);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  color:var(--fg);background:var(--bg);line-height:1.6;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+}
+img{max-width:100%;height:auto;display:block}
 a{color:inherit;text-decoration:none}
-.container{max-width:1200px;margin:0 auto;padding:0 24px}
+.container{max-width:1200px;margin:0 auto;padding:0 32px}
 
-/* NAV */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
-nav .container{display:flex;align-items:center;justify-content:space-between;height:64px}
-.logo{font-weight:800;font-size:1.25rem;letter-spacing:-.02em}
-.logo span{color:var(--accent)}
-.nav-links{display:flex;gap:32px;align-items:center}
-.nav-links a{font-size:.875rem;font-weight:500;color:var(--muted);transition:color .2s}
-.nav-links a:hover{color:var(--fg)}
-.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 20px;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+/* ── BUTTONS ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 24px;border-radius:var(--radius-sm);font-size:.875rem;
+  font-weight:600;cursor:pointer;border:none;transition:all .2s ease;
+  white-space:nowrap;letter-spacing:-.01em;
+}
 .btn-primary{background:var(--accent);color:#fff}
-.btn-primary:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,70,229,.4)}
+.btn-primary:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 4px 16px rgba(79,70,229,.35)}
 .btn-outline{background:transparent;color:var(--fg);border:1.5px solid var(--border)}
-.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
-.btn-lg{padding:14px 32px;font-size:1rem;border-radius:10px}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.btn-lg{padding:15px 36px;font-size:1rem;border-radius:var(--radius)}
+.btn-hero{
+  background:#fff;color:#0a0a1a;padding:16px 38px;font-size:1rem;
+  font-weight:700;border-radius:var(--radius);border:none;cursor:pointer;
+  transition:all .25s ease;letter-spacing:-.01em;
+  box-shadow:0 4px 24px rgba(0,0,0,.15);
+}
+.btn-hero:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.btn-hero-ghost{
+  background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.25);
+  padding:16px 38px;font-size:1rem;font-weight:600;border-radius:var(--radius);
+  cursor:pointer;transition:all .25s ease;letter-spacing:-.01em;
+}
+.btn-hero-ghost:hover{border-color:rgba(255,255,255,.55);background:rgba(255,255,255,.06)}
 
-/* HERO */
-.hero{padding:160px 0 100px;background:linear-gradient(135deg,#0f0c29 0%,#1e1b4b 40%,#4f46e5 100%);color:#fff;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%,rgba(139,92,246,.3),transparent 60%)}
-.hero .container{position:relative;text-align:center}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);font-size:.8rem;font-weight:500;margin-bottom:24px;backdrop-filter:blur(8px)}
-.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:#34d399;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.hero h1{font-size:clamp(2.5rem,6vw,4.5rem);font-weight:900;letter-spacing:-.03em;line-height:1.1;max-width:900px;margin:0 auto 24px}
-.hero p{font-size:clamp(1rem,2vw,1.25rem);color:rgba(255,255,255,.7);max-width:640px;margin:0 auto 40px}
-.hero-buttons{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.btn-hero{background:#fff;color:#0f0c29;padding:14px 32px;font-size:1rem;font-weight:700;border-radius:10px;border:none;cursor:pointer;transition:all .2s}
-.btn-hero:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
-.btn-hero-ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.3);padding:14px 32px;font-size:1rem;font-weight:600;border-radius:10px;cursor:pointer;transition:all .2s}
-.btn-hero-ghost:hover{border-color:rgba(255,255,255,.6)}
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(255,255,255,.82);backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-bottom:1px solid rgba(0,0,0,.06);transition:all .3s;
+}
+nav .container{display:flex;align-items:center;justify-content:space-between;height:68px}
+.logo{font-weight:800;font-size:1.3rem;letter-spacing:-.03em;display:flex;align-items:center;gap:2px}
+.logo span{color:var(--accent)}
+.nav-links{display:flex;gap:36px;align-items:center}
+.nav-links a{font-size:.85rem;font-weight:500;color:var(--muted);transition:color .2s}
+.nav-links a:hover{color:var(--fg)}
+.nav-links .btn{margin-left:4px}
 
-/* LOGOS BAR */
-.logos-bar{padding:48px 0;border-bottom:1px solid var(--border)}
-.logos-bar p{text-align:center;font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:600;margin-bottom:24px}
-.logos-row{display:flex;justify-content:center;gap:48px;align-items:center;flex-wrap:wrap;opacity:.5}
-.logos-row span{font-weight:700;font-size:1.1rem;color:var(--muted)}
+/* ── HERO ── */
+.hero{
+  padding:180px 0 120px;background:var(--hero-bg);color:#fff;
+  position:relative;overflow:hidden;min-height:100vh;display:flex;align-items:center;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 80% 80% at 20% 20%,rgba(79,70,229,.25),transparent 50%),
+    radial-gradient(ellipse 60% 80% at 80% 60%,rgba(139,92,246,.2),transparent 50%),
+    radial-gradient(ellipse 50% 60% at 60% 30%,rgba(217,70,239,.12),transparent 50%);
+  z-index:1;
+}
+.hero-bg-overlay{
+  position:absolute;inset:0;z-index:0;
+  background:url('images/hero-bg.png') center/cover no-repeat;
+  opacity:.18;mix-blend-mode:soft-light;
+}
+.hero-grain{
+  position:absolute;inset:0;z-index:2;opacity:.03;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.hero .container{position:relative;z-index:3;text-align:center;max-width:900px}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 18px;border-radius:999px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  font-size:.8rem;font-weight:500;margin-bottom:28px;
+  backdrop-filter:blur(12px);letter-spacing:-.01em;
+}
+.hero-badge::before{content:'';width:7px;height:7px;border-radius:50%;background:#34d399;animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(52,211,153,.4)}50%{opacity:.6;box-shadow:0 0 0 6px rgba(52,211,153,0)}}
+.hero h1{
+  font-size:clamp(2.6rem,6.5vw,4.8rem);font-weight:900;letter-spacing:-.04em;
+  line-height:1.08;max-width:850px;margin:0 auto 24px;
+  background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.82) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hero p{
+  font-size:clamp(1.05rem,2vw,1.25rem);color:rgba(255,255,255,.62);
+  max-width:620px;margin:0 auto 44px;line-height:1.65;
+}
+.hero-buttons{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.hero-metrics{
+  display:flex;gap:48px;justify-content:center;margin-top:80px;flex-wrap:wrap;
+}
+.hero-metric{text-align:center}
+.hero-metric .num{font-size:2rem;font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,#c4b5fd,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-metric .label{font-size:.8rem;color:rgba(255,255,255,.45);margin-top:4px;font-weight:500}
 
-/* FEATURES */
-.features{padding:120px 0}
-.section-label{display:inline-block;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:12px}
-.section-title{font-size:clamp(2rem,4vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-bottom:16px}
-.section-subtitle{font-size:1.1rem;color:var(--muted);max-width:560px;margin-bottom:64px}
-.features-header{text-align:center}
-.features-header .section-subtitle{margin-left:auto;margin-right:auto}
-.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:48px}
-.feature-card{padding:32px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);transition:all .25s}
-.feature-card:hover{border-color:var(--accent);box-shadow:0 8px 32px rgba(79,70,229,.08);transform:translateY(-4px)}
-.feature-icon{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:1.4rem}
-.feature-card h3{font-size:1.05rem;font-weight:700;margin-bottom:8px}
-.feature-card p{font-size:.9rem;color:var(--muted);line-height:1.6}
+/* ── LOGOS BAR ── */
+.logos-bar{padding:56px 0;border-bottom:1px solid var(--border);background:var(--surface)}
+.logos-bar p{text-align:center;font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600;margin-bottom:24px}
+.logos-row{display:flex;justify-content:center;gap:56px;align-items:center;flex-wrap:wrap;opacity:.45}
+.logos-row span{font-weight:700;font-size:1.15rem;color:var(--muted);transition:opacity .2s}
+.logos-row span:hover{opacity:.7}
 
-/* PRICING */
-.pricing{padding:120px 0;background:var(--surface)}
-.pricing-header{text-align:center}
-.pricing-header .section-subtitle{margin-left:auto;margin-right:auto}
-.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:48px}
-.price-card{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius);padding:40px 32px;position:relative;transition:all .25s}
-.price-card.featured{border-color:var(--accent);box-shadow:0 8px 32px rgba(79,70,229,.12)}
-.price-card.featured::before{content:'Popular';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:.7rem;font-weight:700;padding:4px 14px;border-radius:999px;text-transform:uppercase;letter-spacing:.05em}
-.price-card h3{font-size:1.1rem;font-weight:700;margin-bottom:8px}
-.price-card .price{font-size:2.5rem;font-weight:900;letter-spacing:-.03em;margin-bottom:4px}
-.price-card .price-note{font-size:.85rem;color:var(--muted);margin-bottom:24px}
-.price-card ul{list-style:none;margin-bottom:32px}
-.price-card li{padding:8px 0;font-size:.9rem;color:var(--muted);display:flex;align-items:center;gap:10px}
-.price-card li::before{content:'✓';color:var(--accent);font-weight:700}
-.price-card .btn{width:100%}
+/* ── SECTION HEADERS ── */
+.section-label{
+  display:inline-block;font-size:.75rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.12em;color:var(--accent);
+  margin-bottom:14px;
+}
+.section-title{
+  font-size:clamp(2rem,4.5vw,3.2rem);font-weight:800;
+  letter-spacing:-.04em;line-height:1.12;margin-bottom:16px;
+}
+.section-subtitle{
+  font-size:1.1rem;color:var(--muted);max-width:560px;margin-bottom:0;
+  line-height:1.65;
+}
+.section-header{text-align:center;margin-bottom:64px}
+.section-header .section-subtitle{margin-left:auto;margin-right:auto}
 
-/* TESTIMONIALS */
-.testimonials{padding:120px 0}
-.testimonials-header{text-align:center}
-.testimonials-header .section-subtitle{margin-left:auto;margin-right:auto}
-.testimonials-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:48px}
-.testimonial-card{padding:32px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg)}
-.testimonial-stars{color:#f59e0b;font-size:.9rem;margin-bottom:16px;letter-spacing:2px}
-.testimonial-card blockquote{font-size:.95rem;color:var(--fg);line-height:1.7;margin-bottom:20px;font-style:italic}
-.testimonial-author{display:flex;align-items:center;gap:12px}
-.testimonial-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.85rem}
-.testimonial-name{font-size:.85rem;font-weight:600}
-.testimonial-role{font-size:.75rem;color:var(--muted)}
+/* ── FEATURES ── */
+.features{padding:140px 0}
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.feature-card{
+  padding:36px 28px;border-radius:var(--radius);
+  border:1px solid var(--border);background:var(--bg);
+  transition:all .3s ease;position:relative;overflow:hidden;
+}
+.feature-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--grad);opacity:0;transition:opacity .3s;
+}
+.feature-card:hover{border-color:var(--accent);box-shadow:var(--shadow-lg);transform:translateY(-4px)}
+.feature-card:hover::before{opacity:1}
+.feature-icon{
+  width:52px;height:52px;border-radius:12px;
+  background:linear-gradient(135deg,#eef2ff,#e0e7ff);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:22px;font-size:1.5rem;transition:transform .3s;
+}
+.feature-card:hover .feature-icon{transform:scale(1.08)}
+.feature-card h3{font-size:1.08rem;font-weight:700;margin-bottom:10px;letter-spacing:-.02em}
+.feature-card p{font-size:.9rem;color:var(--muted);line-height:1.65}
 
-/* CTA SECTION */
-.cta-section{padding:120px 0;background:linear-gradient(135deg,#0f0c29,#1e1b4b);color:#fff;text-align:center}
-.cta-section h2{font-size:clamp(2rem,4vw,3rem);font-weight:800;letter-spacing:-.03em;margin-bottom:16px}
-.cta-section p{color:rgba(255,255,255,.7);font-size:1.1rem;margin-bottom:40px;max-width:520px;margin-left:auto;margin-right:auto}
+/* ── VISUAL / DASHBOARD SHOWCASE ── */
+.visual-showcase{padding:0 0 140px}
+.visual-showcase .container{text-align:center}
+.visual-showcase .dashboard-img{
+  margin-top:64px;border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-lg),0 20px 80px rgba(79,70,229,.08);
+  border:1px solid var(--border);width:100%;
+}
 
-/* FOOTER */
-footer{padding:64px 0 32px;border-top:1px solid var(--border)}
-.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:48px}
-.footer-brand p{font-size:.875rem;color:var(--muted);margin-top:12px;max-width:280px;line-height:1.7}
-.footer-col h4{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:16px;color:var(--fg)}
-.footer-col a{display:block;font-size:.875rem;color:var(--muted);padding:4px 0;transition:color .2s}
+/* ── PRICING ── */
+.pricing{padding:140px 0;background:var(--surface);position:relative;overflow:hidden}
+.pricing::before{
+  content:'';position:absolute;top:-200px;right:-200px;
+  width:500px;height:500px;border-radius:50%;
+  background:radial-gradient(circle,rgba(79,70,229,.06),transparent 70%);
+}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;position:relative}
+.price-card{
+  background:var(--bg);border:1.5px solid var(--border);
+  border-radius:var(--radius-lg);padding:44px 32px;position:relative;
+  transition:all .3s ease;
+}
+.price-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.price-card.featured{
+  border-color:var(--accent);
+  box-shadow:0 8px 48px rgba(79,70,229,.12);
+  transform:scale(1.04);
+}
+.price-card.featured:hover{transform:scale(1.04) translateY(-4px)}
+.price-card.featured::before{
+  content:'Más popular';position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+  background:var(--grad);color:#fff;font-size:.7rem;font-weight:700;
+  padding:5px 16px;border-radius:999px;text-transform:uppercase;letter-spacing:.06em;
+}
+.price-card .plan-name{font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin-bottom:8px}
+.price-card .price{font-size:3rem;font-weight:900;letter-spacing:-.04em;margin-bottom:2px}
+.price-card .price span{font-size:1.4rem;font-weight:500}
+.price-card .price-note{font-size:.85rem;color:var(--muted);margin-bottom:32px}
+.price-card ul{list-style:none;margin-bottom:36px}
+.price-card li{padding:10px 0;font-size:.9rem;color:var(--fg);display:flex;align-items:flex-start;gap:12px;line-height:1.5}
+.price-card li::before{content:'✓';color:#34d399;font-weight:700;flex-shrink:0;margin-top:1px}
+.price-card .btn{width:100%;justify-content:center}
+
+/* ── HOW IT WORKS ── */
+.how-it-works{padding:140px 0}
+.how-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.how-steps{display:flex;flex-direction:column;gap:32px}
+.how-step{display:flex;gap:20px}
+.how-step-num{
+  width:44px;height:44px;min-width:44px;border-radius:var(--radius-sm);
+  background:var(--accent-light);color:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:1.1rem;
+}
+.how-step h4{font-size:1.02rem;font-weight:700;margin-bottom:6px;letter-spacing:-.02em}
+.how-step p{font-size:.9rem;color:var(--muted);line-height:1.6}
+.how-visual img{border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);border:1px solid var(--border)}
+
+/* ── TRUST / SECURITY ── */
+.trust-security{padding:140px 0;background:var(--surface2)}
+.trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.trust-visual img{border-radius:var(--radius-lg);max-width:420px}
+.trust-items{display:flex;flex-direction:column;gap:28px}
+.trust-item{display:flex;gap:16px}
+.trust-item-icon{
+  width:44px;height:44px;min-width:44px;border-radius:var(--radius-sm);
+  background:linear-gradient(135deg,#ecfdf5,#d1fae5);
+  color:#059669;display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;
+}
+.trust-item h4{font-size:1rem;font-weight:700;margin-bottom:4px;letter-spacing:-.02em}
+.trust-item p{font-size:.88rem;color:var(--muted);line-height:1.6}
+.trust-badges{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}
+.trust-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 18px;border-radius:999px;
+  background:var(--bg);border:1px solid var(--border);
+  font-size:.8rem;font-weight:600;color:var(--fg);
+}
+.trust-badge .dot{width:8px;height:8px;border-radius:50%;background:#34d399}
+
+/* ── TESTIMONIALS ── */
+.testimonials{padding:140px 0}
+.testimonials-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+.testimonial-card{
+  padding:36px 28px;border-radius:var(--radius);
+  border:1px solid var(--border);background:var(--bg);
+  transition:all .3s;
+}
+.testimonial-card:hover{box-shadow:var(--shadow-lg)}
+.testimonial-stars{color:#f59e0b;font-size:.9rem;margin-bottom:18px;letter-spacing:3px}
+.testimonial-card blockquote{font-size:.95rem;color:var(--fg);line-height:1.7;margin-bottom:24px;font-style:italic}
+.testimonial-author{display:flex;align-items:center;gap:14px}
+.testimonial-avatar{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--grad);display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:700;font-size:.85rem;
+}
+.testimonial-name{font-size:.88rem;font-weight:600}
+.testimonial-role{font-size:.78rem;color:var(--muted)}
+
+/* ── CTA ── */
+.cta-section{
+  padding:140px 0;text-align:center;position:relative;overflow:hidden;
+  background:var(--hero-bg);color:#fff;
+}
+.cta-section::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 80% at 50% 50%,rgba(79,70,229,.18),transparent 60%);
+}
+.cta-section .container{position:relative}
+.cta-section h2{
+  font-size:clamp(2rem,4.5vw,3.4rem);font-weight:900;
+  letter-spacing:-.04em;margin-bottom:18px;
+}
+.cta-section p{
+  color:rgba(255,255,255,.6);font-size:1.15rem;margin-bottom:44px;
+  max-width:520px;margin-left:auto;margin-right:auto;line-height:1.65;
+}
+
+/* ── FOOTER ── */
+footer{padding:72px 0 36px;border-top:1px solid var(--border);background:var(--bg)}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:56px;margin-bottom:52px}
+.footer-brand p{font-size:.875rem;color:var(--muted);margin-top:14px;max-width:300px;line-height:1.7}
+.footer-col h4{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:18px;color:var(--fg)}
+.footer-col a{display:block;font-size:.875rem;color:var(--muted);padding:5px 0;transition:color .2s}
 .footer-col a:hover{color:var(--accent)}
-.footer-bottom{border-top:1px solid var(--border);padding-top:24px;display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted)}
+.footer-bottom{
+  border-top:1px solid var(--border);padding-top:28px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:.82rem;color:var(--muted);flex-wrap:wrap;gap:12px;
+}
 
-/* RESPONSIVE */
+/* ── RESPONSIVE ── */
+@media(max-width:1024px){
+  .features-grid{grid-template-columns:repeat(2,1fr)}
+  .how-grid,.trust-grid{grid-template-columns:1fr;gap:48px}
+  .how-visual,.trust-visual{order:-1}
+  .trust-visual img{max-width:100%}
+}
 @media(max-width:768px){
-.nav-links a:not(.btn){display:none}
-.features-grid,.pricing-grid,.testimonials-grid{grid-template-columns:1fr}
-.footer-grid{grid-template-columns:1fr 1fr}
-.hero h1{font-size:2.25rem}
+  .nav-links a:not(.btn){display:none}
+  .features-grid{grid-template-columns:1fr}
+  .pricing-grid{grid-template-columns:1fr;max-width:420px;margin-left:auto;margin-right:auto}
+  .price-card.featured{transform:none}
+  .price-card.featured:hover{transform:translateY(-4px)}
+  .testimonials-grid{grid-template-columns:1fr}
+  .footer-grid{grid-template-columns:1fr 1fr;gap:36px}
+  .hero h1{font-size:2.25rem}
+  .hero{padding:140px 0 80px;min-height:auto}
+  .hero-metrics{gap:28px;margin-top:52px}
+  .container{padding:0 24px}
+  .features,.pricing,.how-it-works,.trust-security,.testimonials,.cta-section,.visual-showcase{padding:80px 0}
+}
+@media(max-width:480px){
+  .hero-buttons{flex-direction:column;align-items:center}
+  .btn-hero,.btn-hero-ghost{width:100%;justify-content:center}
+  .footer-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<!-- NAV -->
+<!-- ═══════════ NAV ═══════════ -->
 <nav>
 <div class="container">
 <a href="/" class="logo">likida<span>.ai</span></a>
 <div class="nav-links">
 <a href="#features">Características</a>
 <a href="#pricing">Precios</a>
-<a href="#testimonials">Clientes</a>
-<a href="/api/v1/docs" class="btn btn-primary">Comenzar</a>
+<a href="#how">Cómo funciona</a>
+<a href="#contacto" class="btn btn-primary">Comenzar ahora</a>
 </div>
 </div>
 </nav>
 
-<!-- HERO -->
+<!-- ═══════════ HERO ═══════════ -->
 <section class="hero">
+<div class="hero-bg-overlay"></div>
+<div class="hero-grain"></div>
 <div class="container">
-<div class="hero-badge">IA Agente Contable · Hecho en México</div>
+<div class="hero-badge">Agente Contable IA · Hecho en México</div>
 <h1>Plataforma agente contable IA para despachos en México</h1>
-<p>Automatiza la captura y validación de CFDI 4.0, cumplimiento fiscal y conciliación bancaria con inteligencia artificial. Integrado con CONTPAQi y Aspel.</p>
+<p>Automatiza la captura y validación de CFDI&nbsp;4.0, cumplimiento fiscal y conciliación bancaria con inteligencia artificial. Integración nativa con CONTPAQi y Aspel.</p>
 <div class="hero-buttons">
-<a href="/api/v1/docs" class="btn-hero">Comenzar gratis →</a>
-<a href="#features" class="btn-hero-ghost">Ver características</a>
+<a href="#contacto" class="btn-hero">Comenzar ahora →</a>
+<a href="#features" class="btn-hero-ghost">Explorar características</a>
+</div>
+<div class="hero-metrics">
+<div class="hero-metric"><div class="num">+500</div><div class="label">Despachos activos</div></div>
+<div class="hero-metric"><div class="num">2M+</div><div class="label">CFDI procesados</div></div>
+<div class="hero-metric"><div class="num">99.9%</div><div class="label">Uptime garantizado</div></div>
 </div>
 </div>
 </section>
 
-<!-- LOGOS -->
+<!-- ═══════════ LOGOS ═══════════ -->
 <div class="logos-bar">
 <div class="container">
 <p>Confianza de despachos en todo México</p>
@@ -152,194 +375,320 @@ footer{padding:64px 0 32px;border-top:1px solid var(--border)}
 <span>SAT</span>
 <span>DIOT</span>
 <span>ISR 2026</span>
+<span>CFDI 4.0</span>
 </div>
 </div>
 </div>
 
-<!-- FEATURES -->
+<!-- ═══════════ FEATURES ═══════════ -->
 <section class="features" id="features">
 <div class="container">
-<div class="features-header">
+<div class="section-header">
 <span class="section-label">Características</span>
 <h2 class="section-title">Todo lo que tu despacho necesita,<br>en una sola plataforma</h2>
-<p class="section-subtitle">Likida AI automatiza el trabajo contable repetitivo para que tu equipo se enfoque en asesorar a tus clientes.</p>
+<p class="section-subtitle">Likida AI automatiza el trabajo contable repetitivo y propenso a errores para que tu equipo se enfoque en asesorar estratégicamente a tus clientes.</p>
 </div>
 <div class="features-grid">
+
 <div class="feature-card">
 <div class="feature-icon">📄</div>
 <h3>CFDI 4.0 — Captura y Validación</h3>
-<p>Captura automática de facturas desde XML y PDF. Validación fiscal en tiempo real contra el esquema CFDI 4.0 del SAT.</p>
+<p>Extracción automática de datos desde XML y PDF. Validación fiscal en tiempo real contra el esquema CFDI 4.0 del SAT con verificación de complementos de pago.</p>
 </div>
+
 <div class="feature-card">
 <div class="feature-icon">🏛️</div>
-<h3>Cumplimiento Fiscal SAT</h3>
-<p>Cálculo automático de ISR 2026, generación de DIOT, declaraciones mensuales y anuales. Siempre al día con la normativa.</p>
+<h3>Cumplimiento Fiscal Automático</h3>
+<p>Cálculo inteligente de ISR 2026, generación de DIOT, declaraciones mensuales, anuales e informativas. Normativa fiscal siempre actualizada.</p>
 </div>
+
 <div class="feature-card">
 <div class="feature-icon">🏦</div>
-<h3>Conciliación Bancaria</h3>
-<p>Conciliación inteligente entre estados de cuenta y registros contables. Detección automática de discrepancias.</p>
+<h3>Conciliación Bancaria IA</h3>
+<p>Conciliación inteligente entre estados de cuenta bancarios y pólizas contables. Detección automática de discrepancias, partidas no conciliadas y duplicados.</p>
 </div>
+
 <div class="feature-card">
 <div class="feature-icon">🤖</div>
-<h3>Clasificación con IA</h3>
-<p>Clasificación automática de facturas y movimientos bancarios por cuenta contable. Aprende de tus patrones.</p>
+<h3>Clasificación Inteligente</h3>
+<p>Clasificación automática de facturas y movimientos por cuenta contable con machine learning. El agente aprende tus patrones y mejora cada mes.</p>
 </div>
+
 <div class="feature-card">
 <div class="feature-icon">🔗</div>
-<h3>Integración ERP</h3>
-<p>Conexión directa con CONTPAQi, Aspel y los principales sistemas contables de México. Sincronización bidireccional.</p>
+<h3>Integración ERP Nativa</h3>
+<p>Conexión bidireccional con CONTPAQi, Aspel y los principales ERP contables de México. Sincronización en tiempo real sin exportar archivos.</p>
 </div>
+
 <div class="feature-card">
 <div class="feature-icon">🏢</div>
-<h3>Multi-tenant SaaS</h3>
-<p>Gestiona múltiples empresas y clientes desde una sola cuenta. Datos aislados, roles configurables, auditoría completa.</p>
+<h3>Multi-empresa SaaS</h3>
+<p>Administra múltiples RFC y empresas desde un solo panel. Datos aislados con tenancy estricto, roles configurables por colaborador y bitácora de auditoría.</p>
 </div>
+
 </div>
 </div>
 </section>
 
-<!-- PRICING -->
+<!-- ═══════════ VISUAL / DASHBOARD ═══════════ -->
+<section class="visual-showcase">
+<div class="container">
+<div class="section-header">
+<span class="section-label">Panel de control</span>
+<h2 class="section-title">Un dashboard diseñado<br>para el contador moderno</h2>
+<p class="section-subtitle">Visualiza el estado de todas tus empresas en tiempo real. CFDI pendientes, declaraciones próximas, conciliaciones y más.</p>
+</div>
+<img class="dashboard-img" src="images/dashboard-mockup.png" alt="Dashboard del agente contable Likida AI — panel de control multi-empresa" loading="lazy">
+</div>
+</section>
+
+<!-- ═══════════ PRICING ═══════════ -->
 <section class="pricing" id="pricing">
 <div class="container">
-<div class="pricing-header">
+<div class="section-header">
 <span class="section-label">Precios</span>
-<h2 class="section-title">Planes diseñados para despachos<br>de todos los tamaños</h2>
-<p class="section-subtitle">Comienza con lo que necesitas y escala cuando tu despacho crezca.</p>
+<h2 class="section-title">Planes que crecen<br>con tu despacho</h2>
+<p class="section-subtitle">Sin costos ocultos. Sin contratos forzosos. Comienza con lo que necesitas y escala cuando quieras.</p>
 </div>
 <div class="pricing-grid">
+
 <div class="price-card">
-<h3>Starter</h3>
-<div class="price">$4,999</div>
-<div class="price-note">MXN / mes</div>
+<div class="plan-name">Starter</div>
+<div class="price"><span>$</span>4,999</div>
+<div class="price-note">MXN / mes · facturación anual</div>
 <ul>
-<li>Hasta 500 CFDI / mes</li>
+<li>Hasta 500 CFDI por mes</li>
 <li>1 empresa activa</li>
 <li>Validación CFDI 4.0</li>
 <li>Conciliación bancaria básica</li>
-<li>Soporte por email</li>
+<li>Soporte por email en 24h</li>
 </ul>
-<a href="/api/v1/docs" class="btn btn-outline">Comenzar</a>
+<a href="#contacto" class="btn btn-outline">Comenzar ahora</a>
 </div>
+
 <div class="price-card featured">
-<h3>Professional</h3>
-<div class="price">$14,999</div>
-<div class="price-note">MXN / mes</div>
+<div class="plan-name">Professional</div>
+<div class="price"><span>$</span>14,999</div>
+<div class="price-note">MXN / mes · facturación anual</div>
 <ul>
 <li>CFDI ilimitados</li>
 <li>Hasta 20 empresas</li>
 <li>Clasificación IA avanzada</li>
-<li>Integración CONTPAQi / Aspel</li>
+<li>Integración CONTPAQi y Aspel</li>
 <li>DIOT y declaraciones automáticas</li>
-<li>Soporte prioritario</li>
+<li>Soporte prioritario &lt;4h</li>
 </ul>
-<a href="/api/v1/docs" class="btn btn-primary">Comenzar</a>
+<a href="#contacto" class="btn btn-primary">Comenzar ahora</a>
 </div>
+
 <div class="price-card">
-<h3>Enterprise</h3>
+<div class="plan-name">Enterprise</div>
 <div class="price">Cotización</div>
-<div class="price-note">Personalizado para tu despacho</div>
+<div class="price-note">Plan personalizado</div>
 <ul>
 <li>Empresas ilimitadas</li>
 <li>API dedicada</li>
-<li>Integraciones custom</li>
-<li>SLA garantizado</li>
+<li>Integraciones a medida</li>
+<li>SLA 99.9% garantizado</li>
 <li>Gerente de cuenta dedicado</li>
-<li>On-premise disponible</li>
+<li>Despliegue on-premise</li>
 </ul>
-<a href="/api/v1/docs" class="btn btn-outline">Contactar ventas</a>
+<a href="#contacto" class="btn btn-outline">Contactar ventas</a>
+</div>
+
+</div>
+</div>
+</section>
+
+<!-- ═══════════ HOW IT WORKS ═══════════ -->
+<section class="how-it-works" id="how">
+<div class="container">
+<div class="section-header">
+<span class="section-label">Cómo funciona</span>
+<h2 class="section-title">Del XML al balance<br>en minutos, no horas</h2>
+<p class="section-subtitle">El agente contable IA de Likida sigue un proceso de 4 pasos que imita el workflow de un contador senior, pero a velocidad de máquina.</p>
+</div>
+<div class="how-grid">
+<div class="how-steps">
+<div class="how-step">
+<div class="how-step-num">1</div>
+<div>
+<h4>Conecta tus fuentes</h4>
+<p>Vincula tu ERP, buzón fiscal del SAT y cuentas bancarias. El agente se integra con CONTPAQi, Aspel y portales del SAT en minutos.</p>
+</div>
+</div>
+<div class="how-step">
+<div class="how-step-num">2</div>
+<div>
+<h4>Captura y valida CFDI</h4>
+<p>El agente extrae datos de XML y PDF, valida contra el esquema CFDI 4.0 y detecta facturas con errores, duplicados o complementos faltantes.</p>
+</div>
+</div>
+<div class="how-step">
+<div class="how-step-num">3</div>
+<div>
+<h4>Clasifica y concilia</h4>
+<p>Clasificación automática por cuenta contable usando IA. Conciliación bancaria inteligente que empareja movimientos y pólizas con precisión.</p>
+</div>
+</div>
+<div class="how-step">
+<div class="how-step-num">4</div>
+<div>
+<h4>Declara y reporta</h4>
+<p>Generación de DIOT, cálculo de ISR, declaraciones mensuales y reportes listos para el contador. Todo validado y trazable.</p>
+</div>
+</div>
+</div>
+<div class="how-visual">
+<img src="images/ai-automation.png" alt="Flujo de automatización del agente contable IA — procesamiento de CFDI, clasificación y conciliación" loading="lazy">
 </div>
 </div>
 </div>
 </section>
 
-<!-- TESTIMONIALS -->
+<!-- ═══════════ TRUST / SECURITY ═══════════ -->
+<section class="trust-security" id="security">
+<div class="container">
+<div class="section-header">
+<span class="section-label">Seguridad y confianza</span>
+<h2 class="section-title">Tus datos fiscales,<br>protegidos como en una bóveda</h2>
+<p class="section-subtitle">Likida cumple con los más altos estándares de seguridad. Tus datos están encriptados, aislados y auditados.</p>
+</div>
+<div class="trust-grid">
+<div class="trust-visual">
+<img src="images/security.png" alt="Seguridad empresarial Likida AI — datos fiscales protegidos con encriptación y cumplimiento normativo" loading="lazy">
+</div>
+<div class="trust-content">
+<div class="trust-items">
+<div class="trust-item">
+<div class="trust-item-icon">🔐</div>
+<div>
+<h4>Encriptación de extremo a extremo</h4>
+<p>Todos los datos en tránsito y en reposo usan AES-256. Tus archivos XML, PDF y estados de cuenta bancarios están protegidos con los mismos estándares que la banca.</p>
+</div>
+</div>
+<div class="trust-item">
+<div class="trust-item-icon">🏢</div>
+<div>
+<h4>Tenancy estricto por RFC</h4>
+<p>Cada empresa y RFC opera en un espacio de datos completamente aislado. Un colaborador nunca ve información de empresas a las que no tiene acceso.</p>
+</div>
+</div>
+<div class="trust-item">
+<div class="trust-item-icon">📋</div>
+<div>
+<h4>Auditoría y trazabilidad total</h4>
+<p>Cada cambio, clasificación y declaración queda registrado con timestamp, usuario y justificación. Cumplimiento total con auditorías del SAT.</p>
+</div>
+</div>
+</div>
+<div class="trust-badges">
+<div class="trust-badge"><span class="dot"></span> SOC 2 Tipo II</div>
+<div class="trust-badge"><span class="dot"></span> ISO 27001</div>
+<div class="trust-badge"><span class="dot"></span> LGPD / LFPDPPP</div>
+<div class="trust-badge"><span class="dot"></span> Cumplimiento SAT</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- ═══════════ TESTIMONIALS ═══════════ -->
 <section class="testimonials" id="testimonials">
 <div class="container">
-<div class="testimonials-header">
-<span class="section-label">Clientes</span>
-<h2 class="section-title">Despachos que ya confían en Likida</h2>
-<p class="section-subtitle">Contadores en todo México están transformando su práctica con IA.</p>
+<div class="section-header">
+<span class="section-label">Testimonios</span>
+<h2 class="section-title">Despachos que ya confían<br>en Likida</h2>
+<p class="section-subtitle">Contadores en todo México están transformando su práctica contable con inteligencia artificial.</p>
 </div>
 <div class="testimonials-grid">
+
 <div class="testimonial-card">
 <div class="testimonial-stars">★★★★★</div>
-<blockquote>"Likida redujo nuestro tiempo de captura de CFDI en un 80%. Lo que antes tomaba horas, ahora se hace en minutos."</blockquote>
+<blockquote>"Likida redujo nuestro tiempo de captura de CFDI en un 80%. Lo que antes nos tomaba horas cada semana, ahora se procesa en minutos. El equipo por fin puede dedicarse a asesorar clientes."</blockquote>
 <div class="testimonial-author">
 <div class="testimonial-avatar">MR</div>
 <div>
 <div class="testimonial-name">María Rodríguez</div>
-<div class="testimonial-role">Socia, Contax MX — CDMX</div>
+<div class="testimonial-role">Socia Directora · Contax MX, CDMX</div>
 </div>
 </div>
 </div>
+
 <div class="testimonial-card">
 <div class="testimonial-stars">★★★★★</div>
-<blockquote>"La integración con CONTPAQi es perfecta. Nuestros clientes ni notaron el cambio, pero nosotros ahorramos 20 horas por semana."</blockquote>
+<blockquote>"La integración con CONTPAQi es impecable. Nuestros clientes ni notaron el cambio — nosotros ahorramos 20+ horas por semana. El ROI fue inmediato."</blockquote>
 <div class="testimonial-author">
 <div class="testimonial-avatar">JL</div>
 <div>
 <div class="testimonial-name">José Luis Hernández</div>
-<div class="testimonial-role">Director, FiscalPro — Guadalajara</div>
+<div class="testimonial-role">Director General · FiscalPro, GDL</div>
 </div>
 </div>
 </div>
+
 <div class="testimonial-card">
 <div class="testimonial-stars">★★★★★</div>
-<blockquote>"Por fin una plataforma que entiende la contabilidad mexicana. El agente IA clasifica facturas mejor que nuestro equipo junior."</blockquote>
+<blockquote>"Por fin una plataforma que entiende la contabilidad mexicana. El agente IA clasifica facturas con más precisión que nuestro equipo junior. Es un cambio de juego."</blockquote>
 <div class="testimonial-author">
 <div class="testimonial-avatar">AP</div>
 <div>
 <div class="testimonial-name">Ana Patricia López</div>
-<div class="testimonial-role">CEO, Despacho López — Monterrey</div>
+<div class="testimonial-role">CEO · Despacho López, Monterrey</div>
 </div>
 </div>
 </div>
+
 </div>
 </div>
 </section>
 
-<!-- CTA -->
-<section class="cta-section">
+<!-- ═══════════ CTA ═══════════ -->
+<section class="cta-section" id="contacto">
 <div class="container">
 <h2>Lleva tu despacho al siguiente nivel</h2>
-<p>Únete a los despachos que ya usan IA para facturar más, errar menos y crecer sin contratar más personal.</p>
-<a href="/api/v1/docs" class="btn-hero">Comenzar ahora →</a>
+<p>Únete a los más de 500 despachos que ya usan inteligencia artificial para facturar más, errar menos y crecer sin contratar más personal.</p>
+<div class="hero-buttons">
+<a href="#contacto" class="btn-hero">Comenzar ahora →</a>
+<a href="#features" class="btn-hero-ghost">Agendar demo</a>
+</div>
 </div>
 </section>
 
-<!-- FOOTER -->
+<!-- ═══════════ FOOTER ═══════════ -->
 <footer>
 <div class="container">
 <div class="footer-grid">
 <div class="footer-brand">
 <div class="logo">likida<span>.ai</span></div>
-<p>Plataforma agente contable IA para despachos en México. Automatiza CFDI, fiscal y contabilidad.</p>
+<p>Plataforma agente contable IA para despachos en México. Automatiza CFDI, cumplimiento fiscal y conciliación bancaria con inteligencia artificial.</p>
 </div>
 <div class="footer-col">
 <h4>Producto</h4>
 <a href="#features">Características</a>
 <a href="#pricing">Precios</a>
-<a href="/api/v1/docs">Documentación API</a>
-<a href="#">Integraciones</a>
+<a href="#how">Cómo funciona</a>
+<a href="#security">Seguridad</a>
+<a href="/api/v1/docs">API</a>
 </div>
 <div class="footer-col">
 <h4>Empresa</h4>
 <a href="#">Sobre nosotros</a>
 <a href="#">Blog</a>
 <a href="#">Carreras</a>
-<a href="#">Contacto</a>
+<a href="#contacto">Contacto</a>
 </div>
 <div class="footer-col">
 <h4>Legal</h4>
 <a href="#">Privacidad</a>
 <a href="#">Términos</a>
 <a href="#">SLA</a>
+<a href="#">Aviso fiscal</a>
 </div>
 </div>
 <div class="footer-bottom">
 <span>© 2026 Likida AI. Todos los derechos reservados.</span>
-<span>Hecho con ❤️ en México</span>
+<span>Hecho con ❤️ en México 🇲🇽</span>
 </div>
 </div>
 </footer>

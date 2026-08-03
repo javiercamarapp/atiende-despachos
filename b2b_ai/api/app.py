@@ -1207,6 +1207,10 @@ def create_app(db=None):
         app.mount("/assets", StaticFiles(directory=LANDING_DIR / "assets"),
                   name="landing-assets")
 
+        # /images — imágenes generadas (hero-bg, dashboard, etc.)
+        app.mount("/images", StaticFiles(directory=LANDING_DIR / "images"),
+                  name="landing-images")
+
     # ------------------------------------------------------------------ #
     # Demo mode — cuando DEMO_MODE=true, montar rutas mock para prospects
     # ------------------------------------------------------------------ #
