@@ -524,7 +524,14 @@ class TestCalculatePayroll:
 
 class TestGeneratePayrollCFDI:
     def test_basic(self):
-        emp = {"rfc": "ABC010101ABC", "curp": "AABB010101HDFRRL01", "nombre": "Test Employee"}
+        # salario_diario es obligatorio: calculate_payroll lo usa para
+        # derivar el SBC (calc_imss exige SBC > 0, ver payroll.py FIS-3) y
+        # sin él siempre lanzaba ValueError. Toda otra prueba de este
+        # archivo/módulo que arma un `empleado` para calculate_payroll o
+        # generate_payroll_cfdi lo incluye (ver test_cfdi_total_arithmetic
+        # más abajo); a esta le faltaba por descuido.
+        emp = {"rfc": "ABC010101ABC", "curp": "AABB010101HDFRRL01",
+               "nombre": "Test Employee", "salario_diario": 500}
         emisor = {"rfc": "EMI010101ABC", "nombre": "Empresa S.A.", "regimen_fiscal": "601"}
         periodo = {"fecha_pago": "2026-01-15", "fecha_inicial": "2026-01-01", "fecha_final": "2026-01-15", "dias_pagados": "15", "sueldo_bruto": 15000}
         xml = generate_payroll_cfdi(emp, emisor, periodo)

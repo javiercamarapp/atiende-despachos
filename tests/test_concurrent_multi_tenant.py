@@ -12,9 +12,18 @@ import pytest
 
 @pytest.fixture
 def multi_tenant_db(tmp_path):
-    """Create a fresh database for concurrency tests."""
+    """Create a fresh database for concurrency tests.
+
+    Pre-crea 5 tenants: `invoices.tenant_id` es FK NOT NULL a `tenants(id)`
+    (foreign_keys=ON en cada conexión, ver Database.conn), así que insertar
+    facturas con tenant_id=1..5 sin filas reales en `tenants` violaba la FK.
+    En una BD SQLite recién creada el autoincrement arranca en 1, así que
+    estos 5 inserts (los primeros en `tenants`) producen ids 1..5 en orden.
+    """
     from b2b_ai.db.db import Database
     db = Database(str(tmp_path / "concurrent_test.db"))
+    for i in range(1, 6):
+        db.create_tenant(f"Tenant {i}", rfc=f"RFC{i:03d}")
     yield db
     try:
         db.close()
@@ -34,12 +43,17 @@ class TestConcurrentTenantIsolation:
         def insert_for_tenant(tenant_id, num_items):
             try:
                 for i in range(num_items):
-                    db.execute(
-                        "INSERT INTO invoices (tenant_id, rfc_emisor, subtotal, total, folio_fiscal) "
-                        "VALUES (?, ?, ?, ?, ?)",
-                        (tenant_id, f"RFC{tenant_id:03d}", 100.0 * (i + 1), 116.0 * (i + 1),
-                         f"UUID-{tenant_id}-{i}"),
+                    # `Database` no expone `.execute()`: las escrituras van
+                    # por `db.conn` (conexión SQLite por hilo, ver
+                    # b2b_ai/db/db.py). Columnas reales de `invoices`:
+                    # `emisor_rfc` (no `rfc_emisor`) y `archivo` NOT NULL.
+                    db.conn.execute(
+                        "INSERT INTO invoices (tenant_id, emisor_rfc, archivo, "
+                        "subtotal, total, folio_fiscal) VALUES (?, ?, ?, ?, ?, ?)",
+                        (tenant_id, f"RFC{tenant_id:03d}", f"factura-{tenant_id}-{i}.xml",
+                         100.0 * (i + 1), 116.0 * (i + 1), f"UUID-{tenant_id}-{i}"),
                     )
+                    db.conn.commit()
                 results[tenant_id] = True
             except Exception as e:
                 errors.append((tenant_id, str(e)))
@@ -95,11 +109,16 @@ class TestConcurrentTenantIsolation:
 
         def write_record(i):
             try:
-                db.execute(
-                    "INSERT INTO invoices (tenant_id, rfc_emisor, subtotal, total, folio_fiscal) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (1, f"RFC{i:04d}", float(i), float(i) * 1.16, f"UUID-LOAD-{i}"),
+                # Ver nota en test_concurrent_inserts_different_tenants:
+                # db.conn (no db.execute), columna emisor_rfc, y archivo
+                # NOT NULL.
+                db.conn.execute(
+                    "INSERT INTO invoices (tenant_id, emisor_rfc, archivo, "
+                    "subtotal, total, folio_fiscal) VALUES (?, ?, ?, ?, ?, ?)",
+                    (1, f"RFC{i:04d}", f"factura-load-{i}.xml",
+                     float(i), float(i) * 1.16, f"UUID-LOAD-{i}"),
                 )
+                db.conn.commit()
             except Exception as e:
                 if "locked" in str(e).lower():
                     lock_errors.append(i)

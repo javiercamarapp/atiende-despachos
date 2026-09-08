@@ -153,7 +153,13 @@ def test_cfdi_caracteres_invalidos_422(ctx, tmp_path):
         r = c.post("/api/v1/invoices/process", headers=_h(),
                    files={"xml_file": ("badchar.xml", fh, "text/xml")})
     assert r.status_code == 422, r.text
-    assert "CFDI inválido" in r.json().get("detail", "")
+    # El envelope de error estructurado (b2b_ai/api/errors.py
+    # validation_error_handler) reemplazó el {"detail": "..."} plano de
+    # FastAPI: el mensaje de CFDIError ahora viaja en
+    # error.details[0].message, no en la clave "detail" de nivel superior.
+    body = r.json()
+    details = body["error"]["details"]
+    assert any("CFDI inválido" in d.get("message", "") for d in details), body
 
 
 # --------------------------------------------------------------------------- #
