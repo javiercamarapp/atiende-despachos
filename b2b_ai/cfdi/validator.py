@@ -503,10 +503,18 @@ def check_cfdi_compliance(parsed: dict[str, Any]) -> tuple[list[SATError], list[
         )
 
     # 3. RFC emisor
+    #
+    # Bug real: antes se enrutaba por `e.code == "rfc_ausente"`, así que
+    # "rfc_emisor_invalido" (severity="error" en validate_rfc_format, un RFC
+    # que no matchea NINGÚN formato válido — CFF art. 29-A) terminaba en
+    # `warnings` en vez de `errors`. Como _status_from_checks() solo mira
+    # `errors`, ese defecto crítico nunca degradaba el status desde VALIDO
+    # y "CON_OBSERVACIONES" quedaba inalcanzable para este caso. Se enruta
+    # por `e.severity`, que es el campo pensado para esa distinción.
     emisor_rfc = parsed.get("emisor", {}).get("rfc", "")
     rfc_errors = validate_rfc_format(emisor_rfc)
     for e in rfc_errors:
-        if e.code == "rfc_ausente":
+        if e.severity == "error":
             errors.append(e)
         else:
             warnings.append(e)

@@ -13,7 +13,8 @@ SAMPLE_CFDI = """<?xml version="1.0" encoding="UTF-8"?>
     Fecha="2026-07-03T10:00:00"
     FormaPago="03" MetodoPago="PUE" Moneda="MXN"
     TipoDeComprobante="I" Exportacion="01"
-    LugarExpedicion="06600" SubTotal="1000.00" Descuento="0.00" Total="1160.00">
+    LugarExpedicion="06600" SubTotal="1000.00" Descuento="0.00" Total="1160.00"
+    Sello="VALIDSELLOTEST1234567890ABCDEF" NoCertificado="00001000000000000000">
     <cfdi:Emisor Rfc="PAP850101JKL" Nombre="PAPELERIA TEST" RegimenFiscal="601"/>
     <cfdi:Receptor Rfc="XAXX010101000" Nombre="RECEPTOR TEST"
         DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="G03"/>
@@ -70,6 +71,7 @@ INVALID_NO_SELLO = """<?xml version="1.0" encoding="UTF-8"?>
 # CFDI válido pero con RFC inválido → CON OBSERVACIONES
 OBS_CFDI_RFC_BAD = """<?xml version="1.0" encoding="UTF-8"?>
 <cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+    xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
     Version="4.0" Serie="Y" Folio="200"
     Fecha="2026-07-03T10:00:00"
     FormaPago="03" MetodoPago="PUE" Moneda="MXN"
@@ -155,7 +157,11 @@ class TestValidateEndpoint:
         assert data["folio_fiscal"] == "550e8400-e29b-41d4-a716-446655440000"
         assert data["validacion"]["ok"] is True
         assert data["validacion"]["checks_fail"] == 0
-        assert data["validacion"]["diot_reportable"] is True
+        # Receptor XAXX010101000 = RFC genérico de "público en general": el
+        # mismo criterio (receptor_rfc not in {XAXX.., XEXX..}) se usa en
+        # b2b_ai/features/batch/service.py, así que una venta a público en
+        # general consistentemente NO es reportable en DIOT.
+        assert data["validacion"]["diot_reportable"] is False
 
     def test_valid_cfdi_json_body(self, client):
         """CFDI vía JSON body { xml_content } → VALIDO."""
