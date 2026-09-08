@@ -164,7 +164,7 @@ def _run_onboarding_to_checkout(c, h, company="Grupo Contable MX S.A. de C.V.",
     step("data_source", {"source": "cfdi_upload"})
     step("test_cfdi", {"record": {"rfc": rfc, "total": "12500.00",
                                   "uuid": str(uuid.uuid4()).upper()}})
-    step("checkout", {"plan": "pro"})
+    step("checkout", {"plan": "professional"})
     return sid
 
 
@@ -189,7 +189,7 @@ def test_billing_checkout(pilot_client, piloto_headers):
 
     # checkout directo de billing-piloto (Conekta en modo mock, sin red)
     r = c.post("/api/v1/billing-piloto/checkout", headers=h, json={
-        "plan": "pro",
+        "plan": "professional",
         "success_url": "http://localhost/ok",
         "cancel_url": "http://localhost/cancel",
     })
@@ -204,7 +204,7 @@ def test_billing_checkout(pilot_client, piloto_headers):
     sid = _run_onboarding_to_checkout(c, h, company="Grupo Billing",
                                       rfc="GBI920101AB1")
     cb = c.post(f"/api/v1/onboarding-wizard/{sid}/checkout/callback",
-                json={"status": "paid", "plan": "pro"}, headers=h)
+                json={"status": "paid", "plan": "professional"}, headers=h)
     assert cb.status_code == 200, cb.text
     assert cb.json()["ok"] is True
 
@@ -214,7 +214,7 @@ def test_billing_checkout(pilot_client, piloto_headers):
     sub = rs.json()["subscription"]
     assert sub is not None
     assert sub["status"] == "active"
-    assert sub["plan_code"] == "pro"
+    assert sub["plan_code"] == "professional"
 
 
 # --------------------------------------------------------------------------- #

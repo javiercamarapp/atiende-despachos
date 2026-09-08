@@ -41,9 +41,20 @@ T2 = "tenant-b"
 
 
 def _make_auth(tenant_id: str):
-    """Auth stub que devuelve el tenant_id del contexto (como require_api_key)."""
-    def require_api_key(*args, **kwargs):
-        return {"tenant_id": tenant_id, "user_id": "u1", "key": "k"}
+    """Auth stub que devuelve el tenant_id del contexto (como require_api_key).
+
+    user_id se deja vacío a propósito: estos tests ejercitan el API de
+    compliance_tracker (CRUD + anti-IDOR), no el RBAC fino de roles/permisos.
+    Con user_id vacío, `require_permission` toma la ruta "standalone grant"
+    (ver b2b_ai/features/roles/middleware.py, caso P1-1) en vez de exigir un
+    rol asignado — es el mismo patrón que usa `_router_client` (user_id=""
+    por defecto) en tests/test_pilot_tracker.py para sus tests de CRUD, que
+    sólo asigna roles reales en su clase TestRBACPilotPermissions dedicada.
+    Si se quiere cubrir RBAC granular de compliance_tracker, debe añadirse
+    una clase de tests separada que sí asigne roles vía RolesService.
+    """
+    def require_api_key():
+        return {"tenant_id": tenant_id, "key": "k"}
     return require_api_key
 
 
