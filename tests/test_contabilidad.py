@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pytest
 from datetime import date
+from pydantic import ValidationError
 
 from b2b_ai.features.contabilidad.models import (
     AsientoContable,
@@ -502,22 +503,31 @@ class TestRegistrarAsiento:
         assert len(service._asientos) == 0
 
     def test_registrar_asiento_una_sola_linea(self, service, empresa_a, periodo):
-        """Asiento con una sola línea lanza error."""
-        asiento = AsientoContable(
-            empresa_id=empresa_a,
-            partida_id="PART-999",
-            fecha=date(2026, 1, 1),
-            periodo=periodo,
-            tipo=TipoAsiento.DIARIO,
-            descripcion="Incomplete",
-            lineas=[
-                LineaAsiento(cuenta_contable="1100", debito=1000, credito=0),
-            ],
-        )
-        with pytest.raises(ContabilidadError) as exc_info:
-            service.registrar_asiento(asiento)
+        """Asiento con una sola línea lanza error.
 
-        assert exc_info.value.code == "asiento_incompleto"
+        `AsientoContable.lineas` declara `Field(min_length=2)`
+        (b2b_ai/features/contabilidad/models.py): la regla de negocio "un
+        asiento tiene al menos 2 líneas" se endureció al nivel del modelo
+        pydantic, así que ahora falla al CONSTRUIR el objeto (ValidationError)
+        en vez de al registrarlo (el chequeo `len(lineas) < 2` que hacía
+        ContabilidadError("asiento_incompleto") en `registrar_asiento`
+        queda como defensa adicional — ya no es alcanzable vía el
+        constructor público).
+        """
+        with pytest.raises(ValidationError) as exc_info:
+            AsientoContable(
+                empresa_id=empresa_a,
+                partida_id="PART-999",
+                fecha=date(2026, 1, 1),
+                periodo=periodo,
+                tipo=TipoAsiento.DIARIO,
+                descripcion="Incomplete",
+                lineas=[
+                    LineaAsiento(cuenta_contable="1100", debito=1000, credito=0),
+                ],
+            )
+
+        assert "lineas" in str(exc_info.value)
 
     def test_registrar_asiento_cero_cero(self, service, empresa_a, periodo):
         """Asiento con débito y crédito en cero lanza error."""

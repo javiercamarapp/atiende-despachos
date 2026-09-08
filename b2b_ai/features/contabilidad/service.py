@@ -98,6 +98,9 @@ class ContabilidadService:
         cuenta_grupo: Dict[str, GrupoCuenta] = {
             c.codigo: c.grupo for c in catalogo
         }
+        cuenta_naturaleza: Dict[str, NaturalezaCuenta] = {
+            c.codigo: c.naturaleza for c in catalogo
+        }
 
         activos_corriente = 0.0
         activos_no_corriente = 0.0
@@ -105,9 +108,19 @@ class ContabilidadService:
         pasivos_no_corriente = 0.0
 
         for entry in entries:
-            saldo = entry.debito - entry.credito
             tipo = cuenta_tipo.get(entry.cuenta_contable)
             grupo = cuenta_grupo.get(entry.cuenta_contable)
+            naturaleza = cuenta_naturaleza.get(entry.cuenta_contable)
+            # El saldo de una cuenta acreedora (pasivo/capital: crece con el
+            # crédito) es credito - debito; el de una deudora (activo: crece
+            # con el débito) es debito - credito. Antes se usaba SIEMPRE
+            # `debito - credito`, lo que invertía el signo de todo pasivo
+            # (crédito neto de proveedores/créditos bancarios llegaba
+            # negativo) y rompía `pasivos`/`capital` del balance general.
+            if naturaleza == NaturalezaCuenta.ACREEDORA:
+                saldo = entry.credito - entry.debito
+            else:
+                saldo = entry.debito - entry.credito
 
             if tipo == TipoCuenta.ACTIVO:
                 if grupo == GrupoCuenta.ACTIVO_CORRIENTE:
