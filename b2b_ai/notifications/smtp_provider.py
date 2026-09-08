@@ -206,10 +206,17 @@ class AsyncSMTPProvider:
                 attachments, template=template, html=bool(html),
             )
 
-        if aiosmtplib is None:  # pragma: no cover
+        if aiosmtplib is None:
+            # Modo seguro documentado: sin el paquete opcional aiosmtplib
+            # instalado, no hay forma de enviar por SMTP real, así que se
+            # simula igual que "sin credenciales" (ver docstring de la
+            # clase y de este método) en vez de reportar "error" — evita
+            # que un despliegue sin esta dependencia opcional rompa el
+            # flujo de notificaciones.
             return self._record(
-                to, subject, "error",
-                "aiosmtplib no está instalado. Ejecuta: pip install aiosmtplib",
+                to, subject, "simulado",
+                "aiosmtplib no está instalado; email simulado. "
+                "Ejecuta: pip install aiosmtplib para envío real.",
                 attachments, template=template, html=bool(html),
             )
 
