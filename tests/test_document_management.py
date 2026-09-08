@@ -160,8 +160,12 @@ def test_share_and_list(service):
 
 def test_add_tag_and_archive(service):
     doc = service.upload_document("T1", "doc.pdf", b"data")
-    service.add_tag("T1", doc.id, "nuevo")
-    assert "nuevo" in doc.tags
+    # add_tag() opera sobre una instancia fresca obtenida vía get_document()
+    # (no muta el objeto `doc` que ya teníamos en memoria) y devuelve esa
+    # instancia actualizada — hay que usar el valor de retorno, no el `doc`
+    # original que sigue reflejando el estado previo a la llamada.
+    tagged = service.add_tag("T1", doc.id, "nuevo")
+    assert "nuevo" in tagged.tags
     archived = service.archive_document("T1", doc.id)
     assert archived.status.value == "ARCHIVADO"
     assert service.search_documents("T1") == []

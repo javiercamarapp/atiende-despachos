@@ -216,8 +216,17 @@ def test_health_endpoint_reporta_modulos_ok(seed_db):
 # 6. POST /api/v1/pipeline/run
 # ---------------------------------------------------------------------------
 def _auth_factory(tenant: str):
+    """Auth stub como `require_api_key`. user_id se deja vacío a propósito:
+    estos tests ejercitan el flujo demo end-to-end (pipeline/reportes), no
+    el RBAC fino de roles/permisos. Con user_id vacío, `require_permission`
+    toma la ruta "standalone grant" (b2b_ai/features/roles/middleware.py,
+    caso P1-1) en vez de exigir un rol asignado para un usuario que no
+    existe en ninguna BD real (estos routers se montan con db=None) — mismo
+    patrón que tests/test_compliance_tracker.py::_make_auth y
+    tests/test_pilot_tracker.py::_router_client.
+    """
     async def _dep():
-        return {"key": "k", "tenant_id": tenant, "user_id": "u1"}
+        return {"key": "k", "tenant_id": tenant}
     return _dep
 
 
