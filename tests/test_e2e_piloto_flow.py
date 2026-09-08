@@ -367,11 +367,12 @@ class TestErrorRecovery:
         import os
         valid_path = os.path.join(FIXTURES, "01_gasto_operativo_papeleria.xml")
         valid_xml = open(valid_path).read() if os.path.exists(valid_path) else "<cfdi/>"
-        job = svc.create_job([
+        tenant_id = "test-tenant"
+        job = svc.create_job(tenant_id, [
             ("ok.xml", valid_xml),
             ("basura.xml", "esto no es un CFDI válido"),
         ])
-        svc.process_job(job.id)
+        svc.process_job(tenant_id, job.id)
         assert job.status.value == "completed"
         assert job.success_count >= 1 or job.failed_count >= 1
         # El job terminó; al menos uno procesado.
