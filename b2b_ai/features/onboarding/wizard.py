@@ -158,13 +158,14 @@ def _validate_checkout(payload: Dict[str, Any]) -> List[str]:
     """Valida el paso de checkout: requiere un plan de suscripción válido."""
     errors: List[str] = []
     plan = (payload.get("plan") or "").strip().lower()
-    if not plan:
-        errors.append("plan es obligatorio (starter, pro, business, enterprise)")
-        return errors
     # Validación contra el catálogo de planes (import lazy para evitar ciclos).
-    from b2b_ai.features.billing.plans import get_plan_or_none
+    from b2b_ai.features.billing.plans import PLANS_BY_CODE, get_plan_or_none
+    valid_plans = ", ".join(sorted(PLANS_BY_CODE))
+    if not plan:
+        errors.append(f"plan es obligatorio ({valid_plans})")
+        return errors
     if get_plan_or_none(plan) is None:
-        errors.append(f"plan inválido '{plan}'. Válidos: starter, pro, business, enterprise")
+        errors.append(f"plan inválido '{plan}'. Válidos: {valid_plans}")
     return errors
 
 
@@ -371,10 +372,11 @@ class OnboardingWizard:
         tenant = self._require_tenant(session)
         plan = (plan or "").strip().lower()
 
-        from b2b_ai.features.billing.plans import get_plan_or_none
+        from b2b_ai.features.billing.plans import PLANS_BY_CODE, get_plan_or_none
         if get_plan_or_none(plan) is None:
+            valid_plans = ", ".join(sorted(PLANS_BY_CODE))
             raise OnboardingWizardError(
-                f"Plan inválido '{plan}'. Válidos: starter, pro, business, enterprise"
+                f"Plan inválido '{plan}'. Válidos: {valid_plans}"
             )
 
         from b2b_ai.features.billing.conekta_client import ConektaClient

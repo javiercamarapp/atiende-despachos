@@ -112,7 +112,7 @@ class TestFullOnboardingFlow:
                        "codigo_postal": "06600"},
             "data_source": {"source": "cfdi_upload"},
             "test_cfdi": {"record": {"rfc": "DCF920101AB1", "total": "1000.00"}},
-            "checkout": {"plan": "pro"},
+            "checkout": {"plan": "professional"},
         }
         for step, payload in steps.items():
             r = pilot_client.post(
@@ -241,7 +241,7 @@ class TestBillingCheckoutFlow:
     def test_checkout_creates_conekta_url(self, pilot_client, mock_conekta_responses):
         r = pilot_client.post(
             "/api/v1/billing-piloto/checkout",
-            json={"plan": "pro",
+            json={"plan": "professional",
                   "success_url": "https://app.likida.ai/ok",
                   "cancel_url": "https://app.likida.ai/cancel"},
         )
@@ -249,8 +249,8 @@ class TestBillingCheckoutFlow:
         body = r.json()
         assert body["ok"] is True
         assert body["checkout_url"].startswith("https://checkout.conekta.com/")
-        assert body["plan_code"] == "pro"
-        assert body["amount_mxn"] == 20000
+        assert body["plan_code"] == "professional"
+        assert body["amount_mxn"] == 14999
         assert body["currency"] == "MXN"
 
     def test_checkout_invalid_plan_rejected(self, pilot_client):
@@ -408,7 +408,7 @@ class TestFullPilotoLifecycle:
             "data_source": {"source": "cfdi_upload"},
             "test_cfdi": {"record": {"rfc": "DCF920101AB1",
                                      "total": mock_cfdi_data[0]["total"]}},
-            "checkout": {"plan": "pro"},
+            "checkout": {"plan": "professional"},
         }.items():
             r = pilot_client.post(
                 f"/api/v1/onboarding-wizard/{sid}/step/{step}",
@@ -419,7 +419,7 @@ class TestFullPilotoLifecycle:
         # Pago.
         r = pilot_client.post(
             f"/api/v1/onboarding-wizard/{sid}/checkout/callback",
-            json={"status": "paid", "plan": "pro", "payment_method_id": "pm_life"},
+            json={"status": "paid", "plan": "professional", "payment_method_id": "pm_life"},
         )
         assert r.status_code == 200
         assert r.json()["subscription"]["status"] == "active"
