@@ -58,7 +58,7 @@ class TestEndpointsExist:
     def test_billing_piloto_checkout_contract(self, pilot_client):
         r = pilot_client.post(
             "/api/v1/billing-piloto/checkout",
-            json={"plan": "pro",
+            json={"plan": "professional",
                   "success_url": "https://app.likida.ai/ok",
                   "cancel_url": "https://app.likida.ai/cancel"},
         )

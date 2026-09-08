@@ -246,7 +246,7 @@ class TestP3CheckoutRequired:
         """Con checkout completado, complete() cierra el onboarding."""
         session = wizard.start(tenant_id="tenant_A")
         _run_to_checkout(wizard, session.session_id)
-        wizard.advance_step(session.session_id, "checkout", {"plan": "pro"})
+        wizard.advance_step(session.session_id, "checkout", {"plan": "professional"})
         assert session.progress == 5
         result = wizard.complete(session.session_id)
         assert result["ok"] is True
@@ -281,7 +281,7 @@ class TestP3CheckoutRequired:
         sid = _start_session(client)
         _run_to_checkout(wizard, sid)
         r = client.post(f"/api/v1/onboarding-wizard/{sid}/step/checkout",
-                        json={"payload": {"plan": "pro"}})
+                        json={"payload": {"plan": "professional"}})
         assert r.status_code == 200, r.text
         r = client.post(f"/api/v1/onboarding-wizard/{sid}/complete")
         assert r.status_code == 200, r.text

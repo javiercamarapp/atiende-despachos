@@ -407,7 +407,7 @@ def test_billing_integracion_billing_write():
     app_deny.include_router(pilot_billing(
         db=None, require_api_key=_auth(READONLY), require_permission=rp_deny))
     r = TestClient(app_deny).post("/api/v1/billing-piloto/checkout", json={
-        "plan": "pro", "success_url": "https://ok", "cancel_url": "https://no"})
+        "plan": "professional", "success_url": "https://ok", "cancel_url": "https://no"})
     assert r.status_code == 403
 
     # Admin: tiene billing:write -> checkout OK (200).
@@ -419,7 +419,7 @@ def test_billing_integracion_billing_write():
     app_grant.include_router(pilot_billing(
         db=None, require_api_key=_auth(ADMIN), require_permission=rp_grant))
     r = TestClient(app_grant).post("/api/v1/billing-piloto/checkout", json={
-        "plan": "pro", "success_url": "https://ok", "cancel_url": "https://no"})
+        "plan": "professional", "success_url": "https://ok", "cancel_url": "https://no"})
     assert r.status_code == 200, r.text
 
     # Retro-compatible: sin require_permission, checkout sin RBAC (200).
@@ -427,7 +427,7 @@ def test_billing_integracion_billing_write():
     app_plain.include_router(pilot_billing(
         db=None, require_api_key=_auth(ADMIN)))
     r = TestClient(app_plain).post("/api/v1/billing-piloto/checkout", json={
-        "plan": "pro", "success_url": "https://ok", "cancel_url": "https://no"})
+        "plan": "professional", "success_url": "https://ok", "cancel_url": "https://no"})
     assert r.status_code == 200, r.text
 
 

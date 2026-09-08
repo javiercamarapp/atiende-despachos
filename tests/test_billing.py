@@ -61,15 +61,15 @@ def test_planes_precios():
     plans = {p["key"]: p for p in list_plans()}
     assert plans["starter"]["price_mxn"] == 4999.0
     assert plans["starter"]["cfdi_limit"] == 500
-    assert plans["growth"]["price_mxn"] == 9999.0
-    assert plans["growth"]["cfdi_limit"] == 2000
+    assert plans["professional"]["price_mxn"] == 14999.0
+    assert plans["professional"]["cfdi_limit"] == 2000
     assert plans["enterprise"]["cfdi_limit"] is None
 
 
 def test_limites_cfdi():
     assert exceeds_cfdi_limit("starter", 501) is True
     assert exceeds_cfdi_limit("starter", 500) is False
-    assert exceeds_cfdi_limit("growth", 2000) is False
+    assert exceeds_cfdi_limit("professional", 2000) is False
     assert exceeds_cfdi_limit("enterprise", 999999) is False
     assert exceeds_cfdi_limit("no_existe", 10) is False
 
@@ -188,15 +188,15 @@ def test_checkout_crea_factura(client):
     c, db = client
     r = c.post("/api/v1/billing/checkout", headers=_auth(), json={
         "email": "cliente@despacho.mx", "name": "Cliente Demo",
-        "plan": "growth"})
+        "plan": "professional"})
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] is True
     assert body["payment"]["status"] == "succeeded"
-    assert body["plan"]["price_mxn"] == 9999.0
+    assert body["plan"]["price_mxn"] == 14999.0
     invs = db.list_billing_invoices(tenant_id=1)
     assert len(invs) == 1
-    assert invs[0]["amount"] == 9999.0
+    assert invs[0]["amount"] == 14999.0
     assert invs[0]["email"] == "cliente@despacho.mx"
 
 
@@ -268,7 +268,7 @@ def test_invoices_aislamiento_entre_tenants(client):
     """Tenant 2 no ve las facturas del tenant 1."""
     c, db = client
     c.post("/api/v1/billing/checkout", headers=_auth(), json={
-        "email": "t1@despacho.mx", "name": "T1", "plan": "growth"})
+        "email": "t1@despacho.mx", "name": "T1", "plan": "professional"})
     r1 = c.get("/api/v1/billing/invoices", headers=_auth())
     assert r1.json()["count"] == 1
     r2 = c.get("/api/v1/billing/invoices", headers=_auth2())
@@ -281,7 +281,7 @@ def test_invoices_aislamiento_entre_tenants(client):
 def test_webhook_marca_factura_pagada(client):
     c, db = client
     c.post("/api/v1/billing/checkout", headers=_auth(), json={
-        "email": "wh@despacho.mx", "name": "WH", "plan": "growth"})
+        "email": "wh@despacho.mx", "name": "WH", "plan": "professional"})
     inv = db.list_billing_invoices(tenant_id=1)[0]
     ref = inv["provider_invoice_id"]
     assert inv["status"] == "succeeded"
@@ -312,4 +312,4 @@ def test_plans_endpoint(client):
     r = c.get("/api/v1/billing/plans", headers=_auth())
     assert r.status_code == 200
     keys = {p["key"] for p in r.json()["plans"]}
-    assert {"starter", "growth", "enterprise"} <= keys
+    assert {"starter", "professional", "enterprise"} <= keys

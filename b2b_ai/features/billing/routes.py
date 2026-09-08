@@ -43,7 +43,7 @@ ROUTER_PREFIX = "/api/v1/billing-piloto"
 
 class CheckoutRequest(BaseModel):
     """Solicitud de sesión de checkout de Conekta."""
-    plan: str = Field(..., description="Código del plan (starter, pro, business, enterprise)")
+    plan: str = Field(..., description="Código del plan (starter, professional, enterprise)")
     success_url: str = Field(..., description="URL a la que regresa tras pagar")
     cancel_url: str = Field(..., description="URL a la que regresa si cancela")
 

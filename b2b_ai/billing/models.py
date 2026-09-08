@@ -97,7 +97,7 @@ class Subscription(BaseModel):
     """Suscripción de un cliente a un plan."""
     id: Optional[int] = None
     customer_id: int
-    plan: str                            # 'starter' | 'growth' | 'enterprise'
+    plan: str                            # 'starter' | 'professional' | 'enterprise'
     provider: Provider = Provider.STRIPE
     provider_subscription_id: Optional[str] = None
     status: SubscriptionStatus = SubscriptionStatus.ACTIVE
@@ -151,7 +151,7 @@ class CheckoutRequest(BaseModel):
     """Cuerpo del POST /api/v1/billing/checkout."""
     email: EmailField
     name: str
-    plan: str = "growth"
+    plan: str = "starter"
     payment_method_type: PaymentMethodType = PaymentMethodType.CARD
     payment_method_id: Optional[str] = None
     provider: Provider = Provider.STRIPE

@@ -37,6 +37,13 @@ from seed import demo_data
 # Fixtures
 # ---------------------------------------------------------------------------
 
+# Tenant que devuelve el auth stub del fixture `client`. Cualquier sesión que
+# se vaya a tocar a través de `client` debe pertenecer a este tenant: el
+# wizard aísla sesiones por tenant (ver test_onboarding_fixes.py P1/P2), así
+# que una sesión creada con otro tenant_id (o sin tenant) recibiría 404.
+AUTH_TENANT_ID = "tenant_test_123"
+
+
 @pytest.fixture(autouse=True)
 def _reset():
     reset_onboarding()
@@ -52,7 +59,7 @@ def client():
     app = FastAPI()
 
     def fake_require_api_key():
-        return {"tenant_id": "tenant_test_123", "api_key": "key"}
+        return {"tenant_id": AUTH_TENANT_ID, "api_key": "key"}
 
     app.include_router(
         build_onboarding_wizard_router(db=None, require_api_key=fake_require_api_key)
@@ -65,9 +72,14 @@ def wizard():
     return OnboardingWizard()
 
 
-def _run_to_test_cfdi(wizard):
-    """Avanza los 4 pasos de datos (tenant..test_cfdi)."""
-    session = wizard.start()
+def _run_to_test_cfdi(wizard, tenant_id=None):
+    """Avanza los 4 pasos de datos (tenant..test_cfdi).
+
+    `tenant_id` debe pasarse (= AUTH_TENANT_ID) cuando la sesión resultante
+    se vaya a usar a través del fixture `client`, para que el aislamiento por
+    tenant del wizard no la trate como ajena.
+    """
+    session = wizard.start(tenant_id=tenant_id)
     wizard.advance_step(session.session_id, "tenant", {
         "company_name": "Despacho Fides, S.C.",
         "admin_name": "Mariana Fernández",
@@ -98,11 +110,11 @@ class TestWizardCheckoutStep:
         session = _run_to_test_cfdi(wizard)
         # El siguiente paso tras test_cfdi es checkout.
         assert session.current_step == "checkout"
-        session = wizard.advance_step(session.session_id, "checkout", {"plan": "pro"})
+        session = wizard.advance_step(session.session_id, "checkout", {"plan": "professional"})
         assert "checkout" in session.completed_steps
         ref = session.data["checkout"]
         assert ref["checkout_url"].startswith("https://checkout.conekta.com/")
-        assert ref["plan"] == "pro"
+        assert ref["plan"] == "professional"
         assert ref["status"] == "pending"
         assert ref["order_id"] and ref["customer_id"]
 
@@ -118,7 +130,7 @@ class TestWizardCheckoutStep:
 
     def test_health_check_reports_checkout(self, wizard):
         session = _run_to_test_cfdi(wizard)
-        wizard.advance_step(session.session_id, "checkout", {"plan": "pro"})
+        wizard.advance_step(session.session_id, "checkout", {"plan": "professional"})
         report = wizard.health_check(session.session_id)
         checkout_check = next(c for c in report["checks"] if c["step"] == "checkout")
         assert checkout_check["ok"] is True
@@ -146,10 +158,10 @@ class TestStartCheckout:
         with pytest.raises(OnboardingWizardError, match="Plan inválido"):
             wizard.start_checkout(session.session_id, "ultra")
 
-    def test_defaults_to_starter(self, wizard):
+    def test_returns_plan_amount(self, wizard):
         session = _run_to_test_cfdi(wizard)
-        ref = wizard.start_checkout(session.session_id, "pro")
-        assert ref["amount_mxn"] == 20000
+        ref = wizard.start_checkout(session.session_id, "professional")
+        assert ref["amount_mxn"] == 14999
         assert ref["currency"] == "MXN"
 
 
@@ -170,10 +182,10 @@ class TestBillingServicePilot:
 
     def test_activate_pilot_creates_active_subscription(self):
         svc = self._service()
-        sub = svc.activate_pilot("tenant_pilot", "business", payment_method_id="pm_123")
+        sub = svc.activate_pilot("tenant_pilot", "professional", payment_method_id="pm_123")
         assert sub.status == SubscriptionStatus.ACTIVE
-        assert sub.plan_code.value == "business"
-        assert sub.price_mxn == 40000
+        assert sub.plan_code.value == "professional"
+        assert sub.price_mxn == 14999
         assert sub.provider_customer_id
         assert sub.provider_subscription_id
         # Se registró el medio de pago.
@@ -183,7 +195,7 @@ class TestBillingServicePilot:
         # Se emitió la primera factura pagada.
         invoices = svc.get_invoice_history("tenant_pilot")
         assert len(invoices) == 1
-        assert invoices[0]["amount_mxn"] == 40000
+        assert invoices[0]["amount_mxn"] == 14999
 
     def test_activate_pilot_invalid_plan(self):
         svc = self._service()
@@ -203,21 +215,21 @@ class TestBillingServicePilot:
 
 class TestCheckoutAPI:
     def test_checkout_endpoint_returns_url(self, client, wizard):
-        session = _run_to_test_cfdi(wizard)
+        session = _run_to_test_cfdi(wizard, tenant_id=AUTH_TENANT_ID)
         r = client.post(
             f"/api/v1/onboarding-wizard/{session.session_id}/checkout",
-            json={"plan": "pro"},
+            json={"plan": "professional"},
         )
         assert r.status_code == 200
         body = r.json()
         assert body["ok"] is True
         assert body["checkout_url"].startswith("https://checkout.conekta.com/")
-        assert body["plan_code"] == "pro"
-        assert body["amount_mxn"] == 20000
+        assert body["plan_code"] == "professional"
+        assert body["amount_mxn"] == 14999
         assert body["currency"] == "MXN"
 
     def test_checkout_endpoint_invalid_plan(self, client, wizard):
-        session = _run_to_test_cfdi(wizard)
+        session = _run_to_test_cfdi(wizard, tenant_id=AUTH_TENANT_ID)
         r = client.post(
             f"/api/v1/onboarding-wizard/{session.session_id}/checkout",
             json={"plan": "nope"},
@@ -232,7 +244,7 @@ class TestCheckoutAPI:
         assert r.status_code in (400, 404)
 
     def test_callback_paid_activates_subscription(self, client, wizard):
-        session = _run_to_test_cfdi(wizard)
+        session = _run_to_test_cfdi(wizard, tenant_id=AUTH_TENANT_ID)
         # Se inicia el checkout para tener tenant + plan persistido.
         client.post(f"/api/v1/onboarding-wizard/{session.session_id}/checkout",
                     json={"plan": "starter"})
@@ -248,7 +260,7 @@ class TestCheckoutAPI:
         assert body["subscription"]["status"] == "active"
 
     def test_callback_failed_no_subscription(self, client, wizard):
-        session = _run_to_test_cfdi(wizard)
+        session = _run_to_test_cfdi(wizard, tenant_id=AUTH_TENANT_ID)
         r = client.post(
             f"/api/v1/onboarding-wizard/{session.session_id}/checkout/callback",
             json={"status": "failed", "plan": "pro"},
