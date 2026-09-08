@@ -22,7 +22,9 @@ def test_isr_cero():
 
 def test_isr_ultimo_rango():
     r = calc_isr(500000)
-    assert r["rango_aplicado"]["limite_inferior"] == "68821.63"
+    # Última tarifa vigente ISR_MENSUAL_2026 (b2b_ai/fiscal_tables.py,
+    # Anexo 8 RMF 2026): límite inferior 133596.28, no el de la tabla 2024.
+    assert r["rango_aplicado"]["limite_inferior"] == "133596.28"
 
 
 def test_imss_total_positivo():
