@@ -142,9 +142,12 @@ def test_auth_bypass_medios_alternativos(ctx):
 # patrón genérico exige un string entre comillas tras el '=' (evita los
 # falsos positivos de asignaciones a identificadores/funciones como
 # `self.password = password` o `api_key = self._issue_api_key(...)`).
+_TEST_FIXTURE_VALUE = re.compile(r"(?i)^(test|fake|dummy|sample)_")
+
 _HIGH_RISK = [
-    # literal de secret con >= 12 caracteres entre comillas
-    re.compile(r"(?i)(api[_-]?key|secret|password|passwd|token|credential)\s*[:=]\s*['\"][A-Za-z0-9_\-\.\/+=!@#$%^&*]{12,}['\"]"),
+    # literal de secret con >= 12 caracteres entre comillas (grupo 2 captura
+    # el valor para poder distinguir fixtures de prueba de secretos reales)
+    re.compile(r"(?i)(api[_-]?key|secret|password|passwd|token|credential)\s*[:=]\s*['\"]([A-Za-z0-9_\-\.\/+=!@#$%^&*]{12,})['\"]"),
     re.compile(r"(?i)sk-[A-Za-z0-9]{20,}"),        # OpenAI-style
     re.compile(r"(?i)AKIA[0-9A-Z]{16}"),            # AWS access key
     re.compile(r"(?i)-----BEGIN (RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----"),
@@ -174,9 +177,22 @@ def test_secrets_scan_repo(tmp_path):
                                        "FACKEY")):
                 continue
             for rx in _HIGH_RISK:
-                if rx.search(line):
-                    hits.append((path, i, line.strip()))
-                    break
+                m = rx.search(line)
+                if not m:
+                    continue
+                # El patrón genérico de "clave = 'valor'" captura el valor
+                # citado (grupo 2): si es claramente un fixture de prueba
+                # (test_/fake_/dummy_/sample_...), como
+                # `secret = "test_webhook_secret_123"` en un test, no es un
+                # secreto real hardcodeado — se descarta sin reportar hit.
+                # Los demás patrones (formatos concretos: sk-, AKIA, PEM,
+                # gh*_, JWT) no tienen este allowlist: no siguen la
+                # convención de nombrado de fixtures y cualquier ocurrencia
+                # real sigue siendo de alto riesgo.
+                if rx is _HIGH_RISK[0] and _TEST_FIXTURE_VALUE.match(m.group(2)):
+                    continue
+                hits.append((path, i, line.strip()))
+                break
     assert hits == [], f"Secretos potenciales encontrados:\n" + "\n".join(
         f"{p}:{ln}: {l}" for p, ln, l in hits)
 
@@ -202,5 +218,15 @@ def test_env_example_no_contiene_valores_reales(ctx):
             # formato KEY=VAL: el VAL no debe ser un secreto con 16+ caracteres
             if "=" in line:
                 k, _, v = line.partition("=")
-                if len(v) >= 16 and not any(x in v for x in ("YOUR_", "xxx", "<", "example")):
+                # Descarta el comentario inline (p.ej. "production   # dev |
+                # prod | test"): sin esto, el padding + comentario inflaba
+                # la longitud de valores inocuos como "production" por
+                # encima del umbral y producía un falso positivo.
+                v = v.split("#", 1)[0].strip()
+                # "cambia-este-..." es el placeholder en español usado en
+                # este .env.example (p.ej. POSTGRES_PASSWORD); el resto de
+                # marcadores son ingleses y no lo cubrían.
+                if len(v) >= 16 and not any(
+                    x in v for x in ("YOUR_", "xxx", "<", "example", "cambia")
+                ):
                     pytest.fail(f"Secret potencial en .env.example: {line}")
