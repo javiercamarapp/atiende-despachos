@@ -11,6 +11,7 @@ import json
 import os
 import sqlite3
 import threading
+import uuid
 from datetime import datetime
 
 from b2b_ai.db.models import MIGRATIONS
@@ -89,6 +90,31 @@ class Database:
         # sqlite3.Connection compartida entre hilos NO es segura y crashea
         # (SIGSEGV) bajo carga concurrente. Con PostgreSQL, cada thread tiene
         # su propia conexión checada del pool compartido.
+        #
+        # CUIDADO con path==":memory:": cada `sqlite3.connect(":memory:")`
+        # abre una base en memoria PRIVADA e independiente — dos conexiones
+        # (p.ej. una por hilo, como aquí) NUNCA ven los mismos datos aunque
+        # sea la misma `Database`. FastAPI ejecuta rutas `async def` en el
+        # hilo del event loop y rutas `def` síncronas en un hilo del
+        # threadpool: con ":memory:" tal cual, un upload hecho desde una
+        # ruta async "se guardaba" en una conexión/DB que una ruta sync
+        # posterior (u otro hilo) nunca podía ver → 404 "no encontrado"
+        # justo después de una subida exitosa. Se resuelve dando a cada
+        # `Database(":memory:")` una URI de caché compartida ÚNICA por
+        # instancia (mismo proceso, cualquier hilo ve los mismos datos;
+        # instancias `Database(":memory:")` distintas siguen aisladas
+        # entre sí, como antes).
+        self._sqlite_uri = False
+        if not self._is_pg and path == ":memory:":
+            self.path = f"file:memdb_{uuid.uuid4().hex}?mode=memory&cache=shared"
+            self._sqlite_uri = True
+        elif not self._is_pg and isinstance(path, str) and path.startswith("file:") \
+                and "mode=memory" in path:
+            # Ya es una URI de memoria compartida generada por otra
+            # `Database(":memory:")` (p.ej. `Database(db.path, ...)` desde
+            # otro hilo para tener su propia conexión — ver api/v2.py
+            # `_run_job`): reusar el mismo nombre para ver los mismos datos.
+            self._sqlite_uri = True
         self._local = threading.local()
         self._connections: set = set()
         self._conn_lock = threading.Lock()
@@ -118,7 +144,9 @@ class Database:
             return self._pg_conn()
         conn = getattr(self._local, "conn", None)
         if conn is None:
-            conn = sqlite3.connect(self.path, check_same_thread=False)
+            conn = sqlite3.connect(
+                self.path, check_same_thread=False, uri=self._sqlite_uri,
+            )
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA foreign_keys = ON")
             try:
@@ -334,6 +362,28 @@ class Database:
                   row["razon_clasificacion"]))
         self.conn.commit()
         return invoice_id, inserted
+
+    def update_invoice_erp(self, invoice_id, erp: dict, valido: bool = True) -> None:
+        """Actualiza erp_poliza/erp_status/status tras registrar en el ERP.
+
+        Complementa `insert_invoice(..., erp=pending_erp)` en el flujo
+        "persistir en DB primero, registrar en ERP después" (evita pólizas
+        fantasma si el registro en ERP falla): una vez que el ERP responde
+        de verdad, este método vuelca ese resultado real sobre la fila ya
+        insertada. Reutiliza la misma derivación de `status` que
+        `insert_invoice` (pending_approval / rejected / procesado) para que
+        ambos caminos sean consistentes.
+        """
+        erp = erp or {}
+        erp_status = erp.get("status", "")
+        status = ("pending_approval" if erp_status == "pending_approval"
+                  else ("rejected" if erp_status == "rejected_invalid_cfdi"
+                        else "procesado" if valido else "rejected"))
+        self.conn.execute(
+            "UPDATE invoices SET erp_poliza=?, erp_status=?, status=? WHERE id=?",
+            (erp.get("poliza") or "", erp_status, status, invoice_id),
+        )
+        self.conn.commit()
 
     def list_invoices(self, tenant_id=None, limit=None,
                       categoria=None, valido=None, fecha_desde=None,

@@ -39,8 +39,18 @@ class FakeDB:
 
     def insert_invoice(self, tenant_id, datos, clasif, validacion, erp=None):
         inv_id = len(self._invoices) + 1
-        self._invoices.append({"id": inv_id, "tenant_id": tenant_id})
+        self._invoices.append({"id": inv_id, "tenant_id": tenant_id,
+                               "erp": erp})
         return inv_id, True
+
+    def update_invoice_erp(self, invoice_id, erp, valido=True):
+        """Espeja Database.update_invoice_erp (ver b2b_ai/db/db.py):
+        process_file() llama a esto tras registrar en el ERP real, DESPUÉS
+        de insert_invoice(), para volcar el resultado real sobre la fila
+        ya insertada (AG-2: persistir en DB antes de registrar en ERP)."""
+        for inv in self._invoices:
+            if inv["id"] == invoice_id:
+                inv["erp"] = erp
 
     def list_invoices(self, tenant_id=None, limit=200):
         return [i for i in self._invoices if tenant_id is None or i.get("tenant_id") == tenant_id][:limit]
