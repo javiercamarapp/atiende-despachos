@@ -65,8 +65,16 @@ class PoolConfig:
 
 @dataclass
 class PoolMetrics:
-    """Connection pool metrics (thread-safe)."""
-    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    """Connection pool metrics (thread-safe).
+
+    Uses an RLock (not Lock) because `snapshot()` holds `_lock` while it
+    reads `avg_wait_time_ms` / `avg_query_time_ms`, and those properties
+    also acquire `_lock`. A plain Lock would self-deadlock on that second,
+    same-thread acquire (this used to hang every call to `snapshot()`,
+    100% reproducibly — see tests/test_infrastructure.py::TestDatabasePool
+    ::test_pool_metrics_tracking).
+    """
+    _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
     total_connections_created: int = 0
     total_connections_recycled: int = 0
     total_connections_errored: int = 0
