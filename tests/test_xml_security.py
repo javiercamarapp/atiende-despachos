@@ -7,24 +7,68 @@ from lxml import etree
 
 
 class TestSafeParser:
-    """Verify safe_parser() hardening options."""
+    """Verify safe_parser() hardening options.
+
+    NOTA: estas pruebas inspeccionaban `parser._parser.<flag>` (atributos
+    privados del binding de lxml). En la versión de lxml instalada (6.1.x)
+    `XMLParser` ya no expone ni siquiera ese atributo privado — no existe
+    forma pública ni privada de leer de vuelta los kwargs del constructor.
+    Se reescriben como pruebas de comportamiento observable (lo que las
+    opciones realmente deben impedir), en vez de depender de internals de
+    una librería externa que cambian entre versiones.
+    """
 
     def test_safe_parser_disables_entities(self):
+        """resolve_entities=False: una entidad general interna no se expande."""
         from b2b_ai.cfdi.xml_security import safe_parser
-        parser = safe_parser()
-        # resolve_entities=False prevents XXE
-        assert parser._parser.resolve_entities is False
+        xml = b'<?xml version="1.0"?><!DOCTYPE root [<!ENTITY foo "SECRET">]><root>&foo;</root>'
+        root = etree.fromstring(xml, parser=safe_parser())
+        # Con resolve_entities=False la entidad NO se sustituye por su valor:
+        # el texto del elemento no contiene "SECRET".
+        assert root.text != "SECRET"
+        assert "SECRET" not in (root.text or "")
 
     def test_safe_parser_no_network(self):
+        """no_network=True: nunca se intenta resolver un DTD externo por red."""
         from b2b_ai.cfdi.xml_security import safe_parser
+
+        class _TrackingResolver(etree.Resolver):
+            def __init__(self):
+                self.called_with = []
+
+            def resolve(self, url, pubid, context):
+                self.called_with.append(url)
+                return None
+
+        xml = (
+            b'<?xml version="1.0"?>'
+            b'<!DOCTYPE root SYSTEM "http://example.invalid/root.dtd">'
+            b"<root>hello</root>"
+        )
         parser = safe_parser()
-        assert parser._parser.network_access is False
+        resolver = _TrackingResolver()
+        parser.resolvers.add(resolver)
+        root = etree.fromstring(xml, parser=parser)
+        # Ni siquiera se intentó resolver la URL externa: cero acceso a red.
+        assert resolver.called_with == []
+        assert root.text == "hello"
 
     def test_safe_parser_no_dtd(self):
+        """dtd_validation=False / load_dtd=False: no valida contra el DTD."""
         from b2b_ai.cfdi.xml_security import safe_parser
-        parser = safe_parser()
-        assert parser._parser.dtd_validation is False
-        assert parser._parser.load_dtd is False
+        # DTD interno que exige <root> con exactamente un <child>; el
+        # documento lo viola. Si el parser validara, fallaría al parsear.
+        xml = (
+            b'<?xml version="1.0"?>'
+            b"<!DOCTYPE root ["
+            b"  <!ELEMENT root (child)>"
+            b"  <!ELEMENT child (#PCDATA)>"
+            b"]>"
+            b"<root></root>"
+        )
+        root = etree.fromstring(xml, parser=safe_parser())
+        assert root.tag == "root"
+        assert len(root) == 0
 
 
 class TestSafeFromString:

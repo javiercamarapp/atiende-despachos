@@ -222,15 +222,15 @@ def mock_conekta_responses():
             "checkout_url": "https://checkout.conekta.com/pay/order_test_123",
             "order_id": "order_test_123",
             "customer_id": "cus_test_456",
-            "plan": "pro",
-            "amount_mxn": 20000,
+            "plan": "professional",
+            "amount_mxn": 14999,
             "currency": "MXN",
         },
         "subscription": {
             "ok": True,
-            "plan_code": "pro",
+            "plan_code": "professional",
             "status": "active",
-            "price_mxn": 20000,
+            "price_mxn": 14999,
             "currency": "MXN",
             "provider_subscription_id": "sub_test_789",
         },
@@ -280,6 +280,52 @@ def pilot_client():
     app.include_router(build_reports_router(
         db=None, require_api_key=fake_require_api_key), prefix="/api/v1")
     return TestClient(app)
+
+
+@pytest.fixture
+def piloto_headers():
+    """Headers HTTP para las requests hechas con `pilot_client`.
+
+    El auth stub de `pilot_client` (`fake_require_api_key`) devuelve un
+    tenant_id fijo sin inspeccionar las cabeceras de la request — el mismo
+    patrón que usa tests/test_billing_onboarding_integration.py (llama al
+    TestClient sin `headers=` en absoluto). Este fixture existe solo para que
+    test_integration_piloto.py pueda pasar `headers=h` de forma uniforme en
+    todos los flujos (algunos comparten helpers con `full_client`, que sí
+    necesita X-API-Key real).
+    """
+    return {}
+
+
+@pytest.fixture
+def full_client(tmp_path):
+    """App completa (`create_app`) con 2 tenants reales + API keys.
+
+    Mismo patrón que el fixture `ctx` de tests/test_e2e_suite.py (Database
+    real en tmp_path + create_app(db) + N tenants con su API key), pero con
+    exactamente 2 tenants: test_integration_piloto.py hace
+    `t0, t1 = full_client["tenants"]` para su prueba de aislamiento
+    multi-tenant y usa `full_client["tenants"][0]` para el resto de flujos.
+
+    Shape: {"client": TestClient, "db": Database, "tenants": [t0, t1],
+            "keys": {tenant_id: api_key}}.
+    """
+    from fastapi.testclient import TestClient
+
+    from b2b_ai.api.app import create_app
+    from b2b_ai.db.db import Database
+
+    db = Database(str(tmp_path / "full_client.db"))
+    tenants = []
+    keys = {}
+    for i, name in enumerate(["Despacho Piloto A", "Despacho Piloto B"]):
+        t = db.create_tenant(name, rfc=f"XAXX01010100{i}")
+        tenants.append(t)
+        keys[t] = f"key-piloto-{i}-{secrets.token_hex(8)}"
+        db.create_api_key(t, name, keys[t])
+    app = create_app(db)
+    client = TestClient(app)
+    return {"client": client, "db": db, "tenants": tenants, "keys": keys}
 
 
 @pytest.fixture(autouse=True)

@@ -4,6 +4,8 @@ import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta
 
+from cryptography.hazmat.primitives.asymmetric import rsa
+
 
 class TestFIELSigner:
     """Test FIELSigner without real certificates (mocked)."""
@@ -27,7 +29,12 @@ class TestFIELSigner:
             rfc="TESTRFC010101",
         )
 
-        mock_key = MagicMock()
+        # sign() valida isinstance(self._private_key, (rsa.RSAPrivateKey,
+        # ec.EllipticCurvePrivateKey)) (hardening de seguridad legítimo) —
+        # un MagicMock() liso ya no pasa ese isinstance. spec=rsa.RSAPrivateKey
+        # hace que MagicMock reporte __class__ = RSAPrivateKey, así isinstance()
+        # lo acepta sin necesidad de una llave real.
+        mock_key = MagicMock(spec=rsa.RSAPrivateKey)
         mock_key.sign.return_value = b"\x00" * 256  # 256-byte RSA signature
 
         signer = FIELSigner(
