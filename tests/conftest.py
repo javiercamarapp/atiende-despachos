@@ -33,6 +33,24 @@ def fixture_path(name):
 
 
 @pytest.fixture(autouse=True)
+def _conciliacion_data_dir_aislado(tmp_path, monkeypatch):
+    """Aísla la persistencia de conciliación bancaria a un tmp_path por test.
+
+    `build_conciliacion_router()` cae a `<package>/data/conciliacion_state.json`
+    cuando no recibe `data_dir` ni hay `CONCILIACION_DATA_DIR` en el entorno
+    (ver b2b_ai/features/conciliacion/routes.py), y `create_app()` monta ese
+    router SIN pasar `data_dir` (b2b_ai/api/app.py). Docenas de archivos de
+    test golpean los endpoints de conciliación a través de `create_app()` sin
+    saberlo, así que sin este aislamiento global cada corrida de la suite
+    completa terminaba escribiendo datos de prueba (tenant_A, UUIDs falsos)
+    DENTRO del JSON versionado en git, ensuciando el repo en cada `pytest`.
+    Los tests que pasan `data_dir` explícito (p.ej. vía `tmp_path` propio) no
+    se ven afectados: el argumento explícito siempre gana sobre la env var.
+    """
+    monkeypatch.setenv("CONCILIACION_DATA_DIR", str(tmp_path / "conciliacion_state"))
+
+
+@pytest.fixture(autouse=True)
 def _reset_login_limiter():
     """Reset the portal login rate limiter between tests to avoid 429 collisions."""
     from b2b_ai.portal.routes import _login_limiter

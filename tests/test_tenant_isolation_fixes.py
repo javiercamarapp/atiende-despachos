@@ -21,6 +21,12 @@ from b2b_ai.features.batch.routes import build_batch_router
 from b2b_ai.features.bookkeeping.routes import build_bookkeeping_router
 from b2b_ai.features.conciliacion.routes import build_conciliacion_router
 
+# El aislamiento de CONCILIACION_DATA_DIR (para no escribir en el JSON
+# versionado del paquete) es global — ver el fixture autouse en
+# tests/conftest.py — porque `create_app()` monta el router de conciliación
+# sin `data_dir` (b2b_ai/api/app.py) y muchos otros archivos de test golpean
+# ese endpoint vía `create_app()`, no solo los de este archivo.
+
 
 def _auth_for(tenant_id: str):
     """Crea una dependencia de auth que devuelve un tenant fijo del token."""
