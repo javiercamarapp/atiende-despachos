@@ -641,9 +641,19 @@ class Database:
 
     def list_bank_transactions(self, tenant_id=None):
         """Movimientos persistidos del tenant, en orden de inserción."""
+        # `CAST(... AS TEXT)`, no solo `COALESCE`: envolver `tenant_id` en
+        # COALESCE le quita la afinidad INTEGER de la columna, así que sin el
+        # CAST la comparación deja de aplicar conversión de tipos y compara
+        # storage classes crudas. En modo standalone `tenant_id` llega como
+        # str (viene de `os.environ` vía B2B_DEFAULT_TENANT_ID) mientras que
+        # la columna guarda int (id autoincremental de `create_tenant`), así
+        # que "1" (TEXT) != 1 (INTEGER) y la consulta no encontraba nada
+        # aunque el INSERT sí hubiera guardado la fila. CAST a TEXT en ambos
+        # lados hace la comparación estable sin importar el tipo de origen.
         rows = self.conn.execute(
             "SELECT data FROM bank_transactions"
-            " WHERE COALESCE(tenant_id, -1)=COALESCE(?, -1)"
+            " WHERE COALESCE(CAST(tenant_id AS TEXT), '-1')"
+            "=COALESCE(CAST(? AS TEXT), '-1')"
             " ORDER BY id ASC", (tenant_id,)).fetchall()
         out = []
         for r in rows:
@@ -658,7 +668,8 @@ class Database:
         with self.conn:
             self.conn.execute(
                 "DELETE FROM bank_confirmations"
-                " WHERE COALESCE(tenant_id, -1)=COALESCE(?, -1) AND tx_id=?",
+                " WHERE COALESCE(CAST(tenant_id AS TEXT), '-1')"
+                "=COALESCE(CAST(? AS TEXT), '-1') AND tx_id=?",
                 (tenant_id, str(tx_id)))
             self.conn.execute(
                 "INSERT INTO bank_confirmations(tenant_id, tx_id, invoice_id)"
@@ -669,7 +680,8 @@ class Database:
         """Confirmaciones manuales del tenant como {tx_id: invoice_id}."""
         rows = self.conn.execute(
             "SELECT tx_id, invoice_id FROM bank_confirmations"
-            " WHERE COALESCE(tenant_id, -1)=COALESCE(?, -1)",
+            " WHERE COALESCE(CAST(tenant_id AS TEXT), '-1')"
+            "=COALESCE(CAST(? AS TEXT), '-1')",
             (tenant_id,)).fetchall()
         return {r["tx_id"]: r["invoice_id"] for r in rows}
 
@@ -679,7 +691,8 @@ class Database:
             for tabla in ("bank_transactions", "bank_confirmations"):
                 self.conn.execute(
                     f"DELETE FROM {tabla}"  # nosec B608 — nombre literal fijo
-                    " WHERE COALESCE(tenant_id, -1)=COALESCE(?, -1)",
+                    " WHERE COALESCE(CAST(tenant_id AS TEXT), '-1')"
+                    "=COALESCE(CAST(? AS TEXT), '-1')",
                     (tenant_id,))
 
     # ---- API keys (multi-tenant) ----
