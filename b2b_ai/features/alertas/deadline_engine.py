@@ -233,15 +233,16 @@ class DeadlineEngine:
     # -- Calendar helpers --------------------------------------------------
 
     def _obligation_due_date(self, ob: FiscalObligation,
-                             period: Optional[date] = None) -> date:
+                             period: Optional[date] = None,
+                             today: Optional[date] = None) -> date:
         """Compute the raw due date for an obligation.
 
         For monthly obligations, `period` is the month being declared; the
         due date falls on the 17th of the following month (or next business
-        day). When `period` is omitted, the next occurrence relative to today
-        is returned.
+        day). When `period` is omitted, the next occurrence relative to
+        `today` (defaulting to the real current date) is returned.
         """
-        today = date.today()
+        today = today or date.today()
         if ob.period == "annual":
             year = period.year if period else today.year
             due = date(year, ob.due_month or 1, ob.due_day)
@@ -257,23 +258,29 @@ class DeadlineEngine:
                 base_month -= 12
                 base_year += 1
             return date(base_year, base_month, ob.due_day)
-        # next occurrence from today
+        # Next occurrence from `today`: monthly obligations recur every
+        # month on `due_day`, so the closest upcoming instance is this
+        # month's `due_day` if it has not yet passed, else next month's.
+        # `following_month` only matters when an explicit `period` is given
+        # above (it labels which period a due date declares), not here.
         candidate = date(today.year, today.month, ob.due_day)
-        if ob.following_month:
+        if candidate < today:
             candidate = date(today.year, today.month, 1) + timedelta(days=31)
             candidate = date(candidate.year, candidate.month, ob.due_day)
-        if candidate <= today:
-            candidate = date(today.year, today.month, 1) + timedelta(days=31)
-            candidate = date(candidate.year, candidate.month, ob.due_day)
-            if candidate <= today:
-                candidate = date(today.year, today.month, 1) + timedelta(days=62)
-                candidate = date(candidate.year, candidate.month, ob.due_day)
         return candidate
 
     def get_due_date(self, ob: FiscalObligation,
-                     period: Optional[date] = None) -> date:
-        """Public due-date resolver: returns the next business day due date."""
-        raw = self._obligation_due_date(ob, period)
+                     period: Optional[date] = None,
+                     today: Optional[date] = None) -> date:
+        """Public due-date resolver: returns the next business day due date.
+
+        `today` overrides the reference point used to pick the "next
+        occurrence" when `period` is omitted (defaults to the real current
+        date). Callers that already have an explicit reference date (e.g.
+        `upcoming_deadlines`/`check_companies`) must pass it here so the
+        computed due date is relative to that date, not to the system clock.
+        """
+        raw = self._obligation_due_date(ob, period, today=today)
         return next_business_day(raw, self.holidays)
 
     def upcoming_deadlines(
@@ -287,7 +294,7 @@ class DeadlineEngine:
         horizon = ref + timedelta(days=days)
         results = []
         for ob in self._applicable_obligations(rfc):
-            due = self.get_due_date(ob)
+            due = self.get_due_date(ob, today=ref)
             # Skip obligations already past or beyond the horizon
             if due < ref or due > horizon:
                 continue
@@ -320,7 +327,7 @@ class DeadlineEngine:
             # Collect all obligations for this RFC within a generous window
             all_due = []
             for ob in self._applicable_obligations(rfc):
-                due = self.get_due_date(ob)
+                due = self.get_due_date(ob, today=ref)
                 if due >= ref:
                     all_due.append((ob, due))
 
