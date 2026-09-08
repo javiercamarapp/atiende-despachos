@@ -135,32 +135,42 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
                       "threshold": 0, "requires_approval": True,
                       "requires_efirma": True,
                       "reason": f"Confianza {clasif['confianza']} < {_CONFIDENCE_FLOOR}: gate duro."}
+    debe_registrar_erp = (validacion.get("ok")
+                          and aprobacion["decision"] in ("auto_approved", "approved"))
     if not validacion.get("ok"):
         erp_res = {"ok": False, "poliza": None, "status": "rejected_invalid_cfdi"}
-    elif aprobacion["decision"] in ("auto_approved", "approved"):
-        erp_res = _tool("register_erp", logger_, tenant_id,
-                        invoice=invoice, erp=erp)
-    else:
+    elif not debe_registrar_erp:
         erp_res = {
             "ok": False, "poliza": None, "status": "pending_approval",
             "message": ("Requiere aprobación humana antes de registrar la "
                         f"póliza en ERP. Decisión: {aprobacion['decision']}."),
             "decision": aprobacion["decision"],
         }
+    # (si debe_registrar_erp, erp_res real se calcula en 5b, DESPUÉS del
+    # insert — ver comentario ahí)
 
-    # 5. AG-2: Persistir en DB PRIMERO (con erp_status=pending si se va a registrar)
-    # Esto previene pólizas fantasma en ERP si DB falla después.
+    # 5. AG-2: Persistir en DB PRIMERO (con erp_status=pending si se va a
+    # registrar). Esto previene pólizas fantasma en ERP si DB falla después:
+    # la fila existe aunque el registro en ERP (paso 5b) todavía no corra.
     pending_erp = {"ok": False, "poliza": None, "status": "pending"}
     inv_id, inserted = db.insert_invoice(
-        tenant_id, datos, clasif, validacion, erp=pending_erp)
+        tenant_id, datos, clasif, validacion,
+        erp=(pending_erp if debe_registrar_erp else erp_res))
 
-    # 5b. Registrar en ERP DESPUÉS de persistir en DB
-    if erp_res and erp_res.get("ok"):
+    # 5b. Registrar en ERP DESPUÉS de persistir en DB, y volcar el resultado
+    # REAL sobre la fila ya insertada (antes este bloque llamaba a
+    # register_erp ANTES del insert y luego lo descartaba con un `pass`,
+    # así que la fila se quedaba para siempre con erp_poliza=None /
+    # erp_status="pending" / status="procesado" sin importar el resultado
+    # real del ERP).
+    if debe_registrar_erp:
         try:
-            # Update DB with actual ERP result
-            pass  # erp_res already computed above; update status below
+            erp_res = _tool("register_erp", logger_, tenant_id,
+                            invoice=invoice, erp=erp)
         except Exception:
             erp_res = {"ok": False, "poliza": None, "status": "erp_failed"}
+        if inv_id:
+            db.update_invoice_erp(inv_id, erp_res, valido=validacion.get("ok", False))
 
     # 6. Notificación (si aplica; no bloquea el pipeline)
     notif = {"status": "skipped"}
