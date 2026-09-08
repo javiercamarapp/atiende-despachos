@@ -15,6 +15,19 @@ Auth flow (multi-tenant + standalone):
   (that would let one tenant read another's data). To run in standalone /
   single-tenant mode, set `B2B_DEFAULT_TENANT_ID` so a key without a DB
   tenant still resolves to a concrete tenant.
+
+- Service key + tenant keys coexist: `B2B_API_KEY` (service/admin key) and
+  DB-backed per-tenant keys are NOT mutually exclusive — a deployment
+  commonly runs both at once (e.g. the v2 admin API uses the service key
+  for admin endpoints while tenants use their own keys for everything
+  else). `validate()`/`get_tenant_id()` only special-case the LITERAL env
+  key value; every other key is always resolved against the DB when one is
+  configured. (Previously, merely having `B2B_API_KEY` set made every
+  DB-backed tenant key invalid, and made every key resolve to no tenant.)
+  A caller needing the service key to reach an endpoint that is legitimately
+  tenant-less (as v2's admin endpoints are) must NOT reuse this generic
+  400-on-no-tenant dependency — see `b2b_ai/api/v2.py`'s own `_require_key`
+  for that pattern.
 """
 from __future__ import annotations
 
@@ -60,23 +73,39 @@ class APIKeyAuth:
             return None
 
     def validate(self, key: str) -> bool:
-        """Return True if the key is valid."""
+        """Return True if the key is valid.
+
+        The service key (env `B2B_API_KEY`) and DB-backed tenant keys are
+        NOT mutually exclusive: a deployment commonly runs both a service/
+        admin key AND per-tenant keys at the same time (see v2 admin API).
+        Previously, setting `B2B_API_KEY` made this method compare ONLY
+        against that literal string, so every valid tenant key in the DB
+        was rejected as soon as a service key existed in the environment.
+        """
         if not key:
             return False
-        # Standalone mode: single key from env
-        if self._env_key:
-            return key == self._env_key
-        # Multi-tenant mode: check DB
+        # Service key match (exact) always wins first — cheap comparison,
+        # no DB round-trip needed.
+        if self._env_key and key == self._env_key:
+            return True
+        # Multi-tenant mode: check DB regardless of whether a service key
+        # is ALSO configured.
         if self.db is not None:
             return self._lookup(key) is not None
-        # Fallback: allow any non-empty key in dev
+        # No DB configured: only the service key (if any) is valid.
+        if self._env_key:
+            return False
+        # Fallback: allow any non-empty key in dev (no db, no env key).
         return bool(key)
 
     def get_tenant_id(self, key: str) -> Optional[str]:
         """Return tenant_id for the given key (multi-tenant mode only)."""
-        # Standalone env key has no DB tenant; the env fallback applies
-        # (resolve_tenant_from_env) at the dependency level.
-        if self._env_key:
+        # The service key itself has no DB tenant; the env fallback
+        # (resolve_tenant_from_env) applies at the dependency level. This
+        # must only short-circuit for the service key ITSELF — not for
+        # every key whenever a service key happens to be configured,
+        # otherwise valid tenant keys never resolve their real tenant.
+        if self._env_key and key == self._env_key:
             return None
         if self.db is None:
             return None
@@ -110,7 +139,11 @@ class APIKeyAuth:
             "tenant_id": tenant_id,
             "user_id": self.get_user_id(key),
             "name": key,
-            "source": "env" if self._env_key else "db",
+            # Whether THIS key matched the env service key or a DB tenant
+            # key — not merely whether an env key happens to be configured
+            # (both can coexist; see `validate`/`get_tenant_id`).
+            "source": "env" if (self._env_key and key == self._env_key)
+                      else "db",
         }
 
 

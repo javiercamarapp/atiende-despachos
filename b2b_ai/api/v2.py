@@ -30,7 +30,20 @@ Seguridad / aislamiento:
   - Los endpoints de admin requieren la key de servicio (tenant_id=None)
     o que el tenant administre su propio recurso.
 
-La app lo monta con `build_v2_router(db, require_api_key, auth)`.
+  - Auth: usa su PROPIA dependencia `_require_key` (basada en `auth`
+    directamente), NO la `require_api_key` genérica de b2b_ai.api.auth.
+    Esa genérica rechaza con 400 cualquier key sin tenant_id (correcto
+    para las rutas /api/v1 que sí necesitan un tenant concreto), pero
+    eso bloqueaba aquí a la key de servicio incluso para SUS PROPIOS
+    endpoints de admin (que están diseñados para operar precisamente con
+    tenant_id=None). `_require_key` valida la key y deja pasar
+    tenant_id=None; son `_tenant()` (rechaza con 422 si el endpoint
+    exige tenant) y `_require_admin()` (permite tenant_id=None como
+    admin global) quienes deciden el aislamiento en este router.
+
+La app lo monta con `build_v2_router(db, require_api_key, auth)` — el
+parámetro `require_api_key` se conserva por compatibilidad de firma pero
+ya no se usa dentro de este módulo.
 """
 from __future__ import annotations
 
@@ -42,8 +55,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Optional
 
-from fastapi import (APIRouter, Depends, HTTPException, Query)
+from fastapi import (APIRouter, Depends, HTTPException, Query, status)
 from fastapi.responses import Response
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
 from b2b_ai.db.db import Database
@@ -53,6 +67,9 @@ from b2b_ai.services.exporter import export
 from b2b_ai.services.pipeline import process_file
 from b2b_ai.db.tenants import TenantManager
 from b2b_ai.api import webhooks as wh
+from b2b_ai.api.auth import resolve_tenant_from_env
+
+_v2_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 MAX_BATCH = 1000
 
@@ -207,6 +224,33 @@ def build_v2_router(db: Database, require_api_key, auth=None):
         _get_env("B2B_V2_CACHE_TTL", "30")))
     rl = TenantRateLimiter()
     tm = TenantManager(db)
+
+    def _require_key(key: Optional[str] = Depends(_v2_key_scheme)) -> dict:
+        """v2 auth dependency — deliberately NOT the generic `require_api_key`.
+
+        The generic dependency rejects with 400 any valid key that resolves
+        to no tenant, which is correct for tenant-scoped v1 routes (it stops
+        a key from silently reading every tenant's data) but is incompatible
+        with v2's admin design: admin endpoints below (`_require_admin`)
+        explicitly treat a service key (tenant_id=None) as the global admin
+        identity, and tenant-scoped v2 endpoints (`_tenant`) already reject
+        a tenant-less key themselves with a 422. Reusing the generic
+        dependency here made the service key unable to reach ANY v2 route
+        (including the admin ones) unless `B2B_DEFAULT_TENANT_ID` was set —
+        which would defeat the service-key-as-admin design anyway, since the
+        key would then resolve to a concrete tenant instead of None.
+        """
+        if not key:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                                "Missing X-API-Key")
+        if auth is None or not auth.validate(key):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                                "Invalid API key")
+        tenant_id = auth.get_tenant_id(key)
+        if tenant_id is None:
+            tenant_id = resolve_tenant_from_env()
+        return {"key": key, "tenant_id": tenant_id,
+                "user_id": auth.get_user_id(key)}
     router = APIRouter(prefix="/api/v2", tags=["enterprise"])
 
     # --- Dependencias compartidas ---------------------------------------
@@ -222,7 +266,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
         db.increment_usage(tid, api_calls=1)
         return tid
 
-    def _tenant_rate_limit(auth_info: dict = Depends(require_api_key)):
+    def _tenant_rate_limit(auth_info: dict = Depends(_require_key)):
         tid = auth_info.get("tenant_id")
         if tid is None:
             return
@@ -347,7 +391,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
 
     @router.post("/batch", summary="Procesa hasta 1000 CFDI en lote.")
     def batch(req: BatchRequest,
-              auth_info: dict = Depends(require_api_key),
+              auth_info: dict = Depends(_require_key),
               _rl: None = Depends(_tenant_rate_limit)):
         tenant = _tenant(auth_info)
         paths = list(req.paths or [])
@@ -405,7 +449,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     @router.get("/batch/{job_id}",
                 summary="Estado y resultado de un lote async.")
     def batch_status(job_id: str,
-                     auth_info: dict = Depends(require_api_key)):
+                     auth_info: dict = Depends(_require_key)):
         tenant = _tenant(auth_info)
         job = _get_job(job_id)
         if job is None or job["tenant_id"] != tenant:
@@ -420,7 +464,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     def analytics(periodo: Optional[str] = Query(default=None),
                   desde: Optional[str] = Query(default=None),
                   hasta: Optional[str] = Query(default=None),
-                  auth_info: dict = Depends(require_api_key),
+                  auth_info: dict = Depends(_require_key),
                   _rl: None = Depends(_tenant_rate_limit)):
         tenant = _tenant(auth_info)
         ckey = ("analytics", tenant, periodo, desde, hasta)
@@ -438,7 +482,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     @router.post("/webhooks",
                  summary="Registra webhooks para eventos del tenant.")
     def register_webhook(req: WebhookRegister,
-                         auth_info: dict = Depends(require_api_key)):
+                         auth_info: dict = Depends(_require_key)):
         tenant = _tenant(auth_info)
         if not req.url.startswith(("http://", "https://")):
             raise HTTPException(422, "URL inválida.")
@@ -457,7 +501,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     @router.get("/webhooks",
                 summary="Lista las suscripciones de webhook del tenant.")
     def list_webhooks(event: Optional[str] = Query(default=None),
-                      auth_info: dict = Depends(require_api_key)):
+                      auth_info: dict = Depends(_require_key)):
         tenant = _tenant(auth_info)
         return {"tenant_id": tenant,
                 "subscriptions": db.list_webhook_subscriptions(
@@ -466,7 +510,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     @router.delete("/webhooks/{subscription_id}",
                    summary="Elimina una suscripción de webhook.")
     def delete_webhook(subscription_id: int,
-                       auth_info: dict = Depends(require_api_key)):
+                       auth_info: dict = Depends(_require_key)):
         tenant = _tenant(auth_info)
         if not db.delete_webhook_subscription(subscription_id,
                                               tenant_id=tenant):
@@ -485,7 +529,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
               hasta: Optional[str] = Query(default=None),
               limit: int = Query(default=100, ge=1, le=5000),
               offset: int = Query(default=0, ge=0),
-              auth_info: dict = Depends(require_api_key)):
+              auth_info: dict = Depends(_require_key)):
         tenant = _tenant(auth_info)
         rows = pool.run(
             "SELECT * FROM audit_log WHERE tenant_id=? "
@@ -507,7 +551,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     # --- /export -----------------------------------------------------------
     @router.post("/export", summary="Exporta datos a CSV/XLSX/PDF.")
     def export_data(req: ExportRequest,
-                    auth_info: dict = Depends(require_api_key),
+                    auth_info: dict = Depends(_require_key),
                     _rl: None = Depends(_tenant_rate_limit)):
         tenant = _tenant(auth_info)
         if req.scope == "invoices":
@@ -532,14 +576,14 @@ def build_v2_router(db: Database, require_api_key, auth=None):
 
     # --- /usage ------------------------------------------------------------
     @router.get("/usage", summary="Uso del tenant (calls, facturas).")
-    def my_usage(auth_info: dict = Depends(require_api_key),
+    def my_usage(auth_info: dict = Depends(_require_key),
                  _rl: None = Depends(_tenant_rate_limit)):
         tenant = _tenant(auth_info)
         return {"tenant_id": tenant, "usage": db.get_usage(tenant)}
 
     # --- /health -----------------------------------------------------------
     @router.get("/health", summary="Health detallado del servicio.")
-    def health_v2(auth_info: dict = Depends(require_api_key)):
+    def health_v2(auth_info: dict = Depends(_require_key)):
         tenant = _tenant(auth_info)
         return {
             "status": "ok",
@@ -555,7 +599,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
 
     # --- Tenant admin ------------------------------------------------------
     @router.get("/tenants", summary="Lista tenants + uso (admin).")
-    def admin_list_tenants(auth_info: dict = Depends(require_api_key)):
+    def admin_list_tenants(auth_info: dict = Depends(_require_key)):
         _require_admin(auth_info, target_tid=None)
         tenants = db.list_tenants()
         usage = {u["tenant_id"]: u for u in db.get_all_usage()}
@@ -570,7 +614,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     def admin_create_tenant(req: TenantConfigRequest,
                             name: str = Query(...),
                             rfc: str = Query(default=""),
-                            auth_info: dict = Depends(require_api_key)):
+                            auth_info: dict = Depends(_require_key)):
         _require_admin(auth_info, target_tid=None)
         out = tm.onboard_tenant(name, rfc=rfc, **{
             k: v for k, v in req.config.items()
@@ -584,7 +628,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     @router.post("/tenants/{tid}/block",
                  summary="Bloquea un tenant (deja de poder autenticarse).")
     def admin_block(tid: int,
-                    auth_info: dict = Depends(require_api_key)):
+                    auth_info: dict = Depends(_require_key)):
         _require_admin(auth_info, target_tid=tid)
         if db.get_tenant_by_id(tid) is None:
             raise HTTPException(404, "Tenant no encontrado.")
@@ -595,7 +639,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     @router.post("/tenants/{tid}/unblock",
                  summary="Desbloquea un tenant.")
     def admin_unblock(tid: int,
-                      auth_info: dict = Depends(require_api_key)):
+                      auth_info: dict = Depends(_require_key)):
         _require_admin(auth_info, target_tid=tid)
         if db.get_tenant_by_id(tid) is None:
             raise HTTPException(404, "Tenant no encontrado.")
@@ -605,7 +649,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     @router.patch("/tenants/{tid}",
                   summary="Configura un tenant (admin).")
     def admin_config(tid: int, req: TenantConfigRequest,
-                     auth_info: dict = Depends(require_api_key)):
+                     auth_info: dict = Depends(_require_key)):
         _require_admin(auth_info, target_tid=tid)
         if db.get_tenant_by_id(tid) is None:
             raise HTTPException(404, "Tenant no encontrado.")
@@ -615,7 +659,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     @router.get("/tenants/{tid}/usage",
                 summary="Uso de un tenant (admin).")
     def admin_usage(tid: int,
-                    auth_info: dict = Depends(require_api_key)):
+                    auth_info: dict = Depends(_require_key)):
         _require_admin(auth_info, target_tid=tid)
         if db.get_tenant_by_id(tid) is None:
             raise HTTPException(404, "Tenant no encontrado.")
@@ -625,7 +669,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     @router.post("/retention/purge",
                  summary="Aplica la política de retención de datos (admin).")
     def admin_retention_purge(days: Optional[int] = Query(default=None),
-                              auth_info: dict = Depends(require_api_key)):
+                              auth_info: dict = Depends(_require_key)):
         """Ejecuta enforce_retention(days): borra audit_log, webhooks,
         notificaciones y sesiones del portal más viejos que `days` días.
         Solo para la key de servicio (tenant_id=None). Las facturas
