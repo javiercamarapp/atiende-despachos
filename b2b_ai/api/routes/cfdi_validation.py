@@ -2,6 +2,7 @@
 """POST /api/v1/cfdi/validate — CFDI 4.0 upload, parse & compliance check."""
 from __future__ import annotations
 
+import json
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
@@ -234,7 +235,6 @@ def _build_response(
 async def validate_cfdi(
     request: Request,
     api_key: Annotated[str, Depends(_require_api_key)],
-    xml_json: Optional[CFDIXMLJSONRequest] = None,
     file: Optional[UploadFile] = File(default=None),
 ) -> CFDIValidationResponse:
     """Validate a CFDI 4.0 XML document.
@@ -245,12 +245,55 @@ async def validate_cfdi(
     3. **multipart** file upload via `file` field
 
     Returns compliance status, extracted data, and SAT error/warning list.
+
+    Note: the JSON body is parsed manually from the raw request instead of via
+    a second FastAPI ``Body``-bound parameter. FastAPI only supports one
+    implicit body source per route; declaring a Pydantic body model alongside
+    the ``file: UploadFile = File(...)`` parameter above puts the whole route
+    in "form" body mode, so a real JSON request would silently leave that
+    parameter ``None`` and fall through to case 1, parsing the raw
+    ``{"xml_content": ...}`` JSON envelope itself as if it were XML.
     """
     content_type = request.headers.get("content-type", "").lower()
     xml_str: str
 
-    # Case 2: JSON body — FastAPI parsed it into xml_json
-    if xml_json is not None:
+    # Case 2: JSON body — parsed manually (see docstring note above).
+    if "application/json" in content_type:
+        body = await request.body()
+        if not body or not body.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Empty request body",
+            )
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid JSON body: {exc}",
+            )
+        if not isinstance(payload, dict) or payload.get("xml_content") is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="JSON body must include a non-null 'xml_content' string field",
+            )
+        xml_content_value = payload["xml_content"]
+        if not isinstance(xml_content_value, str):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=[{
+                    "loc": ["body", "xml_content"],
+                    "msg": "Input should be a valid string",
+                    "type": "string_type",
+                }],
+            )
+        try:
+            xml_json = CFDIXMLJSONRequest(xml_content=xml_content_value)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            )
         xml_str = xml_json.xml_content
 
     # Case 3: multipart file upload
