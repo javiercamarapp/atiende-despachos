@@ -553,9 +553,26 @@ class TestEnvVarsDualSupport:
         assert not p.configured
 
     def test_smtp_from_default(self):
-        """Default from_addr correcto."""
+        """Sin SMTP_FROM/B2B_SMTP_FROM ni B2B_DEFAULT_EMAIL, from_addr es "".
+
+        "agente@b2b-ai.local" es el default hardcodeado del parámetro
+        `from_addr` de la clase *distinta* `EmailSender`
+        (b2b_ai/notifications/sender.py); AsyncSMTPProvider documenta su
+        propio contrato como "default: from B2B_DEFAULT_EMAIL env" (ver
+        docstring de la clase), sin ese literal como fallback final.
+        """
+        os.environ.pop("B2B_DEFAULT_EMAIL", None)
         p = AsyncSMTPProvider()
-        assert p.from_addr == "agente@b2b-ai.local"
+        assert p.from_addr == ""
+
+    def test_smtp_from_default_usa_b2b_default_email(self):
+        """Sin SMTP_FROM/B2B_SMTP_FROM, cae a B2B_DEFAULT_EMAIL si está fijado."""
+        os.environ["B2B_DEFAULT_EMAIL"] = "agente@b2b-ai.local"
+        try:
+            p = AsyncSMTPProvider()
+            assert p.from_addr == "agente@b2b-ai.local"
+        finally:
+            os.environ.pop("B2B_DEFAULT_EMAIL", None)
 
     def test_smtp_port_default(self):
         """Default port es 465."""
@@ -732,14 +749,20 @@ class TestAiosmtplibImport:
     """Verifica el guard de import de aiosmtplib."""
 
     @pytest.mark.asyncio
-    async def test_sin_aiosmtplib_devuelve_error(self):
-        """Si aiosmtplib no está instalado → error informativo."""
+    async def test_sin_aiosmtplib_cae_a_simulado(self):
+        """Si aiosmtplib no está instalado → cae a modo simulado (no error).
+
+        Este es el "modo seguro" documentado en la clase y en `send()`:
+        sin el paquete opcional instalado no hay forma de enviar por SMTP
+        real, así que se simula igual que "sin credenciales" en vez de
+        romper el flujo de notificaciones con un error.
+        """
         p = AsyncSMTPProvider(
             host="smtp.test.com", user="u", password="p"
         )
         with patch("b2b_ai.notifications.smtp_provider.aiosmtplib", None):
             result = await p.send("a@b.com", "Test", "Body")
-            assert result["status"] == "error"
+            assert result["status"] == "simulado"
             assert "aiosmtplib" in result["message"]
 
 
