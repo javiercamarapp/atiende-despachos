@@ -116,6 +116,24 @@ def build_onboarding_wizard_router(
     service = OnboardingWizard(db=db)
     router = APIRouter(prefix=ROUTER_PREFIX, tags=["onboarding-wizard", "piloto"])
 
+    def _get_owned_session(session_id: str, auth_info: dict) -> OnboardingSession:
+        """Carga una sesión y verifica que pertenezca al tenant autenticado.
+
+        Nunca revela si la sesión existe bajo otro tenant: una sesión ajena
+        se trata igual que una inexistente (404), evitando fuga de datos
+        (IDOR) entre tenants.
+        """
+        try:
+            session = service.get_session(session_id)
+        except OnboardingWizardError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        if session.tenant_id != auth_info["tenant_id"]:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Sesión de onboarding no encontrada: {session_id}",
+            )
+        return session
+
     @router.post(
         "/start",
         summary="Crea una sesión de onboarding nueva.",
@@ -125,8 +143,19 @@ def build_onboarding_wizard_router(
         req: StartRequest = StartRequest(),
         auth_info: dict = Depends(auth_dep),
     ) -> StartResponse:
-        """Inicia el flujo del Día 1 para el primer cliente piloto."""
-        session = service.start(tenant_id=req.tenant_id)
+        """Inicia el flujo del Día 1 para el primer cliente piloto.
+
+        El tenant de la sesión SIEMPRE se deriva del auth, nunca del body.
+        Si el body incluye un tenant_id que no coincide con el autenticado,
+        se rechaza (403): evita que un tenant spoofee la sesión de otro.
+        """
+        auth_tenant_id = auth_info["tenant_id"]
+        if req.tenant_id and req.tenant_id != auth_tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail="tenant_id no coincide con el tenant autenticado.",
+            )
+        session = service.start(tenant_id=auth_tenant_id)
         return StartResponse(ok=True, session=session.to_dict())
 
     @router.get(
@@ -139,10 +168,7 @@ def build_onboarding_wizard_router(
         auth_info: dict = Depends(auth_dep),
     ) -> StepResponse:
         """Estado de la sesión; sirve para retomar donde quedó si se corta."""
-        try:
-            session = service.get_session(session_id)
-        except OnboardingWizardError as exc:
-            raise HTTPException(status_code=404, detail=str(exc))
+        session = _get_owned_session(session_id, auth_info)
         return StepResponse(ok=True, session=session.to_dict())
 
     @router.post(
@@ -157,6 +183,7 @@ def build_onboarding_wizard_router(
         auth_info: dict = Depends(auth_dep),
     ) -> StepResponse:
         """Avanza el flujo ejecutando el siguiente paso con su payload."""
+        _get_owned_session(session_id, auth_info)
         try:
             session = service.advance_step(session_id, step, req.payload)
         except OnboardingWizardError as exc:
@@ -173,6 +200,7 @@ def build_onboarding_wizard_router(
         auth_info: dict = Depends(auth_dep),
     ) -> CompleteResponse:
         """Marca la sesión como completa y devuelve el checklist de salud."""
+        _get_owned_session(session_id, auth_info)
         try:
             result = service.complete(session_id)
         except OnboardingWizardError as exc:
@@ -194,6 +222,7 @@ def build_onboarding_wizard_router(
         auth_info: dict = Depends(auth_dep),
     ) -> CheckoutResponse:
         """Crea la sesión de pago de Conekta y devuelve la URL de checkout."""
+        _get_owned_session(session_id, auth_info)
         try:
             reference = service.start_checkout(
                 session_id, req.plan,
@@ -227,10 +256,7 @@ def build_onboarding_wizard_router(
         - paid    -> activa el plan (activate_pilot) y cierra la sesión.
         - failed / canceled -> registra el fallo; no se activa nada.
         """
-        try:
-            session = service.get_session(session_id)
-        except OnboardingWizardError as exc:
-            raise HTTPException(status_code=404, detail=str(exc))
+        session = _get_owned_session(session_id, auth_info)
 
         from b2b_ai.features.billing.conekta_client import ConektaClient
         from b2b_ai.features.billing.service import (
