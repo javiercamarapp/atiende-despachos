@@ -267,6 +267,15 @@ class Settings(BaseModel):
             ... etc.
         """
         env = env_override or os.environ.get("B2B_ENV", "development")
+        # "test" es sinónimo de "testing" en todo el resto del código (ver
+        # auth/middleware.py._DEV_ENVS, services/pipeline.py, api/errors.py):
+        # todos aceptan ambos valores como equivalentes. El enum `Environment`
+        # solo declara "testing", así que sin este alias `B2B_ENV=test` (el
+        # valor que fija tests/conftest.py) hace que `Settings.from_env()`
+        # explote con ValidationError en vez de tratarse como entorno de
+        # pruebas — inconsistente con el resto del proyecto.
+        if env == "test":
+            env = "testing"
 
         settings_data: Dict[str, Any] = {
             "env": env,
