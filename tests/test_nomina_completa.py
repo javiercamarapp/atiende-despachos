@@ -64,12 +64,13 @@ def _empleado(**overrides) -> dict:
 class TestTaxes:
     def test_isr_bajo(self):
         taxes = calculate_taxes(salary=10000)
-        # $10,000 cae en el tramo 2026 (6936.24, 13074.34] a 10.88%
-        # ISR puro = 406.08 + (10000 - 6936.24) * 0.1088 = 739.42
+        # $10,000 cae en el tramo ISR_MENSUAL_2026 (7168.52, 13074.34] a
+        # 10.88% (b2b_ai/fiscal_tables.py, Anexo 8 RMF 2026):
+        # ISR puro = 420.95 + (10000 - 7168.52) * 0.1088 = 729.02
         # Subsidio 2026 para $10,000 = 209.13
-        # ISR neto = 739.42 - 209.13 = 530.29
+        # ISR neto = 729.02 - 209.13 = 519.89
         assert taxes.isr > 0, "ISR must be > 0 for $10,000 (LISR Art. 96)"
-        assert abs(taxes.isr - 530.29) < 1.0
+        assert abs(taxes.isr - 519.89) < 1.0
 
     def test_isr_medio(self):
         taxes = calculate_taxes(salary=50000)
