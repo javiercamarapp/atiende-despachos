@@ -102,6 +102,75 @@ class PapelTrabajoRequest(BaseModel):
     tenant_id: Optional[str] = Field(default=None, description="Tenant ID")
 
 
+def _tenant_ids_declarados_en_payload(
+    tenant_id_top: Optional[str],
+    facturas: List[dict],
+    diot_entries: List[dict],
+    declaraciones: List[dict],
+) -> set:
+    """Recolecta todos los `tenant_id` declarados dentro del body.
+
+    REQ-IVA-018: `facturas`/`diot_entries`/`declaraciones` llegan como
+    dicts libres (no como modelos tipados a nivel de request), así que
+    cualquier item puede traer su propio `tenant_id` además del
+    `tenant_id` a nivel de request completo. Un tenant autenticado podría
+    intentar colar registros marcados con el `tenant_id` de otro tenant
+    dentro del body — esto los recolecta todos para poder compararlos
+    contra el tenant real del token, sin asumir que "vienen limpios"
+    solo porque la lectura (REQ-IVA-007) ya está protegida.
+    """
+    encontrados: set = set()
+    if tenant_id_top:
+        encontrados.add(tenant_id_top)
+    for coleccion in (facturas, diot_entries, declaraciones):
+        for item in coleccion:
+            if isinstance(item, dict):
+                tid = item.get("tenant_id")
+                if tid is not None and str(tid).strip():
+                    encontrados.add(tid)
+    return encontrados
+
+
+def _validar_tenant_payload_o_422(
+    auth_info: Optional[dict],
+    tenant_id_top: Optional[str],
+    facturas: List[dict],
+    diot_entries: List[dict],
+    declaraciones: List[dict],
+) -> None:
+    """REQ-IVA-018 — 422 si el tenant del token no coincide con el body.
+
+    Complementa REQ-IVA-007 (que blinda la *lectura*, `listar_solicitudes`):
+    aquí se blinda la *escritura*/procesamiento — un tenant autenticado
+    nunca debe poder hacer que el servicio concilie facturas, entradas
+    DIOT o declaraciones marcadas como pertenecientes a otro tenant, así
+    el ataque venga en el campo `tenant_id` del request completo o en el
+    de cualquier factura/entrada/declaración individual del body.
+
+    Sin `tenant_id` en el token (contexto administrativo/legado, mismo
+    criterio que `listar_solicitudes` sin filtro) no hay nada contra qué
+    comparar y no se rechaza nada — evita romper usos existentes sin
+    tenant en el token.
+    """
+    auth_tenant_id = auth_info.get("tenant_id") if auth_info else None
+    if not auth_tenant_id:
+        return
+
+    tenant_ids_payload = _tenant_ids_declarados_en_payload(
+        tenant_id_top, facturas, diot_entries, declaraciones,
+    )
+    ajenos = {tid for tid in tenant_ids_payload if str(tid) != str(auth_tenant_id)}
+    if ajenos:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "El tenant_id del token no coincide con el tenant_id "
+                "declarado en las facturas/DIOT/declaraciones del body: "
+                f"{sorted(str(t) for t in ajenos)}."
+            ),
+        )
+
+
 class DevolucionIVAResponse(BaseModel):
     """Standard response for Devolución de IVA operations."""
     ok: bool
@@ -121,7 +190,11 @@ def build_devolucion_iva_router(
 
     Parameters
     ----------
-    db : Database instance (unused for now; matching is in-memory).
+    db : Database instance usada para persistir solicitudes/status/papeles
+        de trabajo (REQ-IVA-006: tablas `devolucion_iva_solicitudes` /
+        `devolucion_iva_papeles_trabajo`, no dicts de proceso). Cuando es
+        `None` se usa la base compartida en memoria del módulo (solo para
+        tests/uso standalone del router).
     require_api_key : FastAPI dependency for auth.
     """
     if require_api_key is None:
@@ -130,7 +203,7 @@ def build_devolucion_iva_router(
             "Nunca construir el router sin dependencia de auth."
         )
     auth_dep = require_api_key
-    service = DevolucionIVAService()
+    service = DevolucionIVAService(db=db)
     workpaper_gen = WorkpaperGenerator()
 
     router = APIRouter(prefix="/api/v1/devolucion-iva", tags=["devolucion-iva"])
@@ -207,6 +280,14 @@ def build_devolucion_iva_router(
         req: ConciliarRequest,
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
+        _validar_tenant_payload_o_422(
+            auth_info,
+            req.tenant_id,
+            req.facturas,
+            req.diot_entries,
+            req.declaraciones,
+        )
+
         result = service.conciliar(
             req.facturas,
             req.diot_entries,
@@ -267,6 +348,7 @@ def build_devolucion_iva_router(
         req: SolicitudRequest,
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
+        tenant_id = auth_info.get("tenant_id") if auth_info else req.tenant_id
         saldo = {
             "monto_devolucion_sugerido": req.saldo_favor,
             "saldo_favor_original": req.saldo_favor,
@@ -278,6 +360,10 @@ def build_devolucion_iva_router(
                 saldo=saldo,
                 cuenta_banco=req.cuenta_banco,
                 clabe=req.clabe,
+                tenant_id=tenant_id,
+                facturas=req.facturas,
+                diot_entries=req.diot_entries,
+                declaraciones=req.declaraciones,
             )
             # Register the solicitud
             service.registrar(solicitud)
@@ -371,7 +457,8 @@ def build_devolucion_iva_router(
         tenant_id: Optional[str] = Query(default=None, description="Filter by tenant"),
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
-        solicitudes = service.listar()
+        effective_tenant_id = auth_info.get("tenant_id") if auth_info else tenant_id
+        solicitudes = service.listar(tenant_id=effective_tenant_id)
 
         return {
             "ok": True,
