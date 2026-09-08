@@ -73,6 +73,8 @@ SAMPLE_CFDI = """<?xml version="1.0" encoding="UTF-8"?>
     </cfdi:Complemento>
 </cfdi:Comprobante>"""
 
+TENANT_ID = "test-tenant"
+
 BAD_CFDI = "<xml>no es un cfdi</xml>"
 
 INVALID_NO_SELLO = """<?xml version="1.0" encoding="UTF-8"?>
@@ -178,22 +180,22 @@ class TestCreateJob:
 
     def test_create_job(self):
         svc = BatchService()
-        job = svc.create_job([("a.xml", SAMPLE_CFDI), ("b.xml", SAMPLE_CFDI)])
+        job = svc.create_job(TENANT_ID, [("a.xml", SAMPLE_CFDI), ("b.xml", SAMPLE_CFDI)])
         assert job.status == BatchJobStatus.PENDING
         assert job.total_items == 2
         assert len(job.items) == 2
-        assert svc.get_job(job.id) is job
+        assert svc.get_job(TENANT_ID, job.id) is job
 
     def test_create_job_empty_raises(self):
         svc = BatchService()
         with pytest.raises(ValueError):
-            svc.create_job([])
+            svc.create_job(TENANT_ID, [])
 
     def test_create_job_over_500_raises(self):
         svc = BatchService()
         many = [(f"f{i}.xml", SAMPLE_CFDI) for i in range(MAX_ITEMS + 1)]
         with pytest.raises(BatchLimitError):
-            svc.create_job(many)
+            svc.create_job(TENANT_ID, many)
 
 
 # ---------------------------------------------------------------------------
@@ -209,8 +211,8 @@ class TestProcessJob:
 
     def test_process_all_success(self):
         svc = BatchService()
-        job = svc.create_job([("a.xml", SAMPLE_CFDI), ("b.xml", SAMPLE_CFDI)])
-        svc.process_job(job.id)
+        job = svc.create_job(TENANT_ID, [("a.xml", SAMPLE_CFDI), ("b.xml", SAMPLE_CFDI)])
+        svc.process_job(TENANT_ID, job.id)
         assert job.status == BatchJobStatus.COMPLETED
         assert job.success_count == 2
         assert job.failed_count == 0
@@ -220,11 +222,11 @@ class TestProcessJob:
 
     def test_process_mixed_success_and_fail(self):
         svc = BatchService()
-        job = svc.create_job([
+        job = svc.create_job(TENANT_ID, [
             ("ok.xml", SAMPLE_CFDI),
             ("bad.xml", BAD_CFDI),
         ])
-        svc.process_job(job.id)
+        svc.process_job(TENANT_ID, job.id)
         assert job.status == BatchJobStatus.COMPLETED
         assert job.success_count == 1
         assert job.failed_count == 1
@@ -237,19 +239,19 @@ class TestProcessJob:
     def test_process_invalid_cfdi_counts_as_success_with_status(self):
         """Un CFDI mal formado falla; uno válido pero INVALIDO cuenta como OK."""
         svc = BatchService()
-        job = svc.create_job([
+        job = svc.create_job(TENANT_ID, [
             ("ok.xml", SAMPLE_CFDI),
             ("no_sello.xml", INVALID_NO_SELLO),
         ])
-        svc.process_job(job.id)
+        svc.process_job(TENANT_ID, job.id)
         assert job.success_count == 2  # no_sello parsea, da status INVALIDO (no es error de parseo)
         no_sello = [i for i in job.items if i.filename == "no_sello.xml"][0]
         assert no_sello.result["status"] == "INVALIDO"
 
     def test_summary_report(self):
         svc = BatchService()
-        job = svc.create_job([("ok.xml", SAMPLE_CFDI), ("bad.xml", BAD_CFDI)])
-        svc.process_job(job.id)
+        job = svc.create_job(TENANT_ID, [("ok.xml", SAMPLE_CFDI), ("bad.xml", BAD_CFDI)])
+        svc.process_job(TENANT_ID, job.id)
         s = job.summary()
         assert s["total"] == 2
         assert s["successful"] == 1
@@ -260,7 +262,7 @@ class TestProcessJob:
     def test_process_missing_job_raises(self):
         svc = BatchService()
         with pytest.raises(KeyError):
-            svc.process_job("no-existe")
+            svc.process_job(TENANT_ID, "no-existe")
 
 
 # ---------------------------------------------------------------------------
@@ -291,8 +293,8 @@ class TestWebhook:
                                  event_types=["cfdi.batch.completed"])
 
         svc = BatchService(webhook_service=wh)
-        job = svc.create_job([("ok.xml", SAMPLE_CFDI)])
-        svc.process_job(job.id)
+        job = svc.create_job(TENANT_ID, [("ok.xml", SAMPLE_CFDI)])
+        svc.process_job(TENANT_ID, job.id)
 
         assert len(posts) == 1
         assert b"cfdi.batch.completed" in posts[0][1]
@@ -308,8 +310,8 @@ class TestWebhook:
                                  event_types=["cfdi.batch.completed"])
 
         svc = BatchService(webhook_service=wh)
-        job = svc.create_job([("ok.xml", SAMPLE_CFDI)])
-        svc.process_job(job.id)
+        job = svc.create_job(TENANT_ID, [("ok.xml", SAMPLE_CFDI)])
+        svc.process_job(TENANT_ID, job.id)
         assert job.status == BatchJobStatus.COMPLETED
         assert job.success_count == 1
 
