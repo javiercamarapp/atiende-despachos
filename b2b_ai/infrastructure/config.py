@@ -284,7 +284,15 @@ class Settings(BaseModel):
             "port": int(os.environ.get("B2B_PORT", "8000")),
             "workers": int(os.environ.get("B2B_WORKERS", "1")),
             "trust_proxy": os.environ.get("B2B_TRUST_PROXY"),
-            "rate_limit_per_minute": int(os.environ.get("B2B_RATE_LIMIT", "300")),
+            # NOTA: "B2B_RATE_LIMIT" (sin sufijo) es el flag on/off del rate
+            # limiter (b2b_ai/api/rate_limiter.py, api/app.py,
+            # middleware/rate_limiter.py) — no un número. El límite por
+            # minuto usa la variable "B2B_RATE_LIMIT_PER_MIN" en todo el
+            # resto del proyecto (mismo default 300); usar el nombre
+            # equivocado aquí hacía que Settings.from_env() intentara
+            # int("on") y explotara cuando algún test dejaba B2B_RATE_LIMIT
+            # fijado a "on"/"off" en el entorno.
+            "rate_limit_per_minute": int(os.environ.get("B2B_RATE_LIMIT_PER_MIN", "300")),
             "database": {
                 "url": (
                     os.environ.get("B2B_DATABASE_URL")
