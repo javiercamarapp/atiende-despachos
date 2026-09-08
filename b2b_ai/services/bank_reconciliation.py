@@ -34,8 +34,9 @@ Diseño:
 from __future__ import annotations
 
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
+from itertools import combinations
 from typing import List, Optional
 
 from b2b_ai.services.reconcile import (
@@ -43,6 +44,12 @@ from b2b_ai.services.reconcile import (
     parse_bank_statement_pdf as _parse_pdf_generic,
 )
 from b2b_ai.services.llm import LLMService
+from b2b_ai.services.group_scoring import compute_group_score
+from b2b_ai.services.subset_sum import (
+    find_matching_subsets,
+    SubsetSumBudgetExceeded,
+)
+from b2b_ai.services.settlement_profiles import get_settlement_profile
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +86,104 @@ def _parse_date(s) -> Optional[date]:
         except ValueError:
             continue
     return None
+
+
+def _coerce_date(v) -> date:
+    """Convierte str/date/datetime a `date`. Lanza ValueError si no se puede."""
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    d = _parse_date(v)
+    if d is None:
+        raise ValueError(f"fecha_banco inválida o no reconocida: {v!r}")
+    return d
+
+
+def _perfil_get(perfil, campo: str, default=None):
+    """Lee un campo de `perfil`, que puede ser dict o un objeto con atributos
+    (p. ej. una futura instancia de `SettlementProfile`, REQ-CONC-001)."""
+    if perfil is None:
+        return default
+    if isinstance(perfil, dict):
+        return perfil.get(campo, default)
+    return getattr(perfil, campo, default)
+
+
+def _subtract_business_days(d: date, n: int) -> date:
+    """Retrocede `n` días HÁBILES (excluyendo sábado/domingo) desde `d`.
+
+    `n <= 0` devuelve `d` sin cambios (no hay retroceso que hacer).
+    """
+    cur = d
+    steps = 0
+    n = max(0, int(n))
+    while steps < n:
+        cur = cur - timedelta(days=1)
+        if cur.weekday() < 5:   # lunes(0)..viernes(4) = hábil
+            steps += 1
+    return cur
+
+
+def _business_days_window(fecha_banco, perfil, buffer_dias_habiles: int = 1):
+    """Calcula la ventana de captura (en días calendario) que pudo originar
+    un movimiento bancario liquidado en `fecha_banco`, según el perfil de
+    liquidación (`perfil.liquidacion_dias_habiles_min/max`, ver REQ-CONC-001).
+
+    Devuelve `(fecha_inicio, fecha_fin)` — ambos `date`, ambos inclusive —
+    representando el rango de fechas de CAPTURA (no de liquidación) de las
+    facturas/cobros candidatos a conciliarse contra este movimiento.
+
+    Reglas (REQ-CONC-002):
+      - El conteo de días de liquidación es en DÍAS HÁBILES: sábado y
+        domingo nunca cuentan como un paso de liquidación.
+      - `buffer_dias_habiles` (1-2, se acota a ese rango) amplía el extremo
+        más antiguo de la ventana para absorber feriados bancarios no
+        capturados en un calendario simple lunes-viernes.
+      - Corrimiento de fin de semana: cuando `fecha_banco` cae LUNES, el
+        último día hábil anterior es viernes, pero un cobro capturado
+        sábado o domingo también liquida el lunes siguiente (no hay
+        procesamiento bancario en fin de semana). Por eso, si
+        `fecha_banco` es lunes, el extremo más reciente de la ventana se
+        extiende hasta el domingo inmediatamente anterior, para no excluir
+        capturas de viernes/sábado/domingo.
+    """
+    fecha_banco = _coerce_date(fecha_banco)
+
+    dias_min = int(_perfil_get(perfil, "liquidacion_dias_habiles_min", 1) or 0)
+    dias_max = int(_perfil_get(
+        perfil, "liquidacion_dias_habiles_max", dias_min) or dias_min)
+    if dias_max < dias_min:
+        dias_max = dias_min
+    incluye_fin_de_semana = _perfil_get(
+        perfil, "incluye_fin_de_semana_en_lunes", True)
+
+    # El buffer configurable siempre es 1 o 2 días hábiles (nunca 0 ni >2):
+    # un feriado bancario no capturado desplaza la ventana, nunca la
+    # angosta.
+    buffer_dias_habiles = int(buffer_dias_habiles or 1)
+    buffer_dias_habiles = min(2, max(1, buffer_dias_habiles))
+
+    # Extremo más reciente de la ventana: el día hábil más cercano a
+    # fecha_banco que aún puede haberla originado (T + dias_min hábiles).
+    fecha_fin = _subtract_business_days(fecha_banco, dias_min)
+
+    # Extremo más antiguo: el día hábil más lejano contemplado por el
+    # perfil, más el buffer de feriados.
+    fecha_inicio = _subtract_business_days(
+        fecha_banco, dias_max + buffer_dias_habiles)
+
+    # Corrimiento de fin de semana (ver docstring): si fecha_banco cae
+    # lunes, la ventana debe alcanzar hasta el domingo anterior.
+    if incluye_fin_de_semana and fecha_banco.weekday() == 0:
+        domingo_anterior = fecha_banco - timedelta(days=1)
+        if domingo_anterior > fecha_fin:
+            fecha_fin = domingo_anterior
+
+    if fecha_inicio > fecha_fin:
+        fecha_inicio = fecha_fin   # nunca invertir el rango
+
+    return fecha_inicio, fecha_fin
 
 
 def _fecha_dist(f1, f2):
@@ -207,6 +312,19 @@ class BankReconciliation:
         self.invoices = []
         self.matches = []
         self.confirmed = {}            # tx_id -> invoice_id (manual)
+        # Casos de ambigüedad real detectados por _pass_group (REQ-CONC-003,
+        # ADR-2): 2+ combinaciones de facturas cuadran la misma suma de un
+        # depósito. Nunca se auto-resuelven; quedan aquí para revisión
+        # humana explícita.
+        self.grouped_ambiguous = []
+        # Candidatos de _pass_group que NO se auto-confirmaron (REQ-CONC-008):
+        # o hubo 2+ combinaciones válidas (ambigüedad real, también viven en
+        # grouped_ambiguous) o hubo exactamente 1 pero con score de
+        # desambiguación < UMBRAL_AUTO_CONFIRMA_GRUPO (REQ-CONC-009). En
+        # AMBOS casos el resultado queda estado="sugerido" y nunca se
+        # auto-aplica (ADR-2): no generan filas en `matches`, la factura y
+        # el movimiento quedan libres.
+        self.grouped_suggestions = []
         self.last_error = None
         self.date_tolerance_days = 3
         self.monto_tolerance_pct = 5   # tolerancia parcial de monto (%)
@@ -318,6 +436,10 @@ class BankReconciliation:
           - ai         : LLM / similitud de tokens sobre descripción
           - manual     : confirmación humana (confidence 100)
         """
+        # Recalcula desde cero en cada llamada: nunca acumular ambigüedades
+        # de una corrida anterior sobre la sesión.
+        self.grouped_ambiguous = []
+        self.grouped_suggestions = []
         if not invoices:
             return []
         stmt = list(statement or [])
@@ -327,6 +449,15 @@ class BankReconciliation:
 
         # 1) Cruces exactos
         matches = self._pass_exact(free_inv, stmt, date_tolerance_days)
+        consumed_inv, consumed_tx = self._consumed(matches)
+
+        # 1.5) Cruces agrupados N-a-1 (varias facturas suman UN movimiento,
+        # p. ej. una liquidación de terminal que agrupa varios cobros).
+        # Ver REQ-CONC-003. Nunca inventa un match: si 0 o 2+ combinaciones
+        # de facturas cuadran la misma suma, no auto-resuelve (ADR-1/ADR-2).
+        rest_inv = [i for i in free_inv if _inv_key(i) not in consumed_inv]
+        rest_tx = [t for t in stmt if t["id"] not in consumed_tx]
+        matches += self._pass_group(rest_inv, rest_tx)
         consumed_inv, consumed_tx = self._consumed(matches)
 
         # 2) Cruces parciales (monto similar + referencia)
@@ -377,6 +508,161 @@ class BankReconciliation:
                 out.append(_build_match(inv, best, "exact", conf,
                                         f"monto igual ({inv_total}) y fecha "
                                         f"a {best_dist}d"))
+        return out
+
+    # Techo de facturas libres consideradas por movimiento en este pase, y
+    # tamaño máximo de subconjunto explorado. `_subset_sums_exact` (vía
+    # `b2b_ai.services.subset_sum`, REQ-CONC-006) usa meet-in-the-middle en
+    # vez de fuerza bruta pasado `subset_sum.MITM_THRESHOLD` (40) candidatos,
+    # así que este techo ya no protege contra una explosión combinatoria en
+    # `_pass_group` mismo — solo mantiene el universo de candidatos por
+    # movimiento en un tamaño operativamente razonable (REQ-CONC-015 lo fija
+    # en <= 50 típico; se deja algo de margen sobre eso).
+    MAX_GROUP_CANDIDATE_INVOICES = 60
+    MAX_GROUP_SIZE = 15
+
+    # REQ-CONC-008: score mínimo (0-100, ver REQ-CONC-009 /
+    # `group_scoring.compute_group_score`) para que un candidato ÚNICO se
+    # auto-confirme sin intervención humana. Deliberadamente MÁS estricto
+    # que la tolerancia del pase 1-a-1 (`_pass_partial`, que no tiene un
+    # score comparable pero opera con 5% de tolerancia de monto sin
+    # desambiguación) — ver REQ-CONC-017.
+    UMBRAL_AUTO_CONFIRMA_GRUPO = 85
+
+    def _pass_group(self, invoices, stmt, perfil=None) -> list:
+        """Cruce N-a-1: varias facturas (N) suman EXACTAMENTE un solo
+        movimiento bancario (1), p. ej. una liquidación de terminal que
+        agrupa varios cobros en un único depósito.
+
+        Solo considera depósitos (`naturaleza == "abono"`) — el caso
+        simétrico de egresos agrupados (nómina dispersada, REQ-CONC-012)
+        queda fuera de este pase. Busca TODOS los subconjuntos de 2+
+        facturas (1 factura ya la cubre `_pass_exact`) cuya suma en
+        CENTAVOS (enteros, nunca floats) sea exactamente igual al monto
+        del movimiento:
+
+          - 0 subconjuntos válidos -> no genera match; el movimiento queda
+            sin conciliar (ADR-1: nunca se inventa el candidato más
+            parecido).
+          - 1 subconjunto válido -> se puntúa con
+            `group_scoring.compute_group_score` (REQ-CONC-009). Si el
+            score es `>= UMBRAL_AUTO_CONFIRMA_GRUPO` (85), el match se
+            AUTO-CONFIRMA (`confidence="alta"`,
+            `requiere_confirmacion_humana=False`, method
+            `grouped_n_a_1`, REQ-CONC-008). Si el score queda por debajo
+            del umbral, NUNCA se auto-aplica pese a ser el único
+            candidato: se registra en `self.grouped_suggestions` con
+            `estado="sugerido"` para que un humano decida, y el
+            movimiento/las facturas quedan libres.
+          - 2+ subconjuntos válidos -> AMBIGÜEDAD REAL: ninguno se aplica
+            automáticamente (ADR-2), sin importar qué score tuviera cada
+            uno individualmente — el score es una heurística descriptiva,
+            nunca se usa para resolver un empate por su cuenta. Se
+            registra en `self.grouped_ambiguous` (detalle completo de
+            todas las combinaciones) y también en
+            `self.grouped_suggestions` (`estado="sugerido"`) para que un
+            humano decida; el movimiento y esas facturas quedan libres
+            para los pases siguientes (parcial/AI), que tampoco podrán
+            inventar un match porque ya vieron que 2+ combinaciones
+            cuadran.
+        """
+        out = []
+        used_tx = set()
+        used_inv_keys = set()
+
+        candidatos = [i for i in invoices if _dec(i.get("total")) is not None
+                     and (_dec(i.get("total")) or 0) > 0]
+        if len(candidatos) < 2:
+            return out
+        # Universo tratable por fuerza bruta; con más candidatos que el
+        # techo, este pase se abstiene en vez de arriesgar una búsqueda
+        # combinatoria descontrolada (o peor, un timeout silencioso).
+        if len(candidatos) > self.MAX_GROUP_CANDIDATE_INVOICES:
+            candidatos = candidatos[:self.MAX_GROUP_CANDIDATE_INVOICES]
+
+        for t in stmt:
+            if t["id"] in used_tx:
+                continue
+            if t.get("naturaleza") != "abono":
+                continue
+            monto_tx = _dec(t.get("monto_signed"))
+            if not monto_tx:
+                continue
+            target_cents = _to_cents(abs(monto_tx))
+            if target_cents <= 0:
+                continue
+            libres = [i for i in candidatos if _inv_key(i) not in used_inv_keys]
+            if len(libres) < 2:
+                continue
+            subconjuntos = _subset_sums_exact(
+                libres, target_cents, max_size=self.MAX_GROUP_SIZE)
+            if not subconjuntos:
+                continue
+            if len(subconjuntos) > 1:
+                # Ambigüedad real (ADR-2): nunca se auto-resuelve, sin
+                # importar el score. Se deja constancia explícita para
+                # decisión humana y el movimiento sigue libre (no se marca
+                # used_tx).
+                if not hasattr(self, "grouped_ambiguous"):
+                    self.grouped_ambiguous = []
+                candidatos_folios = [[_inv_key(i) for i in grupo]
+                                     for grupo in subconjuntos]
+                self.grouped_ambiguous.append({
+                    "transaction_id": t["id"],
+                    "monto": str(abs(monto_tx)),
+                    "candidatos": candidatos_folios,
+                    "estado": "sugerido",
+                })
+                self.grouped_suggestions.append({
+                    "transaction_id": t["id"],
+                    "monto": str(abs(monto_tx)),
+                    "candidatos": candidatos_folios,
+                    "score": None,
+                    "estado": "sugerido",
+                    "requiere_confirmacion_humana": True,
+                    "razon": (f"{len(subconjuntos)} combinaciones distintas "
+                             "cuadran la misma suma (ambigüedad real, "
+                             "ADR-2): ninguna se auto-resuelve"),
+                })
+                continue
+
+            grupo = subconjuntos[0]
+            # `_pass_group` todavía busca la suma EXACTA (bruto == neto,
+            # sin descontar comisión — la banda de grossing-up de
+            # REQ-CONC-004 aún no está integrada aquí), que es exactamente
+            # el comportamiento del perfil sin comisión
+            # ("spei_transferencia"/"cheque", 0%-0%). Sin un `perfil`
+            # explícito, ese es el default correcto para la dimensión de
+            # comisión del score (REQ-CONC-009) — no un perfil inventado,
+            # sino el que describe con precisión lo que este pase ya hace
+            # hoy. Un llamador que sepa que el canal real es Clip/Banorte
+            # puede pasar ese perfil explícitamente.
+            perfil_score = perfil if perfil is not None else (
+                get_settlement_profile("spei_transferencia"))
+            score = compute_group_score(
+                grupo, sum_cents=target_cents, target_cents=target_cents,
+                es_unico=True, perfil=perfil_score)
+            if score >= self.UMBRAL_AUTO_CONFIRMA_GRUPO:
+                group_id = "grp_" + t["id"]
+                out.extend(_build_group_match(grupo, t, group_id, score))
+                used_tx.add(t["id"])
+                used_inv_keys.update(_inv_key(i) for i in grupo)
+            else:
+                # Único candidato, pero no lo bastante limpio (REQ-CONC-008):
+                # NUNCA se auto-aplica. Queda sugerido para decisión humana;
+                # el movimiento y las facturas quedan libres.
+                self.grouped_suggestions.append({
+                    "transaction_id": t["id"],
+                    "monto": str(abs(monto_tx)),
+                    "candidatos": [[_inv_key(i) for i in grupo]],
+                    "score": score,
+                    "estado": "sugerido",
+                    "requiere_confirmacion_humana": True,
+                    "razon": (f"score de desambiguación {score} < "
+                             f"{self.UMBRAL_AUTO_CONFIRMA_GRUPO} "
+                             "(único candidato, pero no lo bastante "
+                             "confiable para auto-confirmar)"),
+                })
         return out
 
     def _pass_partial(self, invoices, stmt, tolerance_pct) -> list:
@@ -587,7 +873,8 @@ class BankReconciliation:
     # -- internos de respuesta ---------------------------------------------
 
     def _auto_match_response(self) -> dict:
-        conf = sorted(self.matches, key=lambda m: -m["confidence"])
+        conf = sorted(self.matches,
+                      key=lambda m: -_confidence_sort_value(m["confidence"]))
         return {
             "matches": self.matches,
             "auto_matchconfidence": conf,
@@ -634,6 +921,110 @@ def _build_match(inv, tx, method, confidence, detail) -> dict:
         "confidence": int(max(0, min(100, confidence))),
         "detail": detail,
     }
+
+
+_CONFIDENCE_LABEL_ORDER = {"alta": 95, "media": 70, "baja": 40}
+
+
+def _confidence_sort_value(v) -> float:
+    """Valor numérico proxy para ordenar por `confidence` cuando el campo
+    puede ser un int 0-100 (matches 1-a-1) O una etiqueta cualitativa
+    como `"alta"` (matches de grupo auto-confirmados, REQ-CONC-008).
+    Nunca se usa como el valor mostrado al usuario, solo para el orden."""
+    if isinstance(v, (int, float)):
+        return float(v)
+    return float(_CONFIDENCE_LABEL_ORDER.get(str(v).strip().lower(), 0))
+
+
+def _to_cents(d: Decimal) -> int:
+    """Convierte un Decimal (pesos) a centavos ENTEROS (nunca floats)."""
+    return int((d * 100).to_integral_value())
+
+
+def _subset_sums_exact(items: list, target_cents: int, max_size: int = 15,
+                       min_size: int = 2) -> list:
+    """Encuentra TODOS los subconjuntos de `items` (facturas) cuya suma en
+    centavos sea EXACTAMENTE `target_cents`, con tamaño entre `min_size` y
+    `max_size`.
+
+    Deliberadamente reporta la lista completa de subconjuntos válidos, sin
+    truncar a 1 en silencio: quien llama decide qué hacer con 0, 1 o 2+
+    resultados (ver ADR-1/ADR-2 en `docs/BLUEPRINT-AGENTES-FISCALES.md`).
+    Tamaño 1 se excluye por defecto porque ese caso ya lo cubre el cruce
+    exacto 1-a-1 (`_pass_exact`).
+
+    Delega en `b2b_ai.services.subset_sum.find_matching_subsets` con
+    `r_min=0` (la banda de aceptación colapsa a un único valor: suma
+    EXACTA, el caso sin comisión que usa este pase) — ese módulo despacha
+    a meet-in-the-middle en vez de fuerza bruta pasado
+    `subset_sum.MITM_THRESHOLD` (40) candidatos (REQ-CONC-006), en vez de
+    la enumeración `itertools.combinations` directa que usaba esta función
+    antes (intratable más allá de un puñado de decenas de candidatos).
+
+    Si la búsqueda agota su presupuesto de exploración
+    (`subset_sum.SubsetSumBudgetExceeded` — puede ocurrir con muchas
+    facturas de monto similar y un depósito cuya suma exacta cae cerca
+    de la mitad de la suma total, el peor caso para cualquier enumeración
+    exhaustiva), se trata igual que "no se pudo evaluar automáticamente
+    este movimiento": se devuelve `[]`, NUNCA se inventa un candidato
+    parcial (ADR-1) — el movimiento queda libre para los pases siguientes
+    o para revisión manual, igual que si nunca hubiera candidatos.
+    """
+    valores = []
+    for inv in items:
+        total = _dec(inv.get("total"))
+        if total is None or total <= 0:
+            continue
+        valores.append((total, inv))
+
+    if len(valores) < max(2, min_size):
+        return []
+
+    net = Decimal(target_cents) / Decimal(100)
+    montos = [v[0] for v in valores]
+    try:
+        candidatos = find_matching_subsets(
+            montos, net, Decimal("0"), max_size=max_size)
+    except SubsetSumBudgetExceeded:
+        return []
+
+    min_size = max(2, min_size)
+    resultados = []
+    for c in candidatos:
+        if len(c.indices) < min_size:
+            continue
+        resultados.append([valores[i][1] for i in c.indices])
+    return resultados
+
+
+def _build_group_match(grupo: list, tx: dict, group_id: str,
+                       score: int = 100) -> list:
+    """Construye N filas de match (una por factura del subconjunto) que
+    comparten el mismo `transaction_id` y `group_id`, method="grouped_n_a_1"
+    (REQ-CONC-003/010).
+
+    Solo se llama cuando `_pass_group` ya decidió AUTO-CONFIRMAR el grupo
+    (score de desambiguación >= `UMBRAL_AUTO_CONFIRMA_GRUPO`, REQ-CONC-008):
+    por eso `confidence="alta"` y `requiere_confirmacion_humana=False` son
+    fijos aquí — el caso "no confiable" nunca llega a construir estas filas,
+    se queda en `self.grouped_suggestions` con `estado="sugerido"`.
+    """
+    n = len(grupo)
+    rows = []
+    for inv in grupo:
+        m = _build_match(
+            inv, tx, "grouped_n_a_1", 95,
+            f"conciliación N-a-1: {n} facturas suman el depósito "
+            f"({tx.get('monto')}), score de desambiguación {score}")
+        m["group_id"] = group_id
+        # REQ-CONC-008: auto-confirmación explícita — nunca se llega aquí
+        # con 0, 2+ candidatos o score < umbral.
+        m["confidence"] = "alta"
+        m["requiere_confirmacion_humana"] = False
+        m["estado"] = "confirmado"
+        m["score"] = score
+        rows.append(m)
+    return rows
 
 
 def _coerce_path(file):
