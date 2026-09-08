@@ -23,6 +23,14 @@ KEY = "clave-de-servicio-para-las-pruebas"
 def app_db(tmp_path, monkeypatch):
     monkeypatch.setenv("B2B_API_KEY", KEY)
     monkeypatch.setenv("B2B_RATE_LIMIT", "off")
+    # La clave viene de env (modo standalone), sin fila en `api_keys`, así que
+    # no resuelve tenant por sí sola. Desde que `api/auth.py` empezó a
+    # rechazar con 400 una clave válida sin tenant (aislamiento multi-tenant,
+    # cubierto en test_auth_fix.py), el modo standalone necesita
+    # B2B_DEFAULT_TENANT_ID para que la clave de env resuelva a un tenant
+    # concreto. Sin esto, TODAS las peticiones de esta suite morían en el
+    # middleware de auth con 400 antes de llegar al código bajo prueba.
+    monkeypatch.setenv("B2B_DEFAULT_TENANT_ID", "1")
     db = Database(str(tmp_path / "hallazgos.db"))
     return TestClient(create_app(db=db)), db
 
@@ -188,6 +196,10 @@ def test_conciliacion_sobrevive_a_una_instancia_nueva(tmp_path, monkeypatch):
     """
     monkeypatch.setenv("B2B_API_KEY", KEY)
     monkeypatch.setenv("B2B_RATE_LIMIT", "off")
+    # Ver la nota en el fixture `app_db`: la clave de env necesita un tenant
+    # fijo (modo standalone) para no chocar con el rechazo por aislamiento
+    # multi-tenant de `api/auth.py`.
+    monkeypatch.setenv("B2B_DEFAULT_TENANT_ID", "1")
     ruta = str(tmp_path / "conc.db")
 
     subida = TestClient(create_app(db=Database(ruta)))
@@ -205,6 +217,10 @@ def test_conciliacion_no_se_filtra_entre_instancias_sin_datos(tmp_path,
     """Una base recién creada no ve movimientos de ninguna corrida previa."""
     monkeypatch.setenv("B2B_API_KEY", KEY)
     monkeypatch.setenv("B2B_RATE_LIMIT", "off")
+    # Ver la nota en el fixture `app_db`: la clave de env necesita un tenant
+    # fijo (modo standalone) para no chocar con el rechazo por aislamiento
+    # multi-tenant de `api/auth.py`.
+    monkeypatch.setenv("B2B_DEFAULT_TENANT_ID", "1")
 
     primera = TestClient(create_app(db=Database(str(tmp_path / "a.db"))))
     assert _sube_estado(primera).status_code == 200
