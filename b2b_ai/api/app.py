@@ -1160,12 +1160,16 @@ def create_app(db=None):
             return FileResponse(f, media_type="image/png")
 
         @app.get("/robots.txt", include_in_schema=False)
-        def robots():
-            sitemap_url = os.environ.get(
-                "B2B_SITEMAP_URL", "").strip()
-            sitemap_line = f"Sitemap: {sitemap_url}\n" if sitemap_url else ""
+        def robots(request: Request):
+            # El sitio ya sirve /sitemap.xml en el mismo origen (ver ruta
+            # abajo): por defecto robots.txt apunta ahí. B2B_SITEMAP_URL
+            # permite forzar una URL distinta (p.ej. dominio canónico fijo
+            # cuando la app corre detrás de varios hosts/proxies).
+            sitemap_url = os.environ.get("B2B_SITEMAP_URL", "").strip()
+            if not sitemap_url:
+                sitemap_url = f"{str(request.base_url).rstrip('/')}/sitemap.xml"
             return PlainTextResponse(
-                f"User-agent: *\nAllow: /\n\n{sitemap_line}")
+                f"User-agent: *\nAllow: /\n\nSitemap: {sitemap_url}\n")
 
         # Privacy policy (LFPDPPP compliance)
         _legal_dir = LANDING_DIR.parent / "docs" / "legal"
