@@ -16,6 +16,8 @@ import re
 from datetime import date, datetime
 from typing import List, Optional, Tuple
 
+from b2b_ai.api.validators import validate_clabe as _validate_clabe_checksum
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -94,7 +96,20 @@ def validate_date_format(date_str: str, field_name: str = "fecha") -> Optional[s
 
 
 def validate_clabe(clabe: str) -> Optional[str]:
-    """Validate CLABE interbancaria (18 digits). Returns None if valid."""
+    """Validate CLABE interbancaria: 18 dígitos + dígito verificador.
+
+    REQ-IVA-015: la CLABE del depósito de la devolución debe validarse con
+    el algoritmo de dígito verificador (módulo 10 ponderado 3-7-1) antes de
+    aceptar la solicitud — un formato de 18 dígitos numéricos no es
+    suficiente, ya que un typo en un solo dígito produce una CLABE del
+    tamaño correcto pero inexistente/errónea.
+
+    El cálculo del dígito verificador se reutiliza de
+    `b2b_ai.api.validators.validate_clabe` (mismo algoritmo, ya usado en
+    otras partes del repo) en vez de reimplementarlo aquí.
+
+    Returns None if valid, error message if invalid.
+    """
     if not clabe or not clabe.strip():
         return "CLABE no puede estar vacío."
     clabe = clabe.strip()
@@ -102,6 +117,15 @@ def validate_clabe(clabe: str) -> Optional[str]:
         return f"CLABE debe tener 18 dígitos, tiene {len(clabe)}."
     if not clabe.isdigit():
         return "CLABE solo debe contener dígitos."
+
+    resultado = _validate_clabe_checksum(clabe)
+    if not resultado["valid"]:
+        detalle = (
+            resultado["warnings"][0]
+            if resultado["warnings"]
+            else "dígito verificador inválido"
+        )
+        return f"CLABE con dígito verificador inválido: {detalle}"
     return None
 
 

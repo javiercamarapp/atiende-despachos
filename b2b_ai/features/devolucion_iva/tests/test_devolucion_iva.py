@@ -362,7 +362,7 @@ class TestRequestTracking:
 
     def test_preparar_solicitud(self):
         saldo = {"monto_devolucion_sugerido": 50000.0}
-        sol = preparar_solicitud("2025-01", saldo, "Banorte", "072180001234567890")
+        sol = preparar_solicitud("2025-01", saldo, "Banorte", "072180001234567897")
         assert sol.periodo == "2025-01"
         assert sol.monto_solicitado == 50000.0
         assert sol.status == EstatusDevolucion.PENDIENTE
@@ -377,12 +377,23 @@ class TestRequestTracking:
         with pytest.raises(ValueError, match="CLABE"):
             preparar_solicitud("2025-01", saldo, clabe="123")
 
+    def test_preparar_solicitud_clabe_digito_verificador_invalido_fails(self):
+        """REQ-IVA-015: 18 dígitos numéricos, pero dígito verificador
+        incorrecto — debe rechazarse igual que un formato inválido, y la
+        solicitud nunca debe crearse (no hay valor de retorno que persistir)."""
+        saldo = {"monto_devolucion_sugerido": 10000.0}
+        # Mismos 18 dígitos que la CLABE válida usada en el resto del
+        # módulo, pero con el último dígito (verificador) alterado.
+        clabe_digito_invalido = "072180001234567890"
+        with pytest.raises(ValueError, match="dígito verificador"):
+            preparar_solicitud("2025-01", saldo, clabe=clabe_digito_invalido)
+
     def test_registrar_y_consultar_status(self):
         sol = preparar_solicitud(
             "2025-01",
             {"monto_devolucion_sugerido": 25000.0},
             "Banorte",
-            "072180001234567890",
+            "072180001234567897",
         )
         registrar_solicitud(sol)
         status = consultar_status(sol.solicitud_id)
@@ -394,7 +405,7 @@ class TestRequestTracking:
             "2025-01",
             {"monto_devolucion_sugerido": 25000.0},
             "Banorte",
-            "072180001234567890",
+            "072180001234567897",
         )
         registrar_solicitud(sol)
         updated = actualizar_status(
@@ -486,13 +497,31 @@ class TestValidators:
         assert validate_date_format("2099-01-01") is not None
 
     def test_validate_clabe_valid(self):
-        assert validate_clabe("072180001234567890") is None
+        assert validate_clabe("072180001234567897") is None
 
     def test_validate_clabe_invalid_length(self):
         assert validate_clabe("123456") is not None
 
     def test_validate_clabe_not_digits(self):
         assert validate_clabe("07218000123456789A") is not None
+
+    def test_validate_clabe_digito_verificador_invalido(self):
+        """REQ-IVA-015: 18 dígitos correctos en forma, pero el dígito
+        verificador (posición 18) no corresponde al algoritmo módulo 10
+        ponderado 3-7-1 sobre los primeros 17 — debe rechazarse."""
+        # "072180001234567897" es válida (dígito verificador 7); se altera
+        # únicamente el último dígito a 0.
+        assert validate_clabe("072180001234567890") is not None
+        assert "dígito verificador" in validate_clabe("072180001234567890")
+
+    def test_validate_clabe_digito_verificador_correcto_para_otra_base(self):
+        """El validador no depende de un banco/plaza fijo: otra base de 17
+        dígitos con su propio dígito verificador correcto (calculado con el
+        mismo algoritmo módulo 10 ponderado 3-7-1) también debe pasar,
+        mientras que esa misma base con el dígito 9 (incorrecto) no."""
+        assert validate_clabe("014180655208094809") is not None  # verificador roto
+        # Dígito verificador correcto para la base "01418065520809480": 7.
+        assert validate_clabe("014180655208094807") is None
 
     def test_validate_periodo_valid(self):
         assert validate_periodo("2025-01") is None
@@ -565,7 +594,7 @@ class TestDevolucionIVAService:
 
         # Solicitud
         sol = svc.preparar_solicitud(
-            "2025-01", calc, "Banorte", "072180001234567890",
+            "2025-01", calc, "Banorte", "072180001234567897",
         )
         assert sol.monto_solicitado == 1600.0
 
