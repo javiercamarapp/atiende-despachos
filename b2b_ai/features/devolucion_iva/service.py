@@ -16,10 +16,14 @@ import json
 import time
 import uuid as _uuid
 from collections import defaultdict
-from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 from b2b_ai.db.db import Database
+from b2b_ai.features.alertas.deadline_engine import (
+    MEXICO_HOLIDAYS_2026,
+    is_business_day,
+)
 from b2b_ai.features.diot.models import TipoOperacion
 
 from .models import (
@@ -669,6 +673,87 @@ def preparar_solicitud(
     return solicitud
 
 
+# ---------------------------------------------------------------------------
+# REQ-IVA-016 — Plazo de resolución (Art. 22 CFF)
+# ---------------------------------------------------------------------------
+#
+# El SAT debe resolver una solicitud de devolución de IVA dentro de 40 días
+# hábiles contados a partir de la presentación de la solicitud (Art. 22,
+# quinto párrafo, CFF); el plazo se reduce a 20 días hábiles cuando el
+# contribuyente dictamina sus estados financieros por contador público
+# registrado, o garantiza el interés fiscal (mismo artículo).
+#
+# "Días hábiles" excluye sábados, domingos y el calendario oficial de días
+# inhábiles del SAT (Art. 12 CFF: los plazos no corren en los días en que
+# las oficinas de la autoridad fiscal permanezcan cerradas). Este módulo
+# reutiliza el mismo calendario oficial (`MEXICO_HOLIDAYS_2026`) que ya usa
+# `b2b_ai.features.alertas.deadline_engine` para el resto de los plazos
+# fiscales del sistema, en vez de mantener un segundo calendario paralelo
+# que pudiera desincronizarse de esa fuente.
+DIAS_HABILES_PLAZO_RESOLUCION = 40
+DIAS_HABILES_PLAZO_RESOLUCION_CON_DICTAMEN_O_GARANTIA = 20
+
+
+def _parse_fecha(fecha: "str | date") -> date:
+    """Acepta tanto `date` como texto ISO (`YYYY-MM-DD`)."""
+    if isinstance(fecha, date):
+        return fecha
+    if isinstance(fecha, datetime):
+        return fecha.date()
+    return datetime.strptime(str(fecha)[:10], "%Y-%m-%d").date()
+
+
+def sumar_dias_habiles(
+    fecha_inicio: "str | date",
+    num_dias_habiles: int,
+    holidays: Optional[List[Tuple[int, int]]] = None,
+) -> date:
+    """Avanza `num_dias_habiles` días hábiles a partir de `fecha_inicio`.
+
+    `fecha_inicio` se EXCLUYE del conteo (Art. 12 CFF: los plazos empiezan a
+    correr a partir del día siguiente a aquel en que surta efectos la
+    notificación/presentación); solo cuentan como "día hábil" los días que
+    no son sábado, domingo, ni parte del calendario oficial de días
+    inhábiles del SAT (`is_business_day` de
+    `b2b_ai.features.alertas.deadline_engine`, con `MEXICO_HOLIDAYS_2026`
+    por defecto).
+
+    Una solicitud presentada un jueves da como resultado una fecha 40 días
+    HÁBILES después (saltando fines de semana y días inhábiles), nunca 40
+    días naturales.
+    """
+    if num_dias_habiles < 0:
+        raise ValueError("num_dias_habiles no puede ser negativo.")
+
+    dia = _parse_fecha(fecha_inicio)
+    contados = 0
+    while contados < num_dias_habiles:
+        dia += timedelta(days=1)
+        if is_business_day(dia, holidays):
+            contados += 1
+    return dia
+
+
+def calcular_fecha_limite_resolucion(
+    fecha_presentacion: "str | date",
+    hay_dictamen_o_garantia: bool = False,
+    holidays: Optional[List[Tuple[int, int]]] = None,
+) -> date:
+    """REQ-IVA-016 — Fecha límite para que el SAT resuelva (Art. 22 CFF).
+
+    40 días hábiles desde `fecha_presentacion`; 20 días hábiles si
+    `hay_dictamen_o_garantia=True` (dictamen de contador público registrado
+    o garantía del interés fiscal). Solo cuenta días hábiles — ver
+    `sumar_dias_habiles`.
+    """
+    dias = (
+        DIAS_HABILES_PLAZO_RESOLUCION_CON_DICTAMEN_O_GARANTIA
+        if hay_dictamen_o_garantia
+        else DIAS_HABILES_PLAZO_RESOLUCION
+    )
+    return sumar_dias_habiles(fecha_presentacion, dias, holidays=holidays)
+
+
 def generar_papel_trabajo(
     periodo: str,
     facturas: List[FacturaCFDI],
@@ -1126,6 +1211,16 @@ class DevolucionIVAService:
         self, periodo: str, tenant_id: Optional[str] = None,
     ) -> Optional[PapelTrabajo]:
         return obtener_papel_trabajo(periodo, tenant_id=tenant_id, db=self.db)
+
+    def calcular_fecha_limite_resolucion(
+        self,
+        fecha_presentacion: "str | date",
+        hay_dictamen_o_garantia: bool = False,
+    ) -> date:
+        """REQ-IVA-016 — ver `calcular_fecha_limite_resolucion` de módulo."""
+        return calcular_fecha_limite_resolucion(
+            fecha_presentacion, hay_dictamen_o_garantia=hay_dictamen_o_garantia,
+        )
 
     @staticmethod
     def _coerce_facturas(facturas: list | None) -> List[FacturaCFDI]:
