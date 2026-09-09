@@ -73,11 +73,17 @@ def _client(tenant_id: str = T1) -> TestClient:
 class TestCreateObligation:
     def test_create_obligation_stores_and_returns(self):
         svc = ComplianceService()
-        obl = svc.create_obligation(T1, ObligationType.DIOT, date(2025, 6, 17))
+        # Fecha relativa a "hoy" (no absoluta): esta prueba exige status PENDING, que
+        # solo aplica a una fecha de vencimiento futura -- una fecha fija terminaba
+        # quedando en el pasado real conforme avanzaba el reloj del sistema, y el
+        # servicio (correctamente) la recalculaba como OVERDUE (ver el sibling
+        # `test_past_due_date_starts_overdue`, que sí usa una fecha pasada a propósito).
+        vencimiento_futuro = date.today() + timedelta(days=30)
+        obl = svc.create_obligation(T1, ObligationType.DIOT, vencimiento_futuro)
         assert isinstance(obl, Obligation)
         assert obl.tenant_id == T1
         assert obl.obligation_type == ObligationType.DIOT
-        assert obl.due_date == date(2025, 6, 17)
+        assert obl.due_date == vencimiento_futuro
         assert obl.status == ObligationStatus.PENDING
         got = svc.get_obligation(obl.id)
         assert got.id == obl.id

@@ -117,7 +117,7 @@ def _make_pipeline_orchestrator(
     pipe._journal_gen = journal_gen
     pipe._erp = erp_registrar
     pipe._overrides = override_manager
-    pipe._jobs = {}
+    pipe._jobs_mem = {}
 
     return pipe, erp_registrar
 
@@ -318,7 +318,7 @@ class TestPipelineJobTracking:
         pipe._erp = MagicMock()
         pipe._overrides = MagicMock()
         pipe._overrides.get_override.return_value = None
-        pipe._jobs = {}
+        pipe._jobs_mem = {}
 
         cfdi_data = {"uuid": "CFDI-001", "subtotal": 1000, "iva": 160, "total": 1160, "tipo": "I"}
         job = pipe.process_cfdis([cfdi_data], tenant_id="t1")
