@@ -1,604 +1,482 @@
 # -*- coding: utf-8 -*-
 """
-contpaqi_real_driver.py — Real CONTPAQi driver using Playwright.
+contpaqi_real_driver.py — Driver real de CONTPAQi via RPA de escritorio.
 
-Provides CONTPAQiRealDriver, a production-grade implementation that uses
-PlaywrightDesktop to automate CONTPAQi web. Unlike ContpaqiDriver (which
-uses MockDesktop), this driver actually connects to a real CONTPAQi web
-instance, performs login, navigates menus, and extracts invoice data.
+REDISEÑO (auditoría de producción, decisión de negocio ya tomada): CONTPAQi
+se integra vía RPA sobre la app de ESCRITORIO real (Windows), NO vía una
+"CONTPAQi Web" que nunca existió. La versión anterior de este archivo
+heredaba de DesktopAutomation (no de la ABC ComputerUseDriver que exige el
+factory) y usaba Playwright asumiendo una URL web -- ambos eran incorrectos
+para un ERP de escritorio on-premise.
 
-Features:
-    - Login with credentials (multi-selector fallback)
-    - Menu navigation (Facturas, Catálogos, Reportes)
-    - Invoice grid parsing with structured extraction
-    - Error recovery with automatic retries
-    - Screenshot-based state verification
-    - Health checks for browser and session
-    - Structured logging for all operations
+CONTPAQiRealDriver implementa ahora la ABC completa `interface.ComputerUseDriver`
+(provider, mode, connect, login, verify_authenticated, logout, close,
+navigate_menu, extract_invoices, capture_invoice_grid, register_invoice,
+register_poliza, verify_invoice_registered, verify_poliza_registered, health,
+recover_from_error), delegando el control de la ventana de escritorio a un
+`ContpaqiDesktopBackend` (ver contpaqi_rpa_backend.py):
 
-Usage:
+    - PywinautoContpaqiBackend: RPA real sobre pywinauto (Windows, UIA).
+      Dependencia OPCIONAL -- import perezoso, con mensaje claro si falta o
+      si no se corre en Windows.
+    - ContpaqiSimulatorBackend: cliente de un simulador HTTP local (stdlib
+      puro) que imita el mismo flujo de estados que tendría CONTPAQi real,
+      para desarrollo/pruebas en entornos sin Windows (como este).
+
+HONESTIDAD OBLIGATORIA (mismo principio que SATSubmitter, commit 27f94a7):
+
+    CONTPAQI_VERIFICADO_CONTRA_REAL = False
+
+No existe ninguna instancia real de CONTPAQi disponible para probar en este
+entorno. El backend de pywinauto está escrito con la mejor comprensión del
+flujo típico y documentado públicamente de "Captura de pólizas" en CONTPAQi
+Contabilidad, pero NUNCA se ha ejecutado ni confirmado contra una instalación
+real -- ver el disclaimer completo en contpaqi_rpa_backend.py. El backend por
+defecto en este entorno (sin Windows) es el simulador HTTP local, que por
+definición tampoco es CONTPAQi real. Todo DriverResult que produce este
+driver incluye `verificado_contra_real: False` en sus datos para que ningún
+llamador lo confunda con una integración verificada.
+
+Uso:
     from b2b_ai.computer_use.contpaqi_real_driver import CONTPAQiRealDriver
 
-    driver = CONTPAQiRealDriver(erp_url="https://contpaqiweb.example.com")
-    await driver.connect()
-    result = await driver.login({"usuario": "admin", "password": "pass"})
-    invoices = await driver.extract_invoices()
+    driver = CONTPAQiRealDriver()   # autodetecta backend (pywinauto o simulador)
+    driver.connect()
+    driver.login({"usuario": "admin", "password": "pass", "empresa": "Demo SA"})
+    driver.navigate_menu("polizas")
+    driver.register_poliza({
+        "tipo": "Diario", "fecha": "2026-01-01",
+        "conceptos": [
+            {"cuenta": "1105-001", "concepto": "Ingreso banco", "cargo": 1000, "abono": 0},
+            {"cuenta": "4105-001", "concepto": "Venta", "cargo": 0, "abono": 1000},
+        ],
+    })
 """
 from __future__ import annotations
 
 import logging
-import uuid
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from b2b_ai.computer_use.contpaqi_driver import DesktopAutomation
-from b2b_ai.computer_use.playwright_desktop import PlaywrightDesktop
+from b2b_ai.computer_use.contpaqi_rpa_backend import (
+    ContpaqiDesktopBackend,
+    select_contpaqi_backend,
+)
+from b2b_ai.computer_use.interface import (
+    ComputerUseDriver,
+    DriverResult,
+)
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# CONTPAQi Web menu structure (common paths)
-# ---------------------------------------------------------------------------
-CONTPAQI_MENU_PATHS = {
-    "facturas": {
-        "selectors": [
-            "a:has-text('Facturas')",
-            "a:has-text('Facturación')",
-            "button:has-text('Facturas')",
-            ".menu-facturas",
-            "xpath=//a[contains(text(),'Factura')]",
-        ],
-        "grid_selector": "table.facturas-grid, table.invoices-grid, table tbody",
-    },
-    "catalogos": {
-        "selectors": [
-            "a:has-text('Catálogos')",
-            "a:has-text('Catálogo')",
-            ".menu-catalogos",
-        ],
-        "grid_selector": "table.catalogos-grid, table tbody",
-    },
-    "reportes": {
-        "selectors": [
-            "a:has-text('Reportes')",
-            "a:has-text('Reporte')",
-            ".menu-reportes",
-        ],
-        "grid_selector": "table.reportes-grid, table tbody",
-    },
-}
+# Ver disclaimer completo arriba y en contpaqi_rpa_backend.py.
+CONTPAQI_VERIFICADO_CONTRA_REAL = False
 
 
-class CONTPAQiRealDriver(DesktopAutomation):
-    """Real CONTPAQi driver using Playwright browser automation.
+class CONTPAQiRealDriver(ComputerUseDriver):
+    """Driver real de CONTPAQi (RPA de escritorio) sobre la ABC ComputerUseDriver.
 
-    Automates CONTPAQi web interface for:
-    - Login with credentials
-    - Menu navigation (Facturas, Catálogos, Reportes)
-    - Invoice grid capture and parsing
-    - Invoice registration
-    - Screenshot-based state verification
-    - Error recovery with automatic retries
+    Implementa la interfaz completa exigida por ComputerUseDriverFactory,
+    delegando la manipulación de la ventana a un ContpaqiDesktopBackend
+    (pywinauto real, o el simulador HTTP local cuando pywinauto no está
+    disponible). Ver el disclaimer de honestidad al inicio del módulo:
+    verificado_contra_real es SIEMPRE False hasta que alguien lo confirme
+    contra una instalación real de CONTPAQi.
     """
 
-    APP_NAME = "CONTPAQi Web"
-    backend = "CONTPAQiRealDriver (Playwright browser automation)"
+    APP_NAME = "CONTPAQi Contabilidad (escritorio)"
+    PROVIDER = "contpaqi"
 
     def __init__(
         self,
         erp_url: Optional[str] = None,
         headless: bool = True,
-        desktop: Optional[PlaywrightDesktop] = None,
+        *,
+        window_title: Optional[str] = None,
+        process_name: Optional[str] = None,
+        simulator_base_url: Optional[str] = None,
+        backend: Optional[ContpaqiDesktopBackend] = None,
+        force_backend: Optional[str] = None,
+        tenant_id: Optional[int] = None,
+        timeout_seconds: int = 30,
+        max_retries: int = 3,
     ):
-        """Initialize the real CONTPAQi driver.
+        """Inicializa el driver.
 
         Args:
-            erp_url: URL of the CONTPAQi web instance.
-            headless: Whether to run the browser headless.
-            desktop: Optional pre-configured PlaywrightDesktop instance.
+            erp_url, headless: aceptados sólo por compatibilidad con la firma
+                que usa ComputerUseDriverFactory._create_playwright_driver
+                (herencia de la era "CONTPAQi Web"). Un ERP de escritorio no
+                tiene URL ni modo headless; se ignoran (se registra un debug
+                log si erp_url viene con un valor). No se eliminan del
+                constructor para no romper el wiring existente del factory.
+            window_title: regex de título de ventana para pywinauto.
+            process_name: proceso a lanzar si pywinauto no encuentra ventana.
+            simulator_base_url: URL de un ContpaqiSimulatorServer externo ya
+                corriendo; si no se da, el backend simulador lanza uno propio.
+            backend: inyecta un ContpaqiDesktopBackend explícito (pruebas).
+            force_backend: 'pywinauto' | 'simulator', fuerza la selección en
+                vez de autodetectar (pruebas / troubleshooting).
+            tenant_id, timeout_seconds, max_retries: metadatos/operación:
+                tenant_id se incluye en logs y health(); timeout/retries se
+                exponen para futura integración con lógica de reintento.
         """
-        self.erp_url = erp_url or "https://contpaqiweb.example.com/app"
-        self.desktop = desktop or PlaywrightDesktop(headless=headless)
-        self.session = None
-        self._registered: List[Dict] = []
+        if erp_url:
+            logger.debug(
+                "CONTPAQiRealDriver: erp_url=%r ignorado (RPA de escritorio "
+                "no usa URL; parámetro conservado sólo por compatibilidad "
+                "con el wiring previo del factory).", erp_url,
+            )
+        self._headless_ignored = headless  # no aplica a RPA de escritorio
+
+        self._backend: ContpaqiDesktopBackend = backend or select_contpaqi_backend(
+            window_title=window_title,
+            process_name=process_name,
+            simulator_base_url=simulator_base_url,
+            force=force_backend,
+        )
+        self._tenant_id = tenant_id
+        self._timeout_seconds = timeout_seconds
+        self._max_retries = max_retries
+
+        self._connected = False
+        self._closed = False
+        self._session: Optional[Dict[str, Any]] = None
         self._current_module: Optional[str] = None
-        # Shared event loop for sync wrappers
-        import asyncio
-        self._loop = asyncio.new_event_loop()
+        self._registered_invoices: List[Dict[str, Any]] = []
+        self._registered_polizas: List[Dict[str, Any]] = []
 
-    def _run_sync(self, coro):
-        """Run an async coroutine synchronously using the shared event loop."""
-        import asyncio
+    # -- identidad (ComputerUseDriver ABC) -----------------------------------
+    @property
+    def provider(self) -> str:
+        return self.PROVIDER
+
+    @property
+    def mode(self) -> str:
+        # Se conserva el valor 'playwright' del vocabulario de modos del
+        # factory/config (mock | playwright | disabled) por compatibilidad:
+        # 'playwright' es, en ese enum, el modo genérico de "driver real, no
+        # mock" -- NO implica que la tecnología subyacente sea la librería
+        # Playwright. La tecnología real es RPA de escritorio (pywinauto) o,
+        # en desarrollo sin Windows, el simulador HTTP local. Ver
+        # self.backend_info() / health() para la tecnología real en uso.
+        return "playwright"
+
+    def backend_info(self) -> Dict[str, Any]:
+        """Expone qué backend concreto está en uso (para logs/reportes)."""
+        return {
+            "backend_nombre": self._backend.NOMBRE,
+            "backend_es_real": self._backend.ES_REAL,
+            "verificado_contra_real": CONTPAQI_VERIFICADO_CONTRA_REAL,
+        }
+
+    # -- lifecycle ------------------------------------------------------------
+    def connect(self) -> DriverResult:
         try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop is not None and loop.is_running():
-            fresh = asyncio.new_event_loop()
-            try:
-                return fresh.run_until_complete(coro)
-            finally:
-                fresh.close()
-        return self._loop.run_until_complete(coro)
+            r = self._backend.launch_or_attach()
+        except Exception as e:
+            logger.error("CONTPAQiRealDriver:connect error=%s", e)
+            return DriverResult.failed(
+                message=f"Error conectando con CONTPAQi: {e}",
+                verificado_contra_real=CONTPAQI_VERIFICADO_CONTRA_REAL,
+            )
+        if not r.get("ok"):
+            logger.error("CONTPAQiRealDriver:connect FAILED error=%s", r.get("error"))
+            return DriverResult.failed(
+                message=r.get("error", "No se pudo conectar con CONTPAQi."),
+                **self.backend_info(),
+            )
+        self._connected = True
+        logger.info(
+            "CONTPAQiRealDriver:connect ok backend=%s titulo_ventana=%s",
+            self._backend.NOMBRE, r.get("titulo_ventana"),
+        )
+        return DriverResult.success(
+            message=f"Conectado a CONTPAQi ({self._backend.NOMBRE}).",
+            titulo_ventana=r.get("titulo_ventana"),
+            **self.backend_info(),
+        )
 
-    def close(self):
-        """Close the shared event loop and clean up resources."""
-        if self._loop is not None and not self._loop.is_closed():
-            self._loop.close()
-            self._loop = None
+    def login(self, credentials: Dict[str, Any]) -> DriverResult:
+        if not self._connected:
+            return DriverResult.failed(
+                "No conectado; llame connect() primero.",
+                **self.backend_info(),
+            )
+        creds = credentials or {}
+        usuario = creds.get("usuario") or creds.get("username", "")
+        password = creds.get("password", "")
+        empresa = creds.get("empresa", "")
+        if not usuario:
+            return DriverResult.failed("Falta 'usuario' en las credenciales.")
+        if not password:
+            return DriverResult.failed("Falta 'password' en las credenciales.")
+
+        try:
+            r = self._backend.login(usuario, password, empresa)
+        except Exception as e:
+            logger.error("CONTPAQiRealDriver:login error=%s", e)
+            return DriverResult.failed(message=f"Error de login: {e}")
+
+        if not r.get("ok"):
+            return DriverResult.failed(
+                message=r.get("error", "Login rechazado por CONTPAQi."),
+                **self.backend_info(),
+            )
+
+        self._session = {"usuario": usuario, "empresa": empresa, "provider": self.PROVIDER}
+        logger.info("CONTPAQiRealDriver:login ok usuario=%s", usuario)
+        return DriverResult.success(
+            message=f"Sesión CONTPAQi iniciada como {usuario}.",
+            session=self._session,
+            **self.backend_info(),
+        )
+
+    def verify_authenticated(self) -> DriverResult:
+        if not self._session:
+            return DriverResult.session_expired("Sin sesión activa.")
+        try:
+            h = self._backend.health()
+        except Exception as e:
+            return DriverResult.session_expired(f"No se pudo verificar la sesión: {e}")
+        if not h.get("ok", True):
+            return DriverResult.session_expired(
+                h.get("error", "El backend de CONTPAQi no respondió; sesión probablemente perdida.")
+            )
+        return DriverResult.success("Sesión activa.", session=self._session)
+
+    def logout(self) -> DriverResult:
+        if not self._session:
+            return DriverResult.failed("No hay sesión activa para cerrar.")
+        try:
+            r = self._backend.logout()
+        except Exception as e:
+            return DriverResult.failed(f"Error cerrando sesión: {e}")
+        usuario = self._session.get("usuario", "")
+        self._session = None
+        self._current_module = None
+        if not r.get("ok", True):
+            return DriverResult.failed(r.get("error", "No se pudo cerrar sesión."))
+        return DriverResult.success(f"Sesión de {usuario} cerrada.")
+
+    def close(self) -> None:
+        try:
+            self._backend.close()
+        except Exception:
+            logger.debug("CONTPAQiRealDriver: error cerrando backend", exc_info=True)
+        self._connected = False
+        self._session = None
+        self._closed = True
 
     def __del__(self):
-        """Ensure event loop is closed on garbage collection."""
-        self.close()
+        if not getattr(self, "_closed", True):
+            try:
+                self.close()
+            except Exception:
+                pass
 
-    # -------------------------------------------------------------------
-    # Connection & Login
-    # -------------------------------------------------------------------
-    async def connect(self) -> Dict[str, Any]:
-        """Launch browser and navigate to CONTPAQi.
+    # -- navegación / extracción ----------------------------------------------
+    def navigate_menu(self, module: str) -> DriverResult:
+        if not self._session:
+            return DriverResult.session_expired("Debe iniciar sesión primero.")
+        from b2b_ai.computer_use.contpaqi_rpa_backend import MENU_PATHS
 
-        Returns:
-            Dict with {ok, url, page_title, message}.
-        """
-        result = await self.desktop.launch(self.erp_url)
-        if result.get("ok"):
-            logger.info("CONTPAQiRealDriver: connected to %s", self.erp_url)
-        else:
-            logger.error("CONTPAQiRealDriver: connect FAILED url=%s error=%s",
-                         self.erp_url, result.get("error"))
-        return result
-
-    async def login(self, credentials: Dict[str, Any]) -> Dict[str, Any]:
-        """Login to CONTPAQi web with real browser interaction.
-
-        Tries multiple selectors for username/password/submit fields
-        with automatic fallback.
-
-        Args:
-            credentials: Dict with 'usuario' and 'password' keys.
-
-        Returns:
-            Dict with {ok, session, message}.
-        """
-        creds = credentials or {}
-        usuario = creds.get("usuario", "")
-        if not usuario:
-            return {"ok": False, "session": None,
-                    "message": "Falta 'usuario' en las credenciales."}
-
+        ruta = MENU_PATHS.get(module)
+        if not ruta:
+            return DriverResult.failed(
+                f"Módulo '{module}' no reconocido. Disponibles: {sorted(MENU_PATHS)}"
+            )
         try:
-            username_selectors = [
-                "input[name='usuario']",
-                "input[name='username']",
-                "input[id='usuario']",
-                "input[id='txtUsuario']",
-                "input[type='text']",
-            ]
-            password_selectors = [
-                "input[name='password']",
-                "input[name='contraseña']",
-                "input[name='clave']",
-                "input[id='txtPassword']",
-                "input[type='password']",
-            ]
-
-            # Type username with fallback
-            typed_user = False
-            for sel in username_selectors:
-                result = await self.desktop.fill(sel, usuario)
-                if result.get("ok"):
-                    typed_user = True
-                    break
-            if not typed_user:
-                await self.desktop.type_text(usuario)
-                await self.desktop.press_key("Tab")
-
-            # Type password with fallback
-            typed_pass = False
-            password = creds.get("password", "")
-            for sel in password_selectors:
-                result = await self.desktop.fill(sel, password)
-                if result.get("ok"):
-                    typed_pass = True
-                    break
-            if not typed_pass:
-                await self.desktop.type_text(password)
-
-            # Submit with fallback
-            submit_selectors = [
-                "button[type='submit']",
-                "input[type='submit']",
-                "button:has-text('Entrar')",
-                "button:has-text('Iniciar')",
-                "button:has-text('Aceptar')",
-                "xpath=//button[contains(text(),'Entrar')]",
-            ]
-            submitted = False
-            for sel in submit_selectors:
-                result = await self.desktop.click_selector(sel)
-                if result.get("ok"):
-                    submitted = True
-                    break
-            if not submitted:
-                await self.desktop.press_key("Enter")
-
-            self.session = {
-                "usuario": usuario,
-                "login_at": datetime.now().isoformat(timespec="seconds"),
-                "erp_url": self.erp_url,
-            }
-            logger.info("CONTPAQiRealDriver: logged in as %s", usuario)
-            return {"ok": True, "session": self.session,
-                    "message": f"Sesión CONTPAQi iniciada como {usuario}."}
-
+            r = self._backend.navigate(ruta)
         except Exception as e:
-            logger.error("CONTPAQiRealDriver: login FAILED error=%s", e)
-            return {"ok": False, "session": None,
-                    "message": f"Error de login: {e}"}
+            return DriverResult.failed(f"Error navegando a {module}: {e}")
+        if not r.get("ok"):
+            return DriverResult.selector_not_found(
+                r.get("error", f"No se pudo navegar a {module}."), ruta=ruta,
+            )
+        self._current_module = module
+        return DriverResult.success(f"Módulo {module} abierto.", module=module)
 
-    # -------------------------------------------------------------------
-    # Menu Navigation
-    # -------------------------------------------------------------------
-    async def navigate_menu(self, module: str) -> Dict[str, Any]:
-        """Navigate to a specific module in CONTPAQi.
+    def extract_invoices(self) -> DriverResult:
+        if not self._session:
+            return DriverResult.session_expired("Debe iniciar sesión primero.")
+        return DriverResult.success(
+            message=f"{len(self._registered_invoices)} facturas registradas en esta sesión.",
+            invoices=list(self._registered_invoices),
+            **self.backend_info(),
+        )
 
-        Args:
-            module: Module name ('facturas', 'catalogos', 'reportes').
+    def capture_invoice_grid(self) -> DriverResult:
+        if not self._session:
+            return DriverResult.session_expired("Debe iniciar sesión primero.")
+        return DriverResult.success(
+            message=f"Grid: {len(self._registered_invoices)} facturas.",
+            grid=list(self._registered_invoices),
+            **self.backend_info(),
+        )
 
-        Returns:
-            Dict with {ok, module, message}.
-        """
-        if not self.session:
-            return {"ok": False, "module": module,
-                    "message": "Sin sesión; autentíquese primero."}
-
-        menu_config = CONTPAQI_MENU_PATHS.get(module)
-        if not menu_config:
-            return {"ok": False, "module": module,
-                    "message": f"Módulo '{module}' no reconocido. "
-                               f"Disponibles: {list(CONTPAQI_MENU_PATHS.keys())}"}
-
-        try:
-            for sel in menu_config["selectors"]:
-                result = await self.desktop.click_selector(sel)
-                if result.get("ok"):
-                    self._current_module = module
-                    logger.info("CONTPAQiRealDriver: navigated to %s", module)
-                    # Wait for grid to load
-                    await self._safe_wait(1.0)
-                    return {"ok": True, "module": module,
-                            "message": f"Módulo {module} abierto."}
-
-            # Fallback: try text search
-            self._current_module = module
-            return {"ok": True, "module": module,
-                    "message": f"Módulo {module} abierto (fallback)."}
-
-        except Exception as e:
-            logger.error("CONTPAQiRealDriver: navigate_menu FAILED module=%s error=%s",
-                         module, e)
-            return {"ok": False, "module": module,
-                    "message": f"Error navegando a {module}: {e}"}
-
-    async def _safe_wait(self, seconds: float) -> None:
-        """Safe async wait (clamped to avoid blocking)."""
-        import asyncio
-        await asyncio.sleep(min(seconds, 5.0))
-
-    # -------------------------------------------------------------------
-    # Invoice Grid Parsing
-    # -------------------------------------------------------------------
-    async def extract_invoices(self) -> List[Dict[str, Any]]:
-        """Extract invoice data from the current CONTPAQi grid.
-
-        Parses visible invoice data from the page using table extraction
-        and content analysis.
-
-        Returns:
-            List of invoice dicts with structured data.
-        """
-        if not self.session:
-            return []
-
-        try:
-            # Try to extract table data
-            grid_sel = "table tbody"
-            table_data = await self.desktop.extract_table(grid_sel)
-
-            content = await self.desktop.get_content()
-            screenshot = await self.desktop.screenshot()
-
-            invoices = []
-            if table_data.get("ok") and table_data.get("rows"):
-                headers = table_data.get("headers", [])
-                for row in table_data.get("rows", []):
-                    invoice = {"source": "conpaqi_real"}
-                    # Map headers to values
-                    for i, header in enumerate(headers):
-                        if i < len(row):
-                            invoice[header.lower().strip()] = row[i]
-                    invoices.append(invoice)
-
-            # Fallback: return raw content preview
-            if not invoices:
-                text_preview = (content.get("text", "")[:1000]
-                                if content.get("ok") else "")
-                invoices = [{
-                    "source": "conpaqi_real",
-                    "content_preview": text_preview,
-                    "screenshot_path": screenshot.get("path"),
-                    "extracted_at": datetime.now().isoformat(timespec="seconds"),
-                }]
-
-            logger.info("CONTPAQiRealDriver: extracted %d invoices", len(invoices))
-            return invoices
-
-        except Exception as e:
-            logger.error("CONTPAQiRealDriver: extract_invoices FAILED error=%s", e)
-            return []
-
-    async def capture_invoice_grid(self) -> Dict[str, Any]:
-        """Capture the invoice grid from CONTPAQi.
-
-        Returns:
-            Dict with {ok, grid, screenshot_path, page_text_preview}.
-        """
-        if not self.session:
-            return {"ok": False, "grid": [],
-                    "message": "Sin sesión; autentíquese primero."}
-
-        try:
-            # Try table extraction first
-            table_data = await self.desktop.extract_table("table")
-
-            screenshot = await self.desktop.screenshot()
-            content = await self.desktop.get_content()
-
-            grid = []
-            if table_data.get("ok") and table_data.get("rows"):
-                headers = table_data.get("headers", [])
-                for row in table_data.get("rows", []):
-                    entry = {}
-                    for i, h in enumerate(headers):
-                        if i < len(row):
-                            entry[h.lower().strip()] = row[i]
-                    grid.append(entry)
-
-            # Merge with registered invoices
-            registered_grid = [{**r} for r in self._registered]
-            if grid:
-                return {
-                    "ok": True,
-                    "grid": grid,
-                    "registered": registered_grid,
-                    "screenshot_path": screenshot.get("path"),
-                    "page_text_preview": (content.get("text", "")[:500]
-                                          if content.get("ok") else ""),
-                    "message": f"Grid capturado: {len(grid)} filas.",
-                }
-
-            return {
-                "ok": True,
-                "grid": registered_grid,
-                "screenshot_path": screenshot.get("path"),
-                "page_text_preview": (content.get("text", "")[:500]
-                                      if content.get("ok") else ""),
-                "message": "Grid de facturas capturado.",
-            }
-        except Exception as e:
-            logger.error("CONTPAQiRealDriver: capture_invoice_grid FAILED error=%s", e)
-            return {"ok": False, "grid": [],
-                    "message": f"Error capturando grid: {e}"}
-
-    # -------------------------------------------------------------------
-    # Invoice Registration
-    # -------------------------------------------------------------------
-    async def register_invoice(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Register a CFDI in the real CONTPAQi web instance by filling
-        the capture form and verifying the invoice appears in the grid.
-
-        This is REAL browser automation (not in-memory): it navigates to the
-        invoice capture module, fills the required fields, saves, and verifies.
-
-        Args:
-            data: Invoice data (folio_fiscal, total, emisor_rfc, tipo, ...).
-
-        Returns:
-            Dict with {ok, registro, message}.
-        """
-        if not self.session:
-            return {"ok": False, "message": "Sin sesión; autentíquese primero."}
-
+    # -- escritura --------------------------------------------------------------
+    def register_invoice(self, data: Dict[str, Any]) -> DriverResult:
+        if not self._session:
+            return DriverResult.session_expired("Debe iniciar sesión primero.")
         folio = (data or {}).get("folio_fiscal") or (data or {}).get("folio")
         if not folio:
-            return {"ok": False, "registro": None,
-                    "message": "Falta 'folio_fiscal' del CFDI."}
-
-        # Guard against SSRF: never drive a non-allowlisted URL.
-        if not self.erp_url:
-            return {"ok": False, "registro": None,
-                    "message": "CONTPAQI_URL no configurado."}
+            return DriverResult.failed("Falta 'folio_fiscal' del CFDI.")
+        if self._current_module != "facturas":
+            nav = self.navigate_menu("facturas")
+            if not nav.ok:
+                return nav
 
         try:
-            # 1) Navegar al módulo de captura de facturas (pólizas/documentos)
-            nav = await self.navigate_menu("facturas")
-            if not nav.get("ok", False):
-                logger.warning("CONTPAQi: no se pudo navegar a facturas: %s",
-                               nav.get("message"))
-                # Fallback: intentar ir directo a la URL de captura
-                await self.desktop.launch(self.erp_url)
-
-            # 2) Llenar el formulario de captura (selectores típicos CONTPAQi web)
-            folio_sel = await self._fill_any(data, [
-                ("input[name='folioFiscal']", folio),
-                ("input[name='folio']", folio),
-                ("input[id='txtFolio']", folio),
-            ])
-            if not folio_sel:
-                logger.warning(
-                    "CONTPAQi: no se encontró campo folio; "
-                    "registro como pendiente de revisión.")
-                registro = self._build_pending_record(data, folio)
-                self._registered.append(registro)
-                return {"ok": True, "registro": registro,
-                        "message": f"CFDI {folio} registrado (sin campo folio)."}
-
-            # RFC emisor / proveedor
-            await self._fill_any(data, [
-                ("input[name='rfcEmisor']", data.get("emisor_rfc", "")),
-                ("input[name='rfc']", data.get("emisor_rfc", "")),
-                ("input[id='txtRfc']", data.get("emisor_rfc", "")),
-            ])
-            # Monto total
-            await self._fill_any(data, [
-                ("input[name='total']", str(data.get("total", ""))),
-                ("input[id='txtTotal']", str(data.get("total", ""))),
-            ])
-            # Concepto / descripción
-            await self._fill_any(data, [
-                ("textarea[name='concepto']", data.get("concepto", "")),
-                ("input[name='concepto']", data.get("concepto", "")),
-            ])
-
-            # 3) Guardar (botón típico)
-            saved = False
-            for sel in ("button:has-text('Guardar')", "button#btnGuardar",
-                        "input[type='submit']", "button:has-text('Aceptar')"):
-                res = await self.desktop.click_selector(sel)
-                if res.get("ok", False):
-                    saved = True
-                    break
-
-            # 4) Verificar que aparece en el grid de facturas
-            grid_ok = False
-            try:
-                grid = await self.extract_invoices()
-                for inv in grid:
-                    inv_folio = str(inv.get("folio") or inv.get("folio_fiscal") or "")
-                    if folio in inv_folio:
-                        grid_ok = True
-                        break
-            except Exception:
-                grid_ok = False
-
-            registro = {
-                "folio_fiscal": folio,
-                "total": (data or {}).get("total"),
-                "emisor_rfc": (data or {}).get("emisor_rfc"),
-                "status": "registrada" if grid_ok else (
-                    "pendiente_verificacion" if saved else "error_captura"),
-                "saved": saved,
-                "grid_verified": grid_ok,
-                "capturado_en": datetime.now().isoformat(timespec="seconds"),
-            }
-            self._registered.append(registro)
-            logger.info(
-                "CONTPAQiRealDriver: register_invoice %s saved=%s grid=%s",
-                folio, saved, grid_ok)
-            return {
-                "ok": True,
-                "registro": registro,
-                "message": (f"CFDI {folio} guardado en CONTPAQi."
-                            if saved else f"CFDI {folio} capturado (pendiente verificación)."),
-            }
+            r = self._backend.capture_factura({**data, "folio_fiscal": folio})
         except Exception as e:
-            logger.error("CONTPAQiRealDriver: register_invoice error: %s", e)
-            return {"ok": False, "registro": None,
-                    "message": f"Error capturando CFDI en CONTPAQi: {e}"}
+            return DriverResult.failed(f"Error capturando CFDI en CONTPAQi: {e}")
+        if not r.get("ok"):
+            return DriverResult.needs_human_review(
+                r.get("error", f"CFDI {folio} no se pudo capturar."),
+                folio_fiscal=folio,
+            )
+        registro = r["registro"]
+        self._registered_invoices.append(registro)
 
-    async def _fill_any(self, data: Dict[str, Any],
-                        selectors: list) -> str:
-        """Fill the first matching selector; returns the selector used or ''."""
-        for sel, value in selectors:
-            if not value:
-                continue
-            res = await self.desktop.fill(sel, str(value))
-            if res.get("ok", False):
-                return sel
-        return ""
+        # Verificación: releer del backend que quedó registrada (mismo
+        # principio de "no confiar sólo en que la escritura no truene" que
+        # usa ERPWebDriverBase).
+        verify = self.verify_invoice_registered(folio)
+        if not verify.ok:
+            return DriverResult.needs_human_review(
+                f"CFDI {folio} capturado pero no se pudo verificar en el grid.",
+                registro=registro,
+            )
+        return DriverResult.success(
+            f"CFDI {folio} registrado y verificado en CONTPAQi.", registro=registro,
+        )
 
-    def _build_pending_record(self, data: Dict[str, Any],
-                              folio: str) -> Dict[str, Any]:
-        """Build an in-memory pending-review record (fallback)."""
-        return {
-            "folio_fiscal": folio,
-            "total": (data or {}).get("total"),
-            "emisor_rfc": (data or {}).get("emisor_rfc"),
-            "status": "pendiente_revision",
-            "capturado_en": datetime.now().isoformat(timespec="seconds"),
-        }
+    def register_poliza(self, data: Dict[str, Any]) -> DriverResult:
+        if not self._session:
+            return DriverResult.session_expired("Debe iniciar sesión primero.")
+        conceptos = (data or {}).get("conceptos") or []
+        if not conceptos:
+            return DriverResult.failed("La póliza no tiene 'conceptos'.")
 
-    # -------------------------------------------------------------------
-    # Error Recovery
-    # -------------------------------------------------------------------
-    async def recover_from_error(self) -> Dict[str, Any]:
-        """Attempt automatic error recovery.
+        cargo_total = round(sum(float(c.get("cargo", 0) or 0) for c in conceptos), 2)
+        abono_total = round(sum(float(c.get("abono", 0) or 0) for c in conceptos), 2)
+        if round(cargo_total - abono_total, 2) != 0:
+            return DriverResult.failed(
+                f"La póliza no está balanceada (Cargo={cargo_total:.2f}, "
+                f"Abono={abono_total:.2f}); CONTPAQi la rechazaría igual.",
+                cargo_total=cargo_total, abono_total=abono_total,
+            )
 
-        Takes a screenshot to verify current state, checks if the browser
-        is still alive, and tries to re-navigate if needed.
+        if self._current_module != "polizas":
+            nav = self.navigate_menu("polizas")
+            if not nav.ok:
+                return nav
 
-        Returns:
-            Dict with {ok, recovered, state}.
-        """
         try:
-            # Check browser health
-            health = self.desktop.health()
-            if not health.get("ok"):
-                logger.warning("CONTPAQiRealDriver: browser unhealthy, reconnecting")
-                result = await self.connect()
-                if result.get("ok"):
-                    self.session = None  # Need re-login
-                    return {"ok": True, "recovered": True, "state": "reconnected",
-                            "message": "Browser reconectado. Requiere login."}
-                return {"ok": False, "recovered": False,
-                        "message": "No se pudo reconectar."}
-
-            # Take screenshot to verify state
-            screenshot = await self.desktop.screenshot()
-            if screenshot.get("ok"):
-                logger.info("CONTPAQiRealDriver: state verified via screenshot")
-                return {"ok": True, "recovered": True,
-                        "screenshot_path": screenshot.get("path"),
-                        "message": "Estado verificado via screenshot."}
-
-            return {"ok": True, "recovered": True,
-                    "message": "Browser operativo."}
-
+            r = self._backend.capture_poliza(data)
         except Exception as e:
-            logger.error("CONTPAQiRealDriver: recover FAILED error=%s", e)
-            return {"ok": False, "recovered": False,
-                    "message": f"Error en recuperación: {e}"}
+            return DriverResult.failed(f"Error capturando póliza en CONTPAQi: {e}")
+        if not r.get("ok"):
+            # Diferencia != 0 detectada del lado del backend (simula el
+            # diálogo de error real de CONTPAQi) -> needs_human_review, no
+            # failed silencioso.
+            return DriverResult.needs_human_review(
+                r.get("error", "CONTPAQi rechazó la póliza."),
+            )
+        registro = r["registro"]
+        self._registered_polizas.append(registro)
 
-    # -------------------------------------------------------------------
-    # DesktopAutomation sync interface
-    # -------------------------------------------------------------------
-    def read_window_title(self) -> str:
-        return self.desktop.read_window_title()
+        verify = self.verify_poliza_registered(registro["poliza_id"])
+        if not verify.ok:
+            return DriverResult.needs_human_review(
+                f"Póliza {registro['poliza_id']} capturada pero no se pudo "
+                "verificar en el grid.",
+                registro=registro,
+            )
+        return DriverResult.success(
+            f"Póliza {registro['poliza_id']} registrada y verificada.", registro=registro,
+        )
 
-    def health(self) -> dict:
-        browser_health = self.desktop.health()
-        return {
-            "ok": browser_health.get("ok", False),
-            "backend": self.backend,
-            "detail": (
-                f"CONTPAQiRealDriver connected to {self.erp_url}"
-                if self.session else "Not connected"
-            ),
-            "erp_url": self.erp_url,
-            "session": bool(self.session),
-            "current_module": self._current_module,
-            "registered_count": len(self._registered),
-            "browser": browser_health,
-        }
+    def verify_invoice_registered(self, folio_fiscal: str) -> DriverResult:
+        if not self._session:
+            return DriverResult.session_expired("Debe iniciar sesión primero.")
+        try:
+            r = self._backend.read_factura(folio_fiscal)
+        except Exception as e:
+            return DriverResult.verification_failed(f"Error verificando factura: {e}")
+        if r.get("ok"):
+            return DriverResult.success(
+                f"Factura {folio_fiscal} confirmada en CONTPAQi.",
+                folio_fiscal=folio_fiscal, registro=r.get("registro"),
+            )
+        return DriverResult.verification_failed(
+            r.get("error", f"Factura {folio_fiscal} no encontrada en CONTPAQi.")
+        )
 
-    def screenshot(self) -> dict:
-        return self._run_sync(self.desktop.screenshot())
+    def verify_poliza_registered(self, poliza_id: str) -> DriverResult:
+        if not self._session:
+            return DriverResult.session_expired("Debe iniciar sesión primero.")
+        try:
+            r = self._backend.read_poliza(poliza_id)
+        except Exception as e:
+            return DriverResult.verification_failed(f"Error verificando póliza: {e}")
+        if r.get("ok"):
+            return DriverResult.success(
+                f"Póliza {poliza_id} confirmada en CONTPAQi.",
+                poliza_id=poliza_id, registro=r.get("registro"),
+            )
+        return DriverResult.verification_failed(
+            r.get("error", f"Póliza {poliza_id} no encontrada en CONTPAQi.")
+        )
 
-    def click(self, x: int, y: int) -> dict:
-        return self._run_sync(self.desktop.click(x, y))
+    # -- resiliencia --------------------------------------------------------------
+    def health(self) -> DriverResult:
+        backend_health = {}
+        try:
+            backend_health = self._backend.health()
+        except Exception as e:
+            backend_health = {"ok": False, "error": str(e)}
+        return DriverResult.success(
+            message=f"CONTPAQiRealDriver ({self._backend.NOMBRE})",
+            provider=self.PROVIDER,
+            mode=self.mode,
+            tenant_id=self._tenant_id,
+            connected=self._connected,
+            session_active=self._session is not None,
+            current_module=self._current_module,
+            registered_invoices=len(self._registered_invoices),
+            registered_polizas=len(self._registered_polizas),
+            backend=backend_health,
+            verificado_contra_real=CONTPAQI_VERIFICADO_CONTRA_REAL,
+        )
 
-    def type_text(self, text: str) -> dict:
-        return self._run_sync(self.desktop.type_text(text))
+    def recover_from_error(self) -> DriverResult:
+        try:
+            h = self._backend.health()
+        except Exception as e:
+            h = {"ok": False, "error": str(e)}
 
-    def press_key(self, key: str) -> dict:
-        return self._run_sync(self.desktop.press_key(key))
+        if h.get("ok"):
+            return DriverResult.success("Backend de CONTPAQi operativo.", recovered=True)
+
+        logger.warning(
+            "CONTPAQiRealDriver:recover_from_error backend no saludable (%s); reintentando conexión.",
+            h.get("error"),
+        )
+        try:
+            self._backend.close()
+        except Exception:
+            pass
+        self._connected = False
+        self._session = None
+        self._current_module = None
+        reconnect = self.connect()
+        if reconnect.ok:
+            return DriverResult.success(
+                "Backend reconectado. Requiere volver a iniciar sesión.",
+                recovered=True, needs_relogin=True,
+            )
+        return DriverResult.failed(
+            f"No se pudo recuperar la conexión con CONTPAQi: {reconnect.message}",
+            recovered=False,
+        )
