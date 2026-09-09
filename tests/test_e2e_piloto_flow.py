@@ -121,6 +121,19 @@ class TestFullOnboardingFlow:
             )
             assert r.status_code == 200, f"{step}: {r.text}"
 
+        # El checkout apenas iniciado no confirma el pago -> aún no completa.
+        r = pilot_client.post(f"/api/v1/onboarding-wizard/{sid}/complete", json={})
+        assert r.status_code == 200, r.text
+        assert r.json()["ok"] is False
+        assert r.json()["session"]["status"] != "completed"
+
+        # Llega el callback de Conekta confirmando el pago.
+        r = pilot_client.post(
+            f"/api/v1/onboarding-wizard/{sid}/checkout/callback",
+            json={"status": "paid", "plan": "professional"},
+        )
+        assert r.status_code == 200, r.text
+
         r = pilot_client.post(f"/api/v1/onboarding-wizard/{sid}/complete", json={})
         assert r.status_code == 200, r.text
         body = r.json()

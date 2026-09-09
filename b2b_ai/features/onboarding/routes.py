@@ -206,7 +206,7 @@ def build_onboarding_wizard_router(
         except OnboardingWizardError as exc:
             raise HTTPException(status_code=422, detail=str(exc))
         return CompleteResponse(
-            ok=True,
+            ok=result["ok"],
             session=result["session"],
             health=result["health"],
         )
