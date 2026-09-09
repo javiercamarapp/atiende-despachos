@@ -63,6 +63,19 @@ class SuggestionsResponse(BaseModel):
     suggestions: List[Dict[str, Any]]
 
 
+class RetrainRequest(BaseModel):
+    """Request to retrain the classifier from real human corrections."""
+    tenant_id: str = Field(default="", description="Limit to this tenant's corrections")
+    min_examples: int = Field(
+        default=10, ge=1,
+        description="Mínimo de correcciones humanas con CFDI conocido para aceptar el reentrenamiento",
+    )
+    min_examples_per_category: int = Field(
+        default=2, ge=1,
+        description="Mínimo de ejemplos por categoría para aceptar el reentrenamiento",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Router builder
 # ---------------------------------------------------------------------------
@@ -255,6 +268,35 @@ def build_bookkeeping_router(
             "retraining_suggestions": retraining_suggestions,
             "total_pending": len(suggestions),
         }
+
+    # -----------------------------------------------------------------------
+    # POST /bookkeeping/retrain
+    # -----------------------------------------------------------------------
+    @router.post(
+        "/retrain",
+        summary="Reentrenar el clasificador ML con correcciones humanas reales",
+    )
+    async def retrain_classifier(request: RetrainRequest):
+        """Cierra el ciclo de feedback ML-01/HO-02: reentrena el
+        AutoClassifier usando las correcciones humanas ya hechas
+        (HumanOverrideManager) en vez del dataset sintético por defecto.
+
+        Junta cada corrección con el snapshot real del CFDI capturado al
+        clasificarlo (job.classifications) y llama a
+        AutoClassifier.train(cfdis=..., labels=...) con esos ejemplos
+        reales. Si no hay señal humana suficiente todavía, no reentrena
+        (el modelo activo no se toca) y devuelve status='insufficient_data'
+        con el motivo.
+
+        Pensado también para invocarse como job programado (cron/worker),
+        no sólo a demanda desde este endpoint.
+        """
+        report = orchestrator.retrain_from_corrections(
+            tenant_id=request.tenant_id,
+            min_examples=request.min_examples,
+            min_examples_per_category=request.min_examples_per_category,
+        )
+        return report
 
     # -----------------------------------------------------------------------
     # POST /api/v1/pipeline/run  (alias retrocompatible del pipeline)
