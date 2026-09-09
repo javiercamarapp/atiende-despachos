@@ -530,16 +530,23 @@ class BankReconciliation:
     UMBRAL_AUTO_CONFIRMA_GRUPO = 85
 
     def _pass_group(self, invoices, stmt, perfil=None) -> list:
-        """Cruce N-a-1: varias facturas (N) suman EXACTAMENTE un solo
-        movimiento bancario (1), p. ej. una liquidación de terminal que
-        agrupa varios cobros en un único depósito.
+        """Cruce N-a-1: varias facturas/comprobantes (N) suman EXACTAMENTE
+        un solo movimiento bancario (1).
 
-        Solo considera depósitos (`naturaleza == "abono"`) — el caso
-        simétrico de egresos agrupados (nómina dispersada, REQ-CONC-012)
-        queda fuera de este pase. Busca TODOS los subconjuntos de 2+
-        facturas (1 factura ya la cubre `_pass_exact`) cuya suma en
-        CENTAVOS (enteros, nunca floats) sea exactamente igual al monto
-        del movimiento:
+        Simétrico en ambos sentidos (REQ-CONC-009 original + REQ-CONC-012):
+          - `naturaleza == "abono"`: varios cobros que un agregador/terminal
+            liquida en un único depósito (p. ej. liquidación de terminal).
+          - `naturaleza == "cargo"`: varios pagos/comprobantes pendientes
+            (nómina dispersada a varios empleados, pago a varios
+            proveedores) que el banco agrupa en un único cargo consolidado.
+        El código de este pase es intencionalmente idéntico para ambos
+        signos: `invoices` es genérico (folio + total + fecha, sin campo de
+        dirección) y el matching solo compara VALORES ABSOLUTOS, así que no
+        hace falta un pase separado ni una rama de código distinta — solo
+        dejar de filtrar por `naturaleza` era la única asimetría real.
+        Busca TODOS los subconjuntos de 2+ facturas (1 factura ya la cubre
+        `_pass_exact`) cuya suma en CENTAVOS (enteros, nunca floats) sea
+        exactamente igual al monto del movimiento:
 
           - 0 subconjuntos válidos -> no genera match; el movimiento queda
             sin conciliar (ADR-1: nunca se inventa el candidato más
@@ -583,7 +590,11 @@ class BankReconciliation:
         for t in stmt:
             if t["id"] in used_tx:
                 continue
-            if t.get("naturaleza") != "abono":
+            naturaleza_tx = t.get("naturaleza")
+            if naturaleza_tx not in ("abono", "cargo"):
+                # Movimiento sin naturaleza reconocida (dato faltante o
+                # corrupto en el estado de cuenta): este pase se abstiene
+                # en vez de adivinar el signo (ADR-1).
                 continue
             monto_tx = _dec(t.get("monto_signed"))
             if not monto_tx:
@@ -609,12 +620,14 @@ class BankReconciliation:
                                      for grupo in subconjuntos]
                 self.grouped_ambiguous.append({
                     "transaction_id": t["id"],
+                    "naturaleza": naturaleza_tx,
                     "monto": str(abs(monto_tx)),
                     "candidatos": candidatos_folios,
                     "estado": "sugerido",
                 })
                 self.grouped_suggestions.append({
                     "transaction_id": t["id"],
+                    "naturaleza": naturaleza_tx,
                     "monto": str(abs(monto_tx)),
                     "candidatos": candidatos_folios,
                     "score": None,
@@ -653,6 +666,7 @@ class BankReconciliation:
                 # el movimiento y las facturas quedan libres.
                 self.grouped_suggestions.append({
                     "transaction_id": t["id"],
+                    "naturaleza": naturaleza_tx,
                     "monto": str(abs(monto_tx)),
                     "candidatos": [[_inv_key(i) for i in grupo]],
                     "score": score,
@@ -1033,11 +1047,13 @@ def _build_group_match(grupo: list, tx: dict, group_id: str,
     se queda en `self.grouped_suggestions` con `estado="sugerido"`.
     """
     n = len(grupo)
+    es_cargo = tx.get("naturaleza") == "cargo"
+    movimiento_label = "cargo consolidado" if es_cargo else "depósito"
     rows = []
     for inv in grupo:
         m = _build_match(
             inv, tx, "grouped_n_a_1", 95,
-            f"conciliación N-a-1: {n} facturas suman el depósito "
+            f"conciliación N-a-1: {n} facturas suman el {movimiento_label} "
             f"({tx.get('monto')}), score de desambiguación {score}")
         m["group_id"] = group_id
         # REQ-CONC-008: auto-confirmación explícita — nunca se llega aquí
