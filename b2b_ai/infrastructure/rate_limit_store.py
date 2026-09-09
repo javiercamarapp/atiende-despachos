@@ -79,7 +79,7 @@ import threading
 import time
 from typing import Optional, Tuple
 
-# Nombre de la tabla. Ver migración migrations/versions/0014_rate_limit_windows.py
+# Nombre de la tabla. Ver migración migrations/versions/0015_rate_limit_windows.py
 TABLE = "rate_limit_windows"
 
 # Ventana mínima para evitar división/floor por cero con configuraciones
