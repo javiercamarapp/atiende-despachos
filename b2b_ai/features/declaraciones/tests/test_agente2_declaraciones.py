@@ -456,7 +456,9 @@ class TestSATSubmitter:
         assert result.status == SubmissionStatus.ERROR
         assert "sello" in result.mensaje.lower()
 
-    def test_submit_test_mode_accepted(self):
+    def test_submit_requires_explicit_confirm(self):
+        """FIS-019 honestidad: sin confirm=True, nunca se procede — ni
+        siquiera en sandbox. No debe fabricarse ACCEPTED implícitamente."""
         submitter = SATSubmitter(test_mode=True)
         signed_xml = b'<declaracion Sello="abc123" Certificado="xyz" NoCertificado="12345">test</declaracion>'
         result = submitter.submit_declaration(
@@ -465,10 +467,49 @@ class TestSATSubmitter:
             periodo="2024-07",
             rfc="ABC123456XYZ",
             declaration_id="test-001",
+            # confirm no se pasa -> default False
         )
-        assert result.status == SubmissionStatus.ACCEPTED
+        assert result.status == SubmissionStatus.PENDING
+        assert result.codigo_error == "CONFIRM_REQUIRED"
+        assert result.simulado is True
+
+    def test_submit_test_mode_is_pending_not_accepted(self):
+        """FIS-019 honestidad: en sandbox (test_mode=True) el resultado es
+        SIEMPRE PENDING con simulado=True, nunca ACCEPTED — no hay timbre
+        real ni presentación real ante el SAT."""
+        submitter = SATSubmitter(test_mode=True)
+        signed_xml = b'<declaracion Sello="abc123" Certificado="xyz" NoCertificado="12345">test</declaracion>'
+        result = submitter.submit_declaration(
+            xml_signed=signed_xml,
+            declaration_type="iva",
+            periodo="2024-07",
+            rfc="ABC123456XYZ",
+            declaration_id="test-001",
+            confirm=True,
+        )
+        assert result.status == SubmissionStatus.PENDING
+        assert result.status != SubmissionStatus.ACCEPTED
+        assert result.simulado is True
         assert result.folio is not None
         assert result.folio.startswith("SIM-")
+        assert "no fue timbrada" in result.mensaje.lower()
+
+    def test_submit_production_mode_never_claims_accepted(self):
+        """FIS-019 honestidad: incluso con test_mode=False ("producción"),
+        _send_soap sigue siendo un stub — nunca debe regresar ACCEPTED, y
+        siempre debe marcar simulado=True porque no habla con el SAT."""
+        submitter = SATSubmitter(test_mode=False)
+        signed_xml = b'<declaracion Sello="abc123" Certificado="xyz" NoCertificado="12345">test</declaracion>'
+        result = submitter.submit_declaration(
+            xml_signed=signed_xml,
+            declaration_type="iva",
+            periodo="2024-07",
+            rfc="ABC123456XYZ",
+            declaration_id="test-prod-001",
+            confirm=True,
+        )
+        assert result.status != SubmissionStatus.ACCEPTED
+        assert result.simulado is True
 
     def test_check_status(self):
         submitter = SATSubmitter(test_mode=True)
@@ -479,10 +520,11 @@ class TestSATSubmitter:
             periodo="2024-07",
             rfc="ABC",
             declaration_id="status-test",
+            confirm=True,
         )
         result = submitter.check_status("status-test")
         assert result is not None
-        assert result.status == SubmissionStatus.ACCEPTED
+        assert result.status == SubmissionStatus.PENDING
 
     def test_check_nonexistent_status(self):
         submitter = SATSubmitter(test_mode=True)

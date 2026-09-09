@@ -138,7 +138,21 @@ class SubmitRequest(BaseModel):
         default=None, description="Contraseña FIEL/CSD"
     )
     test_mode: bool = Field(
-        default=True, description="Modo simulación (no envía al SAT real)"
+        default=True,
+        description=(
+            "Modo simulación. NOTA (FIS-019): hoy da igual True o False — "
+            "ninguno de los dos habla con el SAT real. test_mode=False no "
+            "activa una presentación real, solo cambia el mensaje de stub "
+            "que se recibe. Ver 'simulado' en la respuesta."
+        ),
+    )
+    confirm: bool = Field(
+        default=False,
+        description=(
+            "Confirmación explícita requerida para proceder. Sin "
+            "confirm=True, la respuesta siempre es PENDING/CONFIRM_REQUIRED "
+            "y no se guarda ningún registro de envío."
+        ),
     )
 
 
@@ -150,6 +164,14 @@ class SubmitResponse(BaseModel):
     mensaje: str = ""
     errors: List[str] = []
     declaration_id: Optional[str] = None
+    simulado: bool = Field(
+        default=True,
+        description=(
+            "True si esta respuesta NO vino del SAT real (siempre True hoy, "
+            "FIS-019: _send_soap sigue sin implementarse). Cuando exista una "
+            "integración real, esa ruta debe regresar simulado=False."
+        ),
+    )
 
 
 class StatusResponse(BaseModel):
@@ -450,6 +472,7 @@ def build_declarations_api_router(
             periodo=req.periodo,
             rfc=req.rfc,
             declaration_id=req.declaration_id,
+            confirm=req.confirm,
         )
 
         # Handle errors if any
@@ -469,6 +492,7 @@ def build_declarations_api_router(
             mensaje=result.mensaje,
             errors=errors,
             declaration_id=result.declaration_id,
+            simulado=result.simulado,
         )
 
     # -- Check status ------------------------------------------------------
