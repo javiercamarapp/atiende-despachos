@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 
 import os
 
+from b2b_ai.infrastructure.structured_logging import mask_pii
 from b2b_ai.integrations.sat.adapter import SATAdapter, SATAdapterError
 from b2b_ai.integrations.sat.models import (
     CFDI,
@@ -109,7 +110,7 @@ class MultifacturaAdapter(SATAdapter):
     def consultar_rfc(self, rfc: str) -> RFCStatus:
         """Consulta el estatus de un RFC ante el SAT."""
         self._ensure_connected()
-        logger.info(f"{self.name}: consultando RFC {rfc} (mock)")
+        logger.info("%s: consultando RFC %s (mock)", self.name, mask_pii(rfc))
 
         return RFCStatus(
             rfc=rfc,
