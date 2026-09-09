@@ -30,6 +30,12 @@ except ImportError:
     HAS_SKLEARN = False
 
 from b2b_ai.features.bookkeeping.models import CFDIClassification
+# Fuente única de verdad de los umbrales de confianza (compartida con
+# agent/loop.py y services/classify.py) — ver b2b_ai/common/confidence.py.
+from b2b_ai.common.confidence import (
+    CONFIDENCE_MEDIUM as _CONFIDENCE_MEDIUM,
+    CONFIDENCE_HIGH as _CONFIDENCE_HIGH,
+)
 
 log = logging.getLogger(__name__)
 
@@ -323,8 +329,10 @@ class AutoClassifier:
     not available.
     """
 
-    CONFIDENCE_HIGH = 0.85
-    CONFIDENCE_MEDIUM = 0.60
+    # Umbrales compartidos — ver b2b_ai/common/confidence.py (única fuente
+    # de verdad, también usada por agent/loop.py y services/classify.py).
+    CONFIDENCE_HIGH = _CONFIDENCE_HIGH
+    CONFIDENCE_MEDIUM = _CONFIDENCE_MEDIUM
 
     def __init__(self, model_path: Optional[str] = None):
         self._model = None

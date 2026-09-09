@@ -36,6 +36,17 @@ import re
 from typing import Optional
 
 from b2b_ai.services.classify import classify_cfdi, CATEGORIA_NOMBRE
+from b2b_ai.infrastructure.circuit_breaker import (
+    get_or_create_breaker, CircuitBreakerOpenError,
+    CircuitBreakerHalfOpenLimitError,
+)
+
+# Circuit breaker compartido para todas las llamadas LLM reales (proveedor
+# de red, no MockLLM). Usa la config ya definida en
+# infrastructure/circuit_breaker.py::SERVICE_CONFIGS["llm_calls"]
+# (failure_threshold=8, recovery_timeout=20s — los LLM son más flaky que un
+# servicio interno, así que tolera más fallos antes de abrir).
+_LLM_CIRCUIT_BREAKER = get_or_create_breaker("llm_calls")
 
 
 # ==========================================================================
@@ -642,8 +653,21 @@ class LLMService:
         # Clamp input y output al presupuesto.
         messages = self.budget.clamp_input(messages)
         max_tokens = self.budget.clamp_max_tokens(512)
+        # RESILIENCE: circuit breaker alrededor de la llamada real al
+        # proveedor. Si el proveedor viene fallando de forma sostenida, el
+        # circuito se abre y rechazamos de inmediato (sin ni siquiera
+        # intentar la llamada) en vez de seguir golpeándolo — el LLMError
+        # resultante dispara el fallback a reglas ya existente en cada
+        # tarea pública (classify_invoice/extract_data/summarize/
+        # detect_anomaly), igual que cualquier otro fallo del LLM.
         try:
-            text = self.client.complete(messages, max_tokens=max_tokens)
+            with _LLM_CIRCUIT_BREAKER:
+                text = self.client.complete(messages, max_tokens=max_tokens)
+        except (CircuitBreakerOpenError, CircuitBreakerHalfOpenLimitError) as e:
+            raise LLMError(
+                f"Circuit breaker 'llm_calls' abierto — proveedor LLM "
+                f"omitido por fallos sostenidos: {e}"
+            ) from e
         except LLMError:
             raise
         except Exception as e:  # noqa: BLE001
