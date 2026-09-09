@@ -11,8 +11,10 @@ de esa decisión — para cada cuenta de origen, qué cuenta de destino le
 correspondería, con qué confianza (`tipo_match`/`score`), y en qué estado de
 revisión humana se encuentra (`estado`).
 
-Este archivo solo define el esquema (REQ-MIG-002). El motor de matching
-(REQ-MIG-003..006), los endpoints de aprobación (REQ-MIG-007), el migrador
+Este archivo solo define el esquema (REQ-MIG-002, extendido por REQ-MIG-008
+con `estrategia_conciliacion_saldos`). El motor de matching
+(REQ-MIG-003..006), los endpoints de aprobación (REQ-MIG-007), la guardia
+de cardinalidad N:1/1:N (REQ-MIG-008, `service.py`), el migrador
 transaccional (REQ-MIG-009..010) y las verificaciones de integridad
 (REQ-MIG-012..015) son requisitos separados de la misma matriz y se
 implementan en módulos hermanos (`matching.py`, `routes.py`, `service.py`,
@@ -66,7 +68,8 @@ class MapeoMigracionCuenta(BaseModel):
     """Correspondencia propuesta (o confirmada) entre una cuenta de origen
     y una cuenta de destino durante una migración/fusión de catálogo.
 
-    Campos (9):
+    Campos (10 -- los 9 originales de REQ-MIG-002 más
+    `estrategia_conciliacion_saldos` de REQ-MIG-008):
       - id: identificador único del propio mapeo.
       - origen_cuenta_id: cuenta del catálogo origen a mapear.
       - destino_cuenta_id: cuenta del catálogo destino propuesta; `None`
