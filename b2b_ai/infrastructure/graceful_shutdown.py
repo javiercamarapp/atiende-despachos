@@ -268,6 +268,21 @@ class ShutdownManager:
         else:
             logger.info("All active requests completed")
 
+    def run_cleanup_tasks(self) -> None:
+        """Run all registered cleanup tasks right now, without draining or
+        flushing logs.
+
+        Use this from an async shutdown path (e.g. an ASGI `lifespan`
+        context manager) where `_initiate_shutdown()` would be unsafe:
+        that method blocks the calling thread with `time.sleep` while it
+        waits for the drain to complete, and then calls `logging.shutdown()`
+        — either of which would stall (or break logging for) a live asyncio
+        event loop that may still be finishing other work. Draining and
+        marking `is_draining` is expected to have already happened
+        elsewhere (e.g. a signal handler) by the time this runs.
+        """
+        self._cleanup_phase()
+
     def _cleanup_phase(self) -> None:
         """Run all registered cleanup tasks."""
         for task in self._cleanup_tasks:
