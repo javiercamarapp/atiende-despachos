@@ -12,11 +12,15 @@ Implements the 6-step process for devolución de IVA:
 """
 from __future__ import annotations
 
+import json
 import time
 import uuid as _uuid
 from collections import defaultdict
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
+
+from b2b_ai.db.db import Database
+from b2b_ai.features.diot.models import TipoOperacion
 
 from .models import (
     ClasificacionIVA,
@@ -24,6 +28,7 @@ from .models import (
     ConciliacionFacturasDIOT,
     DeclaracionMensual,
     DIOTEntry,
+    EstadoEnvioSolicitud,
     EstatusConciliacion,
     EstatusDevolucion,
     FacturaCFDI,
@@ -44,12 +49,143 @@ from .validators import (
 
 
 # ---------------------------------------------------------------------------
-# In-memory stores (replace with real DB in production)
+# Persistencia (REQ-IVA-006)
 # ---------------------------------------------------------------------------
+#
+# Antes, `_solicitudes`, `_status` y `_papeles_trabajo` eran dicts de
+# proceso: cualquier reinicio del proceso (deploy, crash, restart de un
+# worker) borraba TODAS las solicitudes de devolución de IVA ya
+# presentadas, sin dejar rastro. Ahora se leen/escriben desde las tablas
+# `devolucion_iva_solicitudes` y `devolucion_iva_papeles_trabajo`
+# (REQ-IVA-005: `b2b_ai/db/models.py` MIGRATIONS v21 para SQLite dev/test;
+# `migrations/versions/0010_devolucion_iva_persistencia.py` +
+# `0011_devolucion_iva_seguimiento.py` para PostgreSQL vía Alembic).
+#
+# `_solicitudes`/`_status`/`_papeles_trabajo` se conservan como nombres de
+# módulo (proxies sin estado propio) únicamente por compatibilidad con
+# código/tests existentes que hacían `_solicitudes.clear()` para aislar
+# pruebas — la fuente de verdad es siempre la tabla, nunca estos objetos.
 
-_solicitudes: Dict[str, SolicitudDevolucion] = {}
-_status: Dict[str, StatusDevolucion] = {}
-_papeles_trabajo: Dict[str, PapelTrabajo] = {}
+# Tenant usado cuando el llamador no especifica uno explícito. La API de
+# este módulo nunca exigió `tenant_id` (varias funciones lo reciben como
+# `Optional[str] = None`); las columnas `tenant_id` de las tablas de
+# REQ-IVA-005 son NOT NULL a nivel de esquema (blindaje multi-tenant),
+# así que una solicitud "sin tenant" se guarda bajo este valor visible en
+# vez de dejar la columna nula o inventar un tenant real.
+_DEFAULT_TENANT = "SIN_TENANT"
+
+_DEFAULT_DB: Optional[Database] = None
+
+
+def _get_default_db() -> Database:
+    """Base compartida (en memoria) para llamadas sin `db=` explícito.
+
+    Reproduce, para el código/tests que no pasan `db`, el mismo
+    comportamiento que tenían los dicts de módulo: un único almacén
+    compartido durante la vida del proceso. Para que la persistencia
+    sobreviva un reinicio real del proceso hay que pasar un
+    `Database(<ruta-de-archivo-o-DSN>)` explícito (vía
+    `DevolucionIVAService(db=...)` o el parámetro `db=` de cada función),
+    nunca depender de este singleton en memoria.
+    """
+    global _DEFAULT_DB
+    if _DEFAULT_DB is None:
+        _DEFAULT_DB = Database(":memory:", migrate=False)
+        _ensure_schema(_DEFAULT_DB)
+    return _DEFAULT_DB
+
+
+def _ensure_schema(db: Database) -> None:
+    """Garantiza que las tablas de devolución de IVA existan (idempotente).
+
+    En PostgreSQL el esquema lo gestiona Alembic (ver migrations/versions/
+    0010_devolucion_iva_persistencia.py y 0011_devolucion_iva_seguimiento.py)
+    — aquí no hacemos nada. Esta defensa cubre SQLite `:memory:` y bases
+    creadas con `migrate=False` (mismo patrón que
+    `document_management/service.py::_ensure_schema`).
+    """
+    if db._is_pg:
+        return
+    try:
+        row = db.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='devolucion_iva_solicitudes'"
+        ).fetchone()
+    except Exception:  # noqa: BLE001
+        return
+    if row:
+        return
+    from b2b_ai.db.models import MIGRATIONS
+    for m in MIGRATIONS:
+        if m["version"] == 21:
+            db.conn.executescript(m["sql"])
+            db.conn.commit()
+            return
+
+
+class _StoreClearProxy:
+    """Compat: expone `.clear()` sobre una tabla DB-backed.
+
+    Existe solo para que código/tests preexistentes que hacían
+    `_solicitudes.clear()` / `_status.clear()` (asumiendo dicts de
+    proceso) sigan funcionando tal cual — ahora vacían la tabla real en
+    vez de un dict. No guarda ningún estado propio: `.clear()` siempre
+    opera sobre la base compartida por defecto (`_get_default_db()`),
+    igual que las funciones de módulo cuando se llaman sin `db=`.
+    """
+
+    def __init__(self, table: str):
+        self._table = table
+
+    def clear(self) -> None:
+        db = _get_default_db()
+        _ensure_schema(db)
+        db.conn.execute(f"DELETE FROM {self._table}")
+        db.conn.commit()
+
+
+# `_status` vive en las mismas filas que `_solicitudes` (una solicitud y
+# su seguimiento son 1:1) — limpiar cualquiera de los dos vacía la tabla.
+_solicitudes = _StoreClearProxy("devolucion_iva_solicitudes")
+_status = _StoreClearProxy("devolucion_iva_solicitudes")
+_papeles_trabajo = _StoreClearProxy("devolucion_iva_papeles_trabajo")
+
+
+def _fetch_solicitud_row(db: Database, solicitud_id: str):
+    return db.conn.execute(
+        "SELECT * FROM devolucion_iva_solicitudes WHERE id = ?",
+        (solicitud_id,),
+    ).fetchone()
+
+
+def _row_to_solicitud(row: Any) -> SolicitudDevolucion:
+    return SolicitudDevolucion(
+        solicitud_id=row["id"],
+        periodo=row["periodo"],
+        monto_solicitado=row["monto_solicitado"],
+        tenant_id=row["tenant_id"],
+        cuenta_banco=row["cuenta_banco"],
+        clabe=row["clabe"],
+        documentos=json.loads(row["documentos"] or "[]"),
+        status=EstatusDevolucion(row["status"]),
+        estado=(
+            EstadoEnvioSolicitud(row["estado"])
+            if row["estado"] else EstadoEnvioSolicitud.LISTA_PARA_ENVIO
+        ),
+        motivo_aclaracion=row["motivo_aclaracion"],
+        created_at=row["created_at"],
+    )
+
+
+def _row_to_status(row: Any) -> StatusDevolucion:
+    return StatusDevolucion(
+        solicitud_id=row["id"],
+        status=EstatusDevolucion(row["status"]),
+        fecha_presentacion=row["fecha_presentacion"],
+        fecha_respuesta=row["fecha_respuesta"],
+        monto_aprobado=row["monto_aprobado"],
+        observaciones=row["observaciones"],
+    )
 
 
 def _now_iso() -> str:
@@ -132,8 +268,14 @@ def generar_diot(facturas: List[FacturaCFDI]) -> List[DIOTEntry]:
     })
 
     for f in facturas:
-        # For DIOT of compras, we group by RFC proveedor (rfc_emisor)
-        key = (f.rfc_emisor, "01")  # 01 = compras
+        # For DIOT of compras, we group by RFC proveedor (rfc_emisor).
+        # tipo_operacion must be a real code from the shared DIOT catalog
+        # (b2b_ai.features.diot.models.TipoOperacion) — "01" is not a
+        # valid SAT DIOT tipo de operación and was a hardcoded invention.
+        # REQ-IVA-017 tracks verifying this shared catalog against the
+        # official SAT/RMF source (Anexo 19); until then this is the best
+        # available real code for a standard gravada purchase.
+        key = (f.rfc_emisor, TipoOperacion.GASTOS_GENERAL.value)
         g = groups[key]
 
         # Apply proporcionalidad
@@ -360,16 +502,113 @@ def calcular_monto_devolucion(
 # Step 5: Preparar solicitud
 # ---------------------------------------------------------------------------
 
+# REQ-IVA-010: por encima de este monto, exigir congruencia DIOT↔CFDI↔
+# declaración mensual antes de dejar la solicitud lista para envío.
+UMBRAL_CONGRUENCIA_MONTO = 10001.00  # MXN
+
+# REQ-IVA-010: tolerancia absoluta de redondeo (NO porcentual, a diferencia
+# de `validate_diot_consistency`/`validate_declaration_consistency` que
+# usan un margen relativo del 5% para advertencias generales).
+TOLERANCIA_CONGRUENCIA_MXN = 1.00  # MXN
+
+
+def validar_congruencia_diot_cfdi_declaracion(
+    periodo: str,
+    facturas: Optional[List[FacturaCFDI]] = None,
+    diot_entries: Optional[List[DIOTEntry]] = None,
+    declaraciones: Optional[List[DeclaracionMensual]] = None,
+    tolerancia: float = TOLERANCIA_CONGRUENCIA_MXN,
+) -> Dict[str, Any]:
+    """REQ-IVA-010 — Congruencia de totales agrupados DIOT↔CFDI↔declaración.
+
+    Compara, para el `periodo` dado, el IVA acreditable agregado de:
+      - Facturas CFDI del periodo (``f.iva * f.proporcionalidad``).
+      - Entradas DIOT (``iva_acreditable``) — se asume que el llamador ya
+        entrega las entradas correspondientes al periodo (mismo patrón que
+        el resto del módulo: la DIOT no trae su propio campo de periodo).
+      - Declaración mensual del periodo (``iva_pagado``, que el modelo
+        `DeclaracionMensual` documenta como "IVA pagado / acreditable en
+        compras").
+
+    No existe DIOT del periodo cuando ``diot_entries`` es vacío o ``None``
+    — en ese caso el resultado nunca es congruente, sin importar los demás
+    totales.
+
+    Returns
+    -------
+    dict con, entre otros: ``diot_existe``, ``diferencia_maxima`` y
+    ``congruente`` (True solo si hay DIOT del periodo Y la diferencia
+    máxima entre los tres totales no excede ``tolerancia`` MXN).
+    """
+    facturas = facturas or []
+    diot_entries = diot_entries or []
+    declaraciones = declaraciones or []
+
+    diot_existe = len(diot_entries) > 0
+
+    total_cfdi = round(
+        sum(
+            f.iva * f.proporcionalidad
+            for f in facturas
+            if not periodo or (f.fecha and f.fecha[:7] == periodo)
+        ),
+        2,
+    )
+    total_diot = round(sum(e.iva_acreditable for e in diot_entries), 2)
+
+    declaraciones_periodo = [
+        d for d in declaraciones
+        if not periodo or f"{d.año:04d}-{d.mes:02d}" == periodo
+    ]
+    declaracion_existe = len(declaraciones_periodo) > 0
+    total_declaracion = round(sum(d.iva_pagado for d in declaraciones_periodo), 2)
+
+    diferencia_cfdi_diot = round(abs(total_cfdi - total_diot), 2)
+    diferencia_diot_declaracion = round(abs(total_diot - total_declaracion), 2)
+    diferencia_maxima = round(max(diferencia_cfdi_diot, diferencia_diot_declaracion), 2)
+
+    congruente = diot_existe and diferencia_maxima <= tolerancia
+
+    return {
+        "periodo": periodo,
+        "diot_existe": diot_existe,
+        "declaracion_existe": declaracion_existe,
+        "total_cfdi_iva_acreditable": total_cfdi,
+        "total_diot_iva_acreditable": total_diot,
+        "total_declaracion_iva_pagado": total_declaracion,
+        "diferencia_cfdi_diot": diferencia_cfdi_diot,
+        "diferencia_diot_declaracion": diferencia_diot_declaracion,
+        "diferencia_maxima": diferencia_maxima,
+        "tolerancia": tolerancia,
+        "congruente": congruente,
+    }
+
+
 def preparar_solicitud(
     periodo: str,
     saldo: Dict[str, Any],
     cuenta_banco: Optional[str] = None,
     clabe: Optional[str] = None,
     documentos: Optional[List[str]] = None,
+    tenant_id: Optional[str] = None,
+    facturas: Optional[List[FacturaCFDI]] = None,
+    diot_entries: Optional[List[DIOTEntry]] = None,
+    declaraciones: Optional[List[DeclaracionMensual]] = None,
 ) -> SolicitudDevolucion:
     """Prepare a refund request for submission to SAT.
 
     Validates inputs and creates a SolicitudDevolucion.
+
+    REQ-IVA-010: cuando ``monto_solicitado`` supera
+    ``UMBRAL_CONGRUENCIA_MONTO`` ($10,001.00 MXN), corre automáticamente
+    la validación de congruencia DIOT↔CFDI↔declaración mensual
+    (`validar_congruencia_diot_cfdi_declaracion`). Si la DIOT del periodo
+    no existe o la diferencia entre los totales agrupados supera
+    ``TOLERANCIA_CONGRUENCIA_MXN`` ($1.00 MXN de redondeo), la solicitud
+    se crea con ``estado=EstadoEnvioSolicitud.REQUIERE_ACLARACION`` en vez
+    de ``LISTA_PARA_ENVIO`` — nunca se bloquea la creación de la solicitud
+    ni se reduce el monto automáticamente (ADR-4): solo se marca para
+    revisión humana antes de enviarse al SAT.
     """
     monto = saldo.get("monto_devolucion_sugerido", saldo.get("saldo_favor_original", 0.0))
 
@@ -385,14 +624,45 @@ def preparar_solicitud(
         if clabe_err:
             raise ValueError(clabe_err)
 
+    monto_redondeado = round(monto, 2)
+
+    estado = EstadoEnvioSolicitud.LISTA_PARA_ENVIO
+    motivo_aclaracion: Optional[str] = None
+
+    if monto_redondeado > UMBRAL_CONGRUENCIA_MONTO:
+        congruencia = validar_congruencia_diot_cfdi_declaracion(
+            periodo,
+            facturas=facturas,
+            diot_entries=diot_entries,
+            declaraciones=declaraciones,
+        )
+        if not congruencia["congruente"]:
+            estado = EstadoEnvioSolicitud.REQUIERE_ACLARACION
+            if not congruencia["diot_existe"]:
+                motivo_aclaracion = (
+                    f"No existe DIOT registrada para el periodo {periodo}; "
+                    "no se puede validar la congruencia requerida para "
+                    f"montos superiores a ${UMBRAL_CONGRUENCIA_MONTO:,.2f} MXN."
+                )
+            else:
+                motivo_aclaracion = (
+                    "Diferencia de congruencia DIOT↔CFDI↔declaración de "
+                    f"${congruencia['diferencia_maxima']:.2f} MXN supera la "
+                    f"tolerancia de ${congruencia['tolerancia']:.2f} MXN "
+                    f"(periodo {periodo})."
+                )
+
     now = _now_iso()
     solicitud = SolicitudDevolucion(
         periodo=periodo,
-        monto_solicitado=round(monto, 2),
+        monto_solicitado=monto_redondeado,
+        tenant_id=tenant_id,
         cuenta_banco=cuenta_banco,
         clabe=clabe,
         documentos=documentos or [],
         status=EstatusDevolucion.PENDIENTE,
+        estado=estado,
+        motivo_aclaracion=motivo_aclaracion,
         created_at=now,
     )
 
@@ -430,35 +700,83 @@ def generar_papel_trabajo(
 # Step 6: Seguimiento
 # ---------------------------------------------------------------------------
 
-def registrar_solicitud(solicitud: SolicitudDevolucion) -> SolicitudDevolucion:
-    """Store a refund request."""
-    _solicitudes[solicitud.solicitud_id] = solicitud
+def registrar_solicitud(
+    solicitud: SolicitudDevolucion, db: Optional[Database] = None,
+) -> SolicitudDevolucion:
+    """Store a refund request.
 
-    # Also create initial status
-    _status[solicitud.solicitud_id] = StatusDevolucion(
-        solicitud_id=solicitud.solicitud_id,
-        status=EstatusDevolucion.PENDIENTE,
-        fecha_presentacion=solicitud.created_at[:10] if solicitud.created_at else None,
+    REQ-IVA-006: persistido en la tabla `devolucion_iva_solicitudes`, no en
+    un dict de proceso — sobrevive un reinicio del proceso entre el alta
+    (este `registrar_solicitud`) y una consulta posterior
+    (`consultar_status`/`generar_reporte_seguimiento`) desde una instancia
+    nueva de `DevolucionIVAService`/`Database` apuntando al mismo archivo.
+    """
+    database = db or _get_default_db()
+    _ensure_schema(database)
+
+    tenant_key = solicitud.tenant_id or _DEFAULT_TENANT
+    fecha_presentacion = (
+        solicitud.created_at[:10] if solicitud.created_at else None
     )
+
+    database.conn.execute(
+        """INSERT INTO devolucion_iva_solicitudes
+           (id, tenant_id, periodo, monto_solicitado, cuenta_banco, clabe,
+            documentos, status, estado, motivo_aclaracion,
+            fecha_presentacion, fecha_respuesta, monto_aprobado,
+            observaciones, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            solicitud.solicitud_id,
+            tenant_key,
+            solicitud.periodo,
+            solicitud.monto_solicitado,
+            solicitud.cuenta_banco,
+            solicitud.clabe,
+            json.dumps(solicitud.documentos),
+            solicitud.status.value,
+            solicitud.estado.value,
+            solicitud.motivo_aclaracion,
+            fecha_presentacion,
+            None,
+            None,
+            None,
+            solicitud.created_at,
+        ),
+    )
+    database.conn.commit()
 
     return solicitud
 
 
-def consultar_status(solicitud_id: str) -> Optional[StatusDevolucion]:
-    """Check the status of a refund request."""
-    return _status.get(solicitud_id)
+def consultar_status(
+    solicitud_id: str, db: Optional[Database] = None,
+) -> Optional[StatusDevolucion]:
+    """Check the status of a refund request (leído desde DB, REQ-IVA-006)."""
+    database = db or _get_default_db()
+    _ensure_schema(database)
+    row = _fetch_solicitud_row(database, solicitud_id)
+    if not row:
+        return None
+    return _row_to_status(row)
 
 
-def generar_reporte_seguimiento(solicitud_id: str) -> Optional[Dict[str, Any]]:
+def generar_reporte_seguimiento(
+    solicitud_id: str, db: Optional[Database] = None,
+) -> Optional[Dict[str, Any]]:
     """Generate a status report for a refund request.
 
-    Returns a structured dict with all tracking information.
+    Returns a structured dict with all tracking information, leído desde
+    la tabla `devolucion_iva_solicitudes` (REQ-IVA-006).
     """
-    solicitud = _solicitudes.get(solicitud_id)
-    status = _status.get(solicitud_id)
-
-    if not solicitud or not status:
+    database = db or _get_default_db()
+    _ensure_schema(database)
+    row = _fetch_solicitud_row(database, solicitud_id)
+    if not row:
         return None
+
+    solicitud = _row_to_solicitud(row)
+    status = _row_to_status(row)
 
     return {
         "solicitud_id": solicitud_id,
@@ -481,43 +799,179 @@ def actualizar_status(
     fecha_respuesta: Optional[str] = None,
     monto_aprobado: Optional[float] = None,
     observaciones: Optional[str] = None,
+    db: Optional[Database] = None,
 ) -> Optional[StatusDevolucion]:
-    """Update the status of a refund request."""
-    status = _status.get(solicitud_id)
-    if not status:
+    """Update the status of a refund request (persistido, REQ-IVA-006)."""
+    database = db or _get_default_db()
+    _ensure_schema(database)
+    row = _fetch_solicitud_row(database, solicitud_id)
+    if not row:
         return None
 
-    status.status = nuevo_status
-    if fecha_respuesta:
-        status.fecha_respuesta = fecha_respuesta
-    if monto_aprobado is not None:
-        status.monto_aprobado = monto_aprobado
-    if observaciones:
-        status.observaciones = observaciones
+    new_fecha_respuesta = fecha_respuesta if fecha_respuesta else row["fecha_respuesta"]
+    new_monto_aprobado = (
+        monto_aprobado if monto_aprobado is not None else row["monto_aprobado"]
+    )
+    new_observaciones = observaciones if observaciones else row["observaciones"]
 
-    # Also update solicitud status
-    solicitud = _solicitudes.get(solicitud_id)
-    if solicitud:
-        solicitud.status = nuevo_status
+    # Both StatusDevolucion.status and SolicitudDevolucion.status son la
+    # misma columna `status` en esta tabla (siempre se mantuvieron en
+    # sincronía en la versión anterior en memoria).
+    database.conn.execute(
+        """UPDATE devolucion_iva_solicitudes
+           SET status = ?, fecha_respuesta = ?, monto_aprobado = ?,
+               observaciones = ?
+           WHERE id = ?""",
+        (
+            nuevo_status.value,
+            new_fecha_respuesta,
+            new_monto_aprobado,
+            new_observaciones,
+            solicitud_id,
+        ),
+    )
+    database.conn.commit()
 
-    return status
+    updated_row = _fetch_solicitud_row(database, solicitud_id)
+    return _row_to_status(updated_row)
 
 
-def listar_solicitudes(tenant_id: Optional[str] = None) -> List[Dict[str, Any]]:
-    """List all refund requests with optional tenant filter."""
+def listar_solicitudes(
+    tenant_id: Optional[str] = None, db: Optional[Database] = None,
+) -> List[Dict[str, Any]]:
+    """List refund requests, filtered by tenant when `tenant_id` is given.
+
+    Cuando se pasa `tenant_id`, únicamente se devuelven las solicitudes
+    cuyo `tenant_id` coincide exactamente (comparado a nivel de SQL, no en
+    Python sobre un dict) — nunca se exponen solicitudes de otros tenants
+    (aislamiento multi-tenant, REQ-IVA-007). Leído desde
+    `devolucion_iva_solicitudes` (REQ-IVA-006).
+    """
+    database = db or _get_default_db()
+    _ensure_schema(database)
+
+    if tenant_id is not None:
+        rows = database.conn.execute(
+            "SELECT * FROM devolucion_iva_solicitudes WHERE tenant_id = ? "
+            "ORDER BY created_at",
+            (tenant_id,),
+        ).fetchall()
+    else:
+        rows = database.conn.execute(
+            "SELECT * FROM devolucion_iva_solicitudes ORDER BY created_at"
+        ).fetchall()
+
     results = []
-    for sid, sol in _solicitudes.items():
-        st = _status.get(sid)
+    for row in rows:
         results.append({
-            "solicitud_id": sid,
-            "periodo": sol.periodo,
-            "monto_solicitado": sol.monto_solicitado,
-            "status": sol.status.value,
-            "fecha_presentacion": st.fecha_presentacion if st else None,
-            "monto_aprobado": st.monto_aprobado if st else None,
-            "created_at": sol.created_at,
+            "solicitud_id": row["id"],
+            "tenant_id": row["tenant_id"],
+            "periodo": row["periodo"],
+            "monto_solicitado": row["monto_solicitado"],
+            "status": row["status"],
+            "fecha_presentacion": row["fecha_presentacion"],
+            "monto_aprobado": row["monto_aprobado"],
+            "created_at": row["created_at"],
         })
     return results
+
+
+def registrar_papel_trabajo(
+    papel: PapelTrabajo, db: Optional[Database] = None,
+) -> PapelTrabajo:
+    """Persist a working paper (REQ-IVA-006).
+
+    Upsert por (tenant_id, periodo): recalcular el papel de trabajo de un
+    periodo ya existente lo reemplaza, en vez de acumular versiones
+    obsoletas del mismo periodo.
+    """
+    database = db or _get_default_db()
+    _ensure_schema(database)
+
+    tenant_key = papel.tenant_id or _DEFAULT_TENANT
+    # `created_at` es NOT NULL en la tabla (todas las filas persistidas
+    # necesitan una fecha de creación real); `generar_papel_trabajo()` ya
+    # lo rellena, pero un `PapelTrabajo` construido a mano (tests, u otro
+    # llamador) puede dejarlo en None — se completa aquí en vez de
+    # rechazar el registro.
+    created_at = papel.created_at or _now_iso()
+    facturas_json = json.dumps([f.model_dump() for f in papel.facturas])
+    diot_json = json.dumps([e.model_dump() for e in papel.diot_entries])
+    declaraciones_json = json.dumps([d.model_dump() for d in papel.declaraciones])
+
+    existing = database.conn.execute(
+        "SELECT id FROM devolucion_iva_papeles_trabajo "
+        "WHERE tenant_id = ? AND periodo = ?",
+        (tenant_key, papel.periodo),
+    ).fetchone()
+
+    if existing:
+        database.conn.execute(
+            """UPDATE devolucion_iva_papeles_trabajo
+               SET facturas = ?, diot_entries = ?, declaraciones = ?,
+                   saldo_a_favor = ?, monto_solicitado = ?, status = ?,
+                   created_at = ?
+               WHERE id = ?""",
+            (
+                facturas_json, diot_json, declaraciones_json,
+                papel.saldo_a_favor, papel.monto_solicitado, papel.status,
+                created_at, existing["id"],
+            ),
+        )
+    else:
+        database.conn.execute(
+            """INSERT INTO devolucion_iva_papeles_trabajo
+               (id, tenant_id, periodo, facturas, diot_entries,
+                declaraciones, saldo_a_favor, monto_solicitado, status,
+                created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (
+                papel.id, tenant_key, papel.periodo,
+                facturas_json, diot_json, declaraciones_json,
+                papel.saldo_a_favor, papel.monto_solicitado, papel.status,
+                created_at,
+            ),
+        )
+    database.conn.commit()
+    return papel
+
+
+def obtener_papel_trabajo(
+    periodo: str,
+    tenant_id: Optional[str] = None,
+    db: Optional[Database] = None,
+) -> Optional[PapelTrabajo]:
+    """Retrieve a persisted working paper by (periodo, tenant_id).
+
+    REQ-IVA-006: leído desde `devolucion_iva_papeles_trabajo`, no desde un
+    dict de proceso.
+    """
+    database = db or _get_default_db()
+    _ensure_schema(database)
+    tenant_key = tenant_id or _DEFAULT_TENANT
+
+    row = database.conn.execute(
+        "SELECT * FROM devolucion_iva_papeles_trabajo "
+        "WHERE tenant_id = ? AND periodo = ?",
+        (tenant_key, periodo),
+    ).fetchone()
+    if not row:
+        return None
+
+    return PapelTrabajo(
+        id=row["id"],
+        periodo=row["periodo"],
+        tenant_id=(row["tenant_id"] if row["tenant_id"] != _DEFAULT_TENANT else None),
+        facturas=[FacturaCFDI(**f) for f in json.loads(row["facturas"] or "[]")],
+        diot_entries=[DIOTEntry(**e) for e in json.loads(row["diot_entries"] or "[]")],
+        declaraciones=[
+            DeclaracionMensual(**d) for d in json.loads(row["declaraciones"] or "[]")
+        ],
+        saldo_a_favor=row["saldo_a_favor"],
+        monto_solicitado=row["monto_solicitado"],
+        status=row["status"],
+        created_at=row["created_at"],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -528,7 +982,17 @@ class DevolucionIVAService:
     """High-level service class wrapping all IVA refund operations.
 
     Used by the FastAPI router. Delegates to module-level functions.
+
+    REQ-IVA-006: acepta un `Database` explícito (SQLite con ruta de
+    archivo, o PostgreSQL) para que la persistencia de solicitudes/status/
+    papeles de trabajo sobreviva un reinicio del proceso. Sin `db=`
+    explícito usa la base compartida en memoria del módulo (mismo
+    comportamiento histórico para código/tests que no pasan `db`).
     """
+
+    def __init__(self, db: Optional[Database] = None):
+        self.db = db if db is not None else _get_default_db()
+        _ensure_schema(self.db)
 
     def recopilar_facturas(
         self,
@@ -590,20 +1054,78 @@ class DevolucionIVAService:
         saldo: Dict[str, Any],
         cuenta_banco: Optional[str] = None,
         clabe: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        facturas: Optional[List[dict | FacturaCFDI]] = None,
+        diot_entries: Optional[List[dict | DIOTEntry]] = None,
+        declaraciones: Optional[List[dict | DeclaracionMensual]] = None,
     ) -> SolicitudDevolucion:
-        return preparar_solicitud(periodo, saldo, cuenta_banco, clabe)
+        f_typed = self._coerce_facturas(facturas)
+        d_typed = self._coerce_diot(diot_entries)
+        decl_typed = self._coerce_declaraciones(declaraciones)
+        return preparar_solicitud(
+            periodo,
+            saldo,
+            cuenta_banco,
+            clabe,
+            tenant_id=tenant_id,
+            facturas=f_typed,
+            diot_entries=d_typed,
+            declaraciones=decl_typed,
+        )
 
     def registrar(self, solicitud: SolicitudDevolucion) -> SolicitudDevolucion:
-        return registrar_solicitud(solicitud)
+        return registrar_solicitud(solicitud, db=self.db)
 
     def consultar_status(self, solicitud_id: str) -> Optional[StatusDevolucion]:
-        return consultar_status(solicitud_id)
+        return consultar_status(solicitud_id, db=self.db)
 
     def generar_reporte(self, solicitud_id: str) -> Optional[Dict[str, Any]]:
-        return generar_reporte_seguimiento(solicitud_id)
+        return generar_reporte_seguimiento(solicitud_id, db=self.db)
 
-    def listar(self) -> List[Dict[str, Any]]:
-        return listar_solicitudes()
+    def actualizar_status(
+        self,
+        solicitud_id: str,
+        nuevo_status: EstatusDevolucion,
+        fecha_respuesta: Optional[str] = None,
+        monto_aprobado: Optional[float] = None,
+        observaciones: Optional[str] = None,
+    ) -> Optional[StatusDevolucion]:
+        return actualizar_status(
+            solicitud_id, nuevo_status,
+            fecha_respuesta=fecha_respuesta,
+            monto_aprobado=monto_aprobado,
+            observaciones=observaciones,
+            db=self.db,
+        )
+
+    def listar(self, tenant_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        return listar_solicitudes(tenant_id=tenant_id, db=self.db)
+
+    def generar_papel_trabajo(
+        self,
+        periodo: str,
+        facturas: List[dict | FacturaCFDI],
+        diot_entries: List[dict | DIOTEntry],
+        declaraciones: List[dict | DeclaracionMensual],
+        saldo: float,
+        monto: float,
+        tenant_id: Optional[str] = None,
+    ) -> PapelTrabajo:
+        f_typed = self._coerce_facturas(facturas)
+        d_typed = self._coerce_diot(diot_entries)
+        decl_typed = self._coerce_declaraciones(declaraciones)
+        return generar_papel_trabajo(
+            periodo, f_typed, d_typed, decl_typed, saldo, monto,
+            tenant_id=tenant_id,
+        )
+
+    def registrar_papel_trabajo(self, papel: PapelTrabajo) -> PapelTrabajo:
+        return registrar_papel_trabajo(papel, db=self.db)
+
+    def obtener_papel_trabajo(
+        self, periodo: str, tenant_id: Optional[str] = None,
+    ) -> Optional[PapelTrabajo]:
+        return obtener_papel_trabajo(periodo, tenant_id=tenant_id, db=self.db)
 
     @staticmethod
     def _coerce_facturas(facturas: list | None) -> List[FacturaCFDI]:
