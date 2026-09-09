@@ -2,6 +2,7 @@
 """POST /api/v1/cfdi/validate — CFDI 4.0 upload, parse & compliance check."""
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Annotated, Optional
 
@@ -322,8 +323,12 @@ async def validate_cfdi(
         xml_str = body.decode("utf-8", errors="replace")
 
     # ---- Parse ----
+    # parse_cfdi_4 / check_cfdi_compliance son CPU-bound (parsing XML con
+    # lxml + reglas de negocio) y corrían directo en el hilo del event loop:
+    # bajo carga, cada validación serializaba a todas las demás peticiones
+    # concurrentes de la app. Se delegan a un hilo del executor.
     try:
-        parsed = parse_cfdi_4(xml_str)
+        parsed = await asyncio.to_thread(parse_cfdi_4, xml_str)
     except CFDIError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -331,7 +336,7 @@ async def validate_cfdi(
         )
 
     # ---- Compliance checks ----
-    errors, warnings = check_cfdi_compliance(parsed)
+    errors, warnings = await asyncio.to_thread(check_cfdi_compliance, parsed)
     result = _build_response(parsed, errors, warnings)
     return CFDIValidationResponse(**result)
 
