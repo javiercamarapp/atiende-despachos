@@ -1,0 +1,18 @@
+{
+  "_ADVERTENCIA": "Este archivo NO es una fuente oficial SAT/RMF. Es un snapshot de UNA fuente secundaria (blog especializado) capturado manualmente para poder ejercitar tests/contract/test_diot_catalogo_vigente.py mientras no exista una fuente oficial SAT/RMF conectada (ver REQ-IVA-017 en docs/BLUEPRINT-AGENTES-FISCALES.md). NUNCA usar este archivo como determinación fiscal firme ni como prueba de vigencia real. El test que lo consume queda marcado xfail explícitamente por esta razón.",
+  "fuente_tipo": "secundaria_no_oficial",
+  "fuente_url": "https://tesio.com.mx/blog/tipo-de-tercero-proveedor-global-diot/",
+  "fuente_descripcion": "Blog especializado en contabilidad fiscal mexicana (tesio.com.mx), consultado 2026-09-08. No es el texto legal primario (RMF/DOF) ni la documentación técnica oficial del SAT.",
+  "plataforma_oficial_referenciada_por_la_fuente": "pstcdi.clouda.sat.gob.mx (nueva plataforma DIOT del SAT, vigente desde ago-2025; requiere e.firma o RFC+contraseña, sin API pública conocida para descargar el catálogo)",
+  "nota_investigacion_2026-09-08": "El requisito original (REQ-IVA-017) cita 'Anexo 19 RMF' como fuente del catálogo DIOT. Investigación web (WebSearch) el 2026-09-08 indica que el Anexo 19 de la RMF 2026 corresponde al 'Dictamen de Estados Financieros para efectos fiscales Tipo II (SIPRED)', NO al catálogo de tipos de operación de la DIOT. La cita del anexo en el requisito original parece incorrecta y debe verificarse/corregirse cuando se conecte una fuente oficial real; no se debe asumir qué anexo/regla es el correcto sin confirmarlo contra el DOF/SAT.",
+  "capturado_en": "2026-09-08",
+  "codigos": [
+    {"codigo": "02", "descripcion": "Enajenación de bienes"},
+    {"codigo": "03", "descripcion": "Prestación de servicios profesionales"},
+    {"codigo": "06", "descripcion": "Uso o goce temporal de bienes (arrendamiento)"},
+    {"codigo": "07", "descripcion": "Importación de bienes o servicios"},
+    {"codigo": "08", "descripcion": "Importación por transferencia virtual"},
+    {"codigo": "85", "descripcion": "Otros"},
+    {"codigo": "87", "descripcion": "Operaciones globales (exclusivo de proveedor global XAXX010101000)"}
+  ]
+}
