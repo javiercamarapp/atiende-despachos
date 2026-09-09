@@ -89,9 +89,47 @@ def all_tools():
     return list(_TOOLS.values())
 
 
+class ToolValidationError(ValueError):
+    """Faltan parámetros requeridos por el schema de la tool.
+
+    Subclase de ValueError a propósito: infrastructure/retry.py trata
+    ValueError como no-retryable por defecto, así que un error de
+    validación NUNCA dispara reintentos (reintentar una llamada con un
+    parámetro faltante no la arregla).
+    """
+
+    def __init__(self, tool_name, missing):
+        self.tool_name = tool_name
+        self.missing = list(missing)
+        super().__init__(
+            f"Tool '{tool_name}' llamada sin parámetro(s) requerido(s): "
+            f"{', '.join(self.missing)}."
+        )
+
+
+def _validate_required_params(tdef, kwargs):
+    """Fail-closed: si falta un parámetro requerido del schema, rechaza la
+    llamada en vez de invocar la tool y dejar que falle de forma más
+    oscura (o, peor, que un default silencioso de la función enmascare el
+    dato faltante). No adivina valores ni completa nada — sólo verifica
+    presencia de la llave en `kwargs`.
+    """
+    missing = [
+        p["name"] for p in (tdef.parameters or [])
+        if p.get("required") and p["name"] not in kwargs
+    ]
+    if missing:
+        raise ToolValidationError(tdef.name, missing)
+
+
 def call_tool(name, **kwargs):
-    """Llama una tool registrada. Lanza KeyError si no existe."""
+    """Llama una tool registrada.
+
+    Lanza KeyError si la tool no existe, o ToolValidationError (fail-closed)
+    si falta algún parámetro marcado `required=True` en su schema.
+    """
     tdef = get_tool(name)
     if tdef is None:
         raise KeyError(f"Tool no registrada: {name}")
+    _validate_required_params(tdef, kwargs)
     return tdef(**kwargs)

@@ -338,3 +338,24 @@ def _reset_pilot_state():
     yield
     reset_onb()
     reset_bill()
+
+
+@pytest.fixture(autouse=True)
+def _reset_llm_circuit_breaker():
+    """Resetea el circuit breaker compartido de llamadas LLM entre tests.
+
+    `services/llm.py` protege `LLMService._run()` con el breaker singleton
+    `get_or_create_breaker("llm_calls")` (infrastructure/circuit_breaker.py),
+    a propósito compartido entre TODAS las instancias de LLMService del
+    proceso (así es como un circuit breaker protege de verdad un servicio
+    downstream). Pero eso significa que fallos inducidos por un test
+    (`MockLLM(error_rate=1.0)`, `fail_next=True`) suman failure_count sobre
+    el MISMO breaker que usará el siguiente test en la suite — sin este
+    reset, suficientes tests de fallback en secuencia podrían abrir el
+    circuito y hacer que un test de éxito posterior reciba un fallback
+    inesperado (mismo patrón que `_reset_login_limiter` arriba).
+    """
+    from b2b_ai.infrastructure.circuit_breaker import registry as _cb_registry
+    _cb_registry.reset_all()
+    yield
+    _cb_registry.reset_all()
