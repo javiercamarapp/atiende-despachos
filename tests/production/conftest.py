@@ -114,8 +114,8 @@ def real_postgres():
     """Conexión a un PostgreSQL REAL (contenedor). Skip si no disponible."""
     if not _docker_ok() or not _port_open(PG_PORT):
         pytest.skip("PostgreSQL real no disponible (docker off o puerto %d cerrado)" % PG_PORT)
-    import psycopg2
-    conn = psycopg2.connect(PG_DSN, connect_timeout=4)
+    import psycopg
+    conn = psycopg.connect(PG_DSN, connect_timeout=4)
     try:
         yield conn
     finally:
