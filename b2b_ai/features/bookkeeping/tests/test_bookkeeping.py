@@ -692,3 +692,236 @@ class TestBookkeepingAPIAuth:
             f"Expected 401/403 for unauthenticated suggestions call, got {resp.status_code}. "
             "Endpoint is publicly accessible!"
         )
+
+# ===================================================================
+# 8. Real-data retraining loop (ML-01/HO-02)
+# ===================================================================
+
+class TestRetrainFromRealCorrections:
+    """Verifica el ciclo completo: correcciones humanas reales → retrain
+    REAL de AutoClassifier, con trained_on='real'|'synthetic' correcto.
+    """
+
+    def test_classifier_starts_synthetic(self, classifier):
+        """El bootstrap por defecto de AutoClassifier es sintético y queda
+        marcado como tal — línea base para comparar contra el retrain real.
+        """
+        assert classifier.is_trained
+        assert classifier.trained_on == "synthetic"
+        assert "categoria_real_test" not in classifier.categories
+
+    def test_retrain_refuses_with_too_few_real_examples(self, pipeline):
+        """Sin suficientes correcciones humanas con CFDI conocido, el
+        reentrenamiento se niega y el modelo activo NO se toca."""
+        pipeline.override_manager.submit_override(
+            cfdi_uuid="lonely-uuid-never-classified",
+            action=OverrideAction.RECLASSIFY,
+            new_categoria="nomina",
+        )
+        report = pipeline.retrain_from_corrections(min_examples=5)
+        assert report["status"] == "insufficient_data"
+        assert report["n_examples"] == 0  # sin snapshot real, no cuenta
+        assert report["n_skipped_no_snapshot"] == 1
+        # El modelo activo sigue siendo el sintético original.
+        assert pipeline.classifier.trained_on == "synthetic"
+
+    def test_retrain_refuses_with_single_category(self, pipeline, sample_cfdi):
+        """Aunque haya >= min_examples, si todas las correcciones apuntan a
+        la MISMA categoría no hay con qué entrenar un clasificador (se
+        necesitan >= 2 clases)."""
+        cfdis = [
+            {**sample_cfdi, "uuid": f"single-{i}", "cfdi_uuid": f"single-{i}"}
+            for i in range(6)
+        ]
+        pipeline.process_cfdis(cfdis=cfdis, tenant_id="t_single")
+        for c in cfdis:
+            pipeline.override_manager.submit_override(
+                cfdi_uuid=c["cfdi_uuid"],
+                action=OverrideAction.RECLASSIFY,
+                new_categoria="nomina",
+                tenant_id="t_single",
+            )
+        report = pipeline.retrain_from_corrections(
+            tenant_id="t_single", min_examples=5, min_examples_per_category=2,
+        )
+        assert report["status"] == "insufficient_data"
+        assert report["n_examples"] == 6
+        assert pipeline.classifier.trained_on == "synthetic"
+
+    def test_retrain_uses_real_corrections_and_flags_model(self, pipeline):
+        """Con suficientes correcciones humanas reales (>=2 categorías),
+        retrain_from_corrections entrena un modelo REAL que:
+        (a) queda marcado trained_on='real' (no 'synthetic'),
+        (b) aprende una categoría que el dataset sintético jamás podría
+            producir por sí mismo (prueba de que 'difiere del sintético'),
+        (c) predice esa categoría real para un CFDI nunca antes visto con
+            la misma huella textual.
+        """
+        classifier = pipeline.classifier
+        assert classifier.trained_on == "synthetic"
+        assert "categoria_real_test" not in classifier.categories
+
+        # Categoría A: no existe en SYNTHETIC_PATTERNS — sólo puede
+        # aparecer si el modelo se entrenó con datos reales.
+        real_cfdis = [
+            {
+                "uuid": f"real-{i}",
+                "cfdi_uuid": f"real-{i}",
+                "descripcion": "servicio especial xyzcorp mantenimiento premium recurrente",
+                "subtotal": 12345.0,
+                "iva": 1975.2,
+                "total": 14320.2,
+                "tasa_iva": 0.16,
+                "tipo_cfdi": "I",
+                "uso_cfdi": "G03",
+                "regimen_emisor": "601",
+                "rfc_emisor": f"XYZ0000000{i}",
+            }
+            for i in range(6)
+        ]
+        job_a = pipeline.process_cfdis(cfdis=real_cfdis, tenant_id="t_real")
+        assert len(job_a.classifications) == 6
+        for c in real_cfdis:
+            pipeline.override_manager.submit_override(
+                cfdi_uuid=c["cfdi_uuid"],
+                action=OverrideAction.RECLASSIFY,
+                new_categoria="categoria_real_test",
+                original_categoria="otros",
+                corrected_by="contador@test.com",
+                rfc_emisor=c["rfc_emisor"],
+                tenant_id="t_real",
+            )
+
+        # Categoría B: una segunda categoría real distinta, para cumplir
+        # el mínimo de >=2 clases que exige un clasificador.
+        other_cfdis = [
+            {
+                "uuid": f"other-{i}",
+                "cfdi_uuid": f"other-{i}",
+                "descripcion": "renta oficina mensual arrendamiento local",
+                "subtotal": 20000.0,
+                "iva": 3200.0,
+                "total": 23200.0,
+                "tasa_iva": 0.16,
+                "tipo_cfdi": "I",
+                "uso_cfdi": "G03",
+                "regimen_emisor": "601",
+                "rfc_emisor": f"OTR0000000{i}",
+            }
+            for i in range(6)
+        ]
+        pipeline.process_cfdis(cfdis=other_cfdis, tenant_id="t_real")
+        for c in other_cfdis:
+            pipeline.override_manager.submit_override(
+                cfdi_uuid=c["cfdi_uuid"],
+                action=OverrideAction.RECLASSIFY,
+                new_categoria="renta_oficina",
+                corrected_by="contador@test.com",
+                rfc_emisor=c["rfc_emisor"],
+                tenant_id="t_real",
+            )
+
+        report = pipeline.retrain_from_corrections(
+            tenant_id="t_real", min_examples=5, min_examples_per_category=2,
+        )
+
+        assert report["status"] == "trained"
+        assert report["trained_on"] == "real"
+        assert report["n_examples"] == 12
+        assert report["n_categories"] == 2
+
+        # El modelo ACTIVO (misma instancia que usa el pipeline) queda
+        # marcado como entrenado con datos reales.
+        assert classifier.trained_on == "real"
+        assert classifier.n_training_samples == 12
+        assert classifier.trained_at is not None
+
+        # Difiere del modelo sintético: aprendió una categoría que el
+        # dataset sintético no contiene en absoluto.
+        assert "categoria_real_test" in classifier.categories
+
+        # Y generaliza: predice la categoría real para un CFDI nuevo (no
+        # visto en el entrenamiento) con la misma huella textual.
+        cat, conf = classifier.predict({
+            "descripcion": "servicio especial xyzcorp mantenimiento premium urgente",
+            "subtotal": 13000.0,
+            "iva": 2080.0,
+            "total": 15080.0,
+            "tasa_iva": 0.16,
+            "tipo_cfdi": "I",
+            "uso_cfdi": "G03",
+            "regimen_emisor": "601",
+        })
+        assert cat == "categoria_real_test"
+
+    def test_retrain_endpoint_real_flow(self, client):
+        """POST /api/v1/bookkeeping/retrain conecta el endpoint real: procesa
+        CFDIs, corrige por API, reentrena por API y confirma trained_on."""
+        cfdis = [
+            {
+                "uuid": f"api-real-{i}",
+                "cfdi_uuid": f"api-real-{i}",
+                "descripcion": "consultoria contable especializada acme",
+                "subtotal": 9000.0,
+                "iva": 1440.0,
+                "total": 10440.0,
+                "tasa_iva": 0.16,
+                "tipo": "I",
+                "tipo_cfdi": "I",
+                "uso_cfdi": "G03",
+                "regimen_emisor": "601",
+            }
+            for i in range(3)
+        ] + [
+            {
+                "uuid": f"api-real-b-{i}",
+                "cfdi_uuid": f"api-real-b-{i}",
+                "descripcion": "papeleria oficina articulos",
+                "subtotal": 500.0,
+                "iva": 80.0,
+                "total": 580.0,
+                "tasa_iva": 0.16,
+                "tipo": "I",
+                "tipo_cfdi": "I",
+                "uso_cfdi": "G01",
+                "regimen_emisor": "601",
+            }
+            for i in range(3)
+        ]
+        resp = client.post("/api/v1/bookkeeping/process", json={
+            "cfdis": cfdis, "tenant_id": "api_tenant",
+        })
+        assert resp.status_code == 200
+
+        for c in cfdis[:3]:
+            r = client.post("/api/v1/bookkeeping/override", json={
+                "cfdi_uuid": c["cfdi_uuid"],
+                "action": "reclassify",
+                "new_categoria": "servicios_profesionales",
+                "corrected_by": "contador@test.com",
+                "tenant_id": "api_tenant",
+            })
+            assert r.status_code == 200
+        for c in cfdis[3:]:
+            r = client.post("/api/v1/bookkeeping/override", json={
+                "cfdi_uuid": c["cfdi_uuid"],
+                "action": "reclassify",
+                "new_categoria": "papeleria",
+                "corrected_by": "contador@test.com",
+                "tenant_id": "api_tenant",
+            })
+            assert r.status_code == 200
+
+        resp = client.post("/api/v1/bookkeeping/retrain", json={
+            "tenant_id": "api_tenant",
+            "min_examples": 5,
+            "min_examples_per_category": 2,
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "trained"
+        assert data["trained_on"] == "real"
+        assert data["n_examples"] == 6
+
+        status_resp = client.get("/api/v1/bookkeeping/status?tenant_id=api_tenant")
+        assert status_resp.json()["classifier_trained_on"] == "real"
