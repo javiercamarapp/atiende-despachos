@@ -1,26 +1,33 @@
 # -*- coding: utf-8 -*-
-"""test_api_contracts.py — Tests de contratos de la API del piloto.
+"""test_api_contracts.py — Tests de contratos de la API.
 
-Valida que los endpoints del flujo piloto:
+Valida que los endpoints:
   1. Existen y responden (no 404).
   2. Devuelven formatos JSON consistentes con los schemas declarados.
   3. Aplican autenticación (X-API-Key) en endpoints protegidos.
   4. Aplican rate limiting (429 + Retry-After).
 
-Estrategia (consistente con el repo, p.ej. test_billing_onboarding_integration.py):
-  - Los contratos de ruta/schema se validan contra los routers montados con un
-    auth-stub que devuelve dict (mismo fixture `pilot_client` del conftest).
+Estrategia:
+  - Los contratos de ruta/schema se validan contra un puñado de routers
+    reales montados a mano con un auth-stub que devuelve dict (fixture
+    `pilot_client` del conftest: batch, bank-feeds, reports).
   - El contrato de AUTENTICACIÓN se valida contra `make_require_api_key` real
     de `b2b_ai.api.auth`, aislado en una mini-app, para probar 422/401.
   - El rate limiting se prueba de forma aislada (limiter en memoria).
 
+NOTA (consolidación de billing, fix/billing-consolidacion): este archivo
+probaba también onboarding-wizard y billing-piloto
+(`b2b_ai.features.onboarding` / `b2b_ai.features.billing`). Ambos se
+eliminaron — nunca estuvieron montados en `create_app()` y el billing piloto
+tenía un bypass real de firma de webhook. Ver la nota en `TestEndpointsExist`
+para el contrato real que los reemplaza.
+
 HALLAZGO QA (bug de producción, no de estos tests): `make_require_api_key()` en
 `b2b_ai/api/auth.py` (1) expone la key como query param "key" en vez de leer el
-header X-API-Key, y (2) devuelve el STRING de la key mientras los routers del
-piloto (onboarding-wizard, billing-piloto) hacen `auth_info.get("tenant_id")`
-esperando un dict. En la app real, POST /api/v1/onboarding-wizard/start responde
-422 (query key faltante). Requiere fix de Zuck; los tests de auth de abajo lo
-documentan y las suites E2E/contrato usan el auth-stub para no depender de él.
+header X-API-Key, y (2) devuelve el STRING de la key mientras algunos routers
+de `features/` hacen `auth_info.get("tenant_id")` esperando un dict. Requiere
+fix de Zuck; los tests de auth de abajo lo documentan y las suites de
+contrato usan el auth-stub para no depender de él.
 """
 import pytest
 from fastapi import FastAPI, Depends
@@ -39,32 +46,17 @@ def api_key():
 class TestEndpointsExist:
     """Los endpoints del flujo piloto deben existir (no 404 con auth ok)."""
 
-    def test_onboarding_wizard_endpoints(self, pilot_client):
-        r = pilot_client.post("/api/v1/onboarding-wizard/start", json={})
-        assert r.status_code == 200
-        assert r.json()["ok"] is True
-        r = pilot_client.get("/api/v1/onboarding-wizard/nonexistent")
-        assert r.status_code == 404  # existe la ruta, no la sesión
-
-    def test_billing_piloto_plans(self, pilot_client):
-        r = pilot_client.get("/api/v1/billing-piloto/plans")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["ok"] is True
-        assert body["currency"] == "MXN"
-        assert isinstance(body["plans"], list)
-        assert len(body["plans"]) > 0
-
-    def test_billing_piloto_checkout_contract(self, pilot_client):
-        r = pilot_client.post(
-            "/api/v1/billing-piloto/checkout",
-            json={"plan": "professional",
-                  "success_url": "https://app.likida.ai/ok",
-                  "cancel_url": "https://app.likida.ai/cancel"},
-        )
-        # Con auth-stub el tenant está presente → 200 con URL de checkout.
-        assert r.status_code == 200, r.text
-        assert r.json()["ok"] is True
+    # NOTA (consolidación de billing, fix/billing-consolidacion):
+    # test_onboarding_wizard_endpoints, test_billing_piloto_plans y
+    # test_billing_piloto_checkout_contract probaban rutas de
+    # `b2b_ai.features.onboarding` / `b2b_ai.features.billing` (el módulo
+    # "piloto", eliminado). Esas rutas nunca existieron en `create_app()`
+    # (no eran contrato de producción, solo de esta app de test aislada), y
+    # el billing piloto tenía un bypass real de firma de webhook. El
+    # contrato real de billing/onboarding en producción está cubierto por
+    # tests/test_billing.py, tests/test_conekta_gateway.py,
+    # tests/test_webhook_receiver.py (b2b_ai.billing) y
+    # tests/test_onboarding_wizard.py (b2b_ai.onboarding).
 
     def test_batch_endpoints(self, pilot_client):
         # Ruta de consulta existe → 404 para id inexistente (no 405/404 de ruta).
@@ -107,14 +99,8 @@ class TestResponseSchemas:
         assert "data" in body
         assert "id" in body["data"]
 
-    def test_billing_plans_schema(self, pilot_client):
-        body = pilot_client.get("/api/v1/billing-piloto/plans").json()
-        assert body["ok"] is True
-        for plan in body["plans"]:
-            assert "code" in plan
-            assert "name" in plan
-            assert "price_mxn" in plan
-
+    # test_billing_plans_schema (billing-piloto) eliminado junto con el
+    # módulo piloto — ver nota arriba.
 
 # ---------------------------------------------------------------------------
 # 3. Autenticación (make_require_api_key real, aislado)
