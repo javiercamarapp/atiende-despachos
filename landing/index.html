@@ -145,8 +145,22 @@ nav .max-w{display:flex;align-items:center;justify-content:space-between;height:
 .cta-content{position:relative;z-index:10;padding:40px}
 .cta-content .badge{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;background:#fff;border:1px solid #fff;padding:6px 14px;border-radius:var(--radius-sm);margin-bottom:24px;display:inline-block}
 .cta-content h2{font-size:clamp(2rem,5vw,3.5rem);font-weight:700;letter-spacing:-.04em;color:#fff;margin-bottom:32px}
-.cta-content .btn{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--fg);padding:14px 32px;border-radius:999px;font-size:15px;font-weight:500;transition:all .3s}
+.cta-content .btn{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--fg);padding:14px 32px;border-radius:999px;font-size:15px;font-weight:500;transition:all .3s;border:none;cursor:pointer}
 .cta-content .btn:hover{background:#272628;color:#fff}
+.cta-content .btn:disabled{opacity:.6;cursor:not-allowed}
+.cta-form{max-width:520px;margin:0 auto;text-align:left}
+.cta-form-row{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px}
+@media(min-width:600px){.cta-form-row{grid-template-columns:1fr 1fr}}
+.cta-form input,.cta-form select,.cta-form textarea{width:100%;padding:13px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;font-family:inherit;font-size:14px}
+.cta-form input::placeholder,.cta-form textarea::placeholder{color:rgba(255,255,255,.6)}
+.cta-form select{color:rgba(255,255,255,.9)}
+.cta-form select option{color:var(--fg)}
+.cta-form input:focus,.cta-form select:focus,.cta-form textarea:focus{outline:2px solid #fff;outline-offset:1px}
+.cta-form .hp-field{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.cta-form .cta-msg{margin-top:14px;font-size:13px;min-height:18px}
+.cta-form .cta-msg.ok{color:#bbf7d0}
+.cta-form .cta-msg.err{color:#fecaca}
+.cta-form-actions{margin-top:6px;text-align:center}
 
 /* ==================== FOOTER ==================== */
 footer{padding:60px 0 40px;max-width:1400px;margin:0 auto;padding-left:24px;padding-right:24px}
@@ -292,7 +306,31 @@ footer .bottom{display:flex;justify-content:space-between;align-items:center;pad
   <div class="cta-content">
    <div class="badge">See It Live</div>
    <h2>Ready to automate<br>your firm today?</h2>
-   <a href="/api/v1/docs" class="btn">Contact us →</a>
+   <form class="cta-form" id="leadForm" novalidate>
+    <div class="cta-form-row">
+     <input type="text" name="nombre" placeholder="Tu nombre" autocomplete="name" required minlength="2" maxlength="120">
+     <input type="text" name="despacho" placeholder="Despacho / empresa" autocomplete="organization" maxlength="160">
+    </div>
+    <div class="cta-form-row">
+     <input type="email" name="email" placeholder="Email laboral" autocomplete="email" required maxlength="160">
+     <select name="facturas">
+      <option value="">Facturas al mes</option>
+      <option>Menos de 100</option>
+      <option>100 – 500</option>
+      <option>500 – 1,000</option>
+      <option>Más de 1,000</option>
+     </select>
+    </div>
+    <!-- Honeypot anti-spam: invisible para humanos, los bots suelen rellenarlo -->
+    <div class="hp-field" aria-hidden="true">
+     <label for="website">Website</label>
+     <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+    </div>
+    <div class="cta-form-actions">
+     <button type="submit" class="btn" id="leadSubmitBtn">Solicitar demo →</button>
+    </div>
+    <div class="cta-msg" id="leadMsg" role="status" aria-live="polite"></div>
+   </form>
   </div>
  </div>
 </section>
@@ -313,6 +351,8 @@ footer .bottom{display:flex;justify-content:space-between;align-items:center;pad
  <div class="bottom"><span>© 2026 Likida AI. All rights reserved.</span><span>Mexico · Spanish</span></div>
 </footer>
 
+<!-- Externo (no inline) para cumplir la CSP script-src 'self' sin nonce -->
+<script src="/static/landing.js"></script>
 <script>
 (function(){
   // PWA: registrar service worker (solo en http/https, no en file:// ni tests).
