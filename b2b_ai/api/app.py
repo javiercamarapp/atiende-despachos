@@ -109,6 +109,7 @@ from b2b_ai.features.declaraciones.declaration_api import build_declarations_api
 from b2b_ai.features.reconciliacion_ingresos_egresos.routes import (
     build_reconciliacion_ingresos_egresos_router,
 )
+from b2b_ai.features.migracion_catalogo.routes import build_migracion_catalogo_router
 from b2b_ai.features.vencimientos.routes import build_vencimientos_router
 from b2b_ai.features.close_management.routes import build_close_management_router
 from b2b_ai.features.bookkeeping.routes import build_bookkeeping_router
@@ -1083,6 +1084,10 @@ def create_app(db=None):
 
     # Reconciliación Ingresos/Egresos: clasificación, balance IVA y papel de trabajo.
     app.include_router(build_reconciliacion_ingresos_egresos_router(db, require_api_key))
+
+    # Migración de catálogo de cuentas: revisión humana explícita de mapeos
+    # alerta_riesgo/fuzzy antes de aprobar (REQ-MIG-007, ADR-3).
+    app.include_router(build_migracion_catalogo_router(require_api_key))
 
     # Vencimientos: deadlines, escalaciones y resumen de obligaciones fiscales.
     app.include_router(build_vencimientos_router(db, require_api_key))
