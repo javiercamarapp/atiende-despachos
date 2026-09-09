@@ -164,10 +164,30 @@ class TestPortalAuth:
         me = c.get("/portal/auth/me", headers=_auth(dev_token))
         assert me.status_code == 200
 
-    def test_magic_link_unknown_email_returns_404(self, ctx):
+    def test_magic_link_unknown_email_returns_same_generic_response(self, ctx):
+        """SECURITY: antes devolvía 404 "No hay una cuenta con ese email.",
+        lo que permitía enumerar cuentas por email. Ahora responde con el
+        MISMO status y mensaje genérico que un email que sí existe (ver
+        test_magic_link_known_and_unknown_email_are_indistinguishable), y
+        nunca incluye `dev_token` porque no hay sesión real que exponer."""
         r = ctx["client"].post("/portal/auth/magic-link",
                                json={"email": "ghost@test.com"})
-        assert r.status_code == 404
+        assert r.status_code == 200
+        body = r.json()
+        assert body["ok"] is True
+        assert "dev_token" not in body
+
+    def test_magic_link_known_and_unknown_email_are_indistinguishable(self, ctx):
+        """Misma respuesta (status + mensaje) exista o no la cuenta -- sólo
+        difieren en que la cuenta real trae `dev_token` (hay sesión que
+        exponer en B2B_ENV=test) y la inexistente no."""
+        c = ctx["client"]
+        known = c.post("/portal/auth/magic-link",
+                       json={"email": "alpha@test.com"})
+        unknown = c.post("/portal/auth/magic-link",
+                         json={"email": "ghost-nunca-existe@test.com"})
+        assert known.status_code == unknown.status_code == 200
+        assert known.json()["message"] == unknown.json()["message"]
 
     def test_confirm_valid_token(self, ctx):
         c = ctx["client"]

@@ -52,11 +52,22 @@ def _conciliacion_data_dir_aislado(tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _reset_login_limiter():
-    """Reset the portal login rate limiter between tests to avoid 429 collisions."""
+    """Reset the portal login rate limiters between tests to avoid 429 collisions.
+
+    Covers both portal implementations: the server-rendered one
+    (b2b_ai/portal/routes.py, cookie-based) and the JSON/SPA one
+    (b2b_ai/api/portal.py, Bearer-token based) — each keeps its own
+    module-level limiter instance(s).
+    """
     from b2b_ai.portal.routes import _login_limiter
+    from b2b_ai.api.portal import LOGIN_LIMITER, MAGIC_LINK_LIMITER
     _login_limiter.reset()
+    LOGIN_LIMITER.reset()
+    MAGIC_LINK_LIMITER.reset()
     yield
     _login_limiter.reset()
+    LOGIN_LIMITER.reset()
+    MAGIC_LINK_LIMITER.reset()
 
 
 @pytest.fixture(autouse=True)
