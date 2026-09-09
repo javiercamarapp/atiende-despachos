@@ -47,11 +47,12 @@ ya no se usa dentro de este módulo.
 """
 from __future__ import annotations
 
+import functools
+import queue as _queue
 import threading
 import time
 import uuid
 import os
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Optional
 
@@ -62,6 +63,7 @@ from pydantic import BaseModel, Field
 
 from b2b_ai.db.db import Database
 from b2b_ai.db.pool import ConnectionPool
+from b2b_ai.services.concurrency import get_max_concurrency
 from b2b_ai.services.analytics import build_analytics, TTLCache
 from b2b_ai.services.exporter import export
 from b2b_ai.services.pipeline import process_file
@@ -134,6 +136,58 @@ def _finish_job(job_id, summary, results):
 def _get_job(job_id):
     with _JOBS_LOCK:
         return _JOBS.get(job_id)
+
+
+# ==========================================================================
+# Pool ACOTADO para lotes async (BATCH-02, auditoría de hardening de batch)
+# ==========================================================================
+# ANTES: `POST /api/v2/batch` con `async=true` creaba un `threading.Thread`
+# NUEVO por cada request, sin ningún límite. Un cliente (o varios tenants)
+# mandando muchos lotes async en poco tiempo podía crear cientos de threads
+# del proceso -- riesgo real de agotamiento de threads del SO (cada thread
+# reserva stack; el límite típico de threads por proceso en Linux/containers
+# es de unos cuantos miles, y cada uno además abre su propia `Database`
+# dedicada en `_run_job`).
+#
+# Fix: un número FIJO de threads daemon (`_BATCH_JOB_MAX_CONCURRENCY`,
+# arrancados una sola vez al importar este módulo) consumen jobs de una
+# cola. El número de threads dedicados a lotes async queda acotado sin
+# importar cuántas requests async lleguen -- las que exceden el límite
+# esperan en la cola (FIFO), no crean threads nuevos.
+#
+# No se usa `concurrent.futures.ThreadPoolExecutor` a propósito: sus workers
+# NO son threads daemon, y su `atexit` bloquea el shutdown del proceso hasta
+# vaciar la cola de tareas pendientes -- justo lo que el `daemon=True`
+# original evitaba deliberadamente para un job de batch que siga corriendo.
+_BATCH_JOB_MAX_CONCURRENCY = get_max_concurrency(
+    "B2B_BATCH_JOB_MAX_CONCURRENCY", default=4)
+_BATCH_JOB_QUEUE: "_queue.Queue" = _queue.Queue()
+
+
+def _batch_job_worker() -> None:
+    """Consume jobs de `_BATCH_JOB_QUEUE` indefinidamente, uno a la vez."""
+    while True:
+        task = _BATCH_JOB_QUEUE.get()
+        try:
+            task()
+        except Exception:  # noqa: BLE001 — aislamiento de fallos: un job
+                            # que revienta NO debe matar a este worker; los
+                            # siguientes jobs en cola deben seguir
+                            # procesándose con el resto del pool intacto.
+            import logging
+            logging.getLogger(__name__).exception(
+                "Job de batch async terminó con excepción no manejada")
+        finally:
+            _BATCH_JOB_QUEUE.task_done()
+
+
+def _start_batch_job_workers() -> None:
+    for _i in range(_BATCH_JOB_MAX_CONCURRENCY):
+        threading.Thread(target=_batch_job_worker, daemon=True,
+                         name=f"batch-job-worker-{_i}").start()
+
+
+_start_batch_job_workers()
 
 
 # ==========================================================================
@@ -345,14 +399,19 @@ def build_v2_router(db: Database, require_api_key, auth=None):
     def _process_batch_items(tenant_id, paths, folder, webhook, job_id=None,
                              dbx=None):
         from collections import Counter
+        from b2b_ai.services.concurrency import run_bounded
         dbx = dbx or db
-        raw = []
-        for p in paths:
-            raw.append(_process_one(tenant_id, p, dbx))
+        all_paths = list(paths)
         if folder:
             import glob
-            for f in sorted(glob.glob(folder + "/*.xml")):
-                raw.append(_process_one(tenant_id, f, dbx))
+            all_paths.extend(sorted(glob.glob(folder + "/*.xml")))
+        # BATCH-01: mismo fix que pipeline.process_batch — concurrencia
+        # ACOTADA (nunca más de MAX_CONCURRENCY procesando a la vez) en vez
+        # del `for` secuencial original. `tenant_id` ya viene resuelto por
+        # `_tenant(auth_info)` (la key de API fija el tenant), así que aquí
+        # no hay la carrera de auto-creación de tenant demo que sí aplica en
+        # pipeline.process_batch con tenant_id=None.
+        raw = run_bounded(all_paths, lambda p: _process_one(tenant_id, p, dbx))
         ok = sum(1 for r in raw
                  if r.get("validacion", {}).get("ok"))
         inserted = sum(1 for r in raw if r.get("insertado"))
@@ -420,11 +479,14 @@ def build_v2_router(db: Database, require_api_key, auth=None):
 
         if req.async_:
             job_id = _new_job(tenant)
-            t = threading.Thread(
-                target=lambda: _run_job(job_id, tenant, validated_paths, validated_folder,
-                                        req.webhook),
-                daemon=True)
-            t.start()
+            # BATCH-02: encolar en el pool acotado en vez de crear un
+            # `threading.Thread` nuevo por request (ver definición de
+            # `_BATCH_JOB_QUEUE` arriba) — nunca más de
+            # `_BATCH_JOB_MAX_CONCURRENCY` jobs corren a la vez sin importar
+            # cuántas requests async lleguen.
+            _BATCH_JOB_QUEUE.put(functools.partial(
+                _run_job, job_id, tenant, validated_paths, validated_folder,
+                req.webhook))
             return {"accepted": True, "job_id": job_id, "total": total,
                     "status": "running"}
         out = _process_batch_items(tenant, validated_paths, validated_folder, req.webhook)
