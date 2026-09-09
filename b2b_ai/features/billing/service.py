@@ -375,10 +375,19 @@ class BillingService:
     # ------------------------------------------------------------------
 
     def handle_webhook_event(self, event_payload: Dict[str, Any],
-                             signature: str = "") -> Dict[str, Any]:
-        """Valida la firma y aplica el efecto del evento sobre el billing."""
+                             signature: str = "",
+                             raw_body: Optional[bytes | str] = None) -> Dict[str, Any]:
+        """Valida la firma y aplica el efecto del evento sobre el billing.
+
+        `raw_body` debe ser el body crudo del request HTTP (leído antes de
+        parsear el JSON) para que la firma se verifique contra los bytes
+        reales y no contra una reserialización de `event_payload`. Ver
+        `ConektaClient.process_webhook` para el detalle de seguridad.
+        """
         try:
-            routed = self.client.process_webhook(event_payload, signature)
+            routed = self.client.process_webhook(
+                event_payload, signature, raw_body=raw_body
+            )
         except ConektaWebhookError as exc:
             raise BillingError(str(exc), code="invalid_webhook_signature")
 
@@ -387,11 +396,15 @@ class BillingService:
         # Buscar la suscripción por object_id del proveedor o dejar None.
         sub_id = self._find_subscription_by_provider_id(object_id)
 
+        # Usa el payload efectivamente verificado/ruteado por el cliente
+        # (re-parseado del raw_body cuando se proveyó) en vez del
+        # `event_payload` recibido aparte, para no registrar un payload que
+        # no corresponda a los bytes cuya firma se validó.
         event = PaymentEvent(
             event_type=ev_type,
             provider_event_id=object_id,
             subscription_id=sub_id,
-            payload=event_payload,
+            payload=routed.get("event_payload", event_payload),
         )
         store.add_payment_event(event)
 

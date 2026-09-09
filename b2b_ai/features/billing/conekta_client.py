@@ -249,17 +249,59 @@ class ConektaClient:
         return hmac.compare_digest(expected, provided_hash)
 
     def process_webhook(self, event_payload: Dict[str, Any],
-                        signature: str = "") -> Dict[str, Any]:
+                        signature: str = "",
+                        raw_body: Optional[bytes | str] = None) -> Dict[str, Any]:
         """Verifica la firma (si se provee) y rutea el evento de Conekta.
 
+        Seguridad — verificación contra el body crudo:
+            La firma HMAC se debe verificar contra los BYTES CRUDOS del
+            request tal como llegaron (`raw_body`), NUNCA contra una
+            reserialización de `event_payload` ya parseado. `json.dumps()`
+            de un dict ya parseado no es byte-idéntico al body original que
+            Conekta firmó (orden de claves, espacios, escapes unicode,
+            formato de números o claves duplicadas pueden diferir), lo que
+            abriría un bypass de firma. Todo caller HTTP real DEBE leer el
+            body crudo ANTES de parsear el JSON y pasarlo aquí como
+            `raw_body`.
+
+            Si no se pasa `raw_body` (uso interno/tests que ya construyen el
+            dict ruteado a mano, sin un request HTTP real de por medio), se
+            reserializa `event_payload` como mejor esfuerzo — esa rama NUNCA
+            debe usarse para verificar una firma que llegó por HTTP.
+
+            Además, cuando SÍ se pasa `raw_body`, el evento que se rutea se
+            re-parsea desde ese mismo `raw_body` (no desde el `event_payload`
+            recibido aparte). Así, la firma verificada y el contenido
+            procesado son siempre la misma fuente de bytes: un caller no
+            puede verificar la firma contra `raw_body` y luego rutear un
+            `event_payload` distinto (por ejemplo, uno mutado después de
+            parsear el JSON original).
+
         Devuelve un dict con `handled` y la acción resultante
-        (`mark_paid`, `mark_failed`, `mark_canceled`, ...).
+        (`mark_paid`, `mark_failed`, `mark_canceled`, ...). Incluye también
+        `event_payload` con el payload efectivamente procesado.
         """
         import json
 
-        raw = json.dumps(event_payload, separators=(",", ":"))
-        if signature and not self.verify_webhook_signature(raw, signature):
-            raise ConektaWebhookError("Firma de webhook inválida")
+        if raw_body is not None:
+            raw = (
+                raw_body.decode("utf-8")
+                if isinstance(raw_body, (bytes, bytearray))
+                else raw_body
+            )
+            if signature and not self.verify_webhook_signature(raw, signature):
+                raise ConektaWebhookError("Firma de webhook inválida")
+            # Fuente de verdad única: lo que se rutea es lo que se acaba de
+            # verificar (re-parseado del propio raw_body), nunca un dict
+            # aparte que podría no corresponder a esos mismos bytes.
+            try:
+                event_payload = json.loads(raw) if raw else {}
+            except (ValueError, TypeError) as exc:
+                raise ConektaWebhookError(f"Payload de webhook inválido: {exc}")
+        else:
+            raw = json.dumps(event_payload, separators=(",", ":"))
+            if signature and not self.verify_webhook_signature(raw, signature):
+                raise ConektaWebhookError("Firma de webhook inválida")
 
         event_type = str(event_payload.get("type", "") or "").lower()
         data = event_payload.get("data", {}) or {}
@@ -274,6 +316,7 @@ class ConektaClient:
             "event_type": event_type,
             "payment_event_type": ev_type.value,
             "object_id": provider_id,
+            "event_payload": event_payload,
         }
 
         if ev_type == PaymentEventType.PAYMENT_SUCCEEDED:
@@ -289,6 +332,7 @@ class ConektaClient:
             "provider": "conekta",
             "event_type": event_type,
             "reason": "evento sin manejo específico",
+            "event_payload": event_payload,
         }
 
     @staticmethod
