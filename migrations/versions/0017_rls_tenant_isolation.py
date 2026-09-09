@@ -2,8 +2,8 @@
 """RLS (Row-Level Security) en PostgreSQL: invoices, audit_log,
 audit_entries, client_users — H-18
 
-Revision ID: 0016_rls_tenant_isolation
-Revises: 0015_rate_limit_windows
+Revision ID: 0017_rls_tenant_isolation
+Revises: 0016_pipeline_jobs
 Create Date: 2026-09-09
 
 CONTEXTO (H-18 de la auditoría): hoy el aislamiento multi-tenant depende
@@ -105,8 +105,8 @@ import os
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0016_rls_tenant_isolation"
-down_revision = "0015_rate_limit_windows"
+revision = "0017_rls_tenant_isolation"
+down_revision = "0016_pipeline_jobs"
 branch_labels = None
 depends_on = None
 

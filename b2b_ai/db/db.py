@@ -290,7 +290,7 @@ class Database:
     # H-18: defensa en profundidad ADICIONAL al filtro `WHERE tenant_id=?`
     # que ya hace cada método de esta clase — NUNCA lo sustituye. Las
     # políticas reales viven en PostgreSQL (ver
-    # migrations/versions/0016_rls_tenant_isolation.py); aquí solo se fija,
+    # migrations/versions/0017_rls_tenant_isolation.py); aquí solo se fija,
     # antes de cada consulta a una tabla protegida (invoices, audit_log,
     # audit_entries, client_users), el GUC de sesión que esas políticas
     # leen con `current_setting(...)`.
