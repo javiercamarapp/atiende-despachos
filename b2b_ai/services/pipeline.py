@@ -258,8 +258,39 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
 
 
 def process_batch(folder, db=None, tenant_id=None, pattern="*.xml",
-                  checkpoint_file=None):
+                  checkpoint_file=None, max_workers=None):
+    """Procesa todos los CFDI de `folder` con concurrencia ACOTADA real.
+
+    BATCH-01 (auditoría, ronda de hardening de batch): esta función era un
+    `for` estrictamente secuencial -- un lote de 1000 archivos tardaba
+    ~1000x el tiempo de uno solo, aunque casi todo ese tiempo es I/O
+    (parseo de XML, llamadas a tools, inserts en DB) que puede solaparse.
+    Ahora despacha los archivos a un pool acotado (`run_bounded`,
+    b2b_ai/services/concurrency.py) que nunca corre más de `max_workers`
+    (default: `B2B_BATCH_MAX_CONCURRENCY` o 8) al mismo tiempo. `Database`
+    ya está diseñada para esto: `Database.conn` es una conexión SQLite
+    *por hilo* (thread-local, ver db/db.py) creada perezosamente -- pasar
+    la MISMA instancia `db` a todos los workers es el patrón soportado, no
+    uno nuevo que yo esté inventando aquí.
+
+    Aislamiento de fallos: si `process_file` revienta para un archivo, ESE
+    resultado es `{"archivo": ..., "error": ...}` (igual que en el `for`
+    original) y el resto del lote se sigue procesando con normalidad --
+    una factura corrupta no tumba el lote completo.
+
+    Carrera introducida por la concurrencia (y su fix): en el `for`
+    secuencial original, `tenant_id=None` (modo demo) se resolvía UNA vez
+    por archivo pero de forma segura porque el archivo N ya veía el tenant
+    demo creado por el archivo N-1. Con varios workers corriendo a la vez,
+    los primeros N podrían ejecutar `ensure_tenant` al mismo tiempo, ver la
+    tabla de tenants vacía simultáneamente y cada uno crear su propio
+    tenant demo duplicado. Por eso aquí se resuelve `tenant_id` UNA sola
+    vez, antes de despachar al pool, y se pasa ya resuelto a cada worker.
+    """
     import json as _json
+    import threading as _threading
+    from b2b_ai.services.concurrency import run_bounded
+
     archivos = sorted(glob.glob(os.path.join(folder, pattern)))
     processed_set = set()
     if checkpoint_file and os.path.exists(checkpoint_file):
@@ -268,22 +299,38 @@ def process_batch(folder, db=None, tenant_id=None, pattern="*.xml",
                 processed_set = set(_json.load(cf))
         except Exception:
             _log.warning("No se pudo cargar checkpoint, se reprocesará todo", exc_info=True)
-    results = []
-    for f in archivos:
-        if f in processed_set:
-            continue
+
+    pendientes = [f for f in archivos if f not in processed_set]
+
+    if pendientes and db is not None:
+        # Resolver UNA vez, antes de la concurrencia (ver docstring).
+        tenant_id = ensure_tenant(db, tenant_id)
+
+    checkpoint_lock = _threading.Lock()
+
+    def _guardar_checkpoint(archivo: str) -> None:
+        if not checkpoint_file:
+            return
+        with checkpoint_lock:
+            processed_set.add(archivo)
+            try:
+                with open(checkpoint_file, "w") as cf:
+                    _json.dump(list(processed_set), cf)
+            except Exception:
+                _log.warning("No se pudo guardar checkpoint de progreso", exc_info=True)
+
+    def _worker(f: str) -> dict:
         try:
             result = process_file(f, db=db, tenant_id=tenant_id)
-            results.append(result)
-            if checkpoint_file:
-                processed_set.add(f)
-                try:
-                    with open(checkpoint_file, "w") as cf:
-                        _json.dump(list(processed_set), cf)
-                except Exception:
-                    _log.warning("No se pudo guardar checkpoint de progreso", exc_info=True)
-        except Exception as e:
-            results.append({"archivo": os.path.basename(f), "error": str(e)})
+            _guardar_checkpoint(f)
+            return result
+        except Exception as e:  # noqa: BLE001 — aislamiento de fallos: un
+                                 # XML corrupto o una tool que revienta no
+                                 # debe tumbar el resto del lote.
+            return {"archivo": os.path.basename(f), "error": str(e)}
+
+    results = run_bounded(pendientes, _worker, max_workers=max_workers)
+
     if checkpoint_file and os.path.exists(checkpoint_file):
         try:
             os.remove(checkpoint_file)
