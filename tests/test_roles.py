@@ -389,50 +389,17 @@ def test_api_elimina_rol_custom_y_protege_builtin(roles_client):
 
 
 # --------------------------------------------------------------------------
-# Integración: billing piloto usa require_permission("billing:write")
-# --------------------------------------------------------------------------
-def test_billing_integracion_billing_write():
-    """El router de billing piloto protege checkout con `billing:write`.
-
-    Un usuario sin ese permiso recibe 403; con él, el checkout fluye.
-    Retro-compatible: sin fábrica de permisos no aplica RBAC.
-    """
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from b2b_ai.features.billing.routes import build_billing_router as pilot_billing
-
-    # Usuario readonly: sin billing:write.
-    rp_deny = make_require_permission(_auth(READONLY))
-    app_deny = FastAPI()
-    app_deny.include_router(pilot_billing(
-        db=None, require_api_key=_auth(READONLY), require_permission=rp_deny))
-    r = TestClient(app_deny).post("/api/v1/billing-piloto/checkout", json={
-        "plan": "professional", "success_url": "https://ok", "cancel_url": "https://no"})
-    assert r.status_code == 403
-
-    # Admin: tiene billing:write -> checkout OK (200).
-    admin = next(r for r in RolesService().list_roles() if r.name == "admin")
-    svc2 = RolesService()
-    svc2.assign_role(ADMIN, TENANT, admin.id)
-    rp_grant = make_require_permission(_auth(ADMIN), svc2)
-    app_grant = FastAPI()
-    app_grant.include_router(pilot_billing(
-        db=None, require_api_key=_auth(ADMIN), require_permission=rp_grant))
-    r = TestClient(app_grant).post("/api/v1/billing-piloto/checkout", json={
-        "plan": "professional", "success_url": "https://ok", "cancel_url": "https://no"})
-    assert r.status_code == 200, r.text
-
-    # Retro-compatible: sin require_permission, checkout sin RBAC (200).
-    app_plain = FastAPI()
-    app_plain.include_router(pilot_billing(
-        db=None, require_api_key=_auth(ADMIN)))
-    r = TestClient(app_plain).post("/api/v1/billing-piloto/checkout", json={
-        "plan": "professional", "success_url": "https://ok", "cancel_url": "https://no"})
-    assert r.status_code == 200, r.text
-
-
-def test_billing_imports_roles():
-    """Garantiza que la integración no rompe la importación del módulo."""
-    import importlib
-    importlib.import_module("b2b_ai.features.billing.routes")
-    importlib.import_module("b2b_ai.features.roles.routes")
+# NOTA (consolidación de billing, fix/billing-consolidacion): este archivo
+# tenía dos tests de integración (`test_billing_integracion_billing_write`,
+# `test_billing_imports_roles`) que usaban `b2b_ai.features.billing.routes`
+# (el módulo "piloto") únicamente como fixture de conveniencia para probar
+# que un router real respeta `require_permission`. Ese módulo se eliminó:
+# nunca estuvo montado en `create_app()` (no servía tráfico real) y tenía un
+# bypass de firma de webhook real e independiente de este RBAC. El
+# comportamiento que esos dos tests verificaban -- que `require_permission`
+# deniega (403) sin el permiso y concede (200) con él, y que es
+# retro-compatible sin `require_permission` inyectado -- sigue cubierto sin
+# depender de ningún router de billing por `test_require_permission_concede`,
+# `test_require_permission_deniega_403` y
+# `test_require_permission_sin_user_id_concede_200` arriba, que ejercitan la
+# dependencia `require_permission` directamente.

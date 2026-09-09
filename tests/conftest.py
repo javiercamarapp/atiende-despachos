@@ -219,47 +219,21 @@ def mock_bank_transactions():
 
 
 @pytest.fixture
-def mock_conekta_responses():
-    """Respuestas Mock del cliente de Conekta.
-
-    Shape fiel a `features/billing` (service + conekta_client en modo mock):
-      - checkout: URL real de checkout.conekta.com + order/customer ids.
-      - subscription: suscripción activa (plan_code, status, price_mxn).
-    Permite testear billing sin red ni credenciales.
-    """
-    return {
-        "checkout": {
-            "ok": True,
-            "checkout_url": "https://checkout.conekta.com/pay/order_test_123",
-            "order_id": "order_test_123",
-            "customer_id": "cus_test_456",
-            "plan": "professional",
-            "amount_mxn": 14999,
-            "currency": "MXN",
-        },
-        "subscription": {
-            "ok": True,
-            "plan_code": "professional",
-            "status": "active",
-            "price_mxn": 14999,
-            "currency": "MXN",
-            "provider_subscription_id": "sub_test_789",
-        },
-        "webhook_paid": {
-            "type": "order.paid",
-            "data": {"order": {"id": "order_test_123"}},
-        },
-    }
-
-
-@pytest.fixture
 def pilot_client():
-    """TestClient con los routers del piloto (auth stub → tenant_id).
+    """TestClient ligero con routers reales montados a mano (auth stub → tenant_id).
 
-    Patrón del repo (test_billing_onboarding_integration.py): se montan los
-    routers de onboarding-wizard, billing-piloto, batch, bank-feeds y reports
-    con una dependencia de auth que devuelve un dict con tenant_id, de modo
-    que los endpoints que hacen `auth_info.get("tenant_id")` funcionen.
+    NOTA (consolidación de billing, fix/billing-consolidacion): este fixture
+    montaba también onboarding-wizard y billing-piloto
+    (`b2b_ai.features.onboarding` / `b2b_ai.features.billing`). Ambos módulos
+    se eliminaron: no estaban montados en `create_app()` (nunca sirvieron
+    tráfico real) y el billing piloto tenía un bypass de firma de webhook
+    real (firma ausente => procesado como pago válido, sin verificar nada).
+    El único billing/onboarding que corre en producción es
+    `b2b_ai.billing` (canónico) y `b2b_ai.onboarding` (wizard real), ninguno
+    de los cuales necesita este fixture de test aislado.
+
+    Se conserva el fixture para los endpoints reales que sí lo usaban
+    (batch, bank-feeds, reports) para no perder su cobertura de contrato.
 
     NOTA: NO se usa create_app() completo para aislar el E2E del overhead de
     toda la app (rate limit, audit, JWT). Los tests de contrato API cubren
@@ -268,10 +242,6 @@ def pilot_client():
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
-    from b2b_ai.features.onboarding.routes import build_onboarding_wizard_router
-    from b2b_ai.features.billing.routes import (
-        build_billing_router as build_pilot_billing_router,
-    )
     from b2b_ai.features.batch.routes import build_batch_router
     from b2b_ai.features.bank_feeds.routes import build_bank_feeds_router
     from b2b_ai.reports.router import build_reports_router
@@ -280,10 +250,6 @@ def pilot_client():
         return {"tenant_id": "tenant_test_123", "api_key": "key"}
 
     app = FastAPI()
-    app.include_router(build_onboarding_wizard_router(
-        db=None, require_api_key=fake_require_api_key))
-    app.include_router(build_pilot_billing_router(
-        db=None, require_api_key=fake_require_api_key))
     app.include_router(build_batch_router(
         db=None, require_api_key=fake_require_api_key))
     app.include_router(build_bank_feeds_router(
@@ -341,14 +307,16 @@ def full_client(tmp_path):
 
 @pytest.fixture(autouse=True)
 def _reset_pilot_state():
-    """Limpia el estado en memoria de onboarding/billing entre tests."""
-    from b2b_ai.features.onboarding.wizard import _reset_state as reset_onb
-    from b2b_ai.features.billing.models import _reset_state as reset_bill
-    reset_onb()
-    reset_bill()
+    """Limpia el estado en memoria del onboarding wizard real entre tests.
+
+    NOTA (consolidación de billing): antes también reseteaba
+    `b2b_ai.features.onboarding` / `b2b_ai.features.billing` (piloto,
+    eliminado). El wizard real (`b2b_ai.onboarding.wizard`) no usa un store
+    en memoria global (persiste en `tenant_config` vía DB), así que no hay
+    nada que resetear ahí; se deja el fixture (autouse, sin argumentos) para
+    no romper la firma que otros fixtures puedan encadenar.
+    """
     yield
-    reset_onb()
-    reset_bill()
 
 
 @pytest.fixture(autouse=True)

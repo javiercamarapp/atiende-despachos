@@ -16,13 +16,24 @@ por una variante distinta byte a byte (con escapes unicode "invisibles",
 espacios extra, etc.) que canonicaliza igual, y el servidor la acepta como
 si fuera el body que Conekta realmente firmó — un bypass de firma.
 
-Estos tests demuestran, contra los 3 puntos donde existía el patrón
+Estos tests demuestran, contra el punto canónico donde existía el patrón
 vulnerable en este repo:
-    - b2b_ai/features/billing/conekta_client.py (ConektaClient.process_webhook)
-    - b2b_ai/features/billing/routes.py         (POST /api/v1/billing-piloto/webhook)
     - b2b_ai/billing/webhook_receiver.py        (ConektaWebhookReceiver + su router)
 
 que:
+
+NOTA (consolidación de billing, fix/billing-consolidacion): este archivo
+cubría el mismo patrón también en `b2b_ai/features/billing/` (el módulo
+"piloto"). Ese módulo se eliminó — nunca estuvo montado en `create_app()`
+(no servía tráfico real) y además tenía un bypass de firma DISTINTO y más
+grave que este: `process_webhook()` solo verificaba la firma `if signature`
+(truthy), así que una request SIN el header de firma en absoluto se
+procesaba como pago válido sin verificar nada, en cualquier entorno
+(sandbox o "production"). Ver el commit de consolidación para el repro.
+Las clases que ejercitaban ese módulo (`TestConektaClientRawBodyVerification`,
+`TestFeaturesBillingWebhookEndpointRawBody`) se eliminaron junto con él; la
+cobertura del módulo canónico (`TestWebhookReceiverRawBody`) se conserva
+íntegra abajo.
     1. Una firma calculada sobre el raw body PASA cuando se verifica contra
        ese mismo raw body.
     2. Una variante del body que difiere en bytes crudos pero canonicaliza
@@ -49,12 +60,6 @@ from b2b_ai.billing.webhook_receiver import (
     ConektaWebhookReceiver,
     build_webhook_receiver_router,
 )
-from b2b_ai.features.billing import models as pilot_store
-from b2b_ai.features.billing.conekta_client import (
-    ConektaClient,
-    ConektaWebhookError,
-)
-from b2b_ai.features.billing.routes import build_billing_router
 
 WEBHOOK_SECRET = "test_webhook_secret_rawbody_check"
 
@@ -93,121 +98,9 @@ class TestCanonicalizationAssumption:
 
 
 # ---------------------------------------------------------------------------
-# 1) ConektaClient.process_webhook (b2b_ai/features/billing/conekta_client.py)
-# ---------------------------------------------------------------------------
-
-class TestConektaClientRawBodyVerification:
-    def setup_method(self):
-        pilot_store._reset_state()
-
-    def teardown_method(self):
-        pilot_store._reset_state()
-
-    def test_signature_over_raw_body_passes(self):
-        c = ConektaClient(mock=True, webhook_secret=WEBHOOK_SECRET)
-        sig = _sign(LEGIT_RAW)
-        result = c.process_webhook(
-            json.loads(LEGIT_RAW), signature=sig, raw_body=LEGIT_RAW.encode("utf-8")
-        )
-        assert result["handled"] is True
-        assert result["mark_paid"] is True
-        assert result["event_payload"]["data"]["object"]["id"] == "chg_1"
-
-    def test_tampered_raw_body_with_same_canonical_form_is_rejected(self):
-        """El bug: firmar LEGIT_RAW y reproducir esa firma sobre TAMPERED_RAW
-        (bytes distintos, mismo dict canonicalizado) debe FALLAR ahora que
-        la verificación ocurre contra los bytes crudos."""
-        _assert_same_dict_different_bytes()
-        c = ConektaClient(mock=True, webhook_secret=WEBHOOK_SECRET)
-        sig_for_legit = _sign(LEGIT_RAW)
-        with pytest.raises(ConektaWebhookError):
-            c.process_webhook(
-                json.loads(TAMPERED_RAW),
-                signature=sig_for_legit,
-                raw_body=TAMPERED_RAW.encode("utf-8"),
-            )
-
-    def test_stale_event_payload_is_ignored_in_favor_of_verified_raw_body(self):
-        """Si alguien pasa un `event_payload` que ya no corresponde al
-        `raw_body` (p.ej. mutado después de parsear), lo que se enruta es lo
-        re-parseado del raw_body verificado -- no el dict aparte."""
-        c = ConektaClient(mock=True, webhook_secret=WEBHOOK_SECRET)
-        sig = _sign(LEGIT_RAW)
-        mutated_payload = json.loads(LEGIT_RAW)
-        mutated_payload["data"]["object"]["id"] = "chg_ATTACKER_CONTROLLED"
-        mutated_payload["type"] = "subscription.canceled"
-        result = c.process_webhook(
-            mutated_payload, signature=sig, raw_body=LEGIT_RAW.encode("utf-8")
-        )
-        # Se procesa lo verificado (charge.paid / chg_1), no el dict mutado.
-        assert result["event_type"] == "charge.paid"
-        assert result["object_id"] == "chg_1"
-        assert result.get("mark_paid") is True
-
-
-# ---------------------------------------------------------------------------
-# 2) Endpoint HTTP real: POST /api/v1/billing-piloto/webhook
-#    (b2b_ai/features/billing/routes.py)
-# ---------------------------------------------------------------------------
-
-class TestFeaturesBillingWebhookEndpointRawBody:
-    def setup_method(self):
-        pilot_store._reset_state()
-
-    def teardown_method(self):
-        pilot_store._reset_state()
-
-    def _client(self, monkeypatch) -> TestClient:
-        monkeypatch.setenv("B2B_CONEKTA_WEBHOOK_SECRET", WEBHOOK_SECRET)
-        monkeypatch.delenv("B2B_CONEKTA_ENV", raising=False)
-
-        def fake_require_api_key():
-            return {"tenant_id": "tenant_rawbody_test", "api_key": "key"}
-
-        app = FastAPI()
-        app.include_router(
-            build_billing_router(db=None, require_api_key=fake_require_api_key)
-        )
-        return TestClient(app)
-
-    def test_valid_signature_over_actual_raw_body_is_accepted(self, monkeypatch):
-        client = self._client(monkeypatch)
-        sig = _sign(LEGIT_RAW)
-        r = client.post(
-            "/api/v1/billing-piloto/webhook",
-            content=LEGIT_RAW.encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "X-Conekta-Signature": sig,
-            },
-        )
-        assert r.status_code == 200, r.text
-        body = r.json()
-        assert body["ok"] is True
-        assert body["mark_paid"] is True
-
-    def test_tampered_raw_body_with_replayed_signature_is_rejected(self, monkeypatch):
-        """Prueba end-to-end del bypass descrito: firmar LEGIT_RAW y enviar
-        TAMPERED_RAW (bytes distintos, misma forma canónica) con esa firma
-        replicada. Con el bug, el endpoint aceptaba esto (200); corregido,
-        debe rechazarlo (401)."""
-        _assert_same_dict_different_bytes()
-        client = self._client(monkeypatch)
-        sig_for_legit = _sign(LEGIT_RAW)
-        r = client.post(
-            "/api/v1/billing-piloto/webhook",
-            content=TAMPERED_RAW.encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "X-Conekta-Signature": sig_for_legit,
-            },
-        )
-        assert r.status_code == 401, r.text
-
-
-# ---------------------------------------------------------------------------
-# 3) Endpoint HTTP real: POST /api/v1/billing/webhook (standalone receiver)
-#    (b2b_ai/billing/webhook_receiver.py)
+# Endpoint HTTP real: POST /api/v1/billing/webhook (standalone receiver)
+#    (b2b_ai/billing/webhook_receiver.py) — módulo canónico, el único que
+#    sirve tráfico de pagos en producción.
 # ---------------------------------------------------------------------------
 
 class _FakeDB:
@@ -259,6 +152,39 @@ class TestWebhookReceiverRawBody:
             headers={
                 "Content-Type": "application/json",
                 "conekta-signature": sig_for_legit,
+            },
+        )
+        assert r.status_code == 401, r.text
+
+    def test_forged_webhook_with_no_signature_header_is_rejected(self):
+        """Regresión directa del bypass encontrado y eliminado en el módulo
+        piloto (`b2b_ai/features/billing/conekta_client.py`): ahí,
+        `if signature and not verify(...)` dejaba pasar SIN verificar nada
+        cualquier request que simplemente omitiera el header de firma
+        (`signature == ""` es falsy -> el `and` corta y nunca se llama a
+        `verify_webhook_signature`). Un atacante podía forjar un pago
+        exitoso con un POST sin firma. Aquí, `verify_signature()` es
+        SIEMPRE llamada (nunca condicionada a que el header venga) y
+        devuelve False si el header falta -> 401."""
+        client = self._client()
+        r = client.post(
+            "/api/v1/billing/webhook",
+            content=LEGIT_RAW.encode("utf-8"),
+            headers={"Content-Type": "application/json"},  # sin conekta-signature
+        )
+        assert r.status_code == 401, r.text
+
+    def test_forged_webhook_with_garbage_signature_is_rejected(self):
+        """Firma con formato válido pero hash inventado (no calculado con el
+        secreto real) -- simula un atacante que adivina el formato del
+        header pero no conoce el secreto HMAC."""
+        client = self._client()
+        r = client.post(
+            "/api/v1/billing/webhook",
+            content=LEGIT_RAW.encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "conekta-signature": "hmac_sha256=" + "0" * 64 + ",t=1700000000",
             },
         )
         assert r.status_code == 401, r.text
