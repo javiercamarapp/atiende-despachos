@@ -1,7 +1,7 @@
 """rate limiting persistido en Postgres, por tenant (ventana fija)
 
-Revision ID: 0014_rate_limit_windows
-Revises: 0013_polizas_bloqueadas
+Revision ID: 0015_rate_limit_windows
+Revises: 0014_invoices_money_numeric
 Create Date: 2026-09-08
 
 Ver b2b_ai/infrastructure/rate_limit_store.py para el diseño completo
@@ -25,8 +25,8 @@ migración.
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0014_rate_limit_windows"
-down_revision = "0013_polizas_bloqueadas"
+revision = "0015_rate_limit_windows"
+down_revision = "0014_invoices_money_numeric"
 branch_labels = None
 depends_on = None
 
