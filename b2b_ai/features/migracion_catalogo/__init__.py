@@ -64,6 +64,21 @@ from b2b_ai.features.migracion_catalogo.models import (
     MapeoMigracionCuenta,
     TipoMatchMigracion,
 )
+from b2b_ai.features.migracion_catalogo.cross_db import (
+    ConexionesInvalidasError,
+    ConexionesMigracion,
+    PolizaOrigenNoEncontradaError,
+    cargar_catalogo_destino,
+    cargar_catalogo_origen,
+    cargar_poliza_origen,
+    clasificar_catalogo_cross_db,
+    listar_ids_polizas_origen_elegibles,
+    migrar_lote_cross_db,
+    migrar_poliza_cross_db,
+)
+from b2b_ai.features.migracion_catalogo.repositorio_postgres import (
+    RepositorioMapeosPostgres,
+)
 
 __all__ = [
     "TipoMatchMigracion",
@@ -83,4 +98,15 @@ __all__ = [
     "clasificar_cuenta_origen",
     "UMBRAL_SIN_MATCH",
     "NOTA_SIN_MATCH",
+    "ConexionesMigracion",
+    "ConexionesInvalidasError",
+    "PolizaOrigenNoEncontradaError",
+    "cargar_catalogo_origen",
+    "cargar_catalogo_destino",
+    "clasificar_catalogo_cross_db",
+    "cargar_poliza_origen",
+    "listar_ids_polizas_origen_elegibles",
+    "migrar_poliza_cross_db",
+    "migrar_lote_cross_db",
+    "RepositorioMapeosPostgres",
 ]

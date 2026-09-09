@@ -35,6 +35,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "checks" / "no_delete_origen_migracion.py"
 MIGRADOR_REAL = REPO_ROOT / "b2b_ai" / "features" / "migracion_catalogo" / "migrador.py"
+CROSS_DB_REAL = REPO_ROOT / "b2b_ai" / "features" / "migracion_catalogo" / "cross_db.py"
 
 
 def _cargar_modulo_chequeo():
@@ -98,6 +99,35 @@ class TestArchivoRealEstaLimpio:
         # violación (distinto de un archivo que existe y sí tiene un
         # DELETE prohibido).
         assert chequeo.verificar(tmp_path / "no_existe.py") == []
+
+
+class TestCrossDbTambienCubiertoPorElChequeo:
+    """`cross_db.py` (migración entre dos bases físicamente distintas)
+    también toca la conexión de origen -- solo para leer, pero la misma
+    regla de REQ-MIG-011 debe cubrirlo, no solo `migrador.py`."""
+
+    def test_cross_db_real_existe(self):
+        assert CROSS_DB_REAL.exists()
+
+    def test_sin_violaciones_en_cross_db_real(self, chequeo):
+        assert chequeo.verificar(CROSS_DB_REAL) == []
+
+    def test_main_revisa_ambos_archivos(self, chequeo, capsys):
+        codigo = chequeo.main()
+        assert codigo == 0
+        salida = capsys.readouterr()
+        assert "migrador.py" in salida.out
+        assert "cross_db.py" in salida.out
+
+    def test_delete_sintetico_en_cross_db_es_detectado(self, chequeo, tmp_path):
+        archivo_falso = tmp_path / "cross_db.py"
+        archivo_falso.write_text(
+            'def limpiar_origen(conn, poliza_id):\n'
+            '    conn.execute("DELETE FROM asientos_contables WHERE id = %s", (poliza_id,))\n'
+        )
+        violaciones = chequeo.verificar(archivo_falso)
+        assert violaciones
+        assert "asientos_contables" in violaciones[0].lower()
 
 
 # ---------------------------------------------------------------------------
