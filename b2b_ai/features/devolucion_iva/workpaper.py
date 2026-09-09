@@ -8,6 +8,8 @@ the full chain: CFDI invoices → DIOT → Declarations → Balance.
 """
 from __future__ import annotations
 
+import csv
+import io
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
@@ -27,6 +29,25 @@ from .service import (
     conciliar_declaracion_saldo,
     calcular_saldo_favor,
     calcular_monto_devolucion,
+)
+
+
+# ---------------------------------------------------------------------------
+# REQ-IVA-014 — FED (Formato Electrónico de Devoluciones), anexo 7/7-A
+# ---------------------------------------------------------------------------
+#
+# Los 9 campos mínimos por línea de proveedor exigidos por el anexo 7/7-A.
+# El orden es también el orden de columnas del CSV exportado.
+CAMPOS_FED_ANEXO7 = (
+    "rfc",
+    "nombre_razon_social",
+    "folio_fiscal",
+    "folio_factura",
+    "fecha_factura",
+    "fecha_pago",
+    "forma_pago",
+    "banco_pago",
+    "iva_trasladado_acreditable",
 )
 
 
@@ -260,3 +281,89 @@ class WorkpaperGenerator:
                 "balanza": any("balanza" in d.lower() for d in documentos),
             },
         }
+
+    # -----------------------------------------------------------------
+    # REQ-IVA-014 — FED (Formato Electrónico de Devoluciones), anexo 7/7-A
+    # -----------------------------------------------------------------
+
+    def _campos_faltantes_fed_anexo7(self, factura: FacturaCFDI) -> List[str]:
+        """Campos obligatorios del anexo 7/7-A ausentes/vacíos en `factura`.
+
+        `iva_trasladado_acreditable` nunca falta: es un cálculo derivado
+        (`iva * proporcionalidad`) que siempre produce un número, aunque
+        sea 0.0 — 0.0 no es un valor nulo.
+        """
+        faltantes: List[str] = []
+        if not factura.rfc_emisor or not factura.rfc_emisor.strip():
+            faltantes.append("rfc")
+        if not factura.nombre_emisor or not factura.nombre_emisor.strip():
+            faltantes.append("nombre_razon_social")
+        if not factura.uuid or not factura.uuid.strip():
+            faltantes.append("folio_fiscal")
+        if not factura.folio_factura or not str(factura.folio_factura).strip():
+            faltantes.append("folio_factura")
+        if not factura.fecha or not factura.fecha.strip():
+            faltantes.append("fecha_factura")
+        if not factura.fecha_pago or not factura.fecha_pago.strip():
+            faltantes.append("fecha_pago")
+        if not factura.forma_pago or not factura.forma_pago.strip():
+            faltantes.append("forma_pago")
+        if not factura.banco_pago or not factura.banco_pago.strip():
+            faltantes.append("banco_pago")
+        return faltantes
+
+    def exportar_fed_anexo7(self, facturas: List[FacturaCFDI]) -> List[Dict[str, Any]]:
+        """REQ-IVA-014 — FED exportable, anexo 7/7-A, uno por proveedor/factura.
+
+        Cada fila tiene exactamente los 9 campos mínimos del anexo 7/7-A
+        definidos en `CAMPOS_FED_ANEXO7`, ninguno nulo/vacío:
+          RFC, nombre/razón social, folio fiscal, folio de factura,
+          fecha de factura, fecha de pago, forma de pago, banco de pago
+          e IVA trasladado/acreditable.
+
+        Si a alguna factura le falta un dato obligatorio para el anexo
+        (p.ej. no se capturó `banco_pago` o `fecha_pago`), la exportación
+        completa se rechaza con `ValueError` listando facturas y campos
+        faltantes — nunca se emite una fila con un campo nulo o inventado.
+        """
+        filas: List[Dict[str, Any]] = []
+        errores: List[str] = []
+
+        for factura in facturas:
+            faltantes = self._campos_faltantes_fed_anexo7(factura)
+            if faltantes:
+                errores.append(f"factura {factura.uuid}: faltan {faltantes}")
+                continue
+            filas.append({
+                "rfc": factura.rfc_emisor,
+                "nombre_razon_social": factura.nombre_emisor,
+                "folio_fiscal": factura.uuid,
+                "folio_factura": factura.folio_factura,
+                "fecha_factura": factura.fecha,
+                "fecha_pago": factura.fecha_pago,
+                "forma_pago": factura.forma_pago,
+                "banco_pago": factura.banco_pago,
+                "iva_trasladado_acreditable": round(factura.iva * factura.proporcionalidad, 2),
+            })
+
+        if errores:
+            raise ValueError(
+                "No se puede generar el FED anexo 7/7-A: faltan campos "
+                f"obligatorios en {len(errores)} factura(s): " + "; ".join(errores)
+            )
+
+        return filas
+
+    def exportar_fed_anexo7_csv(self, facturas: List[FacturaCFDI]) -> str:
+        """REQ-IVA-014 — Igual que `exportar_fed_anexo7` pero como texto CSV.
+
+        Las columnas siguen exactamente el orden de `CAMPOS_FED_ANEXO7`.
+        """
+        filas = self.exportar_fed_anexo7(facturas)
+
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=list(CAMPOS_FED_ANEXO7))
+        writer.writeheader()
+        for fila in filas:
+            writer.writerow(fila)
+        return buffer.getvalue()

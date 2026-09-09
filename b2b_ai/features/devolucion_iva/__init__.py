@@ -18,6 +18,7 @@ Expone:
   - build_devolucion_iva_router() — FastAPI router
 """
 from b2b_ai.features.devolucion_iva.models import (
+    EstadoEnvioSolicitud,
     EstatusConciliacion,
     EstatusDevolucion,
     TipoFactura,
@@ -30,7 +31,10 @@ from b2b_ai.features.devolucion_iva.models import (
     SolicitudDevolucion,
     StatusDevolucion,
 )
-from b2b_ai.features.devolucion_iva.service import DevolucionIVAService
+from b2b_ai.features.devolucion_iva.service import (
+    DevolucionIVAService,
+    validar_congruencia_diot_cfdi_declaracion,
+)
 from b2b_ai.features.devolucion_iva.validators import (
     validate_rfc,
     validate_iva_rate,
@@ -43,6 +47,7 @@ from b2b_ai.features.devolucion_iva.workpaper import WorkpaperGenerator
 from b2b_ai.features.devolucion_iva.routes import build_devolucion_iva_router
 
 __all__ = [
+    "EstadoEnvioSolicitud",
     "EstatusConciliacion",
     "EstatusDevolucion",
     "TipoFactura",
@@ -55,6 +60,7 @@ __all__ = [
     "SolicitudDevolucion",
     "StatusDevolucion",
     "DevolucionIVAService",
+    "validar_congruencia_diot_cfdi_declaracion",
     "validate_rfc",
     "validate_iva_rate",
     "validate_amount",

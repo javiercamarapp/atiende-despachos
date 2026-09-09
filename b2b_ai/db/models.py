@@ -841,6 +841,64 @@ MIGRATIONS = [
         CREATE INDEX IF NOT EXISTS idx_docshares_doc ON document_shares(document_id);
         """,
     },
+    {
+        "version": 21,
+        "name": "devolucion_iva_persistencia",
+        "sql": """
+        -- Persistencia real (REQ-IVA-006) para
+        -- b2b_ai/features/devolucion_iva/service.py: reemplaza los dicts
+        -- de proceso _solicitudes/_status/_papeles_trabajo, que se perdían
+        -- por completo al reiniciar el proceso. Columnas alineadas con la
+        -- migración Alembic equivalente para PostgreSQL
+        -- (migrations/versions/0010_devolucion_iva_persistencia.py +
+        -- 0011_devolucion_iva_seguimiento.py, REQ-IVA-005).
+        --
+        -- `estado`/`motivo_aclaracion`: congruencia previa al envío
+        -- (REQ-IVA-010). `fecha_presentacion`/`fecha_respuesta`/
+        -- `monto_aprobado`/`observaciones`: seguimiento ante el SAT (antes
+        -- en el dict `_status`, StatusDevolucion) — todas nullable porque
+        -- son opcionales en los modelos Pydantic correspondientes.
+        CREATE TABLE IF NOT EXISTS devolucion_iva_solicitudes (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            periodo TEXT NOT NULL,
+            monto_solicitado REAL NOT NULL DEFAULT 0,
+            cuenta_banco TEXT,
+            clabe TEXT,
+            documentos TEXT NOT NULL DEFAULT '[]',
+            status TEXT NOT NULL DEFAULT 'pendiente',
+            estado TEXT,
+            motivo_aclaracion TEXT,
+            fecha_presentacion TEXT,
+            fecha_respuesta TEXT,
+            monto_aprobado REAL,
+            observaciones TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_deviva_solicitudes_tenant
+            ON devolucion_iva_solicitudes(tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_deviva_solicitudes_tenant_periodo
+            ON devolucion_iva_solicitudes(tenant_id, periodo);
+
+        CREATE TABLE IF NOT EXISTS devolucion_iva_papeles_trabajo (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            periodo TEXT NOT NULL,
+            facturas TEXT NOT NULL DEFAULT '[]',
+            diot_entries TEXT NOT NULL DEFAULT '[]',
+            declaraciones TEXT NOT NULL DEFAULT '[]',
+            saldo_a_favor REAL NOT NULL DEFAULT 0,
+            monto_solicitado REAL NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'generado',
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_deviva_papeles_tenant
+            ON devolucion_iva_papeles_trabajo(tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_deviva_papeles_tenant_periodo
+            ON devolucion_iva_papeles_trabajo(tenant_id, periodo);
+        """,
+    },
 ]
 
 
