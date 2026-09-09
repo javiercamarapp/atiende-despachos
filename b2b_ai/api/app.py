@@ -51,7 +51,7 @@ from typing import Optional
 from fastapi import (FastAPI, Depends, HTTPException,
                      Query, Request)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -74,7 +74,7 @@ from b2b_ai.api.dashboard import build_dashboard_router
 from b2b_ai.api.analytics import build_analytics_router
 from b2b_ai.tools.registry import all_tools
 from b2b_ai.tools.logger import logger
-from b2b_ai.api.auth import APIKeyAuth, make_require_api_key
+from b2b_ai.api.auth import APIKeyAuth, make_require_api_key, resolve_tenant_from_env
 from b2b_ai.db.tenants import TenantManager
 from b2b_ai.api import webhooks as wh
 from b2b_ai.api import v2 as api_v2
@@ -382,6 +382,38 @@ def create_app(db=None):
         )
 
     # ------------------------------------------------------------------ #
+    # Graceful shutdown: drena tráfico real durante SIGTERM/SIGINT.
+    #
+    # ShutdownManager / request_tracker / is_draining se importaban arriba
+    # pero nunca se conectaban a nada: el handler solo tocaba a mano el flag
+    # interno `_shutdown_state.is_draining`, sin middleware que lo consultara
+    # para rechazar tráfico nuevo, sin período de drenado real (esperar a que
+    # las requests en vuelo terminen) y sin encadenar al handler que uvicorn
+    # ya tenía instalado. `_shutdown_mgr` fija el período de drenado
+    # (configurable via B2B_DRAIN_TIMEOUT_SECONDS) y lo usa el watcher de
+    # abajo; el middleware real que rechaza tráfico nuevo se registra más
+    # abajo en create_app(), y /health + /health/ready lo consultan.
+    # ------------------------------------------------------------------ #
+    try:
+        _drain_timeout = float(os.environ.get("B2B_DRAIN_TIMEOUT_SECONDS", "30"))
+    except ValueError:
+        _drain_timeout = 30.0
+    _shutdown_mgr = ShutdownManager(drain_timeout=_drain_timeout,
+                                    total_shutdown_timeout=_drain_timeout + 30.0)
+
+    def _close_pg_pools() -> None:
+        from b2b_ai.db.db import _PG_POOLS
+        for pool in list(_PG_POOLS.values()):
+            try:
+                pool.close()
+            except Exception:  # noqa: BLE001 — un pool no debe tumbar a los demás
+                pass
+        _PG_POOLS.clear()
+
+    _shutdown_mgr.register_cleanup("close_pg_pools", _close_pg_pools, critical=True)
+    _shutdown_mgr.register_cleanup("close_db_connection", db.close, critical=False)
+
+    # ------------------------------------------------------------------ #
     # Lifespan: startup + shutdown en un solo context manager.
     # ------------------------------------------------------------------ #
     @asynccontextmanager
@@ -399,13 +431,64 @@ def create_app(db=None):
         # --- Graceful shutdown signal handlers ---
         _shutdown_logger = logging.getLogger("b2b_ai.shutdown")
 
+        # uvicorn instala SUS PROPIOS handlers de SIGTERM/SIGINT antes de
+        # invocar el lifespan de la app (Server.serve() ->
+        # install_signal_handlers() -> self.startup()). Sobreescribirlos sin
+        # encadenar (como hacía el código anterior) deja a uvicorn sin
+        # enterarse nunca de la señal: nunca marca should_exit, así que el
+        # proceso solo muere por un SIGKILL del orquestador al agotar su
+        # período de gracia, jamás por un apagado limpio. Guardamos el
+        # handler previo para delegarle la señal después de marcar el
+        # estado de drenado.
+        _prev_handlers = {
+            signal.SIGTERM: signal.getsignal(signal.SIGTERM),
+            signal.SIGINT: signal.getsignal(signal.SIGINT),
+        }
+
         def _graceful_shutdown(signum, frame):
-            _shutdown_logger.info(
-                "Received signal %s, initiating graceful shutdown...", signum)
-            # The DB connections will be closed by FastAPI's shutdown event
-            # Set a flag to stop accepting new requests
             from b2b_ai.infrastructure.graceful_shutdown import _shutdown_state
+            sig_name = signal.Signals(signum).name
+            _shutdown_logger.info(
+                "Received signal %s, draining up to %.1fs before shutdown...",
+                sig_name, _shutdown_mgr.drain_timeout)
+
+            # 1) Deja de aceptar tráfico nuevo YA (sin bloquear el event
+            #    loop): el middleware de drenado registrado en create_app()
+            #    consulta is_draining() en cada request y responde 503 salvo
+            #    a los prefijos de monitoreo; /health y /health/ready
+            #    también lo consultan para reportarse "draining"/no-listos.
             _shutdown_state.is_draining = True
+            _shutdown_state.drain_started_at = time.monotonic()
+            _shutdown_state.shutdown_reason = sig_name
+
+            # 2) Vigila en un hilo aparte (nunca en el handler ni el loop
+            #    asyncio: el time.sleep de wait_for_zero congelaría TODO el
+            #    proceso) que las requests en vuelo terminen dentro del
+            #    período de drenado configurado, y deja constancia en el log
+            #    de si se alcanzó o no.
+            def _watch_drain():
+                completed = request_tracker.wait_for_zero(_shutdown_mgr.drain_timeout)
+                if completed:
+                    _shutdown_logger.info(
+                        "Drain complete: no active requests remain.")
+                else:
+                    _shutdown_logger.warning(
+                        "Drain timeout (%.1fs) reached with %d requests "
+                        "still active.", _shutdown_mgr.drain_timeout,
+                        request_tracker.active_count)
+            threading.Thread(target=_watch_drain, daemon=True).start()
+
+            # 3) Delega al handler previo (uvicorn) para que el servidor
+            #    siga su propio apagado (should_exit=True, cierre de
+            #    conexiones y, finalmente, el shutdown de ESTE lifespan más
+            #    abajo, que cierra pools/DB).
+            prev = _prev_handlers.get(signum)
+            if callable(prev):
+                try:
+                    prev(signum, frame)
+                except Exception:  # noqa: BLE001 — nunca romper el shutdown
+                    _shutdown_logger.exception(
+                        "Error delegando %s al handler previo", sig_name)
 
         signal.signal(signal.SIGTERM, _graceful_shutdown)
         signal.signal(signal.SIGINT, _graceful_shutdown)
@@ -433,22 +516,16 @@ def create_app(db=None):
         # --- shutdown: liberar pools de conexiones y recursos ---
         _structured_log.info("shutdown_cleanup", extra={
             "detail": "Cerrando pools de conexiones y recursos..."})
-        # Cerrar el pool PostgreSQL compartido (si existe).
-        try:
-            from b2b_ai.db.db import _PG_POOLS
-            for pool in _PG_POOLS.values():
-                try:
-                    pool.close()
-                except Exception:  # noqa: BLE001
-                    pass
-            _PG_POOLS.clear()
-        except Exception:  # noqa: BLE001
-            pass
-        # Cerrar la conexión SQLite del hilo actual (si existe).
-        try:
-            db.close()
-        except Exception:  # noqa: BLE001
-            pass
+        # Corre las tareas registradas arriba en _shutdown_mgr (cierre de
+        # pools PG + conexión SQLite). Best-effort por tarea (una que falle
+        # no bloquea a las demás) vía ShutdownManager._cleanup_phase(); NO
+        # se usa _initiate_shutdown() aquí porque ese método bloquea con
+        # time.sleep esperando el drenado y termina llamando
+        # logging.shutdown() — ninguno de los dos es seguro en este punto:
+        # el drenado real ya corrió (o está corriendo) en el hilo que lanzó
+        # _watch_drain desde la señal, y logging.shutdown() rompería el
+        # logging de cualquier request que siga en vuelo.
+        _shutdown_mgr.run_cleanup_tasks()
 
     app = FastAPI(title="Likida AI Enterprise — API", version=__version__,
                   description="Agente contable IA enterprise para despachos "
@@ -576,6 +653,47 @@ def create_app(db=None):
     # B2B_MAX_REQUEST_SIZE_MB) to prevent OOM from oversized uploads.
     # Registered after all other middleware so it is the outermost layer.
     install_request_size_limit(app)
+
+    # ------------------------------------------------------------------ #
+    # Drenado real (SIGTERM/SIGINT): rechaza tráfico nuevo mientras el
+    # proceso está drenando, y contabiliza requests activas de verdad con
+    # request_tracker (ver _graceful_shutdown más arriba, que marca
+    # is_draining()=True). Registrado DESPUÉS de todo lo demás para ser la
+    # capa MÁS externa: durante el drenado, rechaza antes de gastar trabajo
+    # en rate limiting, límite de tamaño, auditoría, etc. Los prefijos de
+    # monitoreo (_RATE_LIMIT_EXEMPT_PREFIXES: /health, /metrics, ...) se
+    # dejan pasar siempre — /health y /health/ready consultan is_draining()
+    # ellos mismos para reportar su propio estado en vez de recibir un 503
+    # genérico de este middleware.
+    # ------------------------------------------------------------------ #
+    @app.middleware("http")
+    async def _drain_mw(request: Request, call_next):
+        path = request.url.path
+        exempt = path.startswith(_RATE_LIMIT_EXEMPT_PREFIXES)
+        if is_draining():
+            if exempt:
+                return await call_next(request)
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "Service is shutting down, not accepting "
+                                   "new requests.", "retry_after": 5},
+                headers={"Retry-After": "5"},
+            )
+        if exempt:
+            return await call_next(request)
+        try:
+            with request_tracker.track():
+                return await call_next(request)
+        except RuntimeError:
+            # Carrera: is_draining() pasó a True justo después del chequeo
+            # de arriba. request_tracker.track() lo detecta y lo rechaza
+            # igual que el caso normal.
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "Service is shutting down, not accepting "
+                                   "new requests.", "retry_after": 5},
+                headers={"Retry-After": "5"},
+            )
 
     def _scope(info):
         """Devuelve el tenant_id efectivo a usar según la key."""
@@ -952,10 +1070,33 @@ def create_app(db=None):
     _DASHBOARD_SPA = Path(__file__).resolve().parent / "static" / "dashboard.html"
 
     @app.get("/dashboard/", include_in_schema=False)
-    def dashboard_spa():
-        """Panel gerencial interactivo (HTML+JS vanilla)."""
+    def dashboard_spa(request: Request):
+        """Panel gerencial interactivo (HTML+JS vanilla).
+
+        Antes se servía el shell HTML/JS sin comprobar nada: cualquiera con
+        la URL podía cargarlo (los datos detrás, en /api/v1/dashboard/*, sí
+        exigían X-API-Key, pero el propio panel — y con él, indirectamente,
+        la existencia y estructura del tablero gerencial — quedaba público).
+        Exige la misma API key de tenant que ya usan sus llamadas JSON
+        (`require_api_key`, ver dashboard.js: `BASE = '/api/v1/dashboard'`),
+        aceptada por header `X-API-Key` (uso normal de la API) o por
+        `?api_key=`, que es como la propia SPA la recibe al abrir el enlace.
+        """
         if not _DASHBOARD_SPA.is_file():
             raise HTTPException(404, "Dashboard SPA no disponible.")
+        key = request.headers.get("x-api-key") or request.query_params.get("api_key", "")
+        if not key or not auth.validate(key):
+            raise HTTPException(status_code=401,
+                                detail="API key inválida o ausente para el dashboard.")
+        tenant_id = auth.get_tenant_id(key)
+        if tenant_id is None:
+            tenant_id = resolve_tenant_from_env()
+        if tenant_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="API key is not bound to a tenant. Set B2B_DEFAULT_TENANT_ID "
+                       "or bind the key to a tenant; refusing to degrade to a "
+                       "shared 'default' tenant.")
         return FileResponse(_DASHBOARD_SPA)
 
     # ------------------------------------------------------------------ #
