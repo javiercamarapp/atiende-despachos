@@ -12,6 +12,7 @@ import uuid as _uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from b2b_ai.infrastructure.structured_logging import mask_pii
 from b2b_ai.integrations.sat.adapter import SATAdapter, SATAdapterError
 from b2b_ai.integrations.sat.models import (
     CancelacionRequest,
@@ -62,7 +63,10 @@ class EcodexAdapter(SATAdapter):
         3. Recibir respuesta con UUID y timbre fiscal digital
         """
         self._ensure_connected()
-        logger.info(f"EcodexAdapter: timbrando CFDI de {cfdi_data.rfc_emisor} a {cfdi_data.rfc_receptor}")
+        logger.info(
+            "EcodexAdapter: timbrando CFDI de %s a %s",
+            mask_pii(cfdi_data.rfc_emisor), mask_pii(cfdi_data.rfc_receptor),
+        )
 
         # Generar UUID simulado
         cfdi_uuid = str(_uuid.uuid4())
@@ -149,7 +153,7 @@ class EcodexAdapter(SATAdapter):
     def consultar_rfc(self, rfc: str) -> RFCStatus:
         """Simula la consulta de un RFC ante el SAT."""
         self._ensure_connected()
-        logger.info(f"EcodexAdapter: consultando RFC {rfc}")
+        logger.info("EcodexAdapter: consultando RFC %s", mask_pii(rfc))
 
         # Mock: retornar estatus genérico
         return RFCStatus(
