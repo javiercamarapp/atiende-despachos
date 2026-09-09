@@ -34,6 +34,8 @@ from b2b_ai.features.reconciliation_agent.models import (
 from b2b_ai.features.reconciliation_agent.parsers import BankStatementParser
 from b2b_ai.features.reconciliation_agent.matching_engine import MatchingEngine
 from b2b_ai.features.reconciliation_agent.alerts import AlertEngine
+import logging
+logger = logging.getLogger(__name__)
 
 
 def _job_to_status(row: dict) -> ReconciliationStatus:
@@ -147,7 +149,7 @@ class ReconcileAgentRouter:
                                 "emisor": inv.get("emisor_nombre", ""),
                             })
                     except Exception:
-                        pass  # DB not available, reconcile without book records
+                        logger.warning("DB no disponible, reconciliando sin registros contables", exc_info=True)
 
                 # Match
                 engine = MatchingEngine(
@@ -179,7 +181,7 @@ class ReconcileAgentRouter:
                             progress=100.0, result_json=result_json,
                         )
                     except Exception:
-                        pass  # Non-critical — job still returns to caller
+                        logger.warning("No se pudo actualizar el job de reconciliación (no crítico)", exc_info=True)
 
                 # Persist movements to DB if available
                 if self.db and tenant:
@@ -211,7 +213,7 @@ class ReconcileAgentRouter:
                             tenant_id=tenant,
                         )
                     except Exception:
-                        pass  # Non-critical
+                        logger.warning("No se pudo registrar auditoría de reconciliación (no crítico)", exc_info=True)
 
                 return {
                     "ok": True,
@@ -234,7 +236,7 @@ class ReconcileAgentRouter:
                 try:
                     os.unlink(tmp_path)
                 except OSError:
-                    pass
+                    logger.debug("No se pudo eliminar archivo temporal", exc_info=True)
 
         # -- status ----------------------------------------------------------
         @router.get(
@@ -336,7 +338,7 @@ class ReconcileAgentRouter:
                             tenant_id=tenant,
                         )
                     except Exception:
-                        pass
+                        logger.warning("No se pudo registrar auditoría de aprobación de match", exc_info=True)
 
                 return {
                     "ok": True,
@@ -357,7 +359,7 @@ class ReconcileAgentRouter:
                             tenant_id=tenant,
                         )
                     except Exception:
-                        pass
+                        logger.warning("No se pudo registrar auditoría de rechazo de match", exc_info=True)
 
                 return {
                     "ok": True,

@@ -29,6 +29,8 @@ from b2b_ai.features.client_reports.models import (
     ScheduleFrequency,
 )
 from b2b_ai.features.compliance import ManualProcessMixin
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +79,7 @@ def _load_iva_data(tenant_id: str, year: int, month: int) -> Dict[str, Any]:
                 if getattr(d, "periodo", "") == period and getattr(d, "data", None):
                     return dict(d.data)
     except Exception:
-        pass
+        logger.warning("No se pudo obtener declaración de IVA para el reporte de cliente", exc_info=True)
     return {}
 
 
@@ -96,7 +98,7 @@ def _load_isr_data(tenant_id: str, year: int, month: int) -> Dict[str, Any]:
                 if getattr(d, "periodo", "") == period and getattr(d, "data", None):
                     return dict(d.data)
     except Exception:
-        pass
+        logger.warning("No se pudo obtener declaración de ISR provisional para el reporte de cliente", exc_info=True)
     return {}
 
 
@@ -115,7 +117,7 @@ def _load_conciliacion_data(
             # Recuperar desde store de reportes si está accesible.
             pass
     except Exception:
-        pass
+        logger.warning("No se pudo obtener reporte de nómina para el reporte de cliente", exc_info=True)
     return {}
 
 
@@ -129,7 +131,7 @@ def _load_nomina_data(tenant_id: str, year: int, month: int) -> Dict[str, Any]:
             if data:
                 return data
     except Exception:
-        pass
+        logger.warning("No se pudo obtener resumen de nómina completa para el reporte de cliente", exc_info=True)
     return {}
 
 
@@ -145,7 +147,7 @@ def _load_balanza_data(tenant_id: str, year: int, month: int) -> List[Dict[str, 
             if balanza:
                 return balanza.get("cuentas", [])
     except Exception:
-        pass
+        logger.warning("No se pudo obtener balanza de contabilidad electrónica para el reporte de cliente", exc_info=True)
     return []
 
 

@@ -341,7 +341,7 @@ class ERPWebDriverBase(ComputerUseDriver):
             try:
                 self._run_sync(self._desktop.close())
             except Exception:
-                pass
+                logger.debug("Error cerrando desktop driver", exc_info=True)
         if self._loop and not self._loop.is_closed():
             self._loop.close()
             self._loop = None

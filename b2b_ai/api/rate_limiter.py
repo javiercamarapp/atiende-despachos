@@ -40,6 +40,8 @@ from typing import Any, Dict, Optional, Tuple
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+import logging
+logger = logging.getLogger(__name__)
 
 # Extrae el tenant_id de una key con el formato que arma `_build_key` más
 # abajo (`rl:tenant:{tenant_id}:{path}`), para poder persistirlo como
@@ -255,7 +257,7 @@ def _get_backend(redis_url: Optional[str] = None):
         try:
             return _RedisBackend(url)
         except RuntimeError:
-            pass  # Fall back below
+            logger.warning("Redis no disponible para rate limiting, probando backend de Postgres", exc_info=True)
     pg_backend = _get_postgres_backend()
     if pg_backend is not None:
         return pg_backend

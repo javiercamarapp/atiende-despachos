@@ -86,6 +86,12 @@ DEFAULT_DB = (os.environ.get("B2B_DB_URL")
               or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
                   os.path.abspath(__file__)))), "b2b_ai.db"))
 
+import logging
+logger = logging.getLogger(__name__)
+# Nota: NO se importa b2b_ai.db.adapter_factory aquí -- el cluster db-core (misma ronda)
+# confirmó que era código muerto (nadie desde db.py lo usaba; postgres_adapter.py es el
+# único módulo real de PG, ver docstring más abajo) y lo retiró deliberadamente.
+
 # Campos de tenant_config que se cifran en reposo (PII / credenciales).
 # Cualquier otro valor se guarda en claro.
 _SENSITIVE_CONFIG_KEYS = {"webhook_url", "notif_recipient", "whatsapp_token"}
@@ -239,7 +245,7 @@ class Database:
                 # 'database is locked'. En :memory: no aplica y es un no-op.
                 conn.execute("PRAGMA journal_mode = WAL")
             except sqlite3.Error:
-                pass
+                logger.debug("No se pudo activar WAL (probablemente conexión :memory:)", exc_info=True)
             conn.execute("PRAGMA busy_timeout = 5000")
             self._local.conn = conn
             with self._conn_lock:
@@ -273,12 +279,12 @@ class Database:
             try:
                 c.close()  # PG: devuelve al pool; SQLite: cierra físicamente
             except Exception:  # noqa: BLE001
-                pass
+                logger.warning("Error cerrando conexión de DB durante close_all", exc_info=True)
         # limpiar la referencia thread-local del hilo actual
         try:
             del self._local.conn
         except AttributeError:
-            pass
+            logger.debug("No había conexión thread-local que limpiar", exc_info=True)
 
     # ---- Migraciones ----
     # Con SQLite el esquema lo gestionan models.MIGRATIONS (idempotente y por
@@ -363,7 +369,7 @@ class Database:
                     "outstanding_invoices). No se degrada a SQLite: revisa "
                     f"disponibilidad/credenciales de la base. Detalle: {e}"
                 ) from e
-            pass  # table or index doesn't exist yet — fine
+            logger.debug("Índice ya existe o tabla aún no disponible", exc_info=True)
 
     def schema_version(self):
         if self._is_pg:
@@ -1634,7 +1640,7 @@ class Database:
             try:
                 d["payload"] = json.loads(d["payload"])
             except (ValueError, TypeError):
-                pass
+                logger.debug("No se pudo parsear payload JSON", exc_info=True)
         return d
 
     def list_paquetes_contabilidad(self, tenant_id=None, periodo=None,
@@ -1924,7 +1930,7 @@ class Database:
         try:
             result['payload'] = json.loads(result.get('payload', '{}'))
         except Exception:
-            pass
+            logger.debug("No se pudo parsear payload JSON de job", exc_info=True)
         result['status'] = 'running'
         result['attempts'] = result.get('attempts', 0) + 1
         return result
@@ -1959,7 +1965,7 @@ class Database:
             try:
                 d['payload'] = json.loads(d.get('payload', '{}'))
             except Exception:
-                pass
+                logger.debug("No se pudo parsear payload JSON de job (listado)", exc_info=True)
             results.append(d)
         return results
 

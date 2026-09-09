@@ -37,6 +37,8 @@ from typing import Dict, Optional, Tuple
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -214,7 +216,7 @@ return {allowed, tokens, (capacity - tokens) / rate}
         try:
             self._client.delete(f"rl:tb:tokens:{key}", f"rl:tb:last:{key}")
         except Exception:  # noqa: BLE001
-            pass
+            logger.warning("No se pudieron borrar las keys de rate limit en Redis", exc_info=True)
 
 
 def _get_backend(redis_url: Optional[str] = None):
@@ -224,7 +226,7 @@ def _get_backend(redis_url: Optional[str] = None):
         try:
             return _RedisBackend(url)
         except Exception:  # noqa: BLE001 — fallback a memoria
-            pass
+            logger.warning("Redis no disponible para rate limiting, usando backend en memoria", exc_info=True)
     return _MemoryBackend()
 
 

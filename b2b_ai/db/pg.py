@@ -169,7 +169,7 @@ class PGConnection:
             else:
                 self._c.commit()
         except Exception:  # noqa: BLE001
-            pass
+            logger.warning("Commit/rollback falló en __exit__ de conexión PG", exc_info=True)
         return False
 
     def execute(self, sql, params=None):
@@ -203,12 +203,12 @@ class PGConnection:
             try:
                 self._release.__exit__(None, None, None)
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("Error liberando conexión PG (release)", exc_info=True)
         else:
             try:
                 self._c.close()
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("Error cerrando conexión PG", exc_info=True)
 
     def raw(self):
         return self._c
@@ -298,7 +298,7 @@ class PGPool:
         try:
             self._pool.close()
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("Error cerrando pool PG", exc_info=True)
 
     def __enter__(self):
         return self

@@ -162,7 +162,7 @@ def _get_encryption_key() -> Optional[bytes]:
         if len(key) == 32:
             return raw.encode() if isinstance(raw, str) else raw
     except Exception:
-        pass
+        logger.debug("Clave no es base64 válida de 32 bytes, se derivará de passphrase", exc_info=True)
     # Derive from passphrase.
     derived = hashlib.sha256(raw.encode()).digest()
     return base64.urlsafe_b64encode(derived)

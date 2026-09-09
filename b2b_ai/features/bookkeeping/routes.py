@@ -27,6 +27,8 @@ from b2b_ai.features.bookkeeping.rules_engine import AccountingRulesEngine
 from b2b_ai.features.bookkeeping.journal_generator import JournalEntryGenerator
 from b2b_ai.features.bookkeeping.erp_registrar import ERPRegistrar
 from b2b_ai.features.bookkeeping.human_override import HumanOverrideManager
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -122,7 +124,7 @@ def build_bookkeeping_router(
     try:
         classifier._lazy_train = True
     except Exception:
-        pass  # Graceful if sklearn not available
+        logger.debug("No se pudo activar lazy_train (sklearn probablemente no disponible)", exc_info=True)
 
     # -----------------------------------------------------------------------
     # POST /bookkeeping/process

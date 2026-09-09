@@ -19,6 +19,8 @@ import io
 import json
 from html import escape as _html_escape
 from typing import TYPE_CHECKING
+import logging
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from b2b_ai.features.reportes.generator import ReportData
@@ -177,7 +179,7 @@ def serialize_html(report: "ReportData") -> str:
                 d = Decimal(val)
                 formatted = f"${d.quantize(Decimal('0.01')):,.2f}"
             except Exception:
-                pass
+                logger.debug("No se pudo formatear valor como moneda", exc_info=True)
             html_parts.append(f"""<tr>
   <td class="label">{_h(label)}</td>
   <td class="value">{_h(formatted)}</td>

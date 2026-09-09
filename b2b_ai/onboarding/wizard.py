@@ -23,6 +23,8 @@ from typing import Any, Dict, List, Optional
 
 from b2b_ai.db.tenants import TenantManager, TenantNotFoundError
 from b2b_ai.computer_use.security import encrypt_credential, decrypt_credential
+import logging
+logger = logging.getLogger(__name__)
 
 # Orden canónico de los pasos (1..5).
 STEP_ORDER: List[int] = [1, 2, 3, 4, 5]
@@ -194,7 +196,7 @@ class OnboardingWizard:
                 try:
                     decrypted[field_name] = decrypt_credential(val)
                 except Exception:
-                    pass  # unencrypted legacy data, return as-is
+                    logger.warning("Fallo desencriptando credencial, se asume dato legacy sin encriptar", exc_info=True)
         for nest_key, sub_keys in self._SENSITIVE_NESTED.get(step, {}).items():
             nest = decrypted.get(nest_key)
             if isinstance(nest, dict):

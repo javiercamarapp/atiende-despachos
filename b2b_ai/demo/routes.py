@@ -36,6 +36,8 @@ from b2b_ai.demo.mock_data import (
     DEMO_DASHBOARD_SUMMARY,
     demo_process_result,
 )
+import logging
+logger = logging.getLogger(__name__)
 
 
 def is_demo_mode() -> bool:
@@ -131,11 +133,11 @@ def mount_demo_routes(app) -> None:
             try:
                 total_monto += float(str(result["datos"]["total"]).replace(",", ""))
             except (TypeError, ValueError):
-                pass
+                logger.debug("No se pudo sumar 'total' de factura demo (formato inesperado)", exc_info=True)
             try:
                 total_iva += float(str(result["datos"].get("iva", 0)).replace(",", ""))
             except (TypeError, ValueError):
-                pass
+                logger.debug("No se pudo sumar 'iva' de factura demo (formato inesperado)", exc_info=True)
             cat = result["clasificacion"]["categoria"]
             cats[cat] = cats.get(cat, 0) + 1
 

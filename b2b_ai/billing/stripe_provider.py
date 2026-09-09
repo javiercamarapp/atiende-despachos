@@ -36,6 +36,8 @@ from b2b_ai.billing.models import (
     Subscription,
     SubscriptionStatus,
 )
+import logging
+logger = logging.getLogger(__name__)
 
 _STRIPE_API = "https://api.stripe.com"
 
@@ -74,7 +76,7 @@ class StripeProvider(PaymentProvider):
             try:
                 code = r.json().get("error", {}).get("code")
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("No se pudo parsear código de error de Stripe", exc_info=True)
             raise PaymentError(f"Stripe error {r.status_code}: {msg}",
                                self.provider, code=code)
         return r.json()

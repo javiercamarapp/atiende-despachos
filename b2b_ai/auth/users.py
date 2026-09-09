@@ -21,6 +21,8 @@ import bcrypt
 from b2b_ai.db.db import Database
 from b2b_ai.auth.middleware import JWTAuth, JWTError, _public_user, _token_blacklist
 from b2b_ai.auth.roles import is_valid_role, normalize_role
+import logging
+logger = logging.getLogger(__name__)
 
 # Rounds bcrypt (ajustable por env para acelerar tests / CI).
 BCRYPT_ROUNDS = int(os.environ.get("B2B_BCRYPT_ROUNDS", "12"))
@@ -157,7 +159,7 @@ class UserManager:
                              entity_id="", payload={"email": email},
                              status="denied")
         except Exception:  # noqa: BLE001
-            pass
+            logger.warning("No se pudo registrar auditoría de login fallido", exc_info=True)
 
     # ---- Tokens ----------------------------------------------------------
     def refresh_token(self, token: str) -> Dict[str, Any]:

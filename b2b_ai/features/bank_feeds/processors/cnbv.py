@@ -26,6 +26,8 @@ import re
 from typing import List, Optional
 
 from b2b_ai.features.bank_feeds.processors.ofx import RawMovement
+import logging
+logger = logging.getLogger(__name__)
 
 # Encabezados posibles (normalizados a minúsculas sin acentos)
 _DATE_COLS = ("fecha", "fechamov", "fechaop", "fechamovimiento", "fecha mov")
@@ -104,12 +106,12 @@ def _amount_from_row(row, headers, cargo_col, abono_col, amt_col) -> Optional[fl
         try:
             return -abs(float(_clean_amount(cargo)))
         except ValueError:
-            pass
+            logger.debug("Monto de cargo CNBV no parseable", exc_info=True)
     if abono:
         try:
             return abs(float(_clean_amount(abono)))
         except ValueError:
-            pass
+            logger.debug("Monto de abono CNBV no parseable", exc_info=True)
     return None
 
 

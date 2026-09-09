@@ -24,6 +24,8 @@ from pydantic import BaseModel
 
 from b2b_ai.notifications.scheduler import NotificationScheduler
 from b2b_ai.notifications.whatsapp import WhatsAppBusiness
+import logging
+logger = logging.getLogger(__name__)
 
 
 class NotificationSendRequest(BaseModel):
@@ -204,7 +206,7 @@ def build_notifications_router(db, require_api_key, scheduler=None,
             try:
                 db.update_notification_status(notif_id, result.get("status", "error"))
             except Exception:  # noqa: BLE001 — método opcional
-                pass
+                logger.debug("No se pudo actualizar estado de notificación (método opcional)", exc_info=True)
 
         return {
             "ok": True,
