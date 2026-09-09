@@ -29,6 +29,8 @@ from typing import Any, List, Optional, Tuple
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+import logging
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Configuración
@@ -68,7 +70,7 @@ def _get_max_bytes() -> int:
             if mb > 0:
                 return mb * 1024 * 1024
         except ValueError:
-            pass
+            logger.warning("B2B_MAX_REQUEST_SIZE_MB inválido, usando límite por defecto", exc_info=True)
     return _DEFAULT_MAX_BYTES
 
 
@@ -181,7 +183,7 @@ async def validate_request_size(request: Request,
                     f"{max_bytes} bytes ({max_bytes // (1024 * 1024)} MB)."
                 )
         except ValueError:
-            pass  # malformado — deja que el handler decida
+            logger.debug("Content-Length malformado, se deja que el handler decida", exc_info=True)
     else:
         # Transfer-Encoding: chunked (sin Content-Length) — leer con techo.
         try:

@@ -28,6 +28,8 @@ from starlette.concurrency import run_in_threadpool
 
 from b2b_ai.audit.models import Actions
 from b2b_ai.audit.trail import AuditTrail
+import logging
+_log = logging.getLogger(__name__)
 
 # Métodos HTTP que mutan estado → verbo de auditoría.
 _MUTATION_ACTIONS = {
@@ -101,7 +103,7 @@ def install_audit_middleware(app, db, auth=None,
                              "status": response.status_code},
                     resource_id=None, ip=ip)
             except Exception:  # noqa: BLE001 — el audit nunca debe romper nada
-                pass
+                _log.warning("No se pudo registrar auditoría del request", exc_info=True)
         return response
 
     return trail

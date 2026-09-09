@@ -114,7 +114,7 @@ def build_arco_router(db, require_api_key) -> APIRouter:
             try:
                 payload = _json.loads(r["payload"]) if r["payload"] else {}
             except Exception:
-                pass
+                logger.debug("No se pudo parsear payload JSON de solicitud ARCO", exc_info=True)
             solicitudes.append({
                 "tipo": payload.get("tipo", ""),
                 "email": r["entity_id"],

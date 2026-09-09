@@ -32,6 +32,8 @@ from b2b_ai.features.alertas.models import (
     AlertRule,
     RuleCondition,
 )
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +202,7 @@ def _evaluate_reconciliation(data: dict, rule: AlertRule) -> bool:
         try:
             return int(mismatch_count) > 0
         except (ValueError, TypeError):
-            pass
+            logger.debug("mismatch_count no parseable a int, se usa has_mismatch", exc_info=True)
     return bool(has_mismatch)
 
 

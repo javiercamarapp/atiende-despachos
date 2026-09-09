@@ -45,6 +45,8 @@ from reportlab.graphics.charts.piecharts import Pie
 from b2b_ai.db.db import Database
 from b2b_ai.services.report import generate_report
 from b2b_ai.services import anomaly as anomaly_svc
+import logging
+logger = logging.getLogger(__name__)
 
 # -------------------------------------------------------------------------- #
 # Constantes
@@ -327,7 +329,7 @@ class PDFGenerator:
                     name = row.get("name") or name
                     rfc = row.get("rfc") or ""
             except Exception:  # noqa: BLE001 — best effort para header
-                pass
+                logger.debug("No se pudo obtener datos de tenant para el header del PDF", exc_info=True)
             # Logo desde config del tenant o env.
             try:
                 logo_cfg = self.db.get_tenant_config(tenant_id, "logo_path", "")
@@ -360,7 +362,7 @@ class PDFGenerator:
                 return Image(tenant["logo_path"], width=16 * mm,
                              height=16 * mm, preserveAspectRatio=True)
             except Exception:  # noqa: BLE001 — imagen corrupta → fallback
-                pass
+                logger.debug("No se pudo cargar imagen de logo, se usa logo vectorial", exc_info=True)
         # Logo vectorial con iniciales.
         d = Drawing(16 * mm, 16 * mm)
         d.add(Rect(0, 0, 16 * mm, 16 * mm, rx=3 * mm, ry=3 * mm,

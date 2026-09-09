@@ -337,7 +337,7 @@ def with_retry(
                             try:
                                 retry_config.on_retry(attempt + 1, exc, delay)
                             except Exception:
-                                pass
+                                logger.warning("El callback on_retry lanzó una excepción", exc_info=True)
                         time.sleep(delay)
 
                 except Exception as exc:

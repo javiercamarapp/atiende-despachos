@@ -28,6 +28,8 @@ from b2b_ai.features.data_migration.models import (
     get_job,
 )
 from b2b_ai.features.data_migration.service import MigrationError, MigrationService
+import logging
+logger = logging.getLogger(__name__)
 
 ROUTER_PREFIX = "/api/v1/migration"
 
@@ -103,7 +105,7 @@ def build_data_migration_router(db: Any = None,
             try:
                 Path(tmp_path).unlink(missing_ok=True)
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("No se pudo eliminar archivo temporal de migración", exc_info=True)
 
         return {
             "ok": True,

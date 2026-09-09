@@ -51,6 +51,8 @@ from b2b_ai.features.declaraciones.engine import (
     calculate_isr_pf as _engine_calculate_isr_pf,
     ISR_PM_MENSUAL_RESICO as ISR_TABLE_PM_RESICO,
 )
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -422,7 +424,7 @@ class DeclaracionesService(ManualProcessMixin):
                 else:
                     deadline.estado = DeadlineStatus.PENDING
             except (ValueError, TypeError):
-                pass
+                logger.warning("No se pudo calcular días restantes para el deadline de declaración", exc_info=True)
 
             deadlines.append(deadline)
 

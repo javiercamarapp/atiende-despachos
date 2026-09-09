@@ -133,12 +133,12 @@ async def run_smoke_test() -> Dict[str, Any]:
             try:
                 await browser.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando browser en smoke test", exc_info=True)
         if pw:
             try:
                 await pw.stop()
             except Exception:
-                pass
+                logger.debug("Error deteniendo playwright en smoke test", exc_info=True)
 
     elapsed = time.monotonic() - t0
     details["elapsed_seconds"] = round(elapsed, 3)

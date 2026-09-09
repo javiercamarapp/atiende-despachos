@@ -23,6 +23,8 @@ from b2b_ai.services.pipeline import process_file
 from b2b_ai.services.classify import CATEGORIA_NOMBRE
 from b2b_ai.tools.logger import logger
 from b2b_ai.db.db import Database, DEFAULT_DB
+import logging
+_log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # CFDI 4.0 Templates — 10 facturas realistas para la demo
@@ -428,7 +430,7 @@ def generate_demo_report(results: List[Dict], output_dir: str,
         try:
             iva_total += float(str(d.get("iva", 0)).replace(",", ""))
         except (TypeError, ValueError):
-            pass
+            _log.debug("iva no parseable en resumen demo", exc_info=True)
 
     # Conteo por categoría
     from collections import Counter

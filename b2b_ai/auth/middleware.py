@@ -34,6 +34,8 @@ from typing import Any, Dict, Optional
 from fastapi import Depends, Header, HTTPException, Request
 
 from b2b_ai.auth.roles import has_permission
+import logging
+logger = logging.getLogger(__name__)
 
 # Token blacklist (JTI -> expiry timestamp).
 # Uses Redis when B2B_REDIS_URL is set (survives restarts, shared across
@@ -271,7 +273,7 @@ class JWTAuth:
             except HTTPException:
                 raise
             except Exception:
-                pass
+                logger.warning("Error verificando blacklist de token en Redis", exc_info=True)
         if jti and jti in _token_blacklist:
             raise HTTPException(status_code=401, detail="Token revocado.")
         try:
@@ -293,7 +295,7 @@ class JWTAuth:
             except HTTPException:
                 raise
             except Exception:  # noqa: BLE001 — best-effort
-                pass
+                logger.warning("Error verificando si el tenant está bloqueado", exc_info=True)
 
         # Auditoría por request (best-effort, nunca rompe la petición).
         try:
@@ -303,7 +305,7 @@ class JWTAuth:
                          "method": request.method},
                 status="ok", tenant_id=tid)
         except Exception:  # noqa: BLE001
-            pass
+            logger.warning("No se pudo registrar auditoría de acceso", exc_info=True)
 
         return {"user": _public_user(user), "user_id": user_id,
                 "tenant_id": tid, "role": user.get("role"),

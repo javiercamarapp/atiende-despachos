@@ -443,7 +443,7 @@ class AutoClassifier:
             try:
                 self.train()
             except Exception:
-                pass  # Fall back to rule-based
+                log.warning("Fallo entrenando el clasificador ML, se usa fallback basado en reglas", exc_info=True)
 
         if not self._trained or not HAS_SKLEARN:
             return self._rule_based_predict(cfdi)

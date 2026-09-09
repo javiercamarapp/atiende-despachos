@@ -44,6 +44,8 @@ import b2b_ai.tools.tools  # noqa: F401  (registra las tools del agente)
 from b2b_ai.notifications.sender import EmailSender
 from b2b_ai.monitoring.logger import mask_pii as _mask_pii
 from b2b_ai.auth.middleware import _is_dev_env
+import logging
+_log = logging.getLogger(__name__)
 
 # Confidence threshold for auto-processing invoices
 DEFAULT_CONFIDENCE_THRESHOLD = 0.7
@@ -203,7 +205,7 @@ class AgentLoop:
                     clasif = clasif2
                     clasif["repair_pass"] = True
             except Exception:  # noqa: BLE001
-                pass  # keep first result; gate de confianza aplica después
+                _log.warning("Reintento de clasificación LLM falló, se mantiene primer resultado", exc_info=True)
         self._llm_log(tenant_id, "classify", clasif)
         paso("clasificar", True,
              f"{clasif['categoria']} ({clasif['source']})")
@@ -294,7 +296,7 @@ class AgentLoop:
             record_agent_processing(
                 confianza, decision == "auto_processed")
         except Exception:  # noqa: BLE001 — metrics never break the pipeline
-            pass
+            _log.debug("No se pudo registrar métrica de procesamiento del agente", exc_info=True)
 
         if decision == "needs_review":
             review_id = self._escalate(tenant_id, inv_id, review_reason)

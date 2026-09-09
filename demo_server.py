@@ -35,6 +35,8 @@ if str(_HERE) not in sys.path:
 from b2b_ai.cfdi.parser import parse_cfdi, CFDIError
 from b2b_ai.services.classify import classify_cfdi, CATEGORIA_NOMBRE
 from b2b_ai.services.anomaly import detect_anomalies, summarize_anomalies
+import logging
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # App state
@@ -219,11 +221,11 @@ async def demo_process_all():
         try:
             total_monto += float(str(r["datos"].get("total", 0)).replace(",", ""))
         except (TypeError, ValueError):
-            pass
+            logger.debug("No se pudo sumar 'total' de factura demo (formato inesperado)", exc_info=True)
         try:
             total_iva += float(str(r["datos"].get("iva", 0)).replace(",", ""))
         except (TypeError, ValueError):
-            pass
+            logger.debug("No se pudo sumar 'iva' de factura demo (formato inesperado)", exc_info=True)
         cat = r["clasificacion"]["categoria"]
         cats[cat] = cats.get(cat, 0) + 1
 
