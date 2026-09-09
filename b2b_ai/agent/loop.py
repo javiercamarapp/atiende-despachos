@@ -47,8 +47,13 @@ from b2b_ai.auth.middleware import _is_dev_env
 import logging
 _log = logging.getLogger(__name__)
 
-# Confidence threshold for auto-processing invoices
-DEFAULT_CONFIDENCE_THRESHOLD = 0.7
+from b2b_ai.infrastructure.retry import with_retry
+# Fuente única de verdad de los umbrales de confianza (compartida con
+# services/classify.py y features/bookkeeping/auto_classifier.py) — ver
+# b2b_ai/common/confidence.py.
+from b2b_ai.common.confidence import (
+    DEFAULT_CONFIDENCE_THRESHOLD, CONFIDENCE_FLOOR,
+)
 
 
 class AgentLoop:
@@ -69,8 +74,20 @@ class AgentLoop:
 
     # ---- herramientas con auditoría --------------------------------------
     def _call(self, name, tenant_id, **kwargs):
+        # RESILIENCE: retry con backoff exponencial (infrastructure/retry.py)
+        # ante fallos transitorios (red, timeout, SO) al invocar una tool.
+        # Errores no transitorios (ValueError/TypeError/KeyError/
+        # PermissionError, incluida la validación fail-closed de parámetros
+        # en tools/registry.py) NO se reintentan — fallan de inmediato.
+        # `call_tool` se resuelve como global del módulo en cada llamada, por
+        # lo que sigue siendo parcheable en tests vía
+        # `patch("b2b_ai.agent.loop.call_tool", ...)`.
+        @with_retry(service=f"tool.{name}")
+        def _invoke():
+            return call_tool(name, **kwargs)
+
         try:
-            res = call_tool(name, **kwargs)
+            res = _invoke()
             self.logger.log(name, "agent_loop", entity="agent", entity_id=name,
                             payload=res, status="ok", tenant_id=tenant_id)
             return res
@@ -232,9 +249,10 @@ class AgentLoop:
 
         # 5) Decidir
         # AG-1: Confidence gate — always hold if below threshold
-        # HARD GATE: confianza < 0.50 SIEMPRE requiere revisión, sin importar policy
-        _CONFIDENCE_FLOOR = 0.50
-        if clasif.get("confianza", 0) < _CONFIDENCE_FLOOR:
+        # HARD GATE: confianza < CONFIDENCE_FLOOR SIEMPRE requiere revisión,
+        # sin importar policy. Umbral compartido con services/classify.py —
+        # ver b2b_ai/common/confidence.py.
+        if clasif.get("confianza", 0) < CONFIDENCE_FLOOR:
             clasif["requires_human_review"] = True
         confidence_threshold = cfg.get("confidence_threshold", DEFAULT_CONFIDENCE_THRESHOLD)
         confianza = clasif.get("confianza", 0.0)
