@@ -172,7 +172,8 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
         except Exception:
             erp_res = {"ok": False, "poliza": None, "status": "erp_failed"}
         if inv_id:
-            db.update_invoice_erp(inv_id, erp_res, valido=validacion.get("ok", False))
+            db.update_invoice_erp(inv_id, erp_res, valido=validacion.get("ok", False),
+                                  tenant_id=tenant_id)
 
     # 6. Notificación (si aplica; no bloquea el pipeline)
     notif = {"status": "skipped"}

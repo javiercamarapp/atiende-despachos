@@ -57,6 +57,27 @@ services:
       start_period: 20s
 
   # ---- DB: PostgreSQL (objetivo de producción) -----------------------------
+  # H-18 / RLS (ver migrations/versions/0016_rls_tenant_isolation.py):
+  # POSTGRES_USER aquí es el rol BOOTSTRAP de la imagen oficial de Postgres,
+  # que initdb crea como SUPERUSUARIO. La app (servicio `app` arriba) se
+  # conecta con ESTE MISMO rol vía DATABASE_URL -- y un superusuario
+  # SIEMPRE bypasea Row-Level Security, incluso con FORCE ROW LEVEL
+  # SECURITY (verificado adversarialmente: ver
+  # tests/adversarial/test_rls_tenant_isolation_pg.py y el hallazgo en el
+  # commit de 0016). Es decir: tal como está configurado este
+  # docker-compose.yml HOY, las políticas RLS que crea 0016 no protegen
+  # nada para el rol que la app usa en runtime -- solo protegen al rol
+  # `despachos_app_rls` (creado por esa misma migración, NOSUPERUSER
+  # NOBYPASSRLS) si algún día `DATABASE_URL` del servicio `app` se cambia
+  # para conectar con ÉL en vez de con `POSTGRES_USER`. No se hizo ese
+  # cambio en este PR porque el arranque de la app corre sus propias
+  # migraciones de Alembic contra ESTE MISMO DATABASE_URL (ver
+  # b2b_ai/api/app.py::create_app -> lifespan), y `despachos_app_rls`
+  # deliberadamente NO tiene privilegio de DDL (CREATE ROLE / ALTER TABLE
+  # ... ENABLE|FORCE ROW LEVEL SECURITY / CREATE POLICY) -- separar
+  # "identidad de migración" de "identidad de runtime" exige una segunda
+  # variable de entorno y tocar ese lifespan, fuera del alcance de esta
+  # migración de esquema.
   db:
     image: postgres:16-alpine
     container_name: b2b-ai-postgres

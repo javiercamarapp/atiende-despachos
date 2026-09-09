@@ -45,6 +45,9 @@ class AuditTrail:
         action_str = normalize_action(action)
         details_txt = json.dumps(details, default=str, ensure_ascii=False) \
             if details is not None else None
+        # H-18: RLS defensa en profundidad -- ver Database._rls_tenant.
+        self.db._rls_tenant(tenant_id) if tenant_id is not None \
+            else self.db._rls_admin_bypass()
         cur = self.db.conn.execute(
             "INSERT INTO audit_entries(user_id, tenant_id, action, resource, "
             "resource_id, details, ip) VALUES (?,?,?,?,?,?,?)",
@@ -69,6 +72,9 @@ class AuditTrail:
         Aislamiento multi-tenant: filtra SIEMPRE por tenant_id.
         """
         filters = filters or {}
+        # H-18: RLS defensa en profundidad -- ver Database._rls_tenant.
+        self.db._rls_tenant(tenant_id) if tenant_id is not None \
+            else self.db._rls_admin_bypass()
         q = "SELECT * FROM audit_entries"
         clauses: List[str] = []
         params: List[Any] = []
@@ -109,6 +115,12 @@ class AuditTrail:
         `tenant_id` es opcional: si se pasa, acota la búsqueda a un tenant
         (recomendado en operación multi-tenant).
         """
+        # H-18: RLS defensa en profundidad -- ver Database._rls_tenant.
+        # `search_audit_log` es, por diseño, una herramienta de admin
+        # (búsqueda libre); sin tenant_id explícito el bypass es
+        # intencional (documentado, no un default por omisión).
+        self.db._rls_tenant(tenant_id) if tenant_id is not None \
+            else self.db._rls_admin_bypass()
         like = f"%{query}%"
         # Los paréntesis NO son cosméticos: `AND` liga más fuerte que `OR`, así
         # que sin ellos el filtro por tenant solo aplicaba a la última rama

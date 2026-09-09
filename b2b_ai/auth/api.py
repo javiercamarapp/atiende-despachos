@@ -210,8 +210,13 @@ def build_auth_router(db) -> APIRouter:
         role = normalize_role(body.role)
         if not role:
             raise HTTPException(422, "Rol inválido.")
-        target = db.get_client_user(user_id)
-        if target is None or target["tenant_id"] != tenant_id:
+        # H-18: se pasa `tenant_id` (ya conocido y autorizado por
+        # `require_tenant_admin()` vía el path) a get_client_user/
+        # update_client_user -- así el filtro real (WHERE + RLS), no solo
+        # la comparación de Python de abajo, es lo que impide operar sobre
+        # un user_id de OTRO tenant.
+        target = db.get_client_user(user_id, tenant_id=tenant_id)
+        if target is None:
             raise HTTPException(404, "Usuario no encontrado.")
         # No degradar al último admin del tenant.
         if (target.get("role") == "admin"
@@ -224,11 +229,12 @@ def build_auth_router(db) -> APIRouter:
             if len(admins) <= 1:
                 raise HTTPException(403,
                                     "No se puede degradar al último admin.")
-        db.update_client_user(user_id, {"role": role})
+        db.update_client_user(user_id, {"role": role}, tenant_id=tenant_id)
         db.log_call("auth", "change_role", entity="user", entity_id=str(user_id),
                     payload={"old": target.get("role"), "new": role,
                              "by": ctx["user_id"]},
                     status="ok", tenant_id=tenant_id)
-        return {"ok": True, "user": _public_user(db.get_client_user(user_id))}
+        return {"ok": True, "user": _public_user(
+            db.get_client_user(user_id, tenant_id=tenant_id))}
 
     return router

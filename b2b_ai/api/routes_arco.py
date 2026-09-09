@@ -173,9 +173,13 @@ def build_arco_router(db, require_api_key) -> APIRouter:
             "Se eliminarán datos no retenidos por ley.", email, user_id)
 
         # Actually delete personal data
+        # H-18: `_tenant_id` viene de la API key (_resolve_user ya scoped
+        # la búsqueda por email a ese tenant) -- se pasa también al borrado
+        # para que el filtro real (WHERE + RLS), no solo el lookup previo,
+        # impida borrar un client_user de otro tenant.
         deleted_count = 0
         try:
-            db.delete_client_user(user_id)
+            db.delete_client_user(user_id, tenant_id=_tenant_id)
             deleted_count = 1
         except Exception as e:
             logger.error("Error deleting client user %s: %s", user_id, e)
