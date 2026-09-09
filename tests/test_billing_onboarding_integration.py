@@ -128,9 +128,19 @@ class TestWizardCheckoutStep:
         with pytest.raises(OnboardingWizardError, match="plan es obligatorio"):
             wizard.advance_step(session.session_id, "checkout", {})
 
-    def test_health_check_reports_checkout(self, wizard):
+    def test_health_check_reports_checkout_iniciado_sin_pagar(self, wizard):
+        """Checkout iniciado pero sin pago confirmado -> health check NO ok."""
         session = _run_to_test_cfdi(wizard)
         wizard.advance_step(session.session_id, "checkout", {"plan": "professional"})
+        report = wizard.health_check(session.session_id)
+        checkout_check = next(c for c in report["checks"] if c["step"] == "checkout")
+        assert checkout_check["ok"] is False
+
+    def test_health_check_reports_checkout_pagado_ok(self, wizard):
+        """Checkout iniciado y con pago confirmado -> health check ok."""
+        session = _run_to_test_cfdi(wizard)
+        wizard.advance_step(session.session_id, "checkout", {"plan": "professional"})
+        session.data["checkout"]["status"] = "paid"
         report = wizard.health_check(session.session_id)
         checkout_check = next(c for c in report["checks"] if c["step"] == "checkout")
         assert checkout_check["ok"] is True
