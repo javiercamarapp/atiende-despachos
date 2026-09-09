@@ -223,10 +223,15 @@ input,select,button{font-size:16px}
 (function(){
   'use strict';
   var $ = function(id){ return document.getElementById(id); };
-  // SECURITY FIX: Use sessionStorage instead of localStorage.
+  // SECURITY FIX: Use sessionStorage instead of localStorage for the API key.
   // sessionStorage is scoped to the current tab and auto-cleared when the tab
   // closes, preventing the API key from persisting across browser restarts.
   // TODO: Production should migrate to httpOnly cookies so JS never sees the key.
+  //
+  // La caché offline de facturas (API_CACHE_KEY) NO lleva datos sensibles de
+  // autenticación, solo sirve para que el dashboard funcione sin conexión, y
+  // por diseño debe sobrevivir a cerrar la pestaña — por eso se queda en
+  // localStorage (ver landing-b/dashboard.html, que nunca tuvo este bug).
   var KEY_STORAGE = 'b2b_api_key';
   var API_CACHE_KEY = 'b2b_cached_invoices';
 
@@ -302,7 +307,7 @@ input,select,button{font-size:16px}
   /* ---------- logout (clear session-scoped key) ---------- */
   logoutBtn.addEventListener('click', function(){
     sessionStorage.removeItem(KEY_STORAGE);
-    sessionStorage.removeItem(API_CACHE_KEY);
+    localStorage.removeItem(API_CACHE_KEY);
     key = null;
     dash.style.display = 'none';
     gate.style.display = 'block';
@@ -358,15 +363,15 @@ input,select,button{font-size:16px}
 
   function saveCached(data){
     try {
-      var old = JSON.parse(sessionStorage.getItem(API_CACHE_KEY) || '{}');
+      var old = JSON.parse(localStorage.getItem(API_CACHE_KEY) || '{}');
       old.invoices = data.invoices || old.invoices || [];
       old.stats = data.stats || old.stats || null;
       old.at = new Date().toISOString();
-      sessionStorage.setItem(API_CACHE_KEY, JSON.stringify(old));
+      localStorage.setItem(API_CACHE_KEY, JSON.stringify(old));
     } catch(e){}
   }
   function readCached(){
-    try { return JSON.parse(sessionStorage.getItem(API_CACHE_KEY) || 'null'); }
+    try { return JSON.parse(localStorage.getItem(API_CACHE_KEY) || 'null'); }
     catch(e){ return null; }
   }
 
@@ -391,7 +396,7 @@ input,select,button{font-size:16px}
         cached.invoices = inv.invoices;
         cached.stats = stats;
         cached.at = new Date().toISOString();
-        try { sessionStorage.setItem(API_CACHE_KEY, JSON.stringify(cached)); } catch(e){}
+        try { localStorage.setItem(API_CACHE_KEY, JSON.stringify(cached)); } catch(e){}
       }
       render(stats, inv);
       updateStatus();
