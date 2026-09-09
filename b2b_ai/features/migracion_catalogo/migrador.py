@@ -253,13 +253,38 @@ def poliza_ya_migrada(conn: Any, tenant_id: int, poliza_id: str) -> int:
     en vez de volver a escribir.
 
     Consulta de solo lectura: nunca modifica `lineas_poliza_migradas`.
+
+    Envuelta en `with conn.transaction()` a propósito (no un
+    `conn.execute()` suelto): con `autocommit=False` (default de
+    psycopg3, el que usa todo este módulo), CUALQUIER `execute()` fuera
+    de un bloque de transacción explícito abre una transacción
+    implícita en la conexión que queda pendiente de commit. Si esa
+    transacción implícita queda abierta, el `with conn.transaction():`
+    del camino de escritura de `migrar_poliza()` (más abajo) deja de
+    ser la transacción de nivel superior -- psycopg3 lo trata como un
+    SAVEPOINT anidado dentro de esa transacción ya abierta, y su
+    `RELEASE SAVEPOINT` al salir NUNCA hace el `COMMIT` real. Los datos
+    quedan visibles mientras la MISMA conexión siga abierta (de ahí que
+    pareciera funcionar), pero un `conn.close()` posterior (o el
+    connection pool del proceso devolviendo la conexión) los revierte
+    en silencio -- encontrado exactamente así, con una prueba
+    adversarial que reabre una conexión nueva tras migrar, en
+    `tests/features/migracion_catalogo/test_cross_db_idempotencia.py`.
+    Al envolver esta lectura en su propia transacción de nivel superior
+    (que si nada más está abierto en `conn`, hace su propio COMMIT real
+    al salir), el bloque de escritura que sigue siempre arranca desde
+    una conexión sin transacción pendiente y sí puede confirmar de
+    verdad. Es seguro también si `conn` YA estaba dentro de una
+    transacción abierta por quien llama (entonces esto se vuelve el
+    mismo SAVEPOINT anidado de forma correcta, sin cambiar ese caso).
     """
-    cur = conn.execute(
-        "SELECT COUNT(*) FROM lineas_poliza_migradas "
-        "WHERE tenant_id = %s AND poliza_origen_id = %s",
-        (tenant_id, poliza_id),
-    )
-    return cur.fetchone()[0]
+    with conn.transaction():
+        cur = conn.execute(
+            "SELECT COUNT(*) FROM lineas_poliza_migradas "
+            "WHERE tenant_id = %s AND poliza_origen_id = %s",
+            (tenant_id, poliza_id),
+        )
+        return cur.fetchone()[0]
 
 
 def _encolar_poliza_bloqueada(
