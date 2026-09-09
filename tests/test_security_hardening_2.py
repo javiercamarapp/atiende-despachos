@@ -99,7 +99,13 @@ def test_upload_rechaza_extensiones_no_cfdi(ctx):
         r = c.post("/api/v1/invoices/process", headers=h,
                    files={"xml_file": ("malo" + ext, b"<xml/>", "text/xml")})
         assert r.status_code == 422, (ext, r.status_code)
-        assert "Solo se aceptan" in r.json().get("detail", ""), ext
+        # El exception_handler(422) global (b2b_ai/api/errors.py) reescribe
+        # todo HTTPException(422) a {"error": {"details": [{"message": ...}]}},
+        # anidando el detail original fuera del campo top-level "detail". Ese
+        # es el contrato real vigente para todos los endpoints (ver también
+        # tests/test_alertas_extended.py y tests/test_edge_cases_contract.py).
+        body = r.json()
+        assert "Solo se aceptan" in body["error"]["details"][0]["message"], ext
 
 
 def test_upload_acepta_xml(ctx):
