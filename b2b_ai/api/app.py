@@ -53,7 +53,7 @@ from fastapi import (FastAPI, Depends, HTTPException,
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from b2b_ai import __version__
 from b2b_ai.cfdi.parser import CFDIError
@@ -184,11 +184,18 @@ class ProcessRequest(BaseModel):
 
 
 class LeadRequest(BaseModel):
-    nombre: str
-    email: str
-    despacho: str = ""
-    facturas: str = ""
-    mensaje: str = ""
+    """Payload del formulario público de leads (landing/index.html).
+
+    Límites de longitud para acotar el tamaño de un POST anónimo (además
+    del rate limit por IP instalado en `create_app`, ver RateLimiter /
+    _rate_limit_mw): evita que un cliente arbitrario mande payloads
+    enormes a la DB en un solo request.
+    """
+    nombre: str = Field(..., min_length=1, max_length=120)
+    email: str = Field(..., min_length=1, max_length=160)
+    despacho: str = Field("", max_length=160)
+    facturas: str = Field("", max_length=40)
+    mensaje: str = Field("", max_length=2000)
 
 
 class ReconcileRequest(BaseModel):
@@ -748,12 +755,19 @@ def create_app(db=None):
               summary="Alta de lead desde la landing (público).",
               tags=["crm"])
     def create_lead(lead: LeadRequest):
-        """Registra un lead de la landing. Endpoint público (no requiere key)."""
-        if not lead.nombre.strip() or not lead.email.strip():
+        """Registra un lead de la landing. Endpoint público (no requiere key).
+
+        Protegido además por el rate limiter global por IP (ver
+        `_rate_limit_mw` / `RateLimiter` en `create_app`, activo por
+        defecto a B2B_RATE_LIMIT_PER_MIN peticiones/min).
+        """
+        nombre = lead.nombre.strip()
+        email = lead.email.strip()
+        if not nombre or not email:
             raise HTTPException(status_code=422,
                                 detail="nombre y email son obligatorios.")
-        lead_id = db.add_lead(lead.nombre, lead.email, lead.despacho,
-                              lead.facturas, lead.mensaje)
+        lead_id = db.add_lead(nombre, email, lead.despacho.strip(),
+                              lead.facturas.strip(), lead.mensaje.strip())
         return {"ok": True, "lead_id": lead_id,
                 "message": "Lead registrado. Te contactamos en menos de 24h."}
 
