@@ -30,6 +30,7 @@ from b2b_ai.billing.base import (
     PaymentError,
     PaymentProvider,
     get_default_provider,
+    mock_mode_enabled,
 )
 from b2b_ai.billing.models import (
     CheckoutRequest,
@@ -220,7 +221,27 @@ def build_billing_router(db, require_api_key, provider: Optional[PaymentProvider
         configured_name = provider.provider.value if provider.provider else ""
         secret = _get_webhook_secret(configured_name)
         provider_name = configured_name
-        if secret:
+
+        # REQ-BILLING-SEC-01 (bypass real encontrado por auditoria adversarial,
+        # 2026-09-09): si `secret` viene vacio (env var de webhook secret no
+        # configurada), el bloque de verificacion se saltaba POR COMPLETO y el
+        # evento se procesaba como pago valido sin comprobar nada -- un atacante
+        # podia forjar un "pago exitoso" con un POST sin firma en cualquier
+        # entorno donde el secret no estuviera configurado. Fail-closed: sin
+        # secret configurado, el webhook se rechaza SIEMPRE, salvo en modo mock
+        # explicito (B2B_PAYMENTS_MOCK=1, el mismo interruptor que ya usa este
+        # modulo para no hablar con proveedores reales) -- nunca por ausencia
+        # silenciosa de configuracion.
+        if not secret:
+            if not mock_mode_enabled():
+                raise HTTPException(
+                    status_code=401,
+                    detail="Webhook secret no configurado para el proveedor "
+                           f"'{provider_name or 'desconocido'}' -- se rechaza "
+                           "el webhook (fail-closed). Configura "
+                           "B2B_STRIPE_WEBHOOK_SECRET/B2B_CONEKTA_WEBHOOK_SECRET.",
+                )
+        else:
             # Obtener firma del header correspondiente.
             sig_header = ""
             if provider_name.lower() == "stripe":

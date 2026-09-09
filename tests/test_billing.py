@@ -305,6 +305,105 @@ def test_webhook_endpoint_procesa_evento(client):
 
 
 # ---------------------------------------------------------------------------
+# API — webhook: bypass real de firma sin secret configurado (REQ-BILLING-SEC-01)
+#
+# Estos tests corren FUERA de mock mode (no usan el fixture `client`, que fuerza
+# B2B_PAYMENTS_MOCK=1) para reproducir el escenario real: un proveedor "de
+# produccion" configurado (Conekta/Stripe) pero sin la variable de entorno del
+# webhook secret puesta. Un FakeProvider minimo evita depender de credenciales
+# reales de Conekta/Stripe -- solo importa la logica de api.py, no la del
+# proveedor.
+# ---------------------------------------------------------------------------
+class _FakeProviderConProveedorReal:
+    """Simula un PaymentProvider real configurado (no MockPaymentProvider)."""
+
+    def __init__(self):
+        self.provider = Provider.CONEKTA
+
+    def webhook_handler(self, event_type, data):
+        # Si esto se llega a invocar, la firma NO se verifico -- justo el bug.
+        return {"handled": True, "summary": f"evento {event_type} procesado"}
+
+
+def _build_webhook_only_app(provider, tmp_path):
+    from fastapi import FastAPI
+    from b2b_ai.billing.api import build_billing_router
+
+    def _dummy_require_api_key():
+        return {"tenant_id": 1}
+
+    db = Database(str(tmp_path / "webhook-sec.db"))
+    app = FastAPI()
+    app.include_router(build_billing_router(db, _dummy_require_api_key,
+                                             provider=provider))
+    return TestClient(app)
+
+
+def test_webhook_sin_secret_configurado_se_rechaza_fail_closed(monkeypatch, tmp_path):
+    """REQ-BILLING-SEC-01: repro del bypass real + confirmacion del fix.
+
+    Antes del fix: con `secret` vacio (ninguna variable de entorno de webhook
+    secret configurada), la verificacion se saltaba por completo y CUALQUIER
+    POST -- sin firma, con firma basura -- se procesaba como evento valido
+    (200, handled=True). Con el fix: se rechaza con 401 SIEMPRE que no haya
+    secret Y no estemos en modo mock explicito.
+    """
+    monkeypatch.delenv("B2B_PAYMENTS_MOCK", raising=False)
+    monkeypatch.delenv("B2B_STRIPE_WEBHOOK_SECRET", raising=False)
+    monkeypatch.delenv("B2B_CONEKTA_WEBHOOK_SECRET", raising=False)
+
+    client = _build_webhook_only_app(_FakeProviderConProveedorReal(), tmp_path)
+    payload = {"provider": "conekta", "event_type": "charge.paid",
+               "data": {"data": {"object": {"id": "chg_forjado"}}}}
+
+    # Sin ninguna cabecera de firma.
+    r1 = client.post("/api/v1/billing/webhook", json=payload)
+    assert r1.status_code == 401, r1.text
+    assert "secret" in r1.json()["detail"].lower()
+
+    # Con una cabecera de firma basura -- tampoco debe colarse.
+    r2 = client.post("/api/v1/billing/webhook", json=payload,
+                     headers={"conekta-signature": "cualquier-cosa=forjada"})
+    assert r2.status_code == 401, r2.text
+
+
+def test_webhook_sin_secret_pero_en_modo_mock_explicito_si_procesa(monkeypatch, tmp_path):
+    """El interruptor de modo mock explicito (B2B_PAYMENTS_MOCK=1) sigue
+    permitiendo probar el flujo sin secret -- el fail-closed es para ausencia
+    SILENCIOSA de configuracion contra un proveedor real, no para el modo mock
+    declarado a proposito."""
+    monkeypatch.setenv("B2B_PAYMENTS_MOCK", "1")
+    monkeypatch.delenv("B2B_STRIPE_WEBHOOK_SECRET", raising=False)
+    monkeypatch.delenv("B2B_CONEKTA_WEBHOOK_SECRET", raising=False)
+
+    client = _build_webhook_only_app(_FakeProviderConProveedorReal(), tmp_path)
+    r = client.post("/api/v1/billing/webhook", json={
+        "provider": "conekta", "event_type": "charge.paid",
+        "data": {"data": {"object": {"id": "chg_1"}}}})
+    assert r.status_code == 200, r.text
+    assert r.json()["result"]["handled"] is True
+
+
+def test_webhook_con_secret_configurado_exige_firma_valida(monkeypatch, tmp_path):
+    """Camino feliz real: con secret configurado, sigue exigiendo firma valida
+    (comportamiento preexistente, no debe romperse por este fix)."""
+    monkeypatch.delenv("B2B_PAYMENTS_MOCK", raising=False)
+    monkeypatch.setenv("B2B_CONEKTA_WEBHOOK_SECRET", "shh_secreto_real")
+    monkeypatch.delenv("B2B_STRIPE_WEBHOOK_SECRET", raising=False)
+
+    client = _build_webhook_only_app(_FakeProviderConProveedorReal(), tmp_path)
+    payload = {"provider": "conekta", "event_type": "charge.paid",
+               "data": {"data": {"object": {"id": "chg_1"}}}}
+
+    r_sin_firma = client.post("/api/v1/billing/webhook", json=payload)
+    assert r_sin_firma.status_code == 401
+
+    r_firma_basura = client.post("/api/v1/billing/webhook", json=payload,
+                                 headers={"conekta-signature": "sha256=basura"})
+    assert r_firma_basura.status_code == 401
+
+
+# ---------------------------------------------------------------------------
 # API — plans
 # ---------------------------------------------------------------------------
 def test_plans_endpoint(client):
