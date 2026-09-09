@@ -34,12 +34,39 @@ Lo que implementa este archivo:
          origen sin mapeo. Nunca se migra parcialmente dejando
          débito≠crédito en destino.
 
-     Idempotencia (reintentar la misma póliza sin duplicar filas en
-     destino) es REQ-MIG-010, requisito separado — fuera de alcance de
-     este archivo salvo por la UNIQUE constraint defensiva de
-     `lineas_poliza_migradas` (migración `0013_polizas_bloqueadas`,
-     `uq_linea_poliza_migrada_origen`), que evita que un reintento
-     ciego duplique una línea ya migrada en la misma póliza.
+  3. Idempotencia (REQ-MIG-010): `migrar_poliza()` verifica, ANTES de
+     intentar cualquier INSERT, si `lineas_poliza_migradas` ya tiene
+     filas para `(tenant_id, poliza_origen_id)`. Si las tiene, la
+     póliza se trata como ya migrada -- se devuelve el resultado
+     idempotente (`ya_migrada=True`, `migrada=True`,
+     `lineas_migradas=<conteo real ya existente en destino>`) sin
+     ejecutar ningún INSERT nuevo. Esto es deliberadamente distinto de
+     apoyarse solo en que la UNIQUE constraint
+     (`uq_linea_poliza_migrada_origen`) rechace el reintento: si se
+     dejara que el segundo intento choque contra la constraint, la
+     excepción de Postgres caería en el mismo `except` que trata
+     errores reales de escritura y la póliza terminaría encolada en
+     `polizas_bloqueadas` como si hubiera FALLADO -- exactamente lo
+     contrario de "reintentar no debe hacer nada distinto de la
+     primera vez, ni marcar como bloqueada una póliza que en realidad
+     ya se migró con éxito". El chequeo explícito por adelantado evita
+     ese falso bloqueo y hace el criterio de REQ-MIG-010 verificable de
+     forma directa (0 filas nuevas, resultado sigue siendo "migrada").
+
+     Nota sobre `migrada_a_id`: el criterio original de REQ-MIG-010
+     habla de marcar la póliza ORIGEN con `migrada_a_id=<id_destino>`.
+     Este esquema (REQ-MIG-009/0013_polizas_bloqueadas) no crea una
+     "póliza destino" con un id propio -- escribe líneas planas en
+     `lineas_poliza_migradas` identificadas por
+     `(tenant_id, poliza_origen_id)`, y ADR-3/REQ-MIG-011 prohíben
+     tocar las tablas de origen (`asientos_contables`/
+     `cuentas_contables`) para no alterar contabilidad electrónica ya
+     dictaminada. Por eso la marca de "ya migrada" vive en
+     `lineas_poliza_migradas` (destino), consultable por
+     `poliza_ya_migrada()` más abajo, en vez de una columna nueva sobre
+     el origen -- el efecto observable exigido por el criterio (0
+     pólizas duplicadas en un reintento) queda igual de verificado sin
+     mutar una tabla de origen.
 
 Interpretación de ADR-3 para `EDITADO`: el texto del ADR usa
 `estado="aprobado"` como la puerta de entrada, pero el esquema de
@@ -171,6 +198,10 @@ class ResultadoMigracionPoliza:
     bloqueada: bool
     motivo_bloqueo: Optional[str] = None
     cuentas_sin_mapeo_aprobado: Tuple[str, ...] = field(default_factory=tuple)
+    # REQ-MIG-010: True cuando esta póliza YA estaba migrada antes de esta
+    # llamada -- `migrar_poliza()` no ejecutó ningún INSERT nuevo, solo
+    # reportó el estado ya existente en `lineas_poliza_migradas`.
+    ya_migrada: bool = False
 
 
 class PolizaDesbalanceadaError(Exception):
@@ -208,6 +239,27 @@ def _mapeo_migrable_para_linea(
     if mapeo.destino_cuenta_id is None:
         return None
     return mapeo
+
+
+def poliza_ya_migrada(conn: Any, tenant_id: int, poliza_id: str) -> int:
+    """Cuenta cuántas líneas de `poliza_id` (del tenant dado) ya existen
+    en `lineas_poliza_migradas` -- REQ-MIG-010.
+
+    Se usa como chequeo de idempotencia ANTES de intentar migrar: `0`
+    significa que la póliza nunca se migró (o se migró y quedó
+    bloqueada -- una póliza bloqueada nunca deja filas en destino, ver
+    REQ-MIG-009); cualquier valor `> 0` significa que ya está migrada y
+    `migrar_poliza()` debe tratar el reintento como un no-op idempotente
+    en vez de volver a escribir.
+
+    Consulta de solo lectura: nunca modifica `lineas_poliza_migradas`.
+    """
+    cur = conn.execute(
+        "SELECT COUNT(*) FROM lineas_poliza_migradas "
+        "WHERE tenant_id = %s AND poliza_origen_id = %s",
+        (tenant_id, poliza_id),
+    )
+    return cur.fetchone()[0]
 
 
 def _encolar_poliza_bloqueada(
@@ -267,6 +319,20 @@ def migrar_poliza(
         raise ValueError(
             f"La póliza {poliza.id} no tiene líneas que migrar; no hay "
             "nada que decidir (ni migrar ni bloquear)."
+        )
+
+    # REQ-MIG-010: idempotencia. Si esta póliza ya tiene líneas en
+    # destino, un reintento no debe insertar nada de nuevo -- se
+    # reporta el estado ya existente, sin tocar la base ni encolarla en
+    # `polizas_bloqueadas` (no falló: ya estaba resuelta).
+    lineas_ya_migradas = poliza_ya_migrada(conn, poliza.tenant_id, poliza.id)
+    if lineas_ya_migradas > 0:
+        return ResultadoMigracionPoliza(
+            poliza_id=poliza.id,
+            migrada=True,
+            lineas_migradas=lineas_ya_migradas,
+            bloqueada=False,
+            ya_migrada=True,
         )
 
     lineas_con_mapeo: list = []

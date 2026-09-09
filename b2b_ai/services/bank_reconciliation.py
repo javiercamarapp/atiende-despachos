@@ -825,13 +825,36 @@ class BankReconciliation:
 
         Agrega montos conciliados vs pendientes (por método y totales),
         la tasa de conciliación y la lista de cruces + pendientes.
+
+        REQ-CONC-011: cuando un `group_id` hace que varias filas de
+        `matches` compartan el mismo `transaction_id` (conciliación N-a-1,
+        REQ-CONC-003/010), el "monto conciliado" y el conteo de
+        movimientos conciliados/pendientes se calculan agrupando por
+        `transaction_id` ÚNICO -- nunca sumando/contando una fila por
+        factura del grupo -- para no contar el mismo depósito bancario
+        varias veces. Se usa el monto REAL del movimiento bancario
+        (`monto_banco`, igual al `monto_signed` de la transacción) para
+        cada `transaction_id` único, en vez de sumar el `monto` (lado
+        factura) de cada fila -- así el total también queda correcto
+        cuando el grupo suma bruto de facturas por encima del neto
+        depositado (comisión de terminal, REQ-CONC-004: el subset-sum
+        acepta un rango `[A, A_grossed_up]`, no solo `A` exacto).
         """
         txns = self.transactions
         invs = self.invoices
         matches = self.matches
 
         total_banco = sum(abs(_dec(t["monto_signed"]) or 0) for t in txns)
-        conciliado = sum(abs(_dec(m["monto"]) or 0) for m in matches)
+
+        # Un solo monto por `transaction_id` único, sin importar cuántas
+        # filas de match (facturas) comparten ese movimiento vía group_id.
+        monto_banco_por_tx: dict = {}
+        for m in matches:
+            tx_id = m["transaction_id"]
+            if tx_id not in monto_banco_por_tx:
+                monto_banco_por_tx[tx_id] = m.get("monto_banco", m.get("monto"))
+        matched_tx_ids = set(monto_banco_por_tx.keys())
+        conciliado = sum(abs(_dec(v) or 0) for v in monto_banco_por_tx.values())
         pendiente_banco = total_banco - conciliado
 
         factura_monto = sum((_dec(i.get("total")) or 0) for i in invs)
@@ -848,8 +871,8 @@ class BankReconciliation:
             "tenant_id": self.tenant_id,
             "facturas": len(invs),
             "movimientos_banco": len(txns),
-            "conciliados": len(matches),
-            "pendientes_banco": len(txns) - len(matches),
+            "conciliados": len(matched_tx_ids),
+            "pendientes_banco": len(txns) - len(matched_tx_ids),
             "pendientes_facturas": len(invs) - len(matches),
             "monto_conciliado": str(conciliado),
             "monto_banco_total": str(total_banco),
@@ -860,7 +883,7 @@ class BankReconciliation:
             "por_metodo": por_metodo,
             "matches": matches,
             "unmatched_bank": [t for t in txns
-                               if t["id"] not in {m["transaction_id"] for m in matches}],
+                               if t["id"] not in matched_tx_ids],
             "unmatched_invoices": [i for i in invs
                                    if _inv_key(i) not in matched_inv_keys],
             "bancos": sorted({s["banco"] for s in self.statements}),

@@ -1,11 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-verificacion.py — Verificaciones de integridad post-migración de pólizas:
-conteo de pólizas (REQ-MIG-013) y balance por póliza (REQ-MIG-014).
+verificacion.py — Verificaciones de integridad post-migración: cuadre de
+saldos por cuenta (REQ-MIG-012), conteo de pólizas (REQ-MIG-013),
+balance por póliza (REQ-MIG-014) y referencias huérfanas (REQ-MIG-015).
 
 Contexto común (docs/BLUEPRINT-AGENTES-FISCALES.md §3, ADR-3): antes de
 dar por cerrada una migración/fusión de catálogo, varias verificaciones
-independientes deben pasar. Este archivo implementa dos de ellas:
+independientes deben pasar. Este archivo implementa tres de ellas:
+
+  - REQ-MIG-012 (cuadre de saldos por cuenta migrada): para cada cuenta
+    efectivamente migrada (`estado=aprobado`/`editado`), el saldo real
+    de esa cuenta en el periodo dado debe coincidir entre origen y
+    destino con tolerancia `<= 0.01` MXN (a diferencia de REQ-MIG-014,
+    que exige `0.00` exacto porque compara la MISMA póliza remapeada;
+    aquí se compara el saldo agregado de dos sistemas contables
+    potencialmente distintos, con reglas de redondeo/consolidación
+    propias, de ahí la tolerancia de un centavo). Ver
+    `calcular_saldo_cuenta_periodo`/`verificar_cuadre_saldos`/
+    `cerrar_migracion`/`CuadreSaldosNoPermiteCierreError`. Sección
+    añadida en el mismo commit que REQ-MIG-013/014 pero sin tests hasta
+    `tests/features/migracion_catalogo/test_verificacion_cuadre_saldos.py`
+    (ver ese archivo para el detalle de por qué se cerró como deuda de
+    verificación, no como código faltante).
 
   - REQ-MIG-013 (conteo de pólizas): el número de pólizas que existían
     en origen y eran elegibles para migrar debe coincidir EXACTO (0 de
@@ -28,27 +44,29 @@ independientes deben pasar. Este archivo implementa dos de ellas:
     cierre. Ver `calcular_balance_polizas`/
     `verificar_balance_polizas_en_bd`/`BalancePolizaDesbalanceadaError`.
 
-Alcance de este archivo (SOLO REQ-MIG-013 y REQ-MIG-014): la lógica de
-verificación en sí y la decisión de bloquear el cierre cuando no
-cuadran. Ninguna de las dos decide qué cuenta como "elegible"/"migrada"
-en origen/destino, ni qué esquema de tabla usa el destino para las
-líneas de póliza migradas — esa definición depende del motor de
-migración de pólizas transaccional (REQ-MIG-009/010, `migrador.py`),
-que es un requisito separado de esta misma matriz y no se implementa
-aquí. Por eso tanto `verificar_conteo_polizas_en_bd` como
+Alcance de este archivo (REQ-MIG-012, REQ-MIG-013, REQ-MIG-014 y
+REQ-MIG-015): la lógica de verificación en sí y la decisión de bloquear
+el cierre cuando algo no cuadra. Ninguna decide qué cuenta como
+"elegible"/"migrada" en origen/destino más allá de leer el esquema real
+que ya define el motor de migración de pólizas transaccional
+(REQ-MIG-009/010, `migrador.py`: `lineas_poliza_migradas`,
+`polizas_bloqueadas`). `verificar_conteo_polizas_en_bd`/
 `verificar_balance_polizas_en_bd` reciben la(s) consulta(s) SQL como
-parámetro en vez de asumir nombres de tabla/columna que ese motor
-todavía no define (no existen hoy `polizas_bloqueadas` ni una columna
-`migrada_a_id` en el esquema — ver el docstring de `migrador.py`).
+parámetro (para no atarse a nombres de tabla/columna en el momento en
+que se escribieron, antes de que ese esquema existiera); REQ-MIG-012 y
+REQ-MIG-015, añadidos después de que `migrador.py` ya definía el
+esquema real, sí consultan `lineas_poliza_migradas`/`cuentas_contables`
+directamente.
 
-Las otras verificaciones de integridad de la misma sección del blueprint
-(REQ-MIG-012 cuadre de saldos, REQ-MIG-015 referencias huérfanas,
-REQ-MIG-016 log de auditoría) son requisitos separados, todavía
-"pendiente", y no se tocan en este archivo.
+La otra verificación de integridad de la misma sección del blueprint
+(REQ-MIG-016 log de auditoría) es un requisito separado y no se toca en
+este archivo.
 
-Ambas verificaciones son de solo lectura: ejecutan únicamente consultas
-suministradas por el llamador y nunca escriben, migran ni reclasifican
-nada (regla dura del blueprint sobre aprobación humana explícita).
+Las cuatro verificaciones son de solo lectura: ejecutan únicamente
+consultas suministradas por el llamador (o, en REQ-MIG-012/015, un
+`LEFT JOIN`/agregado fijo contra el esquema real) y nunca escriben,
+migran ni reclasifican nada (regla dura del blueprint sobre aprobación
+humana explícita).
 
 Compatibilidad de conexión: `verificar_conteo_polizas_en_bd` usa el
 mismo wrapper `?`-parametrizado que el resto del repo
@@ -748,4 +766,131 @@ def cerrar_migracion(
     )
     if not reporte.cierre_permitido:
         raise CuadreSaldosNoPermiteCierreError(reporte)
+    return reporte
+
+
+# ---------------------------------------------------------------------------
+# REQ-MIG-015 — Referencias huérfanas: 0 líneas de póliza en destino deben
+# apuntar a un cuenta_id inexistente en el catálogo destino.
+# ---------------------------------------------------------------------------
+#
+# Nota honesta sobre el mecanismo real que da esta garantía: la FK activa
+# `lineas_poliza_migradas.cuenta_destino_id -> cuentas_contables(cuenta_id)`
+# (migración `0013_polizas_bloqueadas`, REQ-MIG-001/009) ya hace
+# ESTRUCTURALMENTE imposible insertar una línea huérfana en operación
+# normal -- Postgres rechaza el INSERT antes de que exista, y por default
+# (sin ON DELETE CASCADE/SET NULL) también rechaza borrar una cuenta
+# destino que todavía tenga líneas migradas apuntándole. Por eso
+# `migrar_poliza()` (REQ-MIG-009) puede confiar en que un
+# `destino_cuenta_id` inválido revierte la transacción completa por sí
+# solo. Esta verificación es una segunda capa, a nivel de aplicación, útil
+# para el reporte de cierre de migración (visibilidad explícita para quien
+# cierra, sin tener que interpretar un código de error de Postgres) y como
+# defensa si algún día una carga masiva u otra vía de escritura evita la
+# FK (p. ej. `ALTER TABLE ... DISABLE TRIGGER ALL` durante una carga
+# masiva, o una migración de esquema que temporalmente la quite) -- nunca
+# se asume que "la FK ya lo cubre" como excusa para no verificar en el
+# cierre.
+
+class ReferenciaHuerfanaLineaPoliza(BaseModel):
+    """Una línea de `lineas_poliza_migradas` cuyo `cuenta_destino_id` no
+    existe (ya no existe, o nunca existió) en `cuentas_contables`."""
+
+    linea_id: int
+    tenant_id: int
+    poliza_origen_id: str
+    cuenta_destino_id: str
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class ReporteReferenciasHuerfanas(BaseModel):
+    """Resultado de la verificación de REQ-MIG-015 para un tenant (y,
+    opcionalmente, una póliza) dados."""
+
+    tenant_id: int
+    huerfanas: List[ReferenciaHuerfanaLineaPoliza] = Field(default_factory=list)
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    @property
+    def count_huerfanas(self) -> int:
+        return len(self.huerfanas)
+
+    @property
+    def cierre_permitido(self) -> bool:
+        """`True` únicamente si `count(huerfanas) == 0` -- el criterio
+        exacto del requisito. Con 0 líneas verificadas también es
+        `True` (nada que migrar todavía no bloquea un cierre vacío)."""
+        return self.count_huerfanas == 0
+
+
+class ReferenciasHuerfanasNoPermiteCierreError(Exception):
+    """Bloquea el cierre de la migración (REQ-MIG-015): al menos una
+    línea migrada en destino apunta a una cuenta que ya no existe (o
+    nunca existió) en el catálogo destino. El reporte completo -- con
+    cada línea huérfana identificada -- queda adjunto en `.reporte`."""
+
+    def __init__(self, reporte: ReporteReferenciasHuerfanas) -> None:
+        self.reporte = reporte
+        detalle = ", ".join(
+            f"linea_id={h.linea_id} poliza={h.poliza_origen_id} "
+            f"cuenta_destino_id={h.cuenta_destino_id}"
+            for h in reporte.huerfanas
+        )
+        super().__init__(
+            "Cierre de migración bloqueado (REQ-MIG-015): "
+            f"{reporte.count_huerfanas} línea(s) en lineas_poliza_migradas "
+            f"apuntan a un cuenta_id inexistente en el catálogo destino "
+            f"(tenant_id={reporte.tenant_id}): [{detalle}]"
+        )
+
+
+def verificar_referencias_huerfanas_en_bd(
+    conn: Any, tenant_id: int
+) -> ReporteReferenciasHuerfanas:
+    """Consulta de solo lectura (REQ-MIG-015): un `LEFT JOIN` real de
+    `lineas_poliza_migradas` contra `cuentas_contables` por
+    `cuenta_destino_id = cuenta_id`, filtrando las filas donde el lado
+    derecho no encontró coincidencia (`cc.cuenta_id IS NULL`) -- la
+    definición literal de "referencia huérfana". Nunca lanza por sí
+    sola; quien necesite bloquear el cierre debe usar
+    `cerrar_verificacion_referencias_huerfanas`, que sí lanza.
+
+    Usa el wrapper `?`-parametrizado del repo (`Database().conn`,
+    compatible con SQLite y, vía `postgres_adapter.py`, con PostgreSQL
+    real) -- mismo patrón que `verificar_conteo_polizas_en_bd`."""
+    filas = conn.execute(
+        "SELECT lpm.id, lpm.tenant_id, lpm.poliza_origen_id, "
+        "lpm.cuenta_destino_id "
+        "FROM lineas_poliza_migradas lpm "
+        "LEFT JOIN cuentas_contables cc ON cc.cuenta_id = lpm.cuenta_destino_id "
+        "WHERE lpm.tenant_id = ? AND cc.cuenta_id IS NULL",
+        (tenant_id,),
+    ).fetchall()
+
+    huerfanas = [
+        ReferenciaHuerfanaLineaPoliza(
+            linea_id=fila[0],
+            tenant_id=fila[1],
+            poliza_origen_id=fila[2],
+            cuenta_destino_id=str(fila[3]),
+        )
+        for fila in filas
+    ]
+    return ReporteReferenciasHuerfanas(tenant_id=tenant_id, huerfanas=huerfanas)
+
+
+def cerrar_verificacion_referencias_huerfanas(
+    conn: Any, tenant_id: int
+) -> ReporteReferenciasHuerfanas:
+    """El único camino que un flujo de cierre de migración debe usar para
+    la verificación de referencias huérfanas: corre
+    `verificar_referencias_huerfanas_en_bd` y, si
+    `reporte.cierre_permitido` es falso, BLOQUEA el cierre lanzando
+    `ReferenciasHuerfanasNoPermiteCierreError` con el reporte completo
+    adjunto."""
+    reporte = verificar_referencias_huerfanas_en_bd(conn, tenant_id)
+    if not reporte.cierre_permitido:
+        raise ReferenciasHuerfanasNoPermiteCierreError(reporte)
     return reporte

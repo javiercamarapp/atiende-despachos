@@ -100,7 +100,14 @@ def test_un_candidato_score_alto_se_auto_confirma_en_pipeline_completo():
     assert all(m["requiere_confirmacion_humana"] is False for m in grouped)
 
     reporte = svc.generate_reconciliation_report()
-    assert reporte["conciliados"] == 3
+    # REQ-CONC-011: el conteo de "conciliados" es por transaction_id
+    # ÚNICO (1 movimiento bancario), no por fila de match (3 facturas del
+    # mismo grupo) -- antes de REQ-CONC-011 este test afirmaba 3, que era
+    # precisamente el síntoma del bug (además producía pendientes_banco
+    # negativo cuando había más movimientos que grupos).
+    assert reporte["conciliados"] == 1
+    assert reporte["movimientos_banco"] == 1
+    assert reporte["pendientes_banco"] == 0
     assert "tx_dep_1" not in {t["id"] for t in reporte["unmatched_bank"]}
 
 
