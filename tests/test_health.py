@@ -109,13 +109,21 @@ def test_run_readiness_db_not_configured_is_degraded(feature_names):
 # --------------------------------------------------------------------------- #
 
 def test_discover_finds_all_expected_features(feature_names):
-    core = {"alertas", "billing", "onboarding", "diot", "declaraciones",
+    # `billing` y `onboarding` se eliminaron de b2b_ai/features/ (consolidacion
+    # de billing, 2026-09-09): el modulo piloto de billing (con un bypass real
+    # de firma de webhook) y su unico integrador (el wizard de onboarding, que
+    # nunca sirvio trafico de produccion) se borraron por completo -- el
+    # billing canonico que SI sirve produccion vive en b2b_ai.billing, fuera
+    # de la convencion features/*, por eso no aparece en discover_feature_modules().
+    core = {"alertas", "diot", "declaraciones",
             "reconciliacion_ingresos_egresos", "webhooks", "multi_tenant"}
     assert core <= set(feature_names)
+    assert "billing" not in feature_names
+    assert "onboarding" not in feature_names
 
 
-def test_check_import_ok_for_billing():
-    res = check_import("billing")
+def test_check_import_ok_for_diot():
+    res = check_import("diot")
     assert res["status"] == "ok"
 
 
@@ -125,8 +133,8 @@ def test_check_import_error_for_missing_module():
     assert "import failed" in res["detail"]
 
 
-def test_check_routes_builds_router_for_billing():
-    res = check_routes("billing")
+def test_check_routes_builds_router_for_diot():
+    res = check_routes("diot")
     assert res["status"] == "ok"
     assert res["route_count"] >= 1
 
@@ -136,10 +144,10 @@ def test_check_routes_error_for_missing_module():
     assert res["status"] == "error"
 
 
-def test_check_models_billing_has_pydantic_models():
-    res = check_models("billing")
+def test_check_models_diot_has_pydantic_models():
+    res = check_models("diot")
     assert res["status"] == "ok"
-    assert res["model_count"] >= 1  # Subscription, Invoice, PaymentMethod, PaymentEvent
+    assert res["model_count"] >= 1
 
 
 def test_check_models_error_for_broken_module():
