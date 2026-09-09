@@ -55,12 +55,17 @@ class ContabilidadService:
         self._entries: List[ContabilidadEntry] = []
         self._asientos: List[AsientoContable] = []
         self._catalogo: Dict[str, List[CuentaCatalogo]] = {}
+        # REQ-MIG-017: códigos de cuenta que tenían movimientos y no vinieron
+        # en la última carga de catálogo -- nunca se borraron, quedan aquí
+        # para revisión manual. Ver cargar_catalogo()/huerfanas_pendientes().
+        self._huerfanas_pendientes: Dict[str, List[str]] = {}
 
     def _reset_state(self) -> None:
         """Limpia el estado en memoria (uso en tests)."""
         self._entries.clear()
         self._asientos.clear()
         self._catalogo.clear()
+        self._huerfanas_pendientes.clear()
 
     # ------------------------------------------------------------------
     # Balance General
@@ -319,27 +324,133 @@ class ContabilidadService:
     def cargar_catalogo(
         self, empresa_id: str, cuentas: List[CuentaCatalogo]
     ) -> List[CuentaCatalogo]:
-        """Carga el catálogo de cuentas para una empresa.
+        """Carga (mergea) el catálogo de cuentas de una empresa.
+
+        REQ-MIG-017: antes, este método hacía `self._catalogo[empresa_id]
+        = cuentas`, un reemplazo destructivo completo. Si el catálogo
+        entrante omitía una cuenta que ya tenía asientos registrados
+        (`registrar_asiento` -> `self._entries`), esa cuenta desaparecía
+        del catálogo y sus movimientos quedaban huérfanos: no hay FK real
+        aquí (todo en memoria), así que no truena nada -- simplemente
+        `generar_balance_general`/`generar_estado_resultados` dejan de
+        poder clasificar esos montos (`cuenta_tipo.get(...)` regresa
+        `None` y el saldo se pierde en silencio del reporte). Ver
+        `tests/features/contabilidad/test_cargar_catalogo_merge_no_destructivo.py`
+        para la reproducción exacta del bug contra el código sin este fix.
+
+        Comportamiento nuevo (merge seguro por código de cuenta):
+          - Código nuevo (no existía en el catálogo de la empresa): se
+            agrega tal cual viene.
+          - Código existente que SÍ viene en el catálogo entrante: se
+            actualiza in place (misma posición en la lista -- no se hace
+            pop+append) solo en sus campos editables (nombre, tipo,
+            grupo, nivel, naturaleza, activa).
+          - Código existente que NO viene en el catálogo entrante:
+              * si tiene movimientos (algún `ContabilidadEntry` con ese
+                `cuenta_contable` para esta empresa, es decir ya se usó en
+                un asiento/póliza real): fail-closed -- NUNCA se borra ni
+                se desactiva. Se conserva intacta y se reporta en
+                `huerfanas_pendientes(empresa_id)` para revisión manual
+                (además de un `logger.warning`).
+              * si NO tiene movimientos: es seguro retirarla del catálogo
+                activo. Se elige marcarla `activa=False` en vez de
+                eliminarla físicamente de la lista -- conserva el
+                registro (auditoría/histórico) sin ningún costo de
+                integridad ya que nada la referencia, y es reversible si
+                una carga futura la vuelve a incluir.
 
         Parameters
         ----------
         empresa_id : str
             Identificador de la empresa.
         cuentas : List[CuentaCatalogo]
-            Lista de cuentas a cargar.
+            Catálogo entrante. NO reemplaza el existente: se mergea.
 
         Returns
         -------
         List[CuentaCatalogo]
-            Catálogo cargado.
+            Catálogo COMPLETO resultante para la empresa (existentes
+            actualizadas + nuevas agregadas + huérfanas conservadas +
+            sin-movimiento marcadas inactivas). Para una empresa sin
+            catálogo previo, equivale exactamente a `cuentas`.
         """
-        self._catalogo[empresa_id] = cuentas
+        existentes = self._catalogo.get(empresa_id, [])
+        existentes_por_codigo: Dict[str, CuentaCatalogo] = {
+            c.codigo: c for c in existentes
+        }
+        entrantes_por_codigo: Dict[str, CuentaCatalogo] = {
+            c.codigo: c for c in cuentas
+        }
+        codigos_con_movimientos = {
+            e.cuenta_contable
+            for e in self._entries
+            if e.empresa_id == empresa_id
+        }
+
+        resultado: List[CuentaCatalogo] = []
+        huerfanas: List[str] = []
+        actualizadas = 0
+
+        for codigo, actual in existentes_por_codigo.items():
+            nueva = entrantes_por_codigo.get(codigo)
+            if nueva is not None:
+                resultado.append(actual.model_copy(update={
+                    "nombre": nueva.nombre,
+                    "tipo": nueva.tipo,
+                    "grupo": nueva.grupo,
+                    "nivel": nueva.nivel,
+                    "naturaleza": nueva.naturaleza,
+                    "activa": nueva.activa,
+                }))
+                actualizadas += 1
+            elif codigo in codigos_con_movimientos:
+                # Fail-closed: tiene movimientos reales, no se toca.
+                resultado.append(actual)
+                huerfanas.append(codigo)
+            else:
+                # Sin movimientos y ya no viene en el catálogo entrante:
+                # seguro retirarla -- se desactiva, no se borra (ver
+                # docstring de la clase para la justificación).
+                resultado.append(actual.model_copy(update={"activa": False}))
+
+        nuevas_agregadas = 0
+        for codigo, nueva in entrantes_por_codigo.items():
+            if codigo not in existentes_por_codigo:
+                resultado.append(nueva)
+                nuevas_agregadas += 1
+
+        self._catalogo[empresa_id] = resultado
+        if huerfanas:
+            self._huerfanas_pendientes[empresa_id] = huerfanas
+            logger.warning(
+                "Catálogo empresa=%s: %d cuenta(s) con movimientos no "
+                "vinieron en el catálogo entrante y NO se borraron "
+                "(requieren revisión manual): %s",
+                empresa_id,
+                len(huerfanas),
+                huerfanas,
+            )
+        else:
+            self._huerfanas_pendientes.pop(empresa_id, None)
+
         logger.info(
-            "Catálogo cargado empresa=%s cuentas=%d",
+            "Catálogo cargado (merge) empresa=%s total=%d nuevas=%d "
+            "actualizadas=%d huerfanas_pendientes=%d",
             empresa_id,
-            len(cuentas),
+            len(resultado),
+            nuevas_agregadas,
+            actualizadas,
+            len(huerfanas),
         )
-        return cuentas
+        return resultado
+
+    def huerfanas_pendientes(self, empresa_id: str) -> List[str]:
+        """Códigos de cuenta con movimientos que la última carga de
+        catálogo omitió y que, por eso, NO se borraron (REQ-MIG-017).
+
+        Lista vacía si no hay ninguna pendiente de revisión manual.
+        """
+        return list(self._huerfanas_pendientes.get(empresa_id, []))
 
     # ------------------------------------------------------------------
     # Conciliación
