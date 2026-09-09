@@ -301,7 +301,15 @@ class TestCatalogoImportarCSV:
         finally:
             os.unlink(csv_path)
 
-    def test_replaces_existing(self):
+    def test_merge_preserves_existing_not_in_new_import(self):
+        """REQ-MIG-017: importar_csv mergea, ya no reemplaza el catálogo.
+
+        Antes del fix, importar un CSV que no mencionaba "OLD" la
+        borraba del catálogo (comportamiento destructivo). Ahora se
+        preserva: esta clase no tiene forma de saber si "OLD" tiene
+        movimientos asociados en otro lado, así que el default seguro es
+        nunca borrarla solo porque el archivo importado no la incluya.
+        """
         cat = CatalogoCuentas([])
         cat.add("OLD", "OLD DESC", 1, "D", "")
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="") as f:
@@ -310,8 +318,25 @@ class TestCatalogoImportarCSV:
             csv_path = f.name
         try:
             cat.importar_csv(csv_path)
-            assert cat.find("OLD") is None
+            assert cat.find("OLD") is not None
+            assert cat.find("OLD").descripcion == "OLD DESC"
             assert cat.find("NEW") is not None
+        finally:
+            os.unlink(csv_path)
+
+    def test_merge_updates_matching_codigo_in_place(self):
+        """Un código que sí viene en el CSV se actualiza, no se duplica."""
+        cat = CatalogoCuentas([])
+        cat.add("1101", "BANCOS VIEJO", 1, "D", "")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["codigo", "descripcion", "nivel", "naturaleza", "grupo"])
+            writer.writerow(["1101", "BANCOS NUEVO", "3", "D", "ACTIVO"])
+            csv_path = f.name
+        try:
+            cat.importar_csv(csv_path)
+            assert len(cat) == 1
+            assert cat.find("1101").descripcion == "BANCOS NUEVO"
         finally:
             os.unlink(csv_path)
 

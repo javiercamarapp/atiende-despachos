@@ -120,6 +120,34 @@ class CatalogoCuentas:
     def _reindex(self) -> None:
         self._index = {c.codigo: c for c in self.cuentas}
 
+    def _merge_cuentas(self, nuevas: List["Cuenta"]) -> None:
+        """Fusiona `nuevas` en `self.cuentas` sin destruir lo existente.
+
+        REQ-MIG-017: `importar_csv`/`importar_excel` hacían
+        `self.cuentas = nuevas`, un reemplazo destructivo completo del
+        catálogo en memoria. Este objeto no tiene ninguna noción de
+        pólizas/asientos (es un catálogo aislado, sin referencia a
+        movimientos) -- así que la única postura fail-closed posible a
+        este nivel es NUNCA borrar una cuenta existente solo porque el
+        archivo importado no la mencione: desde esta clase no hay forma
+        de comprobar que sea seguro hacerlo (esa comprobación vive en
+        `ContabilidadService.cargar_catalogo`, que sí conoce los
+        movimientos de la empresa).
+
+        Cuentas con el mismo código se actualizan in place (mismo índice
+        en la lista, no se hace pop+append); cuentas con código nuevo se
+        agregan al final. Ninguna cuenta preexistente se elimina.
+        """
+        indice_por_codigo = {c.codigo: i for i, c in enumerate(self.cuentas)}
+        for nueva in nuevas:
+            idx = indice_por_codigo.get(nueva.codigo)
+            if idx is not None:
+                self.cuentas[idx] = nueva
+            else:
+                indice_por_codigo[nueva.codigo] = len(self.cuentas)
+                self.cuentas.append(nueva)
+        self._reindex()
+
     def add(self, codigo: str, descripcion: str, nivel: int,
             naturaleza: str, grupo: str = "") -> Cuenta:
         """Añade una cuenta. Devuelve la cuenta creada."""
@@ -182,7 +210,12 @@ class CatalogoCuentas:
         Se aceptan las columnas (en cualquier orden o por cabecera):
             codigo, descripcion, nivel, naturaleza[, grupo]
         Sin cabecera, se asume el orden: codigo,descripcion,nivel,naturaleza.
-        Reemplaza el catálogo actual.
+
+        Mergea con el catálogo actual (REQ-MIG-017): las cuentas del CSV
+        se agregan o actualizan por código; ninguna cuenta preexistente
+        se elimina porque el CSV no la mencione (ver `_merge_cuentas`).
+        El valor de retorno es el número de filas leídas del CSV, no el
+        tamaño del catálogo resultante.
         """
         import csv
 
@@ -222,15 +255,17 @@ class CatalogoCuentas:
             nuevas.append(Cuenta(codigo, desc, int(nivel), natura, grupo))
         if not nuevas:
             raise ValueError("No se encontraron cuentas en el CSV: %s" % ruta)
-        self.cuentas = nuevas
-        self._reindex()
+        self._merge_cuentas(nuevas)
         return len(nuevas)
 
     def importar_excel(self, ruta: str) -> int:
         """Importa el catálogo desde un archivo .xlsx del cliente.
 
         Lee la primera hoja con cabeceras: codigo, descripcion, nivel,
-        naturaleza[, grupo]. Requiere openpyxl. Devuelve cuentas leídas."""
+        naturaleza[, grupo]. Requiere openpyxl. Devuelve cuentas leídas.
+
+        Mergea con el catálogo actual (REQ-MIG-017): ver `importar_csv`/
+        `_merge_cuentas` -- ninguna cuenta preexistente se elimina."""
         try:
             from openpyxl import load_workbook
         except ImportError:  # pragma: no cover
@@ -261,8 +296,7 @@ class CatalogoCuentas:
             nuevas.append(Cuenta(codigo, desc, int(nivel), natura, grupo))
         if not nuevas:
             raise ValueError("No se encontraron cuentas en: %s" % ruta)
-        self.cuentas = nuevas
-        self._reindex()
+        self._merge_cuentas(nuevas)
         return len(nuevas)
 
     def importar_archivo(self, ruta: str) -> int:
