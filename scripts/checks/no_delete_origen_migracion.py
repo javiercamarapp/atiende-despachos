@@ -50,6 +50,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ARCHIVO_MIGRADOR = (
     REPO_ROOT / "b2b_ai" / "features" / "migracion_catalogo" / "migrador.py"
 )
+# cross_db.py (migración cross-database, ver fix/migracion-cross-database-
+# catalogo) es el otro módulo que toca la conexión de ORIGEN -- aunque solo
+# para leer (`cargar_catalogo_origen`/`cargar_poliza_origen`), la misma
+# regla de REQ-MIG-011 aplica: nunca debe aparecer un DELETE contra
+# `cuentas_contables`/`asientos_contables` ahí tampoco. Se cubre con el
+# mismo chequeo estático en vez de uno nuevo -- la regla es la misma,
+# solo cambia qué archivo se lee.
+ARCHIVO_CROSS_DB = (
+    REPO_ROOT / "b2b_ai" / "features" / "migracion_catalogo" / "cross_db.py"
+)
+ARCHIVOS_A_VERIFICAR = (ARCHIVO_MIGRADOR, ARCHIVO_CROSS_DB)
 
 # Tablas de origen reales de la migración de catálogo de cuentas (ver
 # `b2b_ai/db/models.py::cuentas_contables/asientos_contables`). Ninguna
@@ -119,27 +130,36 @@ def verificar(archivo: Path = ARCHIVO_MIGRADOR) -> List[str]:
 
 
 def main() -> int:
-    violaciones = verificar()
-    ruta_relativa = ARCHIVO_MIGRADOR.relative_to(REPO_ROOT)
-    if violaciones:
+    encontro_violacion = False
+    archivos_revisados = []
+    for archivo in ARCHIVOS_A_VERIFICAR:
+        violaciones = verificar(archivo)
+        ruta_relativa = archivo.relative_to(REPO_ROOT)
+        if not archivo.exists():
+            continue  # nada que revisar todavía -- no es una violación.
+        archivos_revisados.append(ruta_relativa)
+        if violaciones:
+            encontro_violacion = True
+            print(
+                f"REQ-MIG-011: DELETE FROM prohibido en {ruta_relativa} "
+                "contra tabla de origen (o tabla no determinable "
+                "estáticamente):",
+                file=sys.stderr,
+            )
+            for violacion in violaciones:
+                print(f"  - {violacion!r}", file=sys.stderr)
+    if encontro_violacion:
         print(
-            f"REQ-MIG-011: DELETE FROM prohibido en {ruta_relativa} "
-            "contra tabla de origen (o tabla no determinable "
-            "estáticamente):",
-            file=sys.stderr,
-        )
-        for violacion in violaciones:
-            print(f"  - {violacion!r}", file=sys.stderr)
-        print(
-            "El motor de migración de pólizas nunca debe borrar la "
-            "póliza o cuenta de origen (cuentas_contables, "
-            "asientos_contables) -- REQ-MIG-009/010 migran marcando "
-            "migrada_a_id, nunca borrando. Corrige "
-            f"{ruta_relativa}.",
+            "El motor de migración de pólizas (single-DB o cross-database) "
+            "nunca debe borrar la póliza o cuenta de origen "
+            "(cuentas_contables, asientos_contables) -- REQ-MIG-009/010 "
+            "migran marcando migrada_a_id / dejando origen intacto, nunca "
+            "borrando. Corrige el/los archivo(s) listados arriba.",
             file=sys.stderr,
         )
         return 1
-    print(f"OK (REQ-MIG-011): sin DELETE FROM contra tablas de origen en {ruta_relativa}")
+    lista = ", ".join(str(r) for r in archivos_revisados) or "(ningún archivo existe todavía)"
+    print(f"OK (REQ-MIG-011): sin DELETE FROM contra tablas de origen en {lista}")
     return 0
 
 
