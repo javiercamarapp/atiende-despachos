@@ -164,7 +164,7 @@ DEFAULT_RULES: List[Rule] = [
         classification=ClasificacionDeposito.FINANCIAMIENTO,
         condition=_matches_financiamiento,
         confidence=0.85,
-        articulo_cff="CFF Art. 14",
+        articulo_cff="CFF Art. 59 fracción III",
     ),
     Rule(
         name="Aportación-Socio",
@@ -172,7 +172,7 @@ DEFAULT_RULES: List[Rule] = [
         classification=ClasificacionDeposito.APORTACION_SOCIO,
         condition=_matches_aportacion_socio,
         confidence=0.90,
-        articulo_cff="CFF Art. 14",
+        articulo_cff="CFF Art. 59 fracción III",
     ),
     Rule(
         name="Garantía-Depósito",
@@ -180,7 +180,7 @@ DEFAULT_RULES: List[Rule] = [
         classification=ClasificacionDeposito.GARANTIA,
         condition=_matches_garantia,
         confidence=0.85,
-        articulo_cff=None,
+        articulo_cff="CFF Art. 59 fracción III",
     ),
 ]
 
