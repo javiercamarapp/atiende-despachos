@@ -9,9 +9,10 @@ in Mexico.
 """
 from __future__ import annotations
 
+import uuid as _uuid
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +53,145 @@ class TipoMovimientoAuxiliar(str, Enum):
     DEVOLUCION = "devolucion"
 
 
+def requiere_documento_soporte(clasificacion: "ClasificacionDeposito") -> bool:
+    """True si la clasificación exige documento real de soporte antes de
+    poder incluirse en un papel de trabajo exportable.
+
+    Solo las clasificaciones que recaracterizan un depósito como no
+    gravado por vía de la excepción del Art. 59 fracción III CFF
+    (financiamiento, aportación de socio, garantía) lo requieren. INGRESO
+    y OTRO_NO_GRAVABLE no. Equivalente, por diseño, a
+    ``clasificacion in CLASIFICACIONES_REQUIEREN_DOCUMENTO_SOPORTE``
+    (definido más abajo junto con el resto del modelo de REQ-IVA-002).
+    """
+    return clasificacion in (
+        ClasificacionDeposito.FINANCIAMIENTO,
+        ClasificacionDeposito.APORTACION_SOCIO,
+        ClasificacionDeposito.GARANTIA,
+    )
+
+
+class EstadoCasoDeposito(str, Enum):
+    """Estado de un caso de depósito evaluado para efectos de una
+    devolución de IVA (REQ-IVA-011, ADR-4).
+
+    Deliberadamente NO existe ningún valor de rechazo/negación en este
+    enum. El sistema nunca puede negar ni reducir automáticamente una
+    devolución de IVA solo porque un depósito clasificado como
+    financiamiento/aportación de socio/garantía resulte "sospechoso"
+    (sin documento de soporte o con score bajo de la regla que lo
+    clasificó) — el máximo que el sistema hace por sí mismo es señalar
+    el caso para revisión humana. A nivel de tipos, `CasoDepositoSospechoso`
+    ni siquiera puede representar un estado "rechazada": no es una
+    validación que se pueda olvidar en tiempo de ejecución.
+    """
+    EVIDENCIA_SUFICIENTE = "evidencia_suficiente"
+    REQUIERE_REVISION_HUMANA = "requiere_revision_humana"
+
+
+class OrigenClasificacion(str, Enum):
+    """Origen/estado de una clasificación de depósito.
+
+    REQ-IVA-013 / ADR-4 (docs/BLUEPRINT-AGENTES-FISCALES.md): el motor de
+    reglas por regex NUNCA produce directamente ``APROBADO`` — toda
+    clasificación que sale de `ClassificationEngine` nace en
+    `AUTOMATICO_SUGERIDO` y solo un humano, vía
+    `PATCH /clasificaciones/{id}/aprobar`, puede moverla a `APROBADO`.
+    Ninguna clasificación automática de primera pasada es una
+    determinación fiscal firme sin esa confirmación explícita.
+    """
+    AUTOMATICO_SUGERIDO = "automatico_sugerido"
+    APROBADO = "aprobado"
+
+
+# Identificador del motor de reglas automático, usado como valor de
+# `clasificado_por` cuando el clasificador es el `ClassificationEngine`
+# (nunca una persona) — ver REQ-IVA-013.
+ORIGEN_MOTOR_REGLAS = "motor_reglas_regex"
+
+# REQ-IVA-011 / ADR-4: nota exacta que el sistema debe registrar cuando
+# marca un caso de depósito sospechoso para revisión humana en vez de
+# aplicar por su cuenta la presunción del Art. 59 fracción III del CFF.
+NOTA_ART_59_FR_III_CFF = (
+    "Art. 59 fr. III CFF exige facultades de comprobación previas (PRODECON 1/2026)"
+)
+
+
+class CasoDepositoSospechoso(BaseModel):
+    """Evaluación de un depósito clasificado bajo la presunción del Art. 59
+    fracción III CFF (financiamiento/aportación de socio/garantía) para
+    efectos de una solicitud de devolución de IVA (REQ-IVA-011, ADR-4).
+
+    El campo `estado` usa `EstadoCasoDeposito`, que a propósito no incluye
+    ningún valor de rechazo: este modelo no puede representar una negación
+    automática de la devolución, solo evidencia suficiente o la necesidad
+    de revisión humana.
+    """
+    deposito_id: str = Field(default="", description="ID del depósito evaluado")
+    clasificacion: ClasificacionDeposito = Field(
+        ..., description="Clasificación fiscal del depósito"
+    )
+    confianza: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Confianza de la regla que produjo la clasificación",
+    )
+    documento_soporte_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Identificador del documento de soporte real (contrato de mutuo, "
+            "acta de asamblea, contrato de garantía) adjuntado a la "
+            "clasificación, si existe."
+        ),
+    )
+    estado: "EstadoCasoDeposito" = Field(
+        ..., description="'evidencia_suficiente' o 'requiere_revision_humana'"
+    )
+    requiere_revision_humana: bool = Field(
+        default=False,
+        description="True si el caso debe pasar a revisión humana antes de resolverse",
+    )
+    nota: Optional[str] = Field(
+        default=None,
+        description=(
+            f"Cuando `requiere_revision_humana` es True, contiene exactamente "
+            f"'{NOTA_ART_59_FR_III_CFF}'."
+        ),
+    )
+
+
+class EstadoRecaracterizacion(str, Enum):
+    """Estado de la evidencia documental que soporta una recaracterización
+    fiscal de un depósito (REQ-IVA-002).
+
+    - ``VIGENTE``: la clasificación actual (incluyendo INGRESO, que no
+      requiere documento) se sostiene tal como está.
+    - ``REQUIERE_FORMALIZACION``: la clasificación es una recaracterización
+      (financiamiento/aportación de socio/garantía) que todavía no tiene
+      `documento_soporte_id`; es el estado que produce automáticamente el
+      motor de reglas (`ClassificationEngine`) mientras nadie adjunta el
+      contrato de mutuo, acta de asamblea o contrato de garantía real
+      (REQ-IVA-003). Nunca es un error: es la sugerencia de primera pasada
+      exigida por el ADR-4 (nunca aplicar la presunción del Art. 59 fr. III
+      CFF por cuenta propia sin evidencia).
+    - ``RECARACTERIZADO``: la recaracterización ya cuenta con
+      `documento_soporte_id` real y puede considerarse formalizada.
+    """
+    VIGENTE = "vigente"
+    REQUIERE_FORMALIZACION = "requiere_formalizacion"
+    RECARACTERIZADO = "recaracterizado"
+
+
+# Clasificaciones que constituyen una recaracterización fiscal del depósito
+# (dejan de tratarse como ingreso gravado) y que, por lo tanto, exigen
+# evidencia documental real antes de poder persistirse como determinación
+# firme — ver ADR-4 en docs/BLUEPRINT-AGENTES-FISCALES.md y REQ-IVA-002.
+CLASIFICACIONES_REQUIEREN_DOCUMENTO_SOPORTE = frozenset({
+    ClasificacionDeposito.FINANCIAMIENTO,
+    ClasificacionDeposito.APORTACION_SOCIO,
+    ClasificacionDeposito.GARANTIA,
+})
+
+
 # ---------------------------------------------------------------------------
 # Bank deposit
 # ---------------------------------------------------------------------------
@@ -66,6 +206,26 @@ class DepositoBancario(BaseModel):
     banco: str = Field(default="", description="Nombre del banco")
     cuenta: str = Field(default="", description="Número de cuenta bancaria")
     es_credito: bool = Field(default=True, description="True si es abono/crédito; False si es cargo/débito")
+    documento_soporte_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "FK al repositorio de documentos (contrato de mutuo, acta de "
+            "asamblea, contrato de garantía) que soporta este depósito, si "
+            "ya se adjuntó uno (REQ-IVA-002/003)."
+        ),
+    )
+    fecha_documento: Optional[str] = Field(
+        default=None,
+        description="Fecha del documento de soporte adjunto (YYYY-MM-DD), si aplica.",
+    )
+    estado_recaracterizacion: EstadoRecaracterizacion = Field(
+        default=EstadoRecaracterizacion.VIGENTE,
+        description=(
+            "Estado de la evidencia documental para este depósito. Ver "
+            "`ClasificacionDepositoResult.estado_recaracterizacion` para la "
+            "regla de negocio completa; a nivel de depósito es informativo."
+        ),
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -120,6 +280,11 @@ class AuxiliarContable(BaseModel):
 
 class ClasificacionDepositoResult(BaseModel):
     """Resultado de la clasificación de un depósito bancario."""
+    id: str = Field(
+        default_factory=lambda: str(_uuid.uuid4()),
+        description="Identificador único de esta clasificación (usado por PATCH /clasificaciones/{id}/aprobar)",
+    )
+    tenant_id: Optional[str] = Field(default=None, description="Tenant ID propietario de la clasificación")
     deposito_id: str = Field(default="", description="ID del depósito clasificado")
     clasificacion: ClasificacionDeposito = Field(
         ...,
@@ -140,6 +305,124 @@ class ClasificacionDepositoResult(BaseModel):
         default=False,
         description="Si la clasificación requiere revisión humana",
     )
+    origen: OrigenClasificacion = Field(
+        default=OrigenClasificacion.AUTOMATICO_SUGERIDO,
+        description=(
+            "Estado de confirmación de la clasificación. El motor de reglas por "
+            "regex SIEMPRE produce 'automatico_sugerido'; solo pasa a 'aprobado' "
+            "vía PATCH /clasificaciones/{id}/aprobar confirmado por un humano "
+            "(REQ-IVA-013, ADR-4: ninguna clasificación automática de primera "
+            "pasada es una determinación fiscal firme sin revisión humana)."
+        ),
+    )
+    clasificado_por: Optional[str] = Field(
+        default=None,
+        description=(
+            "Quién produjo esta clasificación. Para clasificaciones no triviales "
+            "(financiamiento/aportación_socio/garantía) queda registrado con el "
+            "identificador del motor automático (ver ORIGEN_MOTOR_REGLAS); nunca "
+            "queda vacío en ese caso."
+        ),
+    )
+    clasificado_en: Optional[str] = Field(
+        default=None,
+        description=(
+            "Timestamp ISO 8601 de cuándo se produjo la clasificación. Obligatorio "
+            "(no None) para clasificaciones no triviales (financiamiento/"
+            "aportación_socio/garantía)."
+        ),
+    )
+    aprobado_por: Optional[str] = Field(
+        default=None,
+        description="Identificador del humano que confirmó la clasificación vía PATCH /clasificaciones/{id}/aprobar",
+    )
+    aprobado_en: Optional[str] = Field(
+        default=None,
+        description="Timestamp ISO 8601 de la aprobación humana",
+    )
+    documento_soporte_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "FK al repositorio de documentos (contrato de mutuo, acta de "
+            "asamblea, contrato de garantía) que soporta esta clasificación "
+            "(REQ-IVA-002/003). Obligatorio y no nulo para poder persistir "
+            "una clasificación FINANCIAMIENTO, APORTACION_SOCIO o GARANTIA — "
+            "ver `puede_persistirse()`/`assert_puede_persistirse()`."
+        ),
+    )
+    fecha_documento: Optional[str] = Field(
+        default=None,
+        description="Fecha del documento de soporte adjunto (YYYY-MM-DD), si aplica.",
+    )
+    estado_recaracterizacion: EstadoRecaracterizacion = Field(
+        default=EstadoRecaracterizacion.VIGENTE,
+        description=(
+            "Estado de la evidencia documental de esta recaracterización. "
+            "Se autoasigna a 'requiere_formalizacion' cuando la clasificación "
+            "es financiamiento/aportación_socio/garantía y todavía no hay "
+            "`documento_soporte_id` — nunca se acepta que ese caso se declare "
+            "'vigente' o 'recaracterizado' sin evidencia real (ADR-4)."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _aplicar_regla_evidencia_documental(self) -> "ClasificacionDepositoResult":
+        """REQ-IVA-002 / ADR-4: nunca aceptar como cerrada (`vigente` o
+        `recaracterizado`) una recaracterización (financiamiento/aportación
+        de socio/garantía) sin `documento_soporte_id` real.
+
+        Esto NO bloquea la sugerencia automática de primera pasada que
+        produce `ClassificationEngine` (REQ-IVA-013/ADR-4: esa sugerencia
+        debe poder generarse siempre, sin documento, para que un humano la
+        revise) — solo evita que el propio modelo declare, sin evidencia,
+        que el caso ya está `vigente` o `recaracterizado`. Quien de verdad
+        necesita bloquear la persistencia final debe usar
+        `puede_persistirse()` / `assert_puede_persistirse()`.
+        """
+        requiere_evidencia = self.clasificacion in CLASIFICACIONES_REQUIEREN_DOCUMENTO_SOPORTE
+        tiene_documento = bool(self.documento_soporte_id)
+
+        if requiere_evidencia and not tiene_documento:
+            estado_declarado_explicitamente = "estado_recaracterizacion" in self.model_fields_set
+            if estado_declarado_explicitamente and self.estado_recaracterizacion != EstadoRecaracterizacion.REQUIERE_FORMALIZACION:
+                raise ValueError(
+                    f"La clasificación '{self.clasificacion.value}' no tiene "
+                    f"documento_soporte_id; no puede declararse "
+                    f"estado_recaracterizacion="
+                    f"'{self.estado_recaracterizacion.value}' sin evidencia "
+                    f"documental real (contrato de mutuo, acta de asamblea o "
+                    f"contrato de garantía) — Art. 59 fracción III CFF, ADR-4."
+                )
+            # Sugerencia automática sin documento todavía: queda marcada
+            # explícitamente como pendiente de formalización, nunca como
+            # determinación fiscal firme.
+            self.estado_recaracterizacion = EstadoRecaracterizacion.REQUIERE_FORMALIZACION
+
+        return self
+
+    def puede_persistirse(self) -> bool:
+        """True si esta clasificación puede persistirse como determinación
+        firme: toda clasificación FINANCIAMIENTO/APORTACION_SOCIO/GARANTIA
+        exige `documento_soporte_id` no nulo (REQ-IVA-002)."""
+        requiere_evidencia = self.clasificacion in CLASIFICACIONES_REQUIEREN_DOCUMENTO_SOPORTE
+        return (not requiere_evidencia) or bool(self.documento_soporte_id)
+
+
+def assert_puede_persistirse(clasificacion: ClasificacionDepositoResult) -> None:
+    """Punto de aplicación explícito de REQ-IVA-002: levanta `ValueError` si
+    `clasificacion` es FINANCIAMIENTO, APORTACION_SOCIO o GARANTIA y no tiene
+    `documento_soporte_id` no nulo. Debe invocarse antes de cualquier
+    escritura a un almacenamiento persistente (BD, papel de trabajo
+    exportable) de una `ClasificacionDepositoResult`.
+    """
+    if not clasificacion.puede_persistirse():
+        raise ValueError(
+            f"La clasificación de depósito '{clasificacion.deposito_id}' "
+            f"('{clasificacion.clasificacion.value}') no puede persistirse "
+            f"sin documento_soporte_id no nulo (contrato de mutuo, acta de "
+            f"asamblea o contrato de garantía) — Art. 59 fracción III CFF, "
+            f"ADR-4 (docs/BLUEPRINT-AGENTES-FISCALES.md)."
+        )
 
 
 # ---------------------------------------------------------------------------
