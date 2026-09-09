@@ -161,6 +161,40 @@ opción. Eso implica que la ruta realista para "envío automatizado" no es
    soportada, documentándolo como tal en vez de simular un endpoint SOAP
    que no se pudo confirmar que existe.
 
+### Prototipo de la opción 2 (RPA sobre el portal) — SOLO contra simulador local
+
+Existe ya un prototipo de la opción 2 en
+`b2b_ai/features/declaraciones/sat_portal_rpa_driver.py`
+(`SATPortalRPADriver`, Playwright), construido bajo la regla no negociable
+de nunca conectarse al dominio real del SAT. Su estado:
+
+- Probado **exclusivamente** contra un simulador local propio
+  (`tests/fixtures/sat_portal_simulator.py`, servidor HTTP stdlib que imita
+  la estructura de pasos: login e.firma → portafolio → módulo DIOT → carga
+  → confirmación → acuse). El simulador NO se construyó a partir de una
+  sesión real del portal — es una conjetura educada a partir de
+  conocimiento público general; cada selector que asume está marcado en el
+  código como "simulador local (confirmado)" vs. "conjetura, NO verificada".
+- `VERIFICADO_CONTRA_SAT_REAL = False` en ese módulo, y el driver **rechaza
+  técnicamente** (`SATPortalRealDomainBlocked`) conectarse a cualquier host
+  bajo `*.gob.mx` — no es solo un aviso en texto, es un guard-clause en
+  `__init__`/`connect()`.
+- Fail-closed: cada paso (login, navegación, carga, confirmación) solo
+  avanza si reconoce explícitamente un marcador de éxito; CAPTCHA, error de
+  credenciales, portal caído o cualquier estado no reconocido detienen el
+  flujo con un resultado claro — nunca se reintenta a ciegas ni se fabrica
+  un folio si el portal (simulador) no lo entregó.
+- Pruebas de contrato completas en `tests/test_sat_portal_rpa_driver.py`:
+  flujo exitoso de punta a punta, credenciales inválidas, CAPTCHA, portal
+  caído, archivo DIOT rechazado y timeout — todas contra el simulador.
+
+Antes de usar esto contra el SAT real con un cliente real faltan, sin
+excepción, los tres pasos (a)/(b)/(c) del requisito no negociable #5 de la
+tarea que originó este prototipo: (a) confirmar la estructura real del
+portal contra una sesión manual real, (b) probar contra un sandbox del SAT
+si existe uno para este flujo, (c) revisión legal de que automatizar el
+portal no viola sus términos de uso. Ninguno de los tres se ha hecho.
+
 ### Interfaz objetivo (si la opción 1 resulta viable)
 
 ```python

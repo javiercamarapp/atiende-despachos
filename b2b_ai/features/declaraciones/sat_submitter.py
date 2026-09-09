@@ -38,6 +38,12 @@ HONESTIDAD / ESTADO ACTUAL (FIS-019, ver docs/AUDIT-FINAL-FISCAL.md):
     una declaración es: a) subida manual al portal SAT de los archivos que
     genera este sistema, o b) integración con software de despacho
     (CONTPAQi, Aspel, etc.) o un PAC.
+
+    Prototipo de una tercera vía (RPA sobre el portal público, opción 2 de
+    docs/CONTRATO-SAT-INTEGRACION-REAL.md §2): ver
+    `sat_portal_rpa_driver.SATPortalRPADriver` en este mismo paquete. Sigue
+    sin estar verificado contra el SAT real (`VERIFICADO_CONTRA_SAT_REAL =
+    False` en ese módulo) — probado solo contra un simulador local.
 """
 from __future__ import annotations
 

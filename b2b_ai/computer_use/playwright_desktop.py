@@ -345,6 +345,30 @@ class PlaywrightDesktop(DesktopAutomation):
             logger.error("playwright:fill FAILED sel=%s error=%s", selector, e)
             return {"ok": False, "selector": selector, "error": str(e)}
 
+    async def upload_file(self, selector: str, file_path: str) -> Dict[str, Any]:
+        """Set a file on an <input type="file"> element (with retry).
+
+        Args:
+            selector: CSS selector for the file input.
+            file_path: Absolute path to the local file to attach.
+
+        Returns:
+            Dict with {ok, selector, file_path}.
+        """
+        if not self._page:
+            return {"ok": False, "selector": selector, "error": "No browser page active"}
+        try:
+            await _retry_async(
+                lambda: self._page.set_input_files(selector, file_path),
+                max_attempts=self.retry_max_attempts,
+                operation=f"upload_file({selector})",
+            )
+            logger.debug("playwright:upload_file sel=%s", selector)
+            return {"ok": True, "selector": selector, "file_path": file_path}
+        except Exception as e:
+            logger.error("playwright:upload_file FAILED sel=%s error=%s", selector, e)
+            return {"ok": False, "selector": selector, "error": str(e)}
+
     async def select_dropdown(self, selector: str, value: str) -> Dict[str, Any]:
         """Select an option from a <select> dropdown by label or value.
 
