@@ -10,9 +10,20 @@ Features:
   - 429 Too Many Requests with structured JSON error
 
 Config (env vars):
-  B2B_REDIS_URL              Redis connection string (default: in-memory)
+  B2B_REDIS_URL              Redis connection string (default: falls back below)
+  B2B_DB_URL / DATABASE_URL  PostgreSQL DSN — used as the persisted, multi-worker
+                              -safe backend when no Redis is configured (see
+                              b2b_ai/infrastructure/rate_limit_store.py)
   B2B_RATE_LIMIT_PER_MIN     Global default (default: 300)
   B2B_RATE_LIMIT_PER_TENANT  Per-tenant default (default: 600)
+
+Backend selection order: Redis (if B2B_REDIS_URL reachable) > PostgreSQL (if
+B2B_DB_URL/DATABASE_URL points at Postgres and is reachable) > in-memory
+(single-process fallback, dev/tests only — does NOT share state across
+workers/replicas). Postgres is the backend most deployments of this app
+already have available without adding infrastructure, so it is preferred
+over the in-memory fallback: multi-worker/multi-replica deployments get a
+shared, correct rate limit even without Redis.
 
 Usage:
     from b2b_ai.api.rate_limiter import install_enterprise_rate_limit
@@ -21,6 +32,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 import time
 import threading
 from collections import defaultdict
@@ -28,6 +40,17 @@ from typing import Any, Dict, Optional, Tuple
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+
+# Extrae el tenant_id de una key con el formato que arma `_build_key` más
+# abajo (`rl:tenant:{tenant_id}:{path}`), para poder persistirlo como
+# columna propia en Postgres sin cambiar la firma de `check_and_consume`
+# que ya usan _RedisBackend/_MemoryBackend (key, limit, window_seconds).
+_TENANT_KEY_RE = re.compile(r"^rl:tenant:(\d+):")
+
+
+def _tenant_id_from_key(key: str) -> Optional[int]:
+    m = _TENANT_KEY_RE.match(key)
+    return int(m.group(1)) if m else None
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +160,61 @@ class _MemoryBackend:
         return True
 
 
+class _PostgresBackend:
+    """Adapter: expone el contrato check_and_consume/get_usage/reset/health
+    de este archivo sobre `b2b_ai.infrastructure.rate_limit_store.RateLimitStore`
+    (ventana fija persistida en PostgreSQL — ver ese módulo para el diseño y
+    por qué es la pieza que hace que el límite sobreviva a múltiples workers
+    sin depender de Redis).
+
+    `key` sigue siendo la única entrada de identidad (mismo esquema que
+    _RedisBackend/_MemoryBackend: `rl:tenant:{tenant_id}:{path}` o
+    `rl:ip:{ip}:{path}`, armadas por `_build_key` más abajo). Cuando la key
+    trae un tenant_id (`_tenant_id_from_key`) se persiste además como
+    columna propia en la tabla — así queda disponible para reporting por
+    tenant sin volver a tocar esta clase.
+    """
+
+    def __init__(self, store) -> None:
+        self._store = store
+
+    def check_and_consume(
+        self, key: str, limit: int, window_seconds: float
+    ) -> Tuple[int, float]:
+        return self._store.check_and_consume(
+            key, limit, window_seconds, tenant_id=_tenant_id_from_key(key)
+        )
+
+    def get_usage(self, key: str, window_seconds: float) -> int:
+        return self._store.get_usage(key, window_seconds)
+
+    def reset(self, key: str) -> None:
+        self._store.reset(key)
+
+    def health(self) -> bool:
+        return self._store.health()
+
+
+def _get_postgres_backend() -> Optional["_PostgresBackend"]:
+    """PostgreSQL-backed rate limiter si hay B2B_DB_URL/DATABASE_URL
+    apuntando a Postgres y es alcanzable; None si no (el llamador cae a
+    memoria, igual que ya hace con Redis si _RedisBackend falla).
+
+    Import tardío a propósito: así este archivo no exige psycopg/psycopg_pool
+    instalados cuando nadie configuró Postgres para rate limiting (mismo
+    patrón que el import tardío de `redis` en _RedisBackend), y evita
+    cualquier acoplamiento en tiempo de import con b2b_ai/infrastructure/.
+    """
+    try:
+        from b2b_ai.infrastructure.rate_limit_store import get_store
+    except Exception:  # noqa: BLE001 — módulo no disponible en este deploy
+        return None
+    store = get_store()
+    if store is None:
+        return None
+    return _PostgresBackend(store)
+
+
 # ---------------------------------------------------------------------------
 # Rate limit configuration
 # ---------------------------------------------------------------------------
@@ -170,13 +248,17 @@ EXEMPT_PREFIXES = (
 
 
 def _get_backend(redis_url: Optional[str] = None):
-    """Get rate limiter backend. Tries Redis, falls back to memory."""
+    """Get rate limiter backend. Tries Redis, then PostgreSQL, falls back
+    to in-memory (single-process only — see module docstring)."""
     url = redis_url or os.environ.get("B2B_REDIS_URL", "")
     if url:
         try:
             return _RedisBackend(url)
         except RuntimeError:
-            pass  # Fall back to in-memory
+            pass  # Fall back below
+    pg_backend = _get_postgres_backend()
+    if pg_backend is not None:
+        return pg_backend
     return _MemoryBackend()
 
 
