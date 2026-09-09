@@ -173,7 +173,18 @@ def test_onboarding_flow(pilot_client, piloto_headers):
     h = piloto_headers
     sid = _run_onboarding_to_checkout(c, h)
 
-    # complete → health check
+    # complete con checkout apenas iniciado (sin pago confirmado) -> no completa
+    rc = c.post(f"/api/v1/onboarding-wizard/{sid}/complete", headers=h)
+    assert rc.status_code == 200, rc.text
+    assert rc.json()["ok"] is False
+    assert rc.json()["session"]["status"] != "completed"
+
+    # llega el callback de Conekta confirmando el pago
+    cb = c.post(f"/api/v1/onboarding-wizard/{sid}/checkout/callback", headers=h,
+                json={"status": "paid", "plan": "professional"})
+    assert cb.status_code == 200, cb.text
+
+    # complete → health check, ahora sí completa
     rc = c.post(f"/api/v1/onboarding-wizard/{sid}/complete", headers=h)
     assert rc.status_code == 200, rc.text
     assert rc.json()["ok"] is True

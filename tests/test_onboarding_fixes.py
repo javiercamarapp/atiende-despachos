@@ -13,7 +13,11 @@ Cubre los 3 hallazgos de QA (deliverable 206) que bloqueaban el piloto:
 
   P1-3: No se puede completar sin checkout (wizard.py)
         `complete()` exige que el paso checkout esté completado (progress>=5).
-        Si falta checkout devuelve error con el paso faltante.
+        Si falta checkout devuelve error con el paso faltante. Además, tener
+        el checkout solo *iniciado* no basta para marcar la sesión como
+        completada: el health check exige que el pago esté *confirmado*
+        (`checkout.status == "paid"`, vía el callback de Conekta) antes de
+        que `complete()` pase el status a COMPLETED.
 
 Se construye el router con un auth stub que devuelve el MISMO contrato que el
 auth real (`make_require_api_key`): un dict con `tenant_id`. Se varía el tenant
@@ -242,21 +246,39 @@ class TestP3CheckoutRequired:
         # La sesión sigue sin completarse.
         assert session.is_complete is False
 
-    def test_complete_con_checkout_ok(self, wizard):
-        """Con checkout completado, complete() cierra el onboarding."""
+    def test_complete_con_checkout_iniciado_pero_sin_pagar_no_completa(self, wizard):
+        """Checkout iniciado (sin pago confirmado) no basta: no completa."""
         session = wizard.start(tenant_id="tenant_A")
         _run_to_checkout(wizard, session.session_id)
         wizard.advance_step(session.session_id, "checkout", {"plan": "professional"})
         assert session.progress == 5
+        # El gate por progreso ya no bloquea (progress==5), pero el health
+        # check detecta que el pago sigue pendiente -> no se completa.
+        result = wizard.complete(session.session_id)
+        assert result["ok"] is False
+        assert result["session"]["status"] != "completed"
+        assert session.is_complete is False
+
+    def test_complete_con_pago_confirmado_ok(self, wizard):
+        """Con checkout iniciado Y pago confirmado, complete() cierra el onboarding."""
+        session = wizard.start(tenant_id="tenant_A")
+        _run_to_checkout(wizard, session.session_id)
+        wizard.advance_step(session.session_id, "checkout", {"plan": "professional"})
+        assert session.progress == 5
+        # Simula el callback de pago (Conekta) confirmando el cobro.
+        session.data["checkout"]["status"] = "paid"
         result = wizard.complete(session.session_id)
         assert result["ok"] is True
         assert result["session"]["status"] == "completed"
         assert session.is_complete is True
 
     def test_complete_sin_ningun_paso_rechaza(self, wizard):
-        """completa sin pasos -> error con paso faltante (checkout)."""
+        """completa sin pasos -> error, señalando el primer paso pendiente
+        (tenant) y el progreso real (0/6). El checkout sigue faltando pero,
+        al no haberse dado ningún paso, el paso pendiente más próximo es el
+        primero del flujo, no el checkout."""
         session = wizard.start(tenant_id="tenant_A")
-        with pytest.raises(OnboardingWizardError, match="checkout"):
+        with pytest.raises(OnboardingWizardError, match=r"faltan pasos \(tenant\).*Progreso 0/6"):
             wizard.complete(session.session_id)
 
     def test_complete_exige_progress_5(self, wizard):
@@ -276,13 +298,27 @@ class TestP3CheckoutRequired:
 
     def test_api_flujo_completo_con_checkout_ok(self, client, auth_tenant, wizard,
                                                monkeypatch):
-        """Flujo completo por API: checkout completado -> complete() 200."""
+        """Flujo completo por API: checkout iniciado + pago confirmado
+        (callback) -> complete() 200 con la sesión completada."""
         monkeypatch.setenv("B2B_PAYMENTS_MOCK", "1")
         sid = _start_session(client)
         _run_to_checkout(wizard, sid)
         r = client.post(f"/api/v1/onboarding-wizard/{sid}/step/checkout",
                         json={"payload": {"plan": "professional"}})
         assert r.status_code == 200, r.text
+
+        # Sin confirmar el pago, complete() no marca la sesión como completa.
         r = client.post(f"/api/v1/onboarding-wizard/{sid}/complete")
         assert r.status_code == 200, r.text
+        assert r.json()["ok"] is False
+        assert r.json()["session"]["status"] != "completed"
+
+        # Llega el callback de Conekta confirmando el pago.
+        r = client.post(f"/api/v1/onboarding-wizard/{sid}/checkout/callback",
+                        json={"status": "paid", "plan": "professional"})
+        assert r.status_code == 200, r.text
+
+        r = client.post(f"/api/v1/onboarding-wizard/{sid}/complete")
+        assert r.status_code == 200, r.text
+        assert r.json()["ok"] is True
         assert r.json()["session"]["status"] == "completed"

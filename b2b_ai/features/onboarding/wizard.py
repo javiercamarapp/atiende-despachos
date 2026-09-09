@@ -414,9 +414,18 @@ class OnboardingWizard:
     # ------------------------------------------------------------------
 
     def complete(self, session_id: str) -> Dict[str, Any]:
-        """Cierra el onboarding: corre el health check y completa."""
+        """Cierra el onboarding: corre el health check y completa.
+
+        El gate exige los 5 pasos previos al health-check (incluido el
+        checkout) ya completados en `completed_steps`. Eso solo significa que
+        el checkout fue *iniciado*: el estado global de la sesión no pasa a
+        COMPLETED a menos que el health check confirme también que el pago
+        quedó *confirmado* (`checkout.status == "paid"`, ver `_health_check`).
+        Si el pago sigue pendiente, la sesión permanece IN_PROGRESS y se
+        puede volver a llamar `complete()` tras el callback de pago.
+        """
         session = self.get_session(session_id)
-        if session.progress < 4:
+        if session.progress < 5:
             raise OnboardingWizardError(
                 f"No se puede completar: faltan pasos "
                 f"({session.current_step or 'health_check'}). "
@@ -428,13 +437,15 @@ class OnboardingWizard:
             session.completed_steps.append(OnboardingStep.HEALTH_CHECK.value)
         report = self._health_check(session)
         session.data[OnboardingStep.HEALTH_CHECK.value] = report
-        session.status = OnboardingStatus.COMPLETED
-        session.completed_at = _utcnow()
-        tenant = _tenants.get(session.tenant_id)
-        if tenant:
-            tenant["config"]["onboarding_status"] = "completed"
+        is_healthy = report["status"] == "healthy"
+        if is_healthy:
+            session.status = OnboardingStatus.COMPLETED
+            session.completed_at = _utcnow()
+            tenant = _tenants.get(session.tenant_id)
+            if tenant:
+                tenant["config"]["onboarding_status"] = "completed"
         session.touch()
-        return {"ok": True, "session": session.to_dict(), "health": report}
+        return {"ok": is_healthy, "session": session.to_dict(), "health": report}
 
     def health_check(self, session_id: str) -> Dict[str, Any]:
         """Devuelve el checklist de salud de una sesión sin cerrarla."""
@@ -476,10 +487,13 @@ class OnboardingWizard:
         else:
             add("test_cfdi", False, "no hay CFDI de prueba validado")
 
-        # 5. Checkout / pago
+        # 5. Checkout / pago (debe estar INICIADO y con el pago CONFIRMADO,
+        # no basta con que exista la checkout_url).
         chk = session.data.get("checkout") or (tenant or {}).get("config", {}).get("checkout")
-        if chk and chk.get("checkout_url"):
-            add("checkout", True, f"checkout {chk.get('plan')} iniciado ({chk.get('checkout_url')})")
+        if chk and chk.get("checkout_url") and chk.get("status") == "paid":
+            add("checkout", True, f"checkout {chk.get('plan')} pagado ({chk.get('checkout_url')})")
+        elif chk and chk.get("checkout_url"):
+            add("checkout", False, f"checkout {chk.get('plan')} iniciado, pago pendiente de confirmación")
         else:
             add("checkout", False, "no se ha iniciado el checkout")
 
