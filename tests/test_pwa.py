@@ -19,7 +19,7 @@ def test_manifest_served(tmp_path):
     man = r.json()
     assert man["name"]
     assert man["short_name"]
-    assert man["start_url"] == "/dashboard"
+    assert man["start_url"] == "/"  # REQ-UX: evita el auth-gate al abrir la PWA desde el home screen
     assert man["display"] == "standalone"
     assert man["theme_color"]
     sizes = {i["sizes"] for i in man["icons"]}
