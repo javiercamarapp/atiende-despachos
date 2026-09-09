@@ -63,13 +63,18 @@ ADVERTENCIA_ART_59_FRACC_III = (
 # REQ-IVA-014 — FED (Formato Electrónico de Devoluciones), anexo 7/7-A
 # ---------------------------------------------------------------------------
 #
-# Los 9 campos mínimos por línea de proveedor exigidos por el anexo 7/7-A.
-# El orden es también el orden de columnas del CSV exportado.
+# Los 9 campos mínimos por línea de proveedor exigidos por el anexo 7/7-A,
+# más `concepto` (10º campo): éste último NO es parte de los 9 mínimos
+# oficiales del SAT — es una extensión pedida explícitamente por el dueño
+# del despacho para que el concepto de la factura viaje siempre junto con
+# folio fiscal/folio factura/fecha de pago/banco en el FED exportado. El
+# orden es también el orden de columnas del CSV exportado.
 CAMPOS_FED_ANEXO7 = (
     "rfc",
     "nombre_razon_social",
     "folio_fiscal",
     "folio_factura",
+    "concepto",
     "fecha_factura",
     "fecha_pago",
     "forma_pago",
@@ -218,6 +223,11 @@ class WorkpaperGenerator:
                 "iva_acreditable": e.iva_acreditable,
                 "num_facturas": len(e.folios_fiscales),
                 "folios_fiscales": e.folios_fiscales,
+                # Petición explícita del dueño del despacho: el desglose de
+                # proveedores debe traer el concepto de la factura junto
+                # con folio fiscal/folio factura/fecha de pago/banco, no
+                # solo el UUID suelto de `folios_fiscales`.
+                "facturas_detalle": [d.model_dump() for d in e.facturas_detalle],
             })
 
         return {
@@ -426,6 +436,8 @@ class WorkpaperGenerator:
             faltantes.append("folio_fiscal")
         if not factura.folio_factura or not str(factura.folio_factura).strip():
             faltantes.append("folio_factura")
+        if not factura.concepto or not str(factura.concepto).strip():
+            faltantes.append("concepto")
         if not factura.fecha or not factura.fecha.strip():
             faltantes.append("fecha_factura")
         if not factura.fecha_pago or not factura.fecha_pago.strip():
@@ -439,11 +451,13 @@ class WorkpaperGenerator:
     def exportar_fed_anexo7(self, facturas: List[FacturaCFDI]) -> List[Dict[str, Any]]:
         """REQ-IVA-014 — FED exportable, anexo 7/7-A, uno por proveedor/factura.
 
-        Cada fila tiene exactamente los 9 campos mínimos del anexo 7/7-A
-        definidos en `CAMPOS_FED_ANEXO7`, ninguno nulo/vacío:
+        Cada fila tiene exactamente los 10 campos definidos en
+        `CAMPOS_FED_ANEXO7` (los 9 mínimos oficiales del anexo 7/7-A más
+        `concepto`, agregado a petición explícita del despacho), ninguno
+        nulo/vacío:
           RFC, nombre/razón social, folio fiscal, folio de factura,
-          fecha de factura, fecha de pago, forma de pago, banco de pago
-          e IVA trasladado/acreditable.
+          concepto, fecha de factura, fecha de pago, forma de pago,
+          banco de pago e IVA trasladado/acreditable.
 
         Si a alguna factura le falta un dato obligatorio para el anexo
         (p.ej. no se capturó `banco_pago` o `fecha_pago`), la exportación
@@ -463,6 +477,7 @@ class WorkpaperGenerator:
                 "nombre_razon_social": factura.nombre_emisor,
                 "folio_fiscal": factura.uuid,
                 "folio_factura": factura.folio_factura,
+                "concepto": factura.concepto,
                 "fecha_factura": factura.fecha,
                 "fecha_pago": factura.fecha_pago,
                 "forma_pago": factura.forma_pago,

@@ -32,6 +32,7 @@ from .models import (
     ConciliacionFacturasDIOT,
     DeclaracionMensual,
     DIOTEntry,
+    DIOTFacturaDetalle,
     EstadoEnvioSolicitud,
     EstatusConciliacion,
     EstatusDevolucion,
@@ -252,6 +253,111 @@ def clasificar_iva(facturas: List[FacturaCFDI]) -> Dict[str, List[FacturaCFDI]]:
 
 
 # ---------------------------------------------------------------------------
+# Step 1b: Auto-ingesta desde el pipeline CFDI real
+# ---------------------------------------------------------------------------
+#
+# Hasta ahora TODOS los endpoints/funciones de este módulo reciben
+# `facturas`/`facturas_json` armados a mano por quien llama — nunca se
+# conectan solos a los CFDIs que el pipeline real
+# (`b2b_ai.services.pipeline.process_file`/`process_batch`) ya parseó,
+# validó y persistió en la tabla `invoices` de `Database`
+# (`b2b_ai/db/db.py`). Lo de abajo arma automáticamente `List[FacturaCFDI]`
+# para un `tenant_id`/`periodo` dados reutilizando esa persistencia — NUNCA
+# vuelve a leer/parsear XML ni reinventa el parseo/validación de CFDI. El
+# modo manual (pasar `facturas`/`facturas_json` explícitos al resto de las
+# funciones/endpoints de este módulo) sigue siendo el fallback para cuando
+# quien llama quiere usar otra fuente de datos.
+
+_TIPO_COMPROBANTE_A_TIPO_FACTURA: Dict[str, TipoFactura] = {
+    "I": TipoFactura.INGRESO,
+    "E": TipoFactura.EGRESO,
+    "T": TipoFactura.TRASLADO,
+    "P": TipoFactura.PAGO,
+    "N": TipoFactura.NOMINA,
+}
+
+
+def _factura_desde_invoice_row(row: Dict[str, Any]) -> Optional[FacturaCFDI]:
+    """Convierte una fila ya persistida de `invoices` (pipeline CFDI real,
+    ver `b2b_ai.db.db.Database.list_invoices`) al esquema `FacturaCFDI` de
+    este módulo.
+
+    Devuelve `None` (nunca inventa datos) cuando a la fila le falta el UUID
+    (folio fiscal) o la fecha, o cuando los datos fiscales mínimos
+    (RFC emisor/receptor) no pasan la validación real del modelo — en vez
+    de fabricar un valor de relleno para que el registro "pase".
+    """
+    folio_fiscal = (row.get("folio_fiscal") or "").strip()
+    fecha = (row.get("fecha") or "")[:10]
+    if not folio_fiscal or not fecha:
+        return None
+
+    serie = (row.get("serie") or "").strip()
+    folio = (row.get("folio") or "").strip()
+    folio_factura = f"{serie}{folio}".strip() or None
+    if folio_factura and folio_factura.upper() == folio_fiscal.upper():
+        # No debería pasar con datos reales (folio_factura es serie+folio,
+        # folio_fiscal es el UUID del timbrado) pero, si pasara con datos
+        # corruptos, se descarta el folio en vez de rechazar la fila
+        # completa — `FacturaCFDI` exige que sean distintos.
+        folio_factura = None
+
+    tipo = _TIPO_COMPROBANTE_A_TIPO_FACTURA.get(
+        (row.get("tipo") or "").strip().upper(), TipoFactura.INGRESO,
+    )
+    concepto = (row.get("descripcion") or "").strip() or None
+
+    try:
+        return FacturaCFDI(
+            uuid=folio_fiscal,
+            rfc_emisor=row.get("emisor_rfc") or "",
+            nombre_emisor=row.get("emisor_nombre") or "",
+            rfc_receptor=row.get("receptor_rfc") or "",
+            fecha=fecha,
+            subtotal=float(row.get("subtotal") or 0.0),
+            iva=float(row.get("iva") or 0.0),
+            total=float(row.get("total") or 0.0),
+            tipo=tipo,
+            concepto=concepto,
+            folio_factura=folio_factura,
+        )
+    except ValueError:
+        # Fila persistida con datos fiscales incompletos/incongruentes
+        # (p.ej. RFC vacío): se omite en vez de inventar datos fiscales.
+        return None
+
+
+def auto_ingestar_facturas(
+    db: Database,
+    tenant_id: Any,
+    periodo: str,
+) -> List[FacturaCFDI]:
+    """Arma automáticamente `List[FacturaCFDI]` desde los CFDIs YA
+    procesados y almacenados por el pipeline real para `tenant_id` y
+    `periodo` (YYYY-MM).
+
+    `tenant_id` aquí es el tenant_id entero de `Database`/el pipeline CFDI
+    (`b2b_ai.services.pipeline.ensure_tenant`), no el `tenant_id` string
+    usado en el resto de este módulo para solicitudes/DIOT — son dos
+    espacios de identificador distintos en este código base; este helper
+    solo puentea el de la tabla `invoices` real.
+
+    Reutiliza `Database.list_invoices` (mismo filtrado/aislamiento
+    multi-tenant que ya usa el resto del pipeline) y filtra por período
+    sobre `fecha`. Nunca vuelve a parsear XML.
+    """
+    rows = db.list_invoices(tenant_id=tenant_id)
+    facturas: List[FacturaCFDI] = []
+    for row in rows:
+        if (row.get("fecha") or "")[:7] != periodo:
+            continue
+        factura = _factura_desde_invoice_row(row)
+        if factura is not None:
+            facturas.append(factura)
+    return facturas
+
+
+# ---------------------------------------------------------------------------
 # Step 2: Generar DIOT
 # ---------------------------------------------------------------------------
 
@@ -269,6 +375,7 @@ def generar_diot(facturas: List[FacturaCFDI]) -> List[DIOTEntry]:
         "iva_trasladado": 0.0,
         "iva_acreditable": 0.0,
         "folios": [],
+        "detalle": [],
     })
 
     for f in facturas:
@@ -289,6 +396,16 @@ def generar_diot(facturas: List[FacturaCFDI]) -> List[DIOTEntry]:
         g["iva_trasladado"] += f.iva
         g["iva_acreditable"] += iva_acreditable
         g["folios"].append(f.uuid)
+        # Petición explícita del despacho: el desglose de proveedores debe
+        # traer el concepto de la factura junto con folio fiscal, folio de
+        # factura, fecha de pago y banco — no solo el UUID de `folios`.
+        g["detalle"].append(DIOTFacturaDetalle(
+            folio_fiscal=f.uuid,
+            folio_factura=f.folio_factura,
+            concepto=f.concepto,
+            fecha_pago=f.fecha_pago,
+            banco_pago=f.banco_pago,
+        ))
 
     entries: List[DIOTEntry] = []
     for (rfc, tipo_op), g in sorted(groups.items()):
@@ -300,6 +417,7 @@ def generar_diot(facturas: List[FacturaCFDI]) -> List[DIOTEntry]:
             iva_trasladado=round(g["iva_trasladado"], 2),
             iva_acreditable=round(g["iva_acreditable"], 2),
             folios_fiscales=g["folios"],
+            facturas_detalle=g["detalle"],
         ))
 
     return entries
@@ -1087,6 +1205,17 @@ class DevolucionIVAService:
     ) -> List[FacturaCFDI]:
         typed = self._coerce_facturas(facturas)
         return recopilar_facturas(typed, periodo=periodo, tenant_id=tenant_id)
+
+    def auto_ingestar_facturas(
+        self, tenant_id: Any, periodo: str,
+    ) -> List[FacturaCFDI]:
+        """REQ-IVA — auto-ingesta: ver `auto_ingestar_facturas` de módulo.
+
+        Usa `self.db` (el mismo `Database` compartido con el pipeline CFDI
+        real en despliegue — ver `b2b_ai/api/app.py::create_app`) para leer
+        los CFDIs ya procesados de la tabla `invoices`.
+        """
+        return auto_ingestar_facturas(self.db, tenant_id, periodo)
 
     def clasificar_iva(self, facturas: List[dict | FacturaCFDI]) -> Dict[str, List[FacturaCFDI]]:
         typed = self._coerce_facturas(facturas)
