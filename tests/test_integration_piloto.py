@@ -6,15 +6,19 @@ Valida que los módulos del MVP funcionan juntos contra endpoints reales:
     1. CFDI      : upload → parse → store → query           (app completa)
     2. Bank feed : conectar cuenta → sync → categorizar     (pilot_client)
     3. Nómina    : catalog → parse/validate → payroll calc  (app completa)
-    4. Onboarding: start → 6 pasos → complete               (pilot_client)
-    5. Billing   : checkout → webhook mock → suscripción    (pilot_client)
-    6. Reports   : reporte custom desde datos               (pilot_client)
-    7. Multi-tenant: aislamiento de datos entre 2 tenants   (app completa)
-    8. Auth      : register → login → token → /auth/me      (app completa)
+    4. Reports   : reporte custom desde datos               (pilot_client)
+    5. Multi-tenant: aislamiento de datos entre 2 tenants   (app completa)
+    6. Auth      : register → login → token → /auth/me      (app completa)
+
+(Onboarding y Billing piloto — pasos 4/5 originales — se eliminaron de esta
+suite junto con `b2b_ai.features.onboarding` / `b2b_ai.features.billing`;
+ver nota de consolidación de billing más abajo, junto a los tests
+removidos.)
 
 Uso de fixtures compartidos (tests/conftest.py):
-    - pilot_client   : monta onboarding-wizard, billing-piloto, batch,
-                       bank-feeds y reports con auth stub → tenant_test_123.
+    - pilot_client   : monta batch, bank-feeds y reports con auth stub →
+                       tenant_test_123 (onboarding-wizard/billing-piloto ya
+                       no se montan aquí, ver nota de consolidación).
     - full_client    : app completa (create_app) con 2 tenants + API keys.
     - _reset_pilot_state / reset_bank_feeds_state : limpian stores en memoria.
 
@@ -24,7 +28,6 @@ de trabajo desde una copia del árbol (ver scripts/seed_demo_data.py para datos)
 from __future__ import annotations
 
 import os
-import uuid
 
 import pytest
 
@@ -135,86 +138,20 @@ def test_nomina_flow(full_client):
 
 
 # --------------------------------------------------------------------------- #
-# 4. Onboarding: start → 6 pasos → complete → activa billing
+# 4/5. Onboarding piloto / Billing checkout piloto — ELIMINADOS
+# (consolidación de billing, fix/billing-consolidacion).
+#
+# `test_onboarding_flow` y `test_billing_checkout` (con su helper
+# `_run_onboarding_to_checkout`) ejercitaban
+# `b2b_ai.features.onboarding` / `b2b_ai.features.billing` (el módulo
+# "piloto"). Se eliminaron junto con esos módulos: nunca estuvieron
+# montados en `create_app()` (no servían tráfico real) y el billing piloto
+# tenía un bypass real de firma de webhook (firma ausente => procesado como
+# pago válido). El onboarding real (`b2b_ai.onboarding`, montado) no integra
+# ningún módulo de billing hoy; el checkout/suscripción real está cubierto
+# por tests/test_billing.py, tests/test_conekta_gateway.py y
+# tests/test_webhook_receiver.py contra `b2b_ai.billing` (canónico).
 # --------------------------------------------------------------------------- #
-def _run_onboarding_to_checkout(c, h, company="Grupo Contable MX S.A. de C.V.",
-                                rfc="GCM920101AB1",
-                                tenant_id="tenant_test_123"):
-    """Avanza un onboarding desde start hasta el paso checkout (inclusive).
-
-    `tenant_id` se fija igual al del auth stub del pilot_client
-    ("tenant_test_123") para que el billing activado en el callback quede
-    localizable por el GET de suscripción del mismo tenant.
-    """
-    r = c.post("/api/v1/onboarding-wizard/start", json={"tenant_id": tenant_id},
-               headers=h)
-    assert r.status_code == 200, r.text
-    sid = r.json()["session"]["session_id"]
-
-    def step(name, payload):
-        resp = c.post(f"/api/v1/onboarding-wizard/{sid}/step/{name}",
-                      json={"payload": payload}, headers=h)
-        assert resp.status_code == 200, f"{name}: {resp.text}"
-
-    step("tenant", {"company_name": company,
-                    "admin_name": "Lic. Mariana Fernández",
-                    "admin_email": "mariana@grupocontable.mx"})
-    step("fiscal", {"rfc": rfc, "regimen_fiscal": "601",
-                    "codigo_postal": "06600"})
-    step("data_source", {"source": "cfdi_upload"})
-    step("test_cfdi", {"record": {"rfc": rfc, "total": "12500.00",
-                                  "uuid": str(uuid.uuid4()).upper()}})
-    step("checkout", {"plan": "professional"})
-    return sid
-
-
-def test_onboarding_flow(pilot_client, piloto_headers):
-    c = pilot_client
-    h = piloto_headers
-    sid = _run_onboarding_to_checkout(c, h)
-
-    # complete → health check
-    rc = c.post(f"/api/v1/onboarding-wizard/{sid}/complete", headers=h)
-    assert rc.status_code == 200, rc.text
-    assert rc.json()["ok"] is True
-    assert rc.json()["session"]["status"] == "completed"
-
-
-# --------------------------------------------------------------------------- #
-# 5. Billing: checkout → callback/webhook mock → suscripción activa
-# --------------------------------------------------------------------------- #
-def test_billing_checkout(pilot_client, piloto_headers):
-    c = pilot_client
-    h = piloto_headers
-
-    # checkout directo de billing-piloto (Conekta en modo mock, sin red)
-    r = c.post("/api/v1/billing-piloto/checkout", headers=h, json={
-        "plan": "professional",
-        "success_url": "http://localhost/ok",
-        "cancel_url": "http://localhost/cancel",
-    })
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["ok"] is True
-    assert body["checkout_url"]
-
-    # flujo real de activación: el callback del wizard (status=paid) invoca
-    # activate_pilot() y deja la suscripción ACTIVE (equivalente al webhook
-    # order.paid que marca la orden como pagada en el billing del tenant).
-    sid = _run_onboarding_to_checkout(c, h, company="Grupo Billing",
-                                      rfc="GBI920101AB1")
-    cb = c.post(f"/api/v1/onboarding-wizard/{sid}/checkout/callback",
-                json={"status": "paid", "plan": "professional"}, headers=h)
-    assert cb.status_code == 200, cb.text
-    assert cb.json()["ok"] is True
-
-    # suscripción activa para el tenant
-    rs = c.get("/api/v1/billing-piloto/subscription", headers=h)
-    assert rs.status_code == 200, rs.text
-    sub = rs.json()["subscription"]
-    assert sub is not None
-    assert sub["status"] == "active"
-    assert sub["plan_code"] == "professional"
 
 
 # --------------------------------------------------------------------------- #
