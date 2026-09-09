@@ -137,6 +137,17 @@ class FacturaCFDI(BaseModel):
             "que ampara el pago efectivo de esta factura."
         ),
     )
+    concepto: Optional[str] = Field(
+        default=None,
+        description=(
+            "Concepto de la factura (descripción de los conceptos del CFDI, "
+            "p.ej. la 'Descripcion' de los nodos Concepto). Petición "
+            "explícita del despacho: debe viajar junto con folio fiscal, "
+            "folio de factura, fecha de pago y banco en el desglose de "
+            "proveedores DIOT (sección 2 del papel de trabajo) y en el "
+            "anexo FED 7/7-A exportado."
+        ),
+    )
 
     @field_validator("uuid")
     @classmethod
@@ -159,7 +170,7 @@ class FacturaCFDI(BaseModel):
             raise ValueError("Los montos no pueden ser negativos")
         return v
 
-    @field_validator("folio_factura", "referencia_complemento_pago")
+    @field_validator("folio_factura", "referencia_complemento_pago", "concepto")
     @classmethod
     def _optional_str_not_blank(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
@@ -260,6 +271,32 @@ class FacturaCFDI(BaseModel):
 # Core schemas — DIOTEntry
 # ---------------------------------------------------------------------------
 
+class DIOTFacturaDetalle(BaseModel):
+    """Detalle por factura dentro del desglose de proveedores DIOT.
+
+    Petición explícita del dueño del despacho: el desglose de proveedores
+    (sección 2 del papel de trabajo) debe traer, por cada CFDI agrupado
+    bajo una entrada DIOT, el concepto de la factura junto con su folio
+    fiscal, folio de factura, fecha de pago y banco — no solo el UUID
+    suelto que ya traía `DIOTEntry.folios_fiscales`.
+    """
+    folio_fiscal: str = Field(..., description="UUID del CFDI (folio fiscal)")
+    folio_factura: Optional[str] = Field(
+        default=None,
+        description="Folio de la factura (serie+folio interno del emisor).",
+    )
+    concepto: Optional[str] = Field(
+        default=None, description="Concepto de la factura.",
+    )
+    fecha_pago: Optional[str] = Field(
+        default=None,
+        description="Fecha en que se efectuó el pago (YYYY-MM-DD).",
+    )
+    banco_pago: Optional[str] = Field(
+        default=None, description="Banco donde se efectuó el pago.",
+    )
+
+
 class DIOTEntry(BaseModel):
     """Una entrada de la DIOT agrupada por RFC tercero."""
     rfc_tercero: str = Field(..., description="RFC del tercero")
@@ -271,6 +308,16 @@ class DIOTEntry(BaseModel):
     folios_fiscales: List[str] = Field(
         default_factory=list,
         description="UUIDs de facturas asociadas",
+    )
+    facturas_detalle: List[DIOTFacturaDetalle] = Field(
+        default_factory=list,
+        description=(
+            "Detalle por factura (folio fiscal, folio de factura, concepto, "
+            "fecha de pago, banco de pago) de los CFDI agrupados bajo esta "
+            "entrada DIOT. Complementa `folios_fiscales` (solo UUIDs) con "
+            "los datos que el despacho pidió explícitamente para el "
+            "desglose de proveedores."
+        ),
     )
 
     @field_validator("rfc_tercero")

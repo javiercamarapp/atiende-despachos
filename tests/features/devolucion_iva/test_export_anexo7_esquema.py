@@ -5,9 +5,13 @@ test_export_anexo7_esquema.py — REQ-IVA-014.
 El FED (Formato Electrónico de Devoluciones) exportable debe incluir, por
 cada línea de proveedor, los 9 campos mínimos del anexo 7/7-A: RFC,
 nombre/razón social, folio fiscal, folio de factura, fecha de factura,
-fecha de pago, forma de pago, banco de pago, IVA trasladado/acreditable.
+fecha de pago, forma de pago, banco de pago, IVA trasladado/acreditable —
+más `concepto` (10º campo), agregado a petición explícita del dueño del
+despacho para que el concepto de la factura viaje siempre junto con esos
+otros datos en el desglose de proveedores/FED exportado. `concepto` NO es
+parte de los 9 mínimos oficiales del SAT; es una extensión de este módulo.
 
-Prueba de esquema: el JSON/CSV exportado debe tener exactamente esas 9
+Prueba de esquema: el JSON/CSV exportado debe tener exactamente esas 10
 claves no nulas por fila.
 
 Sin mocks: se instancian los modelos reales (pydantic v2) y se llama al
@@ -36,6 +40,7 @@ CAMPOS_ESPERADOS = {
     "nombre_razon_social",
     "folio_fiscal",
     "folio_factura",
+    "concepto",
     "fecha_factura",
     "fecha_pago",
     "forma_pago",
@@ -45,7 +50,7 @@ CAMPOS_ESPERADOS = {
 
 
 def _factura_completa_anexo7(**overrides) -> FacturaCFDI:
-    """Una factura con los 9 datos requeridos para el anexo 7/7-A."""
+    """Una factura con los 10 datos requeridos para el anexo 7/7-A exportado."""
     defaults = dict(
         uuid="a1b2c3d4-e5f6-7890-abcd-ef1234567890",
         rfc_emisor="EMP850101AB1",
@@ -60,20 +65,21 @@ def _factura_completa_anexo7(**overrides) -> FacturaCFDI:
         banco_pago="BBVA",
         fecha_pago="2025-01-20",
         folio_factura="A-1042",
+        concepto="Servicios de consultoría administrativa",
         forma_pago="03",
     )
     defaults.update(overrides)
     return FacturaCFDI(**defaults)
 
 
-class TestEsquemaExactoDeLasNueveClaves:
-    def test_json_tiene_exactamente_las_9_claves_por_fila(self):
+class TestEsquemaExactoDeLasDiezClaves:
+    def test_json_tiene_exactamente_las_10_claves_por_fila(self):
         gen = WorkpaperGenerator()
         filas = gen.exportar_fed_anexo7([_factura_completa_anexo7()])
 
         assert len(filas) == 1
         assert set(filas[0].keys()) == CAMPOS_ESPERADOS
-        assert len(filas[0]) == 9
+        assert len(filas[0]) == 10
 
     def test_ninguna_clave_es_nula_en_el_json(self):
         gen = WorkpaperGenerator()
@@ -105,6 +111,7 @@ class TestEsquemaExactoDeLasNueveClaves:
         assert fila["nombre_razon_social"] == f.nombre_emisor
         assert fila["folio_fiscal"] == f.uuid
         assert fila["folio_factura"] == f.folio_factura
+        assert fila["concepto"] == f.concepto
         assert fila["fecha_factura"] == f.fecha
         assert fila["fecha_pago"] == f.fecha_pago
         assert fila["forma_pago"] == f.forma_pago
@@ -112,14 +119,14 @@ class TestEsquemaExactoDeLasNueveClaves:
         assert fila["iva_trasladado_acreditable"] == round(f.iva * f.proporcionalidad, 2)
 
 
-class TestCsvTieneExactamenteLasNueveColumnas:
-    def test_csv_header_tiene_exactamente_las_9_columnas(self):
+class TestCsvTieneExactamenteLasDiezColumnas:
+    def test_csv_header_tiene_exactamente_las_10_columnas(self):
         gen = WorkpaperGenerator()
         csv_text = gen.exportar_fed_anexo7_csv([_factura_completa_anexo7()])
 
         reader = csv.DictReader(io.StringIO(csv_text))
         assert set(reader.fieldnames) == CAMPOS_ESPERADOS
-        assert len(reader.fieldnames) == 9
+        assert len(reader.fieldnames) == 10
 
     def test_csv_filas_no_tienen_valores_vacios(self):
         gen = WorkpaperGenerator()
@@ -134,7 +141,7 @@ class TestCsvTieneExactamenteLasNueveColumnas:
 
     def test_campos_fed_anexo7_constante_coincide_con_el_esquema(self):
         assert set(CAMPOS_FED_ANEXO7) == CAMPOS_ESPERADOS
-        assert len(CAMPOS_FED_ANEXO7) == 9
+        assert len(CAMPOS_FED_ANEXO7) == 10
 
 
 class TestRechazaExportacionConDatosFaltantes:
@@ -143,6 +150,7 @@ class TestRechazaExportacionConDatosFaltantes:
     @pytest.mark.parametrize("campo_a_quitar,override", [
         ("nombre_emisor", {"nombre_emisor": ""}),
         ("folio_factura", {"folio_factura": None}),
+        ("concepto", {"concepto": None}),
         ("fecha_pago", {"fecha_pago": None}),
         ("forma_pago", {"forma_pago": None}),
         ("banco_pago", {"banco_pago": None}),
