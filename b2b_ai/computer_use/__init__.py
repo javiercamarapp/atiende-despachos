@@ -78,6 +78,12 @@ __all__ = [
     "CONTPAQiRealDriver",
     "AspelRealDriver",
     "_retry_async",
+    # CONTPAQi: RPA de escritorio (pywinauto opcional) + simulador — lazy
+    "ContpaqiDesktopBackend",
+    "PywinautoContpaqiBackend",
+    "ContpaqiSimulatorBackend",
+    "select_contpaqi_backend",
+    "ContpaqiSimulatorServer",
 ]
 
 _LAZY_IMPORTS = {
@@ -86,6 +92,11 @@ _LAZY_IMPORTS = {
     "_retry_async": ("b2b_ai.computer_use.playwright_desktop", "_retry_async"),
     "CONTPAQiRealDriver": ("b2b_ai.computer_use.contpaqi_real_driver", "CONTPAQiRealDriver"),
     "AspelRealDriver": ("b2b_ai.computer_use.aspel_real_driver", "AspelRealDriver"),
+    "ContpaqiDesktopBackend": ("b2b_ai.computer_use.contpaqi_rpa_backend", "ContpaqiDesktopBackend"),
+    "PywinautoContpaqiBackend": ("b2b_ai.computer_use.contpaqi_rpa_backend", "PywinautoContpaqiBackend"),
+    "ContpaqiSimulatorBackend": ("b2b_ai.computer_use.contpaqi_rpa_backend", "ContpaqiSimulatorBackend"),
+    "select_contpaqi_backend": ("b2b_ai.computer_use.contpaqi_rpa_backend", "select_contpaqi_backend"),
+    "ContpaqiSimulatorServer": ("b2b_ai.computer_use.contpaqi_simulator_server", "ContpaqiSimulatorServer"),
 }
 
 
