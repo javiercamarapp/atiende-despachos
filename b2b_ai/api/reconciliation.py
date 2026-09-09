@@ -14,6 +14,7 @@ se toman de la DB del tenant (db.list_invoices).
 """
 from __future__ import annotations
 
+import asyncio
 import tempfile
 import os
 from typing import Optional
@@ -110,33 +111,48 @@ def build_reconciliation_router(db, require_api_key):
         if file is None or not getattr(file, "filename", None):
             raise HTTPException(400, "Debe enviar el archivo (campo file).")
 
-        # Guarda el archivo subido a un temp y lo parsea.
-        suffix = os.path.splitext(file.filename or "")[1].lower() or ".csv"
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp.write(file.file.read())
-            tmp_path = tmp.name
+        # Lectura async del upload — no bloquea el event loop (Starlette ya
+        # delega el I/O real de UploadFile a un hilo internamente).
+        content = await file.read()
+        filename = file.filename
+        suffix = os.path.splitext(filename or "")[1].lower() or ".csv"
+
+        def _process() -> dict:
+            """Escritura a temp, parseo del estado de cuenta y persistencia en
+            DB — todo síncrono y potencialmente pesado (CSV/PDF grande), por
+            lo que corre en un hilo del executor en vez del hilo del event
+            loop (ver justificación igual en routes_invoices.process_invoice).
+            `Database` usa conexión por hilo, así que es seguro llamarla aquí.
+            """
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            try:
+                svc = _session(db, tenant)
+                # `upload_statement` parsea y deja los movimientos en `svc`; lo
+                # que se acaba de añadir es la cola de `svc.transactions`. Se
+                # persiste esa cola para que el estado sobreviva al proceso.
+                antes = len(svc.transactions)
+                res = svc.upload_statement(tmp_path, bank)
+                db.add_bank_transactions(tenant, svc.transactions[antes:],
+                                         banco=res.get("banco"),
+                                         filename=res.get("filename"))
+                db.log_call("reconciliation", "upload", entity="statement",
+                            entity_id=filename, payload={"bank": bank,
+                                                          "rows": res["movimientos"]},
+                            status="ok", tenant_id=tenant)
+                return res
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    logger.debug("No se pudo eliminar archivo temporal", exc_info=True)
+
         try:
-            svc = _session(db, tenant)
-            # `upload_statement` parsea y deja los movimientos en `svc`; lo que
-            # se acaba de añadir es la cola de `svc.transactions`. Se persiste
-            # esa cola para que el estado sobreviva al proceso.
-            antes = len(svc.transactions)
-            res = svc.upload_statement(tmp_path, bank)
-            db.add_bank_transactions(tenant, svc.transactions[antes:],
-                                     banco=res.get("banco"),
-                                     filename=res.get("filename"))
-            db.log_call("reconciliation", "upload", entity="statement",
-                        entity_id=file.filename, payload={"bank": bank,
-                                                           "rows": res["movimientos"]},
-                        status="ok", tenant_id=tenant)
+            res = await asyncio.to_thread(_process)
             return {"ok": True, **res}
         except ValueError as e:
             raise HTTPException(400, str(e))
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                logger.debug("No se pudo eliminar archivo temporal", exc_info=True)
 
     # -- matches -----------------------------------------------------------
     @router.get("/matches",
