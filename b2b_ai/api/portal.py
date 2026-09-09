@@ -16,12 +16,15 @@ la factura queda persistida en la DB y el status se resuelve desde ahí.
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 import secrets
 import tempfile
 import threading
+import time as _time_mod
 import uuid
+from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -44,6 +47,13 @@ _PORTAL_STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 class PortalLogin(BaseModel):
     email: str
     password: str
+    # SECURITY: `tenant_id` es opcional porque el SPA real (static/portal.html)
+    # NUNCA lo manda -- nunca se usa por sí solo para decidir a quién se
+    # autentica. Ver `_authenticate_client_user`: si viene vacío, se prueba
+    # el password contra TODOS los usuarios con ese email (nunca se confía
+    # ciegamente en el primer resultado del lookup cross-tenant); si viene,
+    # sólo acota el filtro SQL pero el password sigue siendo obligatorio
+    # para autenticar contra ese tenant en concreto.
     tenant_id: Optional[int] = None
 
 
@@ -78,6 +88,80 @@ def _new_token() -> str:
 def _expires() -> str:
     return (datetime.now() + timedelta(days=SESSION_TTL_DAYS)).isoformat(
         timespec="seconds")
+
+
+# --------------------------------------------------------------------------
+# Rate limiting (login + magic-link) — anti brute-force / anti spam.
+#
+# El portal no tenía NINGÚN límite de intentos: un atacante podía probar
+# contraseñas o disparar magic-links sin freno. Bucket en memoria por
+# (ip, email); suficiente para un solo proceso (igual que el limiter ya
+# usado en b2b_ai/portal/routes.py para su propio login).
+# --------------------------------------------------------------------------
+class _LoginRateLimiter:
+    def __init__(self, max_attempts: int = 5, window: int = 300):
+        self._attempts: "defaultdict[tuple, list]" = defaultdict(list)
+        self.max_attempts = max_attempts
+        self.window = window
+
+    def check(self, key: tuple) -> bool:
+        now = _time_mod.monotonic()
+        bucket = self._attempts[key]
+        self._attempts[key] = [t for t in bucket if now - t < self.window]
+        if len(self._attempts[key]) >= self.max_attempts:
+            return False
+        self._attempts[key].append(now)
+        return True
+
+    def reset(self):
+        """Limpia todos los buckets (aislamiento entre tests)."""
+        self._attempts.clear()
+
+
+# 5 intentos / 5 min por (ip, email) — igual que el límite de clase "auth"
+# de b2b_ai/middleware/rate_limiter.py, aplicado aquí de forma explícita
+# porque /portal/auth/* no cae bajo el prefijo que esa clase reconoce.
+LOGIN_LIMITER = _LoginRateLimiter(max_attempts=5, window=300)
+MAGIC_LINK_LIMITER = _LoginRateLimiter(max_attempts=5, window=300)
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+# --------------------------------------------------------------------------
+# Guard duro: exposición del token del magic link en dev
+#
+# El token de un magic link NUNCA debe salir en la respuesta HTTP salvo en
+# un entorno explícitamente NO productivo. La condición vive en UNA sola
+# función (fuente única de verdad) y se re-verifica con un `assert`
+# inmediatamente antes de escribir el campo, para que un futuro refactor
+# que rompa la condición truene en vez de filtrar el token en silencio.
+# --------------------------------------------------------------------------
+_DEV_TOKEN_ALLOWED_ENVS = frozenset({"dev", "development", "test", "testing",
+                                     "local"})
+_DEV_TOKEN_BLOCKED_ENVS = frozenset({"prod", "production", "staging",
+                                     "stage", "uat", "sandbox", ""})
+
+
+def _dev_token_exposure_allowed() -> bool:
+    """True sólo si B2B_ENV declara explícitamente un entorno no productivo.
+
+    Falla cerrado: variable ausente, vacía o con cualquier valor no
+    reconocido (incluido cualquier variante de "prod"/"staging") jamás
+    habilita la exposición del token.
+    """
+    env = os.environ.get("B2B_ENV", "").strip().lower()
+    allowed = env in _DEV_TOKEN_ALLOWED_ENVS
+    # Defensa en profundidad: un mismo valor jamás puede estar en ambos
+    # conjuntos. Si esto truena, hay un bug en la config de arriba, no en
+    # el request en curso -- se detiene ANTES de considerar exponer nada.
+    assert not (allowed and env in _DEV_TOKEN_BLOCKED_ENVS), (
+        "Guard de seguridad violado: B2B_ENV=%r está marcado a la vez como "
+        "entorno dev y como entorno productivo/staging. Revisa "
+        "_DEV_TOKEN_ALLOWED_ENVS / _DEV_TOKEN_BLOCKED_ENVS antes de "
+        "continuar." % env)
+    return allowed
 
 
 # --------------------------------------------------------------------------
@@ -132,6 +216,48 @@ def _extract_token(
     return x_portal_token
 
 
+def _authenticate_client_user(db, email: str, password: str,
+                              tenant_id: Optional[int]):
+    """Resuelve y autentica al usuario del portal SIN confiar ciegamente en
+    `tenant_id` proveniente del cliente.
+
+    - Si `tenant_id` viene informado, se usa sólo para acotar el filtro SQL
+      (defensa en profundidad: nunca puede ampliar acceso), pero el login
+      igual exige que el password coincida con ESE registro concreto.
+    - Si `tenant_id` viene vacío (el caso normal: el SPA nunca lo manda),
+      NUNCA se hace "devolver el primer resultado" de un lookup
+      cross-tenant por email (eso es lo que permitía autenticar contra el
+      tenant equivocado cuando el mismo email existe en más de uno). En su
+      lugar se prueba el password contra TODOS los candidatos con ese email
+      y sólo se acepta si hay exactamente una coincidencia inequívoca.
+
+    Devuelve el dict del usuario autenticado, o None si las credenciales no
+    son válidas o si hay una colisión ambigua (nunca se adivina).
+    """
+    email = (email or "").strip().lower()
+    if not email or not password:
+        return None
+
+    if tenant_id is not None:
+        user = db.get_client_user_by_email(email, tenant_id=tenant_id)
+        if user is not None and _check_password(password, user["password_hash"]):
+            return user
+        return None
+
+    # tenant_id vacío: nunca un lookup "primero que aparezca". Se evalúan
+    # todos los candidatos con ese email (a través de list_client_users, que
+    # ya existe y no requiere tocar b2b_ai/db/db.py) y sólo se autentica si
+    # el password distingue de forma única a uno solo de ellos.
+    candidates = [u for u in db.list_client_users()
+                 if (u.get("email") or "").strip().lower() == email]
+    matches = [u for u in candidates
+              if _check_password(password, u.get("password_hash", ""))]
+    if len(matches) == 1:
+        return matches[0]
+    return None  # 0 coincidencias -> credenciales inválidas;
+                 # >1 -> colisión ambigua real -> se niega, nunca se adivina.
+
+
 def _require_user(db):
     def dep(token: Optional[str] = Depends(_extract_token)):
         if not token:
@@ -180,16 +306,26 @@ def build_portal_router(db):
 
     # ---- Auth ------------------------------------------------------------
     @router.post("/auth/login")
-    def portal_login(body: PortalLogin):
+    def portal_login(body: PortalLogin, request: Request):
         """Autentica un cliente por email+password (bcrypt) y devuelve un
-        token de sesión multi-tenant."""
+        token de sesión multi-tenant.
+
+        `tenant_id` en el body nunca se usa a ciegas: ver
+        `_authenticate_client_user`. Con rate limit por (ip, email) para
+        frenar fuerza bruta."""
         email = (body.email or "").strip().lower()
         password = body.password or ""
         if not email or not password:
             raise HTTPException(status_code=422,
                                 detail="email y password son obligatorios.")
-        user = db.get_client_user_by_email(email, tenant_id=body.tenant_id)
-        if user is None or not _check_password(password, user["password_hash"]):
+        if body.tenant_id is not None and body.tenant_id <= 0:
+            raise HTTPException(status_code=422, detail="tenant_id inválido.")
+        if not LOGIN_LIMITER.check((_client_ip(request), email)):
+            raise HTTPException(
+                status_code=429,
+                detail="Demasiados intentos. Intenta de nuevo en unos minutos.")
+        user = _authenticate_client_user(db, email, password, body.tenant_id)
+        if user is None:
             raise HTTPException(status_code=401,
                                 detail="Credenciales inválidas.")
         token = _new_token()
@@ -206,17 +342,39 @@ def build_portal_router(db):
     def portal_magic_link(body: PortalMagicLink, request: Request):
         """Emite una sesión sin password y la 'envía' por email.
 
-        NUNCA devuelve el token en la respuesta HTTP (salvo B2B_ENV=dev).
-        En producción el token se envía exclusivamente por email.
+        SECURITY: la respuesta es IDÉNTICA (mismo status, mismo mensaje)
+        exista o no una cuenta con ese email -- antes el endpoint devolvía
+        404 "No hay una cuenta con ese email." cuando no existía, lo que
+        permitía enumerar cuentas probando emails. Ahora nunca se revela.
+
+        El token NUNCA sale en la respuesta HTTP salvo B2B_ENV explícito de
+        dev/test (ver `_dev_token_exposure_allowed`, con guard duro). En
+        producción el token se envía exclusivamente por email. Con rate
+        limit por (ip, email) para frenar spam/enumeración por fuerza bruta.
         """
         email = (body.email or "").strip().lower()
         if not email:
             raise HTTPException(status_code=422, detail="email es obligatorio.")
+        if not MAGIC_LINK_LIMITER.check((_client_ip(request), email)):
+            raise HTTPException(
+                status_code=429,
+                detail="Demasiados intentos. Intenta de nuevo en unos minutos.")
+
+        # Respuesta genérica: se construye ANTES de saber si el usuario
+        # existe y es la única respuesta 200 posible, exista o no la cuenta.
+        resp: dict = {
+            "ok": True,
+            "message": "Si existe una cuenta con ese email, te enviamos un "
+                       "enlace de acceso.",
+            "expires_at": _expires(),
+        }
+
         user = db.get_client_user_by_email(email)
         if user is None:
-            # No revelamos si el email existe (evita enumeración de cuentas).
-            raise HTTPException(status_code=404,
-                                detail="No hay una cuenta con ese email.")
+            # No revelamos si el email existe: mismo status, mismo body
+            # (sin dev_token, porque no hay sesión que exponer).
+            return resp
+
         token = _new_token()
         db.create_portal_session(user["id"], token, _expires())
         # Envío real: enviamos el enlace por email (mock: registry).
@@ -228,14 +386,18 @@ def build_portal_router(db):
                 status="sent")
         except Exception:  # noqa: BLE001
             logger.warning("No se pudo registrar notificación de magic link", exc_info=True)
-        resp: dict = {"ok": True,
-                       "message": "Te enviamos un enlace de acceso por email.",
-                       "expires_at": _expires()}
-        # SOLO en dev: devolver token para testing del SPA.
-        _dev_envs = {"dev", "development", "test", "testing", "local"}
-        if os.environ.get("B2B_ENV", "").strip().lower() in _dev_envs:
+        # SOLO en dev/test: devolver token para testing del SPA (ver
+        # _dev_token_exposure_allowed, con guard duro).
+        if _dev_token_exposure_allowed():
+            # Guard duro: se re-verifica la MISMA condición justo antes de
+            # escribir el campo. Si un refactor futuro rompe la condición
+            # de arriba, este assert truena en vez de dejar pasar un token
+            # en un entorno no confirmado como dev/test.
+            assert os.environ.get("B2B_ENV", "").strip().lower() in \
+                _DEV_TOKEN_ALLOWED_ENVS, (
+                "Guard de seguridad violado: se intentó exponer dev_token "
+                "fuera de un entorno dev/test explícito.")
             resp["dev_token"] = token
-            import logging
             logging.getLogger("portal").warning(
                 "MAGIC-LINK dev_token returned in HTTP response "
                 "(B2B_ENV=%s) — REMOVE before production",
