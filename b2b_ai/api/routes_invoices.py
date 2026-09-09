@@ -5,6 +5,7 @@ Extracted from app.py to reduce monolith size.
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import tempfile
 import threading
@@ -222,7 +223,15 @@ def build_invoices_router(db, require_api_key) -> APIRouter:
                 tmp.write(content)
                 tmp.close()
                 try:
-                    res = process_file(tmp.name, db=db, tenant_id=tenant)
+                    # process_file() hace I/O de disco, parsing CFDI, llamadas
+                    # síncronas a la DB y potencialmente SMTP bloqueante — todo
+                    # eso en el hilo del event loop dejaría a FastAPI incapaz
+                    # de atender cualquier otra petición mientras corre. Se
+                    # delega a un hilo del executor (asyncio.to_thread) igual
+                    # que ya hace portal_upload(); Database usa conexión por
+                    # hilo (thread-local), así que es seguro llamarla desde ahí.
+                    res = await asyncio.to_thread(
+                        process_file, tmp.name, db=db, tenant_id=tenant)
                 except CFDIError as e:
                     raise HTTPException(status_code=422,
                                         detail=f"CFDI inválido: {e}")
@@ -241,7 +250,8 @@ def build_invoices_router(db, require_api_key) -> APIRouter:
         if xml_path:
             safe = _resolve_local_path(str(xml_path))
             try:
-                res = process_file(str(safe), db=db, tenant_id=tenant)
+                res = await asyncio.to_thread(
+                    process_file, str(safe), db=db, tenant_id=tenant)
             except CFDIError as e:
                 raise HTTPException(status_code=422,
                                     detail=f"CFDI inválido: {e}")
