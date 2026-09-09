@@ -7,12 +7,14 @@
    ============================================================ */
 'use strict';
 
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.1.0';
 const SHELL_CACHE = `b2b-shell-${VERSION}`;
 const API_CACHE = `b2b-api-${VERSION}`;
 
-// Página de inicio de la instalación: el dashboard (o la landing si aún no
-// está el dashboard). Se usa como fallback de navegación offline.
+// Fallback de navegación offline cuando la URL pedida no está en caché
+// (el manifest usa "/" como start_url para no forzar el login del dashboard
+// al abrir la PWA; este fallback sigue siendo el dashboard porque es la
+// pantalla útil dentro de una sesión ya autenticada).
 const START_URL = '/dashboard';
 
 const SHELL_ASSETS = [
@@ -27,11 +29,22 @@ const SHELL_ASSETS = [
 ];
 
 /* ---------- Instalación: precache del app-shell ---------- */
+// No se llama a skipWaiting() aquí: el SW nuevo se queda "esperando" hasta
+// que la página lo confirme (ver flujo de actualización más abajo), así una
+// pestaña abierta con la versión vieja nunca queda con caché desincronizada.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS))
-      .then(() => self.skipWaiting())
   );
+});
+
+/* ---------- Flujo de actualización ---------- */
+// La página (ver index.html) detecta un SW en espera, avisa al usuario y,
+// si acepta, manda este mensaje para activar la versión nueva de inmediato.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 /* ---------- Activación: limpiar cachés viejas ---------- */
@@ -80,7 +93,7 @@ function navigationStrategy(event) {
     return res;
   }).catch(() => (
     caches.match(event.request)
-      .then((c) => c || caches.match('/dashboard') || caches.match('/'))
+      .then((c) => c || caches.match(START_URL) || caches.match('/'))
   ));
 }
 
