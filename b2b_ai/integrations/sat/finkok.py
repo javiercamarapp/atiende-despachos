@@ -12,6 +12,7 @@ import uuid as _uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from b2b_ai.infrastructure.structured_logging import mask_pii
 from b2b_ai.integrations.sat.adapter import SATAdapter, SATAdapterError
 from b2b_ai.integrations.sat.models import (
     CancelacionRequest,
@@ -62,7 +63,10 @@ class FinkokAdapter(SATAdapter):
         4. Recibir respuesta con UUID y complemento de timbre
         """
         self._ensure_connected()
-        logger.info(f"FinkokAdapter: timbrando CFDI de {cfdi_data.rfc_emisor} a {cfdi_data.rfc_receptor}")
+        logger.info(
+            "FinkokAdapter: timbrando CFDI de %s a %s",
+            mask_pii(cfdi_data.rfc_emisor), mask_pii(cfdi_data.rfc_receptor),
+        )
 
         cfdi_uuid = str(_uuid.uuid4())
         now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
@@ -140,7 +144,7 @@ class FinkokAdapter(SATAdapter):
     def consultar_rfc(self, rfc: str) -> RFCStatus:
         """Simula la consulta de un RFC ante el SAT."""
         self._ensure_connected()
-        logger.info(f"FinkokAdapter: consultando RFC {rfc}")
+        logger.info("FinkokAdapter: consultando RFC %s", mask_pii(rfc))
 
         return RFCStatus(
             rfc=rfc,

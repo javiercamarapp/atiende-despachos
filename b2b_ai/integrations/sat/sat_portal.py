@@ -13,6 +13,7 @@ import uuid as _uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from b2b_ai.infrastructure.structured_logging import mask_pii
 from b2b_ai.integrations.sat.adapter import SATAdapter, SATAdapterError
 from b2b_ai.integrations.sat.models import (
     CancelacionRequest,
@@ -116,7 +117,7 @@ class SATPortalAdapter(SATAdapter):
         3. Descargar PDF/XML con información fiscal
         """
         self._ensure_connected()
-        logger.info(f"SATPortalAdapter: consultando situación fiscal RFC {rfc}")
+        logger.info("SATPortalAdapter: consultando situación fiscal RFC %s", mask_pii(rfc))
 
         return RFCStatus(
             rfc=rfc,
