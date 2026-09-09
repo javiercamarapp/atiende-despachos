@@ -9,6 +9,7 @@ Endpoints:
     POST /api/v1/devolucion-iva/calcular       — Calculate refund amount
     POST /api/v1/devolucion-iva/solicitud      — Prepare refund request
     GET  /api/v1/devolucion-iva/papel-trabajo/{periodo} — Get working paper
+    GET  /api/v1/devolucion-iva/papel-trabajo-completo/{periodo} — 7-section working paper (+ depósitos bancarios)
     GET  /api/v1/devolucion-iva/status/{solicitud_id}    — Check status
     GET  /api/v1/devolucion-iva/historical     — List past requests
 """
@@ -25,6 +26,9 @@ from b2b_ai.features.devolucion_iva.models import (
     FacturaCFDI,
     DeclaracionMensual,
     EstatusDevolucion,
+)
+from b2b_ai.features.reconciliacion_ingresos_egresos.service import (
+    ReconciliacionIngresosEgresosService,
 )
 
 
@@ -185,6 +189,7 @@ class DevolucionIVAResponse(BaseModel):
 def build_devolucion_iva_router(
     db: Any = None,
     require_api_key: Any = None,
+    reconciliacion_service: Optional[ReconciliacionIngresosEgresosService] = None,
 ) -> APIRouter:
     """Construct the Devolución de IVA API router.
 
@@ -196,6 +201,14 @@ def build_devolucion_iva_router(
         `None` se usa la base compartida en memoria del módulo (solo para
         tests/uso standalone del router).
     require_api_key : FastAPI dependency for auth.
+    reconciliacion_service : Optional[ReconciliacionIngresosEgresosService]
+        REQ-IVA-009 — servicio de `reconciliacion_ingresos_egresos` usado
+        por `GET /papel-trabajo-completo/{periodo}` para incorporar la
+        conciliación de depósitos bancarios (sección 7) al expediente de
+        devolución de IVA. Cuando es `None` se crea una instancia propia
+        (en memoria); para compartir el estado ya conciliado por el router
+        de `reconciliacion-ingresos` dentro del mismo proceso, pasar la
+        misma instancia usada al construir ese router.
     """
     if require_api_key is None:
         raise ValueError(
@@ -205,6 +218,7 @@ def build_devolucion_iva_router(
     auth_dep = require_api_key
     service = DevolucionIVAService(db=db)
     workpaper_gen = WorkpaperGenerator()
+    reconciliacion_svc = reconciliacion_service or ReconciliacionIngresosEgresosService()
 
     router = APIRouter(prefix="/api/v1/devolucion-iva", tags=["devolucion-iva"])
 
@@ -390,6 +404,25 @@ def build_devolucion_iva_router(
         diot_json: Optional[str] = Query(default=None, description="JSON DIOT entries"),
         declaraciones_json: Optional[str] = Query(default=None, description="JSON declaraciones"),
         tenant_id: Optional[str] = Query(default=None, description="Tenant ID"),
+        fecha_presentacion: Optional[str] = Query(
+            default=None,
+            description=(
+                "Fecha de presentación de la solicitud de devolución "
+                "(YYYY-MM-DD). Si se da, se calcula y expone "
+                "`fecha_limite_resolucion`: 40 días hábiles después "
+                "(20 si `hay_dictamen_o_garantia=true`), Art. 22 CFF "
+                "(REQ-IVA-016)."
+            ),
+        ),
+        hay_dictamen_o_garantia: bool = Query(
+            default=False,
+            description=(
+                "Si el contribuyente dictamina sus estados financieros por "
+                "contador público registrado, o garantiza el interés "
+                "fiscal, el plazo del Art. 22 CFF se reduce de 40 a 20 "
+                "días hábiles."
+            ),
+        ),
         auth_info: dict = Depends(auth_dep),
     ) -> dict:
         import json
@@ -414,9 +447,130 @@ def build_devolucion_iva_router(
             tenant_id=tenant_id,
         )
 
+        # REQ-IVA-016: plazo de resolución (Art. 22 CFF), solo cuando se da
+        # una fecha de presentación explícita — nunca se inventa una si el
+        # llamador no la proporciona.
+        if fecha_presentacion:
+            try:
+                wp["fecha_limite_resolucion"] = service.calcular_fecha_limite_resolucion(
+                    fecha_presentacion,
+                    hay_dictamen_o_garantia=hay_dictamen_o_garantia,
+                ).isoformat()
+            except ValueError as e:
+                raise HTTPException(status_code=422, detail=str(e))
+        else:
+            wp["fecha_limite_resolucion"] = None
+
         return {
             "ok": True,
             "message": f"Papel de trabajo generado para {periodo}.",
+            "data": wp,
+        }
+
+    # -------------------------------------------------------------------
+    # GET /papel-trabajo-completo/{periodo} — REQ-IVA-009
+    # Papel de trabajo con las 7 secciones, incorporando la conciliación
+    # de depósitos bancarios (reconciliacion_ingresos_egresos) como
+    # sección 7 del expediente final de devolución.
+    # -------------------------------------------------------------------
+    @router.get(
+        "/papel-trabajo-completo/{periodo}",
+        summary=(
+            "Generate the complete working paper (7 sections), incorporating "
+            "the bank deposit reconciliation (depósitos bancarios) as "
+            "section 7."
+        ),
+        response_model=None,
+    )
+    def papel_trabajo_completo(
+        periodo: str,
+        facturas_json: Optional[str] = Query(default=None, description="JSON facturas"),
+        diot_json: Optional[str] = Query(default=None, description="JSON DIOT entries"),
+        declaraciones_json: Optional[str] = Query(default=None, description="JSON declaraciones"),
+        documentos_soporte_json: Optional[str] = Query(
+            default=None, description="JSON lista de documentos soporte",
+        ),
+        depositos_json: Optional[str] = Query(
+            default=None,
+            description=(
+                "JSON depósitos bancarios del período, para conciliar con "
+                "auxiliares y clasificar (sección 7). Si se omite, se usa "
+                "el papel de conciliación de ingresos/egresos ya generado "
+                "en este proceso para el mismo período/tenant, si existe."
+            ),
+        ),
+        auxiliares_json: Optional[str] = Query(
+            default=None,
+            description="JSON auxiliares contables del período (para conciliar depósitos).",
+        ),
+        tenant_id: Optional[str] = Query(default=None, description="Tenant ID"),
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        import json
+
+        effective_tenant_id = (
+            auth_info.get("tenant_id") if auth_info else tenant_id
+        ) or tenant_id
+
+        facturas = []
+        diot_entries = []
+        declaraciones = []
+        documentos_soporte: List[str] = []
+
+        if facturas_json:
+            facturas = [FacturaCFDI(**d) for d in json.loads(facturas_json)]
+        if diot_json:
+            from b2b_ai.features.devolucion_iva.models import DIOTEntry as DE
+            diot_entries = [DE(**d) for d in json.loads(diot_json)]
+        if declaraciones_json:
+            declaraciones = [DeclaracionMensual(**d) for d in json.loads(declaraciones_json)]
+        if documentos_soporte_json:
+            documentos_soporte = list(json.loads(documentos_soporte_json))
+
+        # REQ-IVA-009: reunir/conciliar los depósitos bancarios del período
+        # con `reconciliacion_ingresos_egresos` para producir el
+        # `PapelTrabajoConciliacion` que alimenta la sección 7. Si no se
+        # mandan depósitos/auxiliares en este request, se intenta recuperar
+        # un papel ya conciliado antes (mismo período/tenant) dentro de
+        # este mismo proceso — nunca se inventa uno.
+        papel_conciliacion_depositos = None
+        if depositos_json or auxiliares_json:
+            depositos_data = json.loads(depositos_json) if depositos_json else []
+            auxiliares_data = json.loads(auxiliares_json) if auxiliares_json else []
+
+            depositos = reconciliacion_svc.recopilar_depositos(
+                periodo, effective_tenant_id, depositos_data,
+            )
+            auxiliares = reconciliacion_svc.recopilar_auxiliares(
+                periodo, effective_tenant_id, auxiliares_data,
+            )
+            conciliacion = reconciliacion_svc.conciliar_depositos_auxiliares(
+                depositos, auxiliares,
+                periodo=periodo, tenant_id=effective_tenant_id,
+            )
+            papel_conciliacion_depositos = reconciliacion_svc.generar_papel_trabajo(
+                conciliacion, conciliacion.clasificaciones,
+            )
+        else:
+            papel_conciliacion_depositos = reconciliacion_svc.get_papel_trabajo(
+                periodo, effective_tenant_id,
+            )
+
+        wp = workpaper_gen.generate(
+            periodo=periodo,
+            facturas=facturas,
+            diot_entries=diot_entries,
+            declaraciones=declaraciones,
+            tenant_id=effective_tenant_id,
+            documentos_soporte=documentos_soporte,
+            papel_conciliacion_depositos=papel_conciliacion_depositos,
+        )
+
+        return {
+            "ok": True,
+            "message": (
+                f"Papel de trabajo completo (7 secciones) generado para {periodo}."
+            ),
             "data": wp,
         }
 
