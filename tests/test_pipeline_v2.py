@@ -43,11 +43,16 @@ class FakeDB:
                                "erp": erp})
         return inv_id, True
 
-    def update_invoice_erp(self, invoice_id, erp, valido=True):
+    def update_invoice_erp(self, invoice_id, erp, valido=True, tenant_id=None):
         """Espeja Database.update_invoice_erp (ver b2b_ai/db/db.py):
         process_file() llama a esto tras registrar en el ERP real, DESPUÉS
         de insert_invoice(), para volcar el resultado real sobre la fila
-        ya insertada (AG-2: persistir en DB antes de registrar en ERP)."""
+        ya insertada (AG-2: persistir en DB antes de registrar en ERP).
+
+        `tenant_id` (H-18): aceptado y ya no ignorado -- desde este cambio
+        `pipeline.py::process_file` lo pasa siempre para habilitar RLS
+        (ver Database._rls_tenant); este fake no necesita usarlo para
+        nada más porque no hace aislamiento real, solo debe aceptarlo."""
         for inv in self._invoices:
             if inv["id"] == invoice_id:
                 inv["erp"] = erp

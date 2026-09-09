@@ -286,6 +286,68 @@ class Database:
         except AttributeError:
             logger.debug("No había conexión thread-local que limpiar", exc_info=True)
 
+    # ---- RLS (Row-Level Security) — contexto de tenant por conexión -----
+    # H-18: defensa en profundidad ADICIONAL al filtro `WHERE tenant_id=?`
+    # que ya hace cada método de esta clase — NUNCA lo sustituye. Las
+    # políticas reales viven en PostgreSQL (ver
+    # migrations/versions/0016_rls_tenant_isolation.py); aquí solo se fija,
+    # antes de cada consulta a una tabla protegida (invoices, audit_log,
+    # audit_entries, client_users), el GUC de sesión que esas políticas
+    # leen con `current_setting(...)`.
+    #
+    # Por qué se fija AQUÍ (inmediato antes de cada query) y no una sola
+    # vez al principio del request: esta clase reutiliza una conexión por
+    # hilo (`_pg_conn` arriba) que sigue viva entre requests, y la mayoría
+    # de los métodos de escritura hacen su propio `commit()` individual.
+    # `set_config(..., is_local=true)` es transaccional: se resetea en
+    # cada commit/rollback. Fijarlo una sola vez "al principio del
+    # request" quedaría invalidado por el primer commit intermedio de
+    # OTRO método llamado antes en el mismo request. Fijarlo aquí, justo
+    # antes de cada operación, con el MISMO `tenant_id` que el método ya
+    # recibió como argumento, garantiza que la política vea siempre el
+    # tenant correcto sin depender del historial de commits del hilo.
+    #
+    # Qué SÍ cubre esto (el escenario adversarial de H-18): una consulta
+    # que -- por bug -- omite escribir "AND tenant_id=?" en su SQL aunque
+    # el tenant_id correcto sí llegó como argumento al método. Con RLS
+    # activo, PostgreSQL sigue filtrando por tenant aunque el SQL de la
+    # app no lo pida explícitamente.
+    #
+    # Qué NO cubre (limitación real, documentada, no un half-fix
+    # silencioso): un caller que calcula/pasa un tenant_id INCORRECTO —
+    # eso exigiría fijar el GUC desde el tenant autenticado en el límite
+    # del request, de forma independiente del argumento que cada método
+    # recibe, lo cual requiere una conexión/transacción dedicada por
+    # request en vez de la conexión compartida por hilo que existe hoy
+    # (ver docstring de módulo, sección "Pools de conexión", y el detalle
+    # en el mensaje del commit de esta migración).
+    def _rls_tenant(self, tenant_id) -> None:
+        """Fija app.current_tenant_id para la transacción PG actual y
+        apaga cualquier bypass previo en esa misma transacción. No-op en
+        SQLite (RLS es exclusivo de PostgreSQL; SQLite sigue dependiendo
+        solo del filtro explícito, como antes de este cambio)."""
+        if not self._is_pg or tenant_id is None:
+            return
+        self.conn.execute(
+            "SELECT set_config('app.current_tenant_id', ?, true)",
+            (str(tenant_id),))
+        self.conn.execute(
+            "SELECT set_config('app.rls_bypass', 'off', true)")
+
+    def _rls_admin_bypass(self) -> None:
+        """Opt-in EXPLÍCITO y acotado para lecturas legítimamente
+        cross-tenant: dashboards/CLI de administración global (tenant_id
+        explícitamente None, ya era el contrato de estos métodos antes de
+        RLS) y resolución de identidad en el login del portal/JWT antes de
+        conocer el tenant (búsqueda por email o por id de sesión/token ya
+        autenticado). Nunca se usa como default silencioso — cada call
+        site que lo invoca está documentado en el propio código. No-op en
+        SQLite."""
+        if not self._is_pg:
+            return
+        self.conn.execute(
+            "SELECT set_config('app.rls_bypass', 'on', true)")
+
     # ---- Migraciones ----
     # Con SQLite el esquema lo gestionan models.MIGRATIONS (idempotente y por
     # conexión). Con PostgreSQL la fuente de verdad es Alembic (migrations/):
@@ -405,6 +467,7 @@ class Database:
     # ---- Invoices ----
     def insert_invoice(self, tenant_id, datos, clasif, validacion, erp=None):
         """Inserta o actualiza una factura. Devuelve (invoice_id, inserted)."""
+        self._rls_tenant(tenant_id)  # H-18: ver docstring en _rls_tenant
         issues_txt = "; ".join(i["mensaje"] for i in validacion.get("issues", []))
         now = datetime.now().isoformat(timespec="seconds")
         row = {
@@ -463,6 +526,10 @@ class Database:
             if not _is_integrity_error(exc):
                 raise
             self.conn.rollback()
+            # rollback() termina la transacción y con ella el GUC
+            # transaccional que fijamos arriba (set_config con is_local=true)
+            # -- hay que volver a fijarlo antes de esta segunda consulta.
+            self._rls_tenant(tenant_id)
             existing = self.conn.execute(
                 "SELECT id FROM invoices WHERE tenant_id=? AND folio_fiscal=?",
                 (tenant_id, row["folio_fiscal"])).fetchone()
@@ -478,7 +545,8 @@ class Database:
         self.conn.commit()
         return invoice_id, inserted
 
-    def update_invoice_erp(self, invoice_id, erp: dict, valido: bool = True) -> None:
+    def update_invoice_erp(self, invoice_id, erp: dict, valido: bool = True,
+                           tenant_id=None) -> None:
         """Actualiza erp_poliza/erp_status/status tras registrar en el ERP.
 
         Complementa `insert_invoice(..., erp=pending_erp)` en el flujo
@@ -488,16 +556,33 @@ class Database:
         insertada. Reutiliza la misma derivación de `status` que
         `insert_invoice` (pending_approval / rejected / procesado) para que
         ambos caminos sean consistentes.
+
+        ``tenant_id`` es opcional (compatibilidad hacia atrás con callers
+        existentes que ya conocen el tenant solo indirectamente vía
+        `invoice_id`) pero TODO caller nuevo que ya tenga el tenant en
+        contexto (p.ej. `services/pipeline.py::process_file`) debe pasarlo:
+        habilita tanto el filtro explícito extra como el contexto RLS
+        (H-18) para esta escritura.
         """
         erp = erp or {}
         erp_status = erp.get("status", "")
         status = ("pending_approval" if erp_status == "pending_approval"
                   else ("rejected" if erp_status == "rejected_invalid_cfdi"
                         else "procesado" if valido else "rejected"))
-        self.conn.execute(
-            "UPDATE invoices SET erp_poliza=?, erp_status=?, status=? WHERE id=?",
-            (erp.get("poliza") or "", erp_status, status, invoice_id),
-        )
+        if tenant_id is not None:
+            self._rls_tenant(tenant_id)
+            self.conn.execute(
+                "UPDATE invoices SET erp_poliza=?, erp_status=?, status=? "
+                "WHERE id=? AND tenant_id=?",
+                (erp.get("poliza") or "", erp_status, status, invoice_id,
+                 tenant_id),
+            )
+        else:
+            self._rls_admin_bypass()
+            self.conn.execute(
+                "UPDATE invoices SET erp_poliza=?, erp_status=?, status=? WHERE id=?",
+                (erp.get("poliza") or "", erp_status, status, invoice_id),
+            )
         self.conn.commit()
 
     # Columnas explícitas de `invoices` (evita SELECT * en las lecturas
@@ -513,6 +598,10 @@ class Database:
     def list_invoices(self, tenant_id=None, limit=None,
                       categoria=None, valido=None, fecha_desde=None,
                       fecha_hasta=None):
+        # H-18: tenant_id=None es el contrato existente para "todos los
+        # tenants" (dashboards/CLI de administración global) -- se
+        # traduce en un bypass RLS explícito, nunca implícito por olvido.
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         q = f"SELECT {self._INVOICE_COLUMNS} FROM invoices"
         params = []
         clauses = []
@@ -549,6 +638,7 @@ class Database:
         que antes (afinidad NUMERIC). `round()` acepta tanto Decimal como
         float sin cambios aquí.
         """
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         q = "SELECT categoria, COUNT(*) AS n, SUM(CAST(total AS NUMERIC)) AS monto FROM invoices"
         params = []
         if tenant_id is not None:
@@ -573,6 +663,7 @@ class Database:
         }
 
     def get_invoice(self, invoice_id, tenant_id=None):
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         q = f"SELECT {self._INVOICE_COLUMNS} FROM invoices WHERE id=?"
         params = [invoice_id]
         if tenant_id is not None:
@@ -582,6 +673,7 @@ class Database:
         return dict(row) if row else None
 
     def count_invoices(self, tenant_id=None):
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         q = "SELECT COUNT(*) FROM invoices"
         params = []
         if tenant_id is not None:
@@ -592,6 +684,7 @@ class Database:
     # ---- Audit log ----
     def log_call(self, tool_name, action, entity="", entity_id="",
                  payload=None, status="ok", tenant_id=None):
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         payload_txt = json.dumps(payload, default=str, ensure_ascii=False) if payload is not None else '{}'
         cur = self.conn.execute("""
             INSERT INTO audit_log(tenant_id, tool_name, action, entity,
@@ -601,6 +694,7 @@ class Database:
         return cur.lastrowid
 
     def list_audit(self, tenant_id=None, tool_name=None, limit=100):
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         q = ("SELECT id, tenant_id, tool_name, action, entity, entity_id, "
              "payload, status, created_at FROM audit_log")
         params = []
@@ -625,6 +719,7 @@ class Database:
         /api/v1/dashboard/analytics) no tenía forma de pedir el conteo de
         SU tenant y terminaba mostrando el conteo global de audit_log de
         todos los despachos (fuga de datos entre tenants)."""
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         q = "SELECT COUNT(*) FROM audit_log"
         clauses, params = [], []
         if tool_name:
@@ -1670,6 +1765,7 @@ class Database:
         aviso de privacidad (LFPDPPP Art. 8).  Se almacena como evidencia
         de consentimiento; nullable para usuarios migrados sin ese dato.
         """
+        self._rls_tenant(tenant_id)
         cur = self.conn.execute(
             "INSERT INTO client_users(tenant_id, email, password_hash, name, "
             "role, accepted_privacy_at) VALUES (?,?,?,?,?,?)",
@@ -1686,7 +1782,14 @@ class Database:
     )
 
     def get_client_user_by_email(self, email, tenant_id=None):
-        """Usuario del portal por email (opcionalmente scoped por tenant)."""
+        """Usuario del portal por email (opcionalmente scoped por tenant).
+
+        H-18: `tenant_id=None` es el paso de bootstrap del login (buscar
+        por email ANTES de saber a qué tenant pertenece; si hay colisión
+        el router de login pide desambiguar) -- bypass RLS explícito y
+        documentado, no un default silencioso.
+        """
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         q = f"SELECT {self._CLIENT_USER_COLUMNS} FROM client_users WHERE email=?"
         params = [email]
         if tenant_id is not None:
@@ -1699,13 +1802,30 @@ class Database:
         # devolvemos el primero; el router de login pide tenant_id en colisión.
         return rows[0]
 
-    def get_client_user(self, user_id):
-        row = self.conn.execute(
-            f"SELECT {self._CLIENT_USER_COLUMNS} FROM client_users WHERE id=?",
-            (user_id,)).fetchone()
+    def get_client_user(self, user_id, tenant_id=None):
+        """Usuario del portal por id.
+
+        H-18: `tenant_id=None` (default, compatibilidad hacia atrás) es
+        bypass RLS explícito -- lo usan la resolución de identidad por
+        sesión/JWT `sub` ya autenticados (`get_portal_session`, middleware
+        de auth) donde el id no es un parámetro que decida el atacante.
+        Cuando el `user_id` SÍ viene de un parámetro de request que un
+        caller ya autorizó contra un tenant conocido (p.ej. la ruta admin
+        `/tenants/{tenant_id}/users/{user_id}/role`), pasar `tenant_id`
+        aquí añade el filtro real (WHERE + RLS) en vez de confiar solo en
+        la comparación posterior en Python.
+        """
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
+        q = f"SELECT {self._CLIENT_USER_COLUMNS} FROM client_users WHERE id=?"
+        params = [user_id]
+        if tenant_id is not None:
+            q += " AND tenant_id=?"
+            params.append(tenant_id)
+        row = self.conn.execute(q, params).fetchone()
         return dict(row) if row else None
 
     def list_client_users(self, tenant_id=None):
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         q = f"SELECT {self._CLIENT_USER_COLUMNS} FROM client_users"
         params = []
         if tenant_id is not None:
@@ -1716,6 +1836,7 @@ class Database:
 
     def has_tenant_users(self, tenant_id: int) -> bool:
         """Check if a tenant has any users (in either users or client_users)."""
+        self._rls_tenant(tenant_id)
         row = self.conn.execute(
             "SELECT COUNT(*) FROM users WHERE tenant_id=?", (tenant_id,)
         ).fetchone()
@@ -1773,23 +1894,43 @@ class Database:
     # usuario), por eso el f-string de columnas es seguro.
     _CLIENT_USER_EDITABLE = ("name", "email", "password_hash", "role")
 
-    def update_client_user(self, user_id, data):
-        """Actualiza campos de un usuario del portal (allowlist de columnas)."""
+    def update_client_user(self, user_id, data, tenant_id=None):
+        """Actualiza campos de un usuario del portal (allowlist de columnas).
+
+        H-18: pasa `tenant_id` cuando el caller ya lo conoce (p.ej. una
+        ruta admin scoped a `/tenants/{tenant_id}/...`) para que tanto el
+        WHERE explícito como RLS acoten la escritura a ese tenant. Sin
+        `tenant_id` (compatibilidad hacia atrás) es bypass explícito.
+        """
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
         cols = [c for c in self._CLIENT_USER_EDITABLE if c in data]
         if not cols:
-            return self.get_client_user(user_id)
+            return self.get_client_user(user_id, tenant_id=tenant_id)
         sets = ", ".join(f"{c}=?" for c in cols)
         params = [data[c] for c in cols] + [user_id]
+        q = f"UPDATE client_users SET {sets} WHERE id=?"  # nosec B608 — cols de allowlist fija
+        if tenant_id is not None:
+            q += " AND tenant_id=?"
+            params.append(tenant_id)
         with self.conn:
-            self.conn.execute(f"UPDATE client_users SET {sets} WHERE id=?",
-                              params)  # nosec B608 — cols de allowlist fija
-        return self.get_client_user(user_id)
+            self.conn.execute(q, params)
+        return self.get_client_user(user_id, tenant_id=tenant_id)
 
-    def delete_client_user(self, user_id):
-        """Elimina un usuario del portal (baja definitiva)."""
+    def delete_client_user(self, user_id, tenant_id=None):
+        """Elimina un usuario del portal (baja definitiva).
+
+        H-18: mismo contrato que `update_client_user` -- pasa `tenant_id`
+        cuando el caller ya lo conoce (p.ej. el endpoint ARCO de
+        cancelación, que resuelve el tenant del titular antes de borrar).
+        """
+        self._rls_tenant(tenant_id) if tenant_id is not None else self._rls_admin_bypass()
+        q = "DELETE FROM client_users WHERE id=?"
+        params = [user_id]
+        if tenant_id is not None:
+            q += " AND tenant_id=?"
+            params.append(tenant_id)
         with self.conn:
-            self.conn.execute("DELETE FROM client_users WHERE id=?",
-                              (user_id,))
+            self.conn.execute(q, params)
 
     # ---- Reconciliation Agent (Agente 1) — jobs en DB ----
     def create_reconciliation_job(self, job_id, tenant_id, bank="generic",
