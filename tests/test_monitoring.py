@@ -289,9 +289,18 @@ def test_health_detailed_endpoint(client):
     assert "disk" in j and "memory" in j and "uptime_seconds" in j
 
 
-def test_metrics_prometheus_endpoint(client):
+def test_metrics_prometheus_requires_api_key(client):
+    """/metrics/prometheus era público (sin auth), exponiendo conteos de
+    requests, latencias y uso por tenant a cualquiera. Ahora exige la misma
+    X-API-Key que el resto de la API."""
     c, db = client
     r = c.get("/metrics/prometheus")
+    assert r.status_code == 401
+
+
+def test_metrics_prometheus_endpoint(client):
+    c, db = client
+    r = c.get("/metrics/prometheus", headers=_h())
     assert r.status_code == 200
     body = r.text
     assert "# HELP b2b_requests_total" in body
