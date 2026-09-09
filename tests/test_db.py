@@ -61,6 +61,59 @@ def test_audit_log(tmp_db):
     assert len(rows) == 1 and rows[0]["status"] == "error"
 
 
+def test_count_audit_filtra_por_tenant(tmp_db):
+    """Regresión: count_audit() no aceptaba tenant_id y por eso un endpoint
+    tenant-scoped (GET /api/v1/dashboard/analytics -> _payroll_metrics /
+    _report_metrics en api/analytics.py) no tenía forma de pedir el conteo
+    de SU tenant, y terminaba mostrando el total global de audit_log de
+    TODOS los despachos — una fuga de datos entre tenants real."""
+    tid_a = tmp_db.create_tenant("Alpha")
+    tid_b = tmp_db.create_tenant("Beta")
+    tmp_db.log_call("calcular_nomina", "dispatch", tenant_id=tid_a)
+    tmp_db.log_call("calcular_nomina", "dispatch", tenant_id=tid_a)
+    tmp_db.log_call("calcular_nomina", "dispatch", tenant_id=tid_b)
+    tmp_db.log_call("parse_cfdi", "dispatch", tenant_id=tid_a)
+
+    # Sin tenant_id: sigue agregando todos los tenants (uso legítimo de
+    # dashboards/CLI de administración global) — no rompe el default.
+    assert tmp_db.count_audit() == 4
+    assert tmp_db.count_audit(tool_name="calcular_nomina") == 3
+
+    # Con tenant_id: cada despacho ve SOLO su propia actividad.
+    assert tmp_db.count_audit(tenant_id=tid_a) == 3
+    assert tmp_db.count_audit(tenant_id=tid_b) == 1
+    assert tmp_db.count_audit(tool_name="calcular_nomina", tenant_id=tid_a) == 2
+    assert tmp_db.count_audit(tool_name="calcular_nomina", tenant_id=tid_b) == 1
+    assert tmp_db.count_audit(tool_name="parse_cfdi", tenant_id=tid_b) == 0
+
+
+def test_get_api_key_no_expone_key_hash(tmp_db):
+    """get_api_key() ya no hace SELECT *: no debe devolver key_hash al
+    llamador (misma convención que list_api_keys, que ya lo excluía)."""
+    tid = tmp_db.create_tenant("Alpha")
+    tmp_db.create_api_key(tid, "prod", "clave-en-claro-123")
+    row = tmp_db.get_api_key("clave-en-claro-123")
+    assert row is not None
+    assert row["tenant_id"] == tid
+    assert "key_hash" not in row
+
+
+def test_list_tenants_conserva_columna_blocked(tmp_db):
+    """list_tenants()/get_tenant_by_id() pasaron de SELECT * a columnas
+    explícitas: no debe perderse ningún campo que la API expone (blocked
+    se usa para el bloqueo de tenants, ver set_tenant_blocked)."""
+    tid = tmp_db.create_tenant("Alpha", "AAA010101AAA")
+    tmp_db.set_tenant_blocked(tid, True)
+    row = next(t for t in tmp_db.list_tenants() if t["id"] == tid)
+    assert row["blocked"] in (1, True)
+    assert row["name"] == "Alpha"
+    assert row["rfc"] == "AAA010101AAA"
+    assert "created_at" in row
+
+    by_id = tmp_db.get_tenant_by_id(tid)
+    assert by_id == row
+
+
 def test_notifications_crud(tmp_db):
     tid = tmp_db.create_tenant("A")
     tmp_db.insert_notification(tid, "invoice_processed", "email",

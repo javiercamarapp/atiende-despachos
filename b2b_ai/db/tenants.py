@@ -148,10 +148,12 @@ class TenantManager:
         return row
 
     def _find_tenant(self, tenant_id: int) -> Optional[Dict[str, Any]]:
-        for t in self.db.list_tenants():
-            if t["id"] == tenant_id:
-                return t
-        return None
+        """Lookup por PK. Antes hacía `list_tenants()` completo (full scan
+        de TODOS los tenants) y filtraba en Python — O(n) por llamada y
+        empeora con cada cliente nuevo, además de traer a memoria la fila
+        de cada despacho solo para descartarla. `get_tenant_by_id` hace un
+        `SELECT ... WHERE id=?`, indexado por la PK."""
+        return self.db.get_tenant_by_id(tenant_id)
 
     def exists(self, tenant_id: int) -> bool:
         return self._find_tenant(tenant_id) is not None
