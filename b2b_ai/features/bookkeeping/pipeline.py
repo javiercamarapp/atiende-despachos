@@ -32,8 +32,15 @@ from b2b_ai.features.conciliacion.models import (
     BankTransaction as ConcilBankTransaction,
     PolizaContable as ConcilPoliza,
 )
+from b2b_ai.infrastructure.job_store import get_store as _get_job_store
 
 log = logging.getLogger(__name__)
+
+# job_type usado en la tabla `pipeline_jobs` (ver b2b_ai/infrastructure/
+# job_store.py) para distinguir estos jobs de otros llamadores que
+# comparten la misma tabla (p.ej. los batches async de b2b_ai/api/v2.py,
+# job_type="batch_v2").
+_JOB_TYPE = "bookkeeping_pipeline"
 
 
 def _dump(value):
@@ -116,8 +123,62 @@ class PipelineOrchestrator:
         self._erp = erp_registrar or ERPRegistrar()
         self._overrides = override_manager or HumanOverrideManager()
 
-        # Job store
-        self._jobs: Dict[str, PipelineJob] = {}
+        # Job store (PO-02 / SCALE-02): persistido en PostgreSQL vía
+        # b2b_ai.infrastructure.job_store cuando hay un DSN de Postgres
+        # configurado (B2B_DB_URL / DATABASE_URL); si no, cae de vuelta al
+        # dict en memoria de siempre (dev/test con SQLite, sin cambios de
+        # comportamiento). Ver _persist()/_load()/_load_all() abajo — son
+        # el único lugar que decide cuál de los dos backends usar, así que
+        # el resto de esta clase (y toda la API pública de PipelineJob que
+        # consumen las rutas) no tiene que saber cuál está activo.
+        self._jobs_mem: Dict[str, PipelineJob] = {}
+
+    # -- backend de persistencia de jobs (Postgres si hay DSN, si no memoria) --
+    def _persist(self, job: PipelineJob) -> None:
+        """Guarda (o actualiza) el estado completo de `job`.
+
+        Se llama en cada checkpoint relevante del pipeline, no solo al
+        terminar — así el estado es recuperable aun si el proceso muere a
+        mitad de un job largo (el caso que pide la prueba "el proceso se
+        reinicia, el job sigue ahí con su estado").
+        """
+        store = _get_job_store()
+        if store is not None:
+            store.save_job(
+                job_id=job.job_id,
+                job_type=_JOB_TYPE,
+                tenant_id=job.tenant_id,
+                stage=job.stage.value,
+                progress_pct=job.progress_pct,
+                payload=job.model_dump(mode="json"),
+                errors=list(job.errors),
+                started_at=job.started_at,
+                completed_at=job.completed_at,
+            )
+        else:
+            self._jobs_mem[job.job_id] = job
+
+    def _load(self, job_id: str) -> Optional[PipelineJob]:
+        store = _get_job_store()
+        if store is not None:
+            row = store.get_job(job_id)
+            if row is None or row["job_type"] != _JOB_TYPE:
+                return None
+            return PipelineJob.model_validate(row["payload"])
+        return self._jobs_mem.get(job_id)
+
+    def _load_all(self, tenant_id: str = "", limit: Optional[int] = 50) -> List[PipelineJob]:
+        store = _get_job_store()
+        if store is not None:
+            rows = store.list_jobs(
+                job_type=_JOB_TYPE, tenant_id=tenant_id or None, limit=limit,
+            )
+            return [PipelineJob.model_validate(r["payload"]) for r in rows]
+        jobs = list(self._jobs_mem.values())
+        if tenant_id:
+            jobs = [j for j in jobs if j.tenant_id == tenant_id]
+        jobs.sort(key=lambda j: j.started_at or datetime.min, reverse=True)
+        return jobs[:limit] if limit is not None else jobs
 
     @property
     def classifier(self) -> AutoClassifier:
@@ -162,8 +223,8 @@ class PipelineOrchestrator:
             periodo=periodo,
             cfdi_uuids=[c.get("uuid", c.get("cfdi_uuid", "")) for c in cfdis],
         )
-        self._jobs[job.job_id] = job
         job.started_at = datetime.utcnow()
+        self._persist(job)
 
         try:
             # Stage 1: Classify
@@ -175,6 +236,7 @@ class PipelineOrchestrator:
             # Check for low-confidence items
             needs_override = [c for c in classifications if c.needs_human_review]
             job.overrides_needed = len(needs_override)
+            self._persist(job)
 
             if needs_override:
                 log.info(
@@ -187,6 +249,7 @@ class PipelineOrchestrator:
             job.progress_pct = 30.0
             polizas = self._journal_gen.generate_batch(classifications, fecha, tenant_id)
             job.polizas = polizas
+            self._persist(job)
 
             # VALIDATION GATE (patrón PromptChain 04):
             # Hold ERP auto-registration if any póliza is not balanced or any
@@ -205,6 +268,7 @@ class PipelineOrchestrator:
                 job.stage = PipelineStage.GENERATING_POLIZA  # stay, hold ERP
                 job.progress_pct = 35.0
                 job.completed_at = datetime.utcnow()
+                self._persist(job)
                 return job
 
             if needs_override:
@@ -226,12 +290,14 @@ class PipelineOrchestrator:
                 failures = [r for r in erp_results if not r.success]
                 if failures:
                     job.errors.extend([r.error or "ERP registration failed" for r in failures])
+                self._persist(job)
 
             # Stage 4: Reconciliation (motor real de conciliación bancaria).
             # Coordinación con Agente conciliación: cruza las pólizas recién
             # generadas contra las transacciones bancarias del periodo.
             job.stage = PipelineStage.RECONCILING
             job.progress_pct = 70.0
+            self._persist(job)
 
             try:
                 job.reconciliation = self._reconcile(
@@ -259,6 +325,7 @@ class PipelineOrchestrator:
             job.errors.append(str(exc))
             log.error("Pipeline job %s failed: %s", job.job_id, exc)
 
+        self._persist(job)
         return job
 
     def _reconcile(
@@ -376,21 +443,16 @@ class PipelineOrchestrator:
 
     def get_job(self, job_id: str) -> Optional[PipelineJob]:
         """Get a pipeline job by ID."""
-        return self._jobs.get(job_id)
+        return self._load(job_id)
 
     def get_jobs(self, tenant_id: str = "", limit: int = 50) -> List[PipelineJob]:
         """Get pipeline jobs, optionally filtered by tenant."""
-        jobs = list(self._jobs.values())
-        if tenant_id:
-            jobs = [j for j in jobs if j.tenant_id == tenant_id]
-        # Sort by most recent first
-        jobs.sort(key=lambda j: j.started_at or datetime.min, reverse=True)
-        return jobs[:limit]
+        return self._load_all(tenant_id, limit=limit)
 
     def get_suggestions(self, tenant_id: str = "") -> List[Suggestion]:
         """Get CFDIs that need human review with suggestions."""
         suggestions: List[Suggestion] = []
-        for job in self._jobs.values():
+        for job in self._load_all(tenant_id, limit=None):
             if tenant_id and job.tenant_id != tenant_id:
                 continue
             for cls in job.classifications:
