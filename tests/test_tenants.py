@@ -52,6 +52,27 @@ def test_tenant_no_existe_levanta(tm):
         tm.get_config(99999)
 
 
+def test_find_tenant_usa_lookup_por_pk_no_full_scan(tm):
+    """_find_tenant() antes hacía `for t in self.db.list_tenants()` (full
+    scan de TODOS los tenants filtrando en Python). Ahora delega en
+    `Database.get_tenant_by_id` (SELECT ... WHERE id=?, indexado por PK).
+    Verifica que sigue resolviendo al tenant correcto entre varios, y que
+    nunca confunde uno con otro."""
+    a = tm.onboard_tenant("Alpha")
+    b = tm.onboard_tenant("Beta")
+    c = tm.onboard_tenant("Gamma")
+
+    assert tm.get_tenant(b["id"])["name"] == "Beta"
+    assert tm.get_tenant(a["id"])["id"] == a["id"]
+    assert tm.exists(c["id"]) is True
+    assert tm.exists(999999) is False
+
+    # get_tenant_by_id es ahora la fuente real (delegación directa, no un
+    # duplicado que pueda desincronizarse).
+    assert tm.db.get_tenant_by_id(a["id"])["name"] == "Alpha"
+    assert tm.db.get_tenant_by_id(999999) is None
+
+
 def test_erp_factory_segun_config(tm):
     a = tm.onboard_tenant("ERP CSV", erp_type="csv")
     b = tm.onboard_tenant("ERP CONTPAQi", erp_type="contpaqi")
