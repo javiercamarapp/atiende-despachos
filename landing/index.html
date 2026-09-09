@@ -18,6 +18,8 @@
 <meta name="twitter:description" content="AI agents that automate CFDI 4.0, bank reconciliation, and tax compliance for accounting firms in Mexico.">
 <meta name="twitter:image" content="https://likida.ai/assets/og-image.jpg">
 <link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192">
+<link rel="icon" href="/icons/icon-512.png" type="image/png" sizes="512x512">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <meta name="theme-color" content="#0b0f19">
 <script type="application/ld+json">
@@ -50,7 +52,13 @@ img{max-width:100%;display:block}
 .max-w{max-width:1400px;margin:0 auto;padding:0 24px}
 
 /* ==================== NAV ==================== */
-nav{position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+nav{position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(255,255,255,.88);
+    -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+/* Fallback for browsers without backdrop-filter support (older Firefox, etc.):
+   an opaque background keeps nav text legible without the blur effect. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  nav{background:#fff}
+}
 nav .max-w{display:flex;align-items:center;justify-content:space-between;height:56px}
 .nav-l{display:flex;align-items:center;gap:8px}
 .nav-logo{font-size:20px;font-weight:700;letter-spacing:-.02em}
@@ -64,6 +72,18 @@ nav .max-w{display:flex;align-items:center;justify-content:space-between;height:
 .btn-dark{background:var(--fg);color:#fff}
 .btn-dark:hover{background:#272628}
 @media(min-width:768px){.nav-c,.nav-r{display:flex}}
+/* Mobile menu toggle: on small screens nav-c/nav-r are hidden above, so this
+   button + panel is the only way to reach nav links, login and CTA. */
+.nav-toggle{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;
+            background:transparent;border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.nav-toggle svg{width:18px;height:18px}
+@media(min-width:768px){.nav-toggle{display:none}}
+.mobile-menu{display:flex;flex-direction:column;gap:2px;background:#fff;border-bottom:1px solid var(--border);
+             padding:8px 24px 16px}
+.mobile-menu[hidden]{display:none}
+.mobile-menu a{font-size:14px;font-weight:500;color:var(--fg);padding:10px 0;border-bottom:1px solid var(--border)}
+.mobile-menu a:last-child{border-bottom:none}
+@media(min-width:768px){.mobile-menu{display:none!important}}
 
 /* ==================== HERO ==================== */
 .hero{padding:120px 0 60px;text-align:center}
@@ -169,6 +189,17 @@ footer .bottom{display:flex;justify-content:space-between;align-items:center;pad
  .hero h1{font-size:clamp(2rem,8vw,3rem)}
  .section{padding:60px 0}
 }
+
+/* ==================== MOTION ==================== */
+@media (prefers-reduced-motion: reduce){
+ *,*::before,*::after{
+   animation-duration:0.001ms!important;
+   animation-iteration-count:1!important;
+   transition-duration:0.001ms!important;
+   scroll-behavior:auto!important;
+ }
+ .client-track{animation:none!important;flex-wrap:wrap;width:auto}
+}
 </style>
 </head>
 <body>
@@ -187,6 +218,17 @@ footer .bottom{display:flex;justify-content:space-between;align-items:center;pad
    <a href="/login" class="btn-sm btn-ghost">Log in</a>
    <a href="#cta" class="btn-sm btn-dark">Get started →</a>
   </div>
+  <button type="button" class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="mobileMenu" aria-label="Abrir menú de navegación">
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+ </div>
+ <div class="mobile-menu" id="mobileMenu" hidden>
+  <a href="#features">Features</a>
+  <a href="#how">How It Works</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#faq">FAQ</a>
+  <a href="/login">Log in</a>
+  <a href="#cta">Get started →</a>
  </div>
 </nav>
 
@@ -315,14 +357,86 @@ footer .bottom{display:flex;justify-content:space-between;align-items:center;pad
 
 <script>
 (function(){
-  // PWA: registrar service worker (solo en http/https, no en file:// ni tests).
-  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('/sw.js').catch(function(err){
-        if (window.console && console.warn) console.warn('SW:', err);
-      });
-    });
+  // Menú móvil: nav-c/nav-r se ocultan por completo bajo 768px (ver CSS),
+  // así que este botón es la única forma de llegar a los links, login y CTA.
+  var toggle = document.getElementById('navToggle');
+  var menu = document.getElementById('mobileMenu');
+  if (!toggle || !menu) return;
+
+  function closeMenu(){
+    menu.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
   }
+  function openMenu(){
+    menu.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+  toggle.addEventListener('click', function(){
+    if (menu.hidden) openMenu(); else closeMenu();
+  });
+  menu.querySelectorAll('a').forEach(function(a){
+    a.addEventListener('click', closeMenu);
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && !menu.hidden) { closeMenu(); toggle.focus(); }
+  });
+  window.addEventListener('resize', function(){
+    if (window.innerWidth >= 768 && !menu.hidden) closeMenu();
+  });
+})();
+
+(function(){
+  // PWA: registrar service worker (solo en http/https, no en file:// ni tests)
+  // con flujo de actualización: cuando hay una versión nueva instalada y en
+  // espera, se avisa al usuario en vez de reemplazar el SW en silencio.
+  if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+
+  function showUpdateBanner(registration){
+    var banner = document.createElement('div');
+    banner.setAttribute('role', 'status');
+    banner.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:100;'+
+      'background:#0a0a0a;color:#fff;padding:12px 16px;display:flex;gap:12px;'+
+      'align-items:center;justify-content:center;font-size:13px;flex-wrap:wrap';
+    banner.innerHTML = '<span>Hay una nueva versión de Likida AI disponible.</span>';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Actualizar ahora';
+    btn.style.cssText = 'background:#4f46e5;color:#fff;border:none;border-radius:999px;'+
+      'padding:6px 16px;font-size:13px;font-weight:500;cursor:pointer';
+    btn.addEventListener('click', function(){
+      if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      btn.disabled = true;
+      btn.textContent = 'Actualizando…';
+    });
+    banner.appendChild(btn);
+    document.body.appendChild(banner);
+  }
+
+  var reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if (reloading) return;
+    reloading = true;
+    location.reload();
+  });
+
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('/sw.js').then(function(registration){
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        showUpdateBanner(registration);
+      }
+      registration.addEventListener('updatefound', function(){
+        var installing = registration.installing;
+        if (!installing) return;
+        installing.addEventListener('statechange', function(){
+          if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner(registration);
+          }
+        });
+      });
+    }).catch(function(err){
+      if (window.console && console.warn) console.warn('SW:', err);
+    });
+  });
 })();
 </script>
 </body>
