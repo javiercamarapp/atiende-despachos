@@ -197,6 +197,7 @@ Copia `.env.example` a `.env`. Resumen:
 | `B2B_CORS_ALLOW_CREDENTIALS` | `false` | `true` para cookies cross-origin. |
 | `B2B_RATE_LIMIT` | `on` | `off` desactiva el rate limiting. |
 | `B2B_RATE_LIMIT_PER_MIN` | `300` | Peticiones por IP+ruta por minuto. `0` desactiva. |
+| `B2B_RATE_LIMIT_PER_TENANT` | `600` | Límite por tenant/min del rate limiter enterprise (`b2b_ai/api/rate_limiter.py`). Backend: Redis (`B2B_REDIS_URL`) si está configurado; si no, PostgreSQL (`B2B_DB_URL`/`DATABASE_URL`, persistido y a prueba de múltiples workers — ver `b2b_ai/infrastructure/rate_limit_store.py`); si tampoco hay Postgres, memoria (solo dev/tests, un proceso). |
 | `DEBUG` | `false` | Logs más verbosos. |
 | `ENV` | — | `production` aplica restricciones de seguridad. |
 
