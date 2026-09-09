@@ -24,6 +24,7 @@ from b2b_ai.features.devolucion_iva.models import (
     TipoFactura,
     FacturaCFDI,
     DIOTEntry,
+    DIOTFacturaDetalle,
     DeclaracionMensual,
     PapelTrabajo,
     ConciliacionFacturasDIOT,
@@ -33,6 +34,7 @@ from b2b_ai.features.devolucion_iva.models import (
 )
 from b2b_ai.features.devolucion_iva.service import (
     DevolucionIVAService,
+    auto_ingestar_facturas,
     validar_congruencia_diot_cfdi_declaracion,
 )
 from b2b_ai.features.devolucion_iva.validators import (
@@ -53,6 +55,7 @@ __all__ = [
     "TipoFactura",
     "FacturaCFDI",
     "DIOTEntry",
+    "DIOTFacturaDetalle",
     "DeclaracionMensual",
     "PapelTrabajo",
     "ConciliacionFacturasDIOT",
@@ -60,6 +63,7 @@ __all__ = [
     "SolicitudDevolucion",
     "StatusDevolucion",
     "DevolucionIVAService",
+    "auto_ingestar_facturas",
     "validar_congruencia_diot_cfdi_declaracion",
     "validate_rfc",
     "validate_iva_rate",

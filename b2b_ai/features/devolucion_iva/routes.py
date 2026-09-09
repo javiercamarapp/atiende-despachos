@@ -10,6 +10,8 @@ Endpoints:
     POST /api/v1/devolucion-iva/solicitud      — Prepare refund request
     GET  /api/v1/devolucion-iva/papel-trabajo/{periodo} — Get working paper
     GET  /api/v1/devolucion-iva/papel-trabajo-completo/{periodo} — 7-section working paper (+ depósitos bancarios)
+    GET  /api/v1/devolucion-iva/facturas-auto/{periodo} — Auto-ingest facturas from the CFDI pipeline
+    GET  /api/v1/devolucion-iva/papel-trabajo-auto/{periodo} — Working paper with auto-ingested facturas
     GET  /api/v1/devolucion-iva/status/{solicitud_id}    — Check status
     GET  /api/v1/devolucion-iva/historical     — List past requests
 """
@@ -570,6 +572,108 @@ def build_devolucion_iva_router(
             "ok": True,
             "message": (
                 f"Papel de trabajo completo (7 secciones) generado para {periodo}."
+            ),
+            "data": wp,
+        }
+
+    # -------------------------------------------------------------------
+    # GET /facturas-auto/{periodo} — Auto-ingest facturas from CFDI pipeline
+    # -------------------------------------------------------------------
+    @router.get(
+        "/facturas-auto/{periodo}",
+        summary=(
+            "Auto-ingesta: arma la lista de facturas para el período a "
+            "partir de los CFDIs YA procesados y almacenados por el "
+            "pipeline (b2b_ai.services.pipeline), sin payload manual."
+        ),
+        response_model=None,
+    )
+    def facturas_auto(
+        periodo: str,
+        tenant_id: int = Query(
+            ...,
+            description=(
+                "Tenant_id ENTERO del pipeline CFDI real "
+                "(Database.tenants.id / ensure_tenant), NO el tenant_id "
+                "string usado en el resto de este módulo para solicitudes."
+            ),
+        ),
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        facturas = service.auto_ingestar_facturas(tenant_id, periodo)
+
+        return {
+            "ok": True,
+            "message": (
+                f"Auto-ingesta para {periodo}: {len(facturas)} factura(s) "
+                "desde el pipeline CFDI."
+            ),
+            "data": {
+                "total_facturas": len(facturas),
+                "facturas": [f.model_dump() for f in facturas],
+            },
+        }
+
+    # -------------------------------------------------------------------
+    # GET /papel-trabajo-auto/{periodo} — Working paper, auto-ingested
+    # -------------------------------------------------------------------
+    @router.get(
+        "/papel-trabajo-auto/{periodo}",
+        summary=(
+            "Genera el papel de trabajo auto-ingiriendo las facturas del "
+            "período desde el pipeline CFDI real (sin facturas_json "
+            "manual). El modo manual (facturas_json en /papel-trabajo) "
+            "sigue disponible como fallback para otras fuentes de datos. "
+            "DIOT se deriva automáticamente de esas mismas facturas; "
+            "declaraciones/documentos de soporte siguen siendo manuales "
+            "(el pipeline de CFDI no las produce)."
+        ),
+        response_model=None,
+    )
+    def papel_trabajo_auto(
+        periodo: str,
+        tenant_id: int = Query(
+            ...,
+            description=(
+                "Tenant_id ENTERO del pipeline CFDI real "
+                "(Database.tenants.id / ensure_tenant)."
+            ),
+        ),
+        declaraciones_json: Optional[str] = Query(
+            default=None, description="JSON declaraciones (manual)",
+        ),
+        documentos_soporte_json: Optional[str] = Query(
+            default=None, description="JSON lista de documentos soporte",
+        ),
+        auth_info: dict = Depends(auth_dep),
+    ) -> dict:
+        import json
+
+        facturas = service.auto_ingestar_facturas(tenant_id, periodo)
+        diot_entries = service.generar_diot(facturas)
+
+        declaraciones = []
+        if declaraciones_json:
+            declaraciones = [DeclaracionMensual(**d) for d in json.loads(declaraciones_json)]
+        documentos_soporte: List[str] = []
+        if documentos_soporte_json:
+            documentos_soporte = list(json.loads(documentos_soporte_json))
+
+        wp = workpaper_gen.generate(
+            periodo=periodo,
+            facturas=facturas,
+            diot_entries=diot_entries,
+            declaraciones=declaraciones,
+            tenant_id=str(tenant_id),
+            documentos_soporte=documentos_soporte,
+        )
+
+        return {
+            "ok": True,
+            "message": (
+                f"Papel de trabajo generado para {periodo} con auto-ingesta: "
+                f"{len(facturas)} factura(s) desde el pipeline CFDI, "
+                f"{len(diot_entries)} entrada(s) DIOT derivadas."
             ),
             "data": wp,
         }
