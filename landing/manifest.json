@@ -3,7 +3,7 @@
   "short_name": "Likida AI",
   "description": "Captura, validación fiscal CFDI 4.0 y clasificación contable de facturas con IA. Dashboard en línea y offline.",
   "lang": "es-MX",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
