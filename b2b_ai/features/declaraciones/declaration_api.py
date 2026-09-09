@@ -9,6 +9,19 @@ Endpoints:
 
 Integrates: DeclarationEngine, DIOTGenerator, XMLGenerator, FIELSigner,
             SATSubmitter, ErrorHandler.
+
+Modo de envío (B2B_SAT_SUBMIT_MODE, ver sat_rpa_bridge.py):
+    - 'stub' (default, retrocompatible): /submit usa SATSubmitter para todo
+      tipo de declaración, exactamente como antes de que existiera este flag.
+    - 'rpa': para tipo == 'diot', /submit invoca SATPortalRPADriver (el
+      único driver que de verdad automatiza un portal, hoy solo probado
+      contra tests/fixtures/sat_portal_simulator.py) en vez del stub. Solo
+      se ejecuta de verdad si además B2B_COMPUTER_USE_MODE=playwright y
+      B2B_COMPUTER_USE_ALLOW_WRITES=true (mismos gates que el resto del
+      sistema); si no, se rechaza explícito (rpa_disabled), nunca finge
+      éxito. Para cualquier tipo distinto de 'diot' en modo 'rpa', /submit
+      sigue usando el stub SATSubmitter (limitación documentada del alcance
+      actual del driver RPA, no un fallback silencioso).
 """
 from __future__ import annotations
 
@@ -31,6 +44,11 @@ from .diot_generator import DIOTGenerator
 from .xml_generator import XMLGenerator
 from .sat_submitter import SATSubmitter, SubmissionStatus
 from .error_handler import SATErrorHandler, ErrorCode
+from .sat_rpa_bridge import (
+    SATSubmitModeConfigurationError,
+    get_sat_submit_mode,
+    submit_diot_via_rpa,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -433,7 +451,7 @@ def build_declarations_api_router(
         summary="Submit signed declaration to SAT",
         response_model=SubmitResponse,
     )
-    def submit(
+    async def submit(
         req: SubmitRequest,
         auth_info: dict = Depends(auth_dep),
     ) -> SubmitResponse:
@@ -447,6 +465,10 @@ def build_declarations_api_router(
           - Status (accepted/rejected/error)
           - SAT folio (if accepted)
           - Error details (if rejected)
+
+        Ver el docstring del módulo (B2B_SAT_SUBMIT_MODE) para el camino
+        'rpa' — hoy solo cubre tipo == 'diot'; todo lo demás sigue usando
+        SATSubmitter (stub) sin cambios.
         """
         import base64
 
@@ -458,6 +480,38 @@ def build_declarations_api_router(
                 detail="xml_signed no es un base64 válido",
             )
 
+        try:
+            submit_mode = get_sat_submit_mode()
+        except SATSubmitModeConfigurationError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        if submit_mode == "rpa" and req.tipo == "diot":
+            rpa_result = await submit_diot_via_rpa(
+                tenant_id=req.tenant_id,
+                rfc=req.rfc,
+                periodo=req.periodo,
+                declaration_id=req.declaration_id,
+                diot_content=xml_signed,
+                cer_path=req.cer_path,
+                key_path=req.key_path,
+                password=req.password,
+                confirm=req.confirm,
+            )
+            mensaje = rpa_result.mensaje
+            if rpa_result.ok and rpa_result.compliance_detail:
+                mensaje = f"{mensaje} | compliance_tracker: {rpa_result.compliance_detail}"
+            return SubmitResponse(
+                ok=rpa_result.ok,
+                status=rpa_result.status,
+                folio=rpa_result.folio,
+                mensaje=mensaje,
+                errors=[] if rpa_result.ok else [rpa_result.mensaje],
+                declaration_id=req.declaration_id,
+                simulado=rpa_result.simulado,
+            )
+
+        # -- modo 'stub' (comportamiento sin cambios respecto a antes de
+        #    B2B_SAT_SUBMIT_MODE) -------------------------------------------
         # Create submitter with provided credentials
         sub = SATSubmitter(
             cer_path=req.cer_path,
