@@ -28,6 +28,8 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+import logging
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -433,7 +435,7 @@ def validate_diot_xml(xml_source: str | Path) -> DIOTValidationResult:
         try:
             result.declared_total_iva_trasladado = float(total_el.text.strip())
         except (ValueError, TypeError):
-            pass
+            logger.debug("TotalIVATrasladado declarado no parseable", exc_info=True)
 
     # Cross-check: sum of iva_trasladado vs declared total
     if result.declared_total_iva_trasladado is not None:

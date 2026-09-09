@@ -40,6 +40,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from b2b_ai.services.reports import GerentialReports
+import logging
+logger = logging.getLogger(__name__)
 
 SESSION_TTL_DAYS = 1  # VULN-14: Reduced from 30 to 1 day (8h effective via sliding)
 COOKIE_NAME = "portal_session"
@@ -732,7 +734,7 @@ def build_portal_pages_router(db):
                         last_seen = n["id"]
                     yield _sse("notification", n)
             except Exception:  # noqa: BLE001
-                pass
+                logger.warning("Error leyendo notificaciones en stream SSE del portal", exc_info=True)
             yield _sse("heartbeat", {"ts": datetime.now().isoformat()})
             # Polling ligero: revisa notificaciones nuevas cada 3s.
             # Se limita a un número fijo de ciclos para compatibilidad

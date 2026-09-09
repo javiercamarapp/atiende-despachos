@@ -182,16 +182,16 @@ class HealthCheckRegistry:
             import threading
             info["threads"] = threading.active_count()
         except Exception:
-            pass
+            logger.debug("No se pudo obtener info de threading", exc_info=True)
         try:
             import psutil
             proc = psutil.Process(os.getpid())
             info["rss_bytes"] = proc.memory_info().rss
             info["cpu_percent"] = proc.cpu_percent(interval=0)
         except ImportError:
-            pass
+            logger.debug("psutil no instalado", exc_info=True)
         except Exception:
-            pass
+            logger.debug("Error obteniendo métricas de psutil", exc_info=True)
         return info
 
     def liveness(self) -> Dict[str, Any]:

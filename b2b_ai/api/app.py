@@ -148,6 +148,7 @@ from b2b_ai.features.bank_feeds.routes import build_bank_feeds_router
 from b2b_ai.features.monthly_close.routes import build_monthly_close_router
 from b2b_ai.features.data_migration.routes import build_data_migration_router
 from b2b_ai.features.compliance_tracker.routes import build_compliance_router
+_log = logging.getLogger(__name__)
 
 # Logger estructurado JSON (monitoring). Distinto del ToolCallLogger de
 # b2b_ai.tools.logger (auditoría de tools en DB): este emite JSON a stdout.
@@ -407,7 +408,7 @@ def create_app(db=None):
             try:
                 pool.close()
             except Exception:  # noqa: BLE001 — un pool no debe tumbar a los demás
-                pass
+                _log.warning("Error cerrando un pool PG durante shutdown", exc_info=True)
         _PG_POOLS.clear()
 
     _shutdown_mgr.register_cleanup("close_pg_pools", _close_pg_pools, critical=True)

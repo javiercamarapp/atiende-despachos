@@ -27,6 +27,8 @@ from typing import Any, Dict, Optional, Tuple
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+import logging
+logger = logging.getLogger(__name__)
 
 # Default TTL for idempotency cache (24 hours)
 DEFAULT_TTL_SECONDS = int(
@@ -177,7 +179,7 @@ def _get_store():
         try:
             return _RedisIdempotencyStore(url)
         except Exception:
-            pass
+            logger.warning("Redis no disponible para idempotencia, usando backend en memoria", exc_info=True)
     return _IdempotencyStore()
 
 

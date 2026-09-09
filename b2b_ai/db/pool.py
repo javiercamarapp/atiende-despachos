@@ -18,6 +18,8 @@ import os
 import queue
 import sqlite3
 import threading
+import logging
+logger = logging.getLogger(__name__)
 
 
 def _is_postgres(target: str) -> bool:
@@ -92,7 +94,7 @@ class ConnectionPool:
                 try:
                     conn.commit()
                 except Exception:
-                    pass
+                    logger.warning("Commit falló al liberar conexión al pool", exc_info=True)
             else:
                 conn.rollback()
             self._pool.put(conn)
@@ -100,7 +102,7 @@ class ConnectionPool:
             try:
                 conn.close()
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("No se pudo cerrar conexión rota", exc_info=True)
 
     def acquire(self) -> _Lease:
         """Devuelve un context manager: `with pool.acquire() as conn:`."""

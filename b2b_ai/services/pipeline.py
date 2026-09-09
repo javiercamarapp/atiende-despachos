@@ -22,6 +22,8 @@ from b2b_ai.db.db import Database
 from b2b_ai.erp.contpaqi import MockCONTPAQi
 from b2b_ai.notifications.sender import EmailSender
 from b2b_ai.services.classify import CATEGORIA_NOMBRE
+import logging
+_log = logging.getLogger(__name__)
 
 
 def ensure_tenant(db: "Database", tenant_id: int | None = None, name: str = "", rfc: str = "") -> int:
@@ -265,7 +267,7 @@ def process_batch(folder, db=None, tenant_id=None, pattern="*.xml",
             with open(checkpoint_file, "r") as cf:
                 processed_set = set(_json.load(cf))
         except Exception:
-            pass
+            _log.warning("No se pudo cargar checkpoint, se reprocesará todo", exc_info=True)
     results = []
     for f in archivos:
         if f in processed_set:
@@ -279,14 +281,14 @@ def process_batch(folder, db=None, tenant_id=None, pattern="*.xml",
                     with open(checkpoint_file, "w") as cf:
                         _json.dump(list(processed_set), cf)
                 except Exception:
-                    pass
+                    _log.warning("No se pudo guardar checkpoint de progreso", exc_info=True)
         except Exception as e:
             results.append({"archivo": os.path.basename(f), "error": str(e)})
     if checkpoint_file and os.path.exists(checkpoint_file):
         try:
             os.remove(checkpoint_file)
         except Exception:
-            pass
+            _log.debug("No se pudo eliminar archivo de checkpoint", exc_info=True)
     return results
 
 

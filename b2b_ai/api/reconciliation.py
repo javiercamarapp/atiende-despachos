@@ -25,6 +25,8 @@ from pydantic import BaseModel
 from b2b_ai.services.bank_reconciliation import (BankReconciliation,
                                                  SUPPORTED_BANKS)
 from b2b_ai.services.llm import LLMService
+import logging
+logger = logging.getLogger(__name__)
 
 
 # El estado de conciliación vive en la BASE DE DATOS, no en el proceso.
@@ -134,7 +136,7 @@ def build_reconciliation_router(db, require_api_key):
             try:
                 os.unlink(tmp_path)
             except OSError:
-                pass
+                logger.debug("No se pudo eliminar archivo temporal", exc_info=True)
 
     # -- matches -----------------------------------------------------------
     @router.get("/matches",

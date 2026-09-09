@@ -18,6 +18,8 @@ import socket
 import time
 
 from b2b_ai.monitoring.metrics import metrics
+import logging
+logger = logging.getLogger(__name__)
 
 
 def _db_status(db) -> dict:
@@ -51,7 +53,7 @@ def _redis_status() -> dict:
         client.ping()
         return {"status": "ok", "url": url, "detail": "PING ok"}
     except ImportError:
-        pass  # sin cliente: fallback socket TCP
+        logger.debug("Cliente redis no instalado, fallback a socket TCP", exc_info=True)
     except Exception as e:  # noqa: BLE001
         return {"status": "error", "url": url, "error": str(e)}
     # Fallback sin dependencia: conecta al host:puerto del URL.
@@ -100,7 +102,7 @@ def _memory_status() -> dict:
         })
         return info
     except ImportError:
-        pass
+        logger.debug("psutil no instalado", exc_info=True)
     except Exception as e:  # noqa: BLE001
         info["status"] = "degraded"
         info["error"] = str(e)

@@ -45,6 +45,8 @@ from b2b_ai.features.conciliacion.validators import (
     validate_polizas_contables,
     validate_reconciliation_data,
 )
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +176,7 @@ def _load_state(path: str) -> Dict:
             if isinstance(data, dict):
                 return data
         except Exception:
-            pass
+            logger.warning("No se pudo cargar estado persistido de conciliación, se usa estado vacío", exc_info=True)
     return {}
 
 
@@ -241,7 +243,7 @@ def build_conciliacion_router(
                 json.dump(payload, f, ensure_ascii=False, indent=2)
             os.replace(tmp, _state_path)
         except Exception:
-            pass
+            logger.exception("No se pudo guardar estado de conciliación en disco")
 
     def _tenant(auth_info) -> str:
         """Resuelve el tenant autenticado para particionar los stores."""

@@ -18,6 +18,8 @@ from typing import Optional
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+import logging
+logger = logging.getLogger(__name__)
 
 # Default 10 MB limit.  Overridable via B2B_MAX_REQUEST_SIZE_MB env var.
 _DEFAULT_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -35,7 +37,7 @@ def _get_max_bytes() -> int:
             if mb > 0:
                 return mb * 1024 * 1024
         except ValueError:
-            pass
+            logger.warning("B2B_MAX_REQUEST_SIZE_MB inválido, usando límite por defecto", exc_info=True)
     return _DEFAULT_MAX_BYTES
 
 

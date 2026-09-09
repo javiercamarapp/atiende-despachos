@@ -161,13 +161,13 @@ class SQLiteToPostgresMigration:
             try:
                 self._sqlite_conn.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando conexión sqlite en migration", exc_info=True)
             self._sqlite_conn = None
         if self._pg_conn:
             try:
                 self._pg_conn.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando conexión pg en migration", exc_info=True)
             self._pg_conn = None
 
     def _list_tables_sqlite(self) -> List[str]:
@@ -298,7 +298,7 @@ class SQLiteToPostgresMigration:
                     insert_sql = f"INSERT INTO {table} ({col_names}) " \
                                  f"VALUES ({placeholders}) ON CONFLICT DO NOTHING"
         except Exception:
-            pass  # Table might not exist in PG yet
+            logger.debug("La tabla podría no existir aún en PG", exc_info=True)
 
         # Insert in batches
         for i in range(0, len(rows), self.batch_size):
@@ -320,7 +320,7 @@ class SQLiteToPostgresMigration:
                         pg.rollback()
                         pg.begin()
                     except Exception:
-                        pass
+                        logger.warning("Rollback/begin falló tras error insertando fila", exc_info=True)
 
             # Commit each batch
             try:
@@ -330,7 +330,7 @@ class SQLiteToPostgresMigration:
                 try:
                     pg.rollback()
                 except Exception:
-                    pass
+                    logger.warning("Rollback de batch falló tras error de commit", exc_info=True)
 
         result.duration_ms = (time.time() - start) * 1000
         logger.info("Imported %d/%d rows into %s (%.1fms)",

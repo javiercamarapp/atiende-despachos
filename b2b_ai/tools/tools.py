@@ -29,6 +29,8 @@ from b2b_ai.services.anomaly import detect_anomalies as _detect_anomalies
 from b2b_ai.services.anomaly import summarize_anomalies as _summarize_anomalies
 from b2b_ai.services.approval import ApprovalManager as _ApprovalManager
 from b2b_ai.services.approval import DEFAULT_AUTO_THRESHOLD
+import logging
+logger = logging.getLogger(__name__)
 
 
 @tool(name="parse_cfdi",
@@ -94,7 +96,7 @@ def _get_default_erp(tenant_id=None):
                 tenant_id=tenant_id, config=config)
             return _tool_erp
     except Exception:
-        pass
+        logger.warning("No se pudo crear el driver de ComputerUse, usando MockCONTPAQi", exc_info=True)
     _tool_erp = MockCONTPAQi()
     return _tool_erp
 

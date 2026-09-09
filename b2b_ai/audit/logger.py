@@ -106,7 +106,7 @@ class AuditLogger:
             try:
                 self._worker.join(timeout=2)
             except RuntimeError:
-                pass
+                log.debug("No se pudo hacer join al worker de auditoría", exc_info=True)
         self._worker = None
 
     # ---- Escritura --------------------------------------------------------

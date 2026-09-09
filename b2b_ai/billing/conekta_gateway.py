@@ -48,6 +48,8 @@ from b2b_ai.billing.models import (
     Subscription,
     SubscriptionStatus,
 )
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +155,7 @@ class ConektaAPIClient:
                 if details:
                     msg = details[0].get("message", msg)
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("No se pudo parsear detalle de error de Conekta", exc_info=True)
             raise PaymentError(
                 f"Conekta API error {r.status_code}: {msg}",
                 Provider.CONEKTA, code="api_error",
