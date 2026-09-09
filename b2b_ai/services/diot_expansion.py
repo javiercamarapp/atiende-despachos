@@ -38,6 +38,8 @@ from b2b_ai.cfdi.catalogs import (
     REGIMENES_FISCALES,
 )
 from b2b_ai.common.rfc import is_valid_rfc, normalize_rfc
+import logging
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -645,7 +647,7 @@ class DIOTExpander:
         try:
             ET.indent(root, space="  ")
         except AttributeError:
-            pass  # Python anterior a 3.9
+            logger.debug("ET.indent no disponible (Python anterior a 3.9)", exc_info=True)
 
         xml_bytes = ET.tostring(
             root, xml_declaration=True, encoding="UTF-8"

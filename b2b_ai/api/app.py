@@ -148,6 +148,7 @@ from b2b_ai.features.bank_feeds.routes import build_bank_feeds_router
 from b2b_ai.features.monthly_close.routes import build_monthly_close_router
 from b2b_ai.features.data_migration.routes import build_data_migration_router
 from b2b_ai.features.compliance_tracker.routes import build_compliance_router
+_log = logging.getLogger(__name__)
 
 # Logger estructurado JSON (monitoring). Distinto del ToolCallLogger de
 # b2b_ai.tools.logger (auditoría de tools en DB): este emite JSON a stdout.
@@ -440,15 +441,15 @@ def create_app(db=None):
                 try:
                     pool.close()
                 except Exception:  # noqa: BLE001
-                    pass
+                    _log.warning("Error cerrando pool PG durante shutdown", exc_info=True)
             _PG_POOLS.clear()
         except Exception:  # noqa: BLE001
-            pass
+            _log.warning("Error accediendo a _PG_POOLS durante shutdown", exc_info=True)
         # Cerrar la conexión SQLite del hilo actual (si existe).
         try:
             db.close()
         except Exception:  # noqa: BLE001
-            pass
+            _log.warning("Error cerrando conexión sqlite durante shutdown", exc_info=True)
 
     app = FastAPI(title="Likida AI Enterprise — API", version=__version__,
                   description="Agente contable IA enterprise para despachos "

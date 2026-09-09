@@ -16,6 +16,8 @@ from fastapi import APIRouter, Depends, Query
 
 from b2b_ai.audit.logger import AuditLogger
 from b2b_ai.audit.models import AuditEvent
+import logging
+_log = logging.getLogger(__name__)
 
 
 def build_audit_logger_router(db: Any = None, require_api_key: Any = None,
@@ -54,7 +56,7 @@ def build_audit_logger_router(db: Any = None, require_api_key: Any = None,
                 if resolved is not None:
                     effective_tenant = int(resolved)
             except Exception:  # noqa: BLE001 — best-effort, no romper
-                pass
+                _log.debug("No se pudo resolver tenant_id efectivo para filtrar auditoría", exc_info=True)
 
         event_filter = event or action
         if event_filter is not None and event_filter not in _audit_events:

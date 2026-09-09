@@ -161,7 +161,7 @@ class PlaywrightDesktop(DesktopAutomation):
                 finally:
                     loop.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando event loop en __del__", exc_info=True)
 
     # -------------------------------------------------------------------
     # Core operations with retry

@@ -40,6 +40,8 @@ from b2b_ai.features.document_management.storage import (
     StorageBackendError,
     get_backend,
 )
+import logging
+logger = logging.getLogger(__name__)
 
 # En memoria por defecto solo para backward-compat de los tests que no pasan
 # db. Con db=None usamos una base SQLite efímera (:memory:), aislada por
@@ -54,7 +56,7 @@ def _reset_state() -> None:
         try:
             _wipe_all(_DEFAULT_DB)
         except Exception:  # noqa: BLE001 — best-effort en tests
-            pass
+            logger.debug("No se pudo limpiar la base efímera de tests", exc_info=True)
 
 
 def _wipe_all(db: Database) -> None:
@@ -422,7 +424,7 @@ class DocumentService:
         try:
             self.storage.delete(doc.storage_path)
         except StorageBackendError:
-            pass
+            logger.warning("No se pudo eliminar el blob de storage al borrar el documento", exc_info=True)
         return doc
 
     def _find_by_name(self, tenant_key: str, name: str) -> Optional[Document]:

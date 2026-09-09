@@ -28,6 +28,8 @@ from typing import Any, Dict, Optional, Tuple
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +178,7 @@ def _get_backend(redis_url: Optional[str] = None):
         try:
             return _RedisBackend(url)
         except RuntimeError:
-            pass  # Fall back to in-memory
+            logger.warning("Redis no disponible para rate limiting, usando backend en memoria", exc_info=True)
     return _MemoryBackend()
 
 

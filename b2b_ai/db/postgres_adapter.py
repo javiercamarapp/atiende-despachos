@@ -211,7 +211,7 @@ class PGConnection:
             else:
                 self._c.commit()
         except Exception:
-            pass
+            logger.warning("Commit/rollback falló en __exit__ de conexión PG", exc_info=True)
         return False
 
     def execute(self, sql, params=None):
@@ -239,12 +239,12 @@ class PGConnection:
             try:
                 self._release.__exit__(None, None, None)
             except Exception:
-                pass
+                logger.debug("Error liberando conexión PG (release)", exc_info=True)
         else:
             try:
                 self._c.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando conexión PG", exc_info=True)
 
     def raw(self):
         return self._c
@@ -339,11 +339,11 @@ class PostgresAdapter:
             try:
                 c.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando conexión en close_all", exc_info=True)
         try:
             del self._local.conn
         except AttributeError:
-            pass
+            logger.debug("No había conexión thread-local que limpiar", exc_info=True)
 
     # ---- Migrations ----
     def migrate(self):
@@ -371,7 +371,7 @@ class PostgresAdapter:
             """
             )
         except Exception:
-            pass
+            logger.debug("Índice ya existe o tabla aún no disponible", exc_info=True)
 
     def schema_version(self):
         """Get current schema version (from alembic_version table)."""
@@ -486,7 +486,7 @@ class SQLiteAdapter:
             try:
                 conn.execute("PRAGMA journal_mode = WAL")
             except _sqlite3.Error:
-                pass
+                logger.debug("No se pudo activar WAL (probablemente conexión :memory:)", exc_info=True)
             conn.execute("PRAGMA busy_timeout = 5000")
             self._local.conn = conn
             with self._lock:
@@ -502,11 +502,11 @@ class SQLiteAdapter:
             try:
                 c.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando conexión en close_all", exc_info=True)
         try:
             del self._local.conn
         except AttributeError:
-            pass
+            logger.debug("No había conexión thread-local que limpiar", exc_info=True)
 
     def migrate(self):
         """Run SQLite migrations from models.MIGRATIONS."""

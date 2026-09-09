@@ -130,7 +130,7 @@ class CONTPAQiDesktopAdapter(ERPAdapter):
             try:
                 self._db_conn.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando conexión CONTPAQi (ignorado)", exc_info=True)
         self._db_conn = None
         self._empresa_info = {}
 
@@ -301,7 +301,7 @@ class CONTPAQiDesktopAdapter(ERPAdapter):
             try:
                 self._db_conn.rollback()
             except Exception:
-                pass
+                logger.warning("Rollback de conexión CONTPAQi falló tras error creando póliza", exc_info=True)
             return {"exito": False, "mensaje": str(e)}
 
     def get_chart_of_accounts(self) -> ChartOfAccounts:

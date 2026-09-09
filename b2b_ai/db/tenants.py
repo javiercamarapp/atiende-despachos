@@ -328,7 +328,7 @@ class _ComputerUseERPAdapter(ERPInterface):
                 if str(inv.get("folio") or inv.get("folio_fiscal") or "") == str(folio_fiscal):
                     return inv
         except Exception:
-            pass
+            logger.warning("Fallback de extracción de facturas vía ERP falló", exc_info=True)
         return None
 
     def health(self) -> dict:

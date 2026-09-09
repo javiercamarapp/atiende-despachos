@@ -30,6 +30,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from b2b_ai.services.pipeline import process_file
+import logging
+logger = logging.getLogger(__name__)
 
 SESSION_TTL_DAYS = 30
 _PORTAL_STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -225,7 +227,7 @@ def build_portal_router(db):
                 "Haz clic en el enlace para acceder a tu portal.",
                 status="sent")
         except Exception:  # noqa: BLE001
-            pass
+            logger.warning("No se pudo registrar notificación de magic link", exc_info=True)
         resp: dict = {"ok": True,
                        "message": "Te enviamos un enlace de acceso por email.",
                        "expires_at": _expires()}
@@ -263,7 +265,7 @@ def build_portal_router(db):
             jwt_auth = JWTAuth(db)
             jwt_auth.revoke_token(user["token"])
         except Exception:  # noqa: BLE001
-            pass  # best-effort
+            logger.debug("No se pudo revocar JWT en logout", exc_info=True)
         return {"ok": True}
 
     @router.get("/auth/me")
@@ -384,7 +386,7 @@ def build_portal_router(db):
                 try:
                     os.unlink(tmp.name)
                 except OSError:
-                    pass
+                    logger.debug("No se pudo eliminar archivo temporal", exc_info=True)
 
         t = threading.Thread(target=_run, daemon=True)
         t.start()

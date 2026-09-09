@@ -236,7 +236,7 @@ class ManagedConnection:
         try:
             self.conn.close()
         except Exception:
-            pass
+            logger.debug("Error cerrando conexión", exc_info=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -296,7 +296,7 @@ class EnterpriseConnectionPool:
             try:
                 conn.execute("PRAGMA journal_mode = WAL")
             except sqlite3.Error:
-                pass
+                logger.debug("No se pudo activar WAL (probablemente conexión :memory:)", exc_info=True)
             conn.execute("PRAGMA busy_timeout = 5000")
 
         self.metrics.record_connection_created()
@@ -329,7 +329,7 @@ class EnterpriseConnectionPool:
             try:
                 mc.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando conexión al reciclar", exc_info=True)
             return self._create_connection()
         return mc
 
@@ -360,7 +360,7 @@ class EnterpriseConnectionPool:
                     try:
                         mc.close()
                     except Exception:
-                        pass
+                        logger.debug("Error cerrando conexión no saludable", exc_info=True)
                     mc = None
                 else:
                     mc = self._recycle_if_needed(mc)
@@ -412,7 +412,7 @@ class EnterpriseConnectionPool:
                         try:
                             mc.close()
                         except Exception:
-                            pass
+                            logger.debug("Error cerrando conexión tras fallo de rollback", exc_info=True)
                         self.metrics.record_connection_error()
 
                 self._update_counts()

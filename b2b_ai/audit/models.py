@@ -24,6 +24,8 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Actions(str, enum.Enum):
@@ -91,7 +93,7 @@ class AuditEntry:
             try:
                 details = json.loads(details)
             except (ValueError, TypeError):
-                pass
+                logger.debug("No se pudo parsear JSON de audit details, se conserva el valor crudo", exc_info=True)
         return cls(
             id=row["id"],
             user_id=row["user_id"],

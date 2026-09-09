@@ -25,6 +25,8 @@ from b2b_ai.features.close_management.models import (
     ERPType,
 )
 from b2b_ai.features.close_management.validation_engine import ValidationEngine
+import logging
+logger = logging.getLogger(__name__)
 
 
 class CloseManagementRouter:
@@ -231,7 +233,7 @@ class CloseManagementRouter:
                     data["total_cfdis"] = self.db.count_invoices(tenant_id=close.tenant_id)
                     data["cfdis_procesados"] = data["total_cfdis"]
                 except Exception:
-                    pass
+                    logger.warning("No se pudo obtener el conteo de CFDIs para el cierre", exc_info=True)
 
             close = manager.run_automatic_steps(close_id, data)
             return {
