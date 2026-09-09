@@ -123,7 +123,7 @@ class SendGridAdapter(CommunicationAdapter):
         raise NotImplementedError("SendGridAdapter no soporta SMS. Use TwilioAdapter.")
 
     def send_whatsapp(self, request: WhatsAppRequest) -> Message:
-        raise NotImplementedError("SendGridAdapter no soporta WhatsApp. Use WhatsAppBusinessAdapter.")
+        raise NotImplementedError("SendGridAdapter no soporta WhatsApp. Use TwilioAdapter.")
 
     def send_notification(self, request: NotificationRequest) -> Message:
         """Send notification via email through SendGrid."""

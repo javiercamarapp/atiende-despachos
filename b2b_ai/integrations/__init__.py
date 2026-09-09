@@ -61,7 +61,7 @@ from b2b_ai.integrations.pagos import (
 from b2b_ai.integrations.comunicacion import (
     CommunicationAdapter, CommunicationAdapterError,
     SendGridAdapter, TwilioAdapter, MailgunAdapter, AWSSesAdapter,
-    VonageAdapter, MessageBirdAdapter, WhatsAppBusinessAdapter,
+    VonageAdapter, MessageBirdAdapter,
 )
 
 # Almacenamiento
@@ -139,7 +139,7 @@ __all__ = [
     # Comunicación
     "CommunicationAdapter", "CommunicationAdapterError",
     "SendGridAdapter", "TwilioAdapter", "MailgunAdapter", "AWSSesAdapter",
-    "VonageAdapter", "MessageBirdAdapter", "WhatsAppBusinessAdapter",
+    "VonageAdapter", "MessageBirdAdapter",
     # Almacenamiento
     "StorageAdapter", "StorageAdapterError",
     "GoogleDriveAdapter", "OneDriveAdapter", "S3Adapter",

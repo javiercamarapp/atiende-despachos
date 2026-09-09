@@ -2,7 +2,7 @@
 """
 test_comunicacion_adapters.py — Integration tests for comunicacion adapters.
 
-Tests the SendGrid, Twilio, and WhatsApp Business adapters covering:
+Tests the SendGrid and Twilio adapters covering:
 1. Connection lifecycle and state management
 2. Correct API parameter passing (mocked HTTP layer)
 3. Error handling: not-connected, unsupported operations, timeouts, 4xx/5xx
@@ -35,9 +35,6 @@ from b2b_ai.integrations.comunicacion.models import (
 )
 from b2b_ai.integrations.comunicacion.sendgrid_adapter import SendGridAdapter
 from b2b_ai.integrations.comunicacion.twilio_adapter import TwilioAdapter
-from b2b_ai.integrations.comunicacion.whatsapp_business_adapter import (
-    WhatsAppBusinessAdapter,
-)
 
 
 # ---------------------------------------------------------------------------
@@ -68,20 +65,6 @@ def tw_adapter():
         from_email="sms@faker-example.com",
     )
     adapter = TwilioAdapter(config=config)
-    adapter.connect()
-    return adapter
-
-
-@pytest.fixture
-def wa_adapter():
-    """WhatsApp Business adapter with fresh config."""
-    config = CommunicationConfig(
-        provider="whatsapp_business",
-        api_key="faker_whatsapp_access_token_123456",
-        whatsapp_business_id="9876543210",
-        from_phone="+520987654321",
-    )
-    adapter = WhatsAppBusinessAdapter(config=config)
     adapter.connect()
     return adapter
 
@@ -564,229 +547,6 @@ class TestTwilioAdapter:
 
 
 # ============================================================================
-# 3. WhatsApp Business Adapter Tests
-# ============================================================================
-
-class TestWhatsAppBusinessAdapter:
-    """Tests for WhatsAppBusinessAdapter."""
-
-    # --- Connection ---
-
-    def test_connect_sets_connected(self):
-        adapter = WhatsAppBusinessAdapter()
-        assert not adapter.is_connected
-        result = adapter.connect()
-        assert result is True
-        assert adapter.is_connected is True
-
-    def test_test_connection_when_connected(self, wa_adapter):
-        result = wa_adapter.test_connection()
-        assert result["status"] == "connected"
-        assert result["adapter"] == "whatsapp_business"
-
-    # --- send_whatsapp ---
-
-    def test_send_whatsapp_returns_message(
-        self, wa_adapter, sample_whatsapp_request
-    ):
-        msg = wa_adapter.send_whatsapp(sample_whatsapp_request)
-        assert isinstance(msg, Message)
-        assert msg.to == "+525555555555"
-        assert msg.body == "Hello via WhatsApp!"
-        assert msg.channel == MessageChannel.WHATSAPP
-        assert msg.status == MessageStatus.SENT
-
-    def test_send_whatsapp_id_format(self, wa_adapter, sample_whatsapp_request):
-        msg = wa_adapter.send_whatsapp(sample_whatsapp_request)
-        assert msg.id.startswith("wamid_")
-
-    def test_send_whatsapp_from_phone(self, wa_adapter, sample_whatsapp_request):
-        msg = wa_adapter.send_whatsapp(sample_whatsapp_request)
-        assert msg.from_addr == "+520987654321"
-
-    def test_send_whatsapp_metadata(self, wa_adapter, sample_whatsapp_request):
-        msg = wa_adapter.send_whatsapp(sample_whatsapp_request)
-        assert msg.metadata == {"source": "api"}
-
-    def test_send_whatsapp_not_connected_raises(self):
-        adapter = WhatsAppBusinessAdapter()
-        with pytest.raises(CommunicationAdapterError, match="no está conectado"):
-            adapter.send_whatsapp(
-                WhatsAppRequest(to="+521111111111", message="Hi")
-            )
-
-    def test_send_whatsapp_default_from_phone(self):
-        adapter = WhatsAppBusinessAdapter()
-        adapter.connect()
-        msg = adapter.send_whatsapp(
-            WhatsAppRequest(to="+521111111111", message="Hi")
-        )
-        assert msg.from_addr.startswith("+525")
-        assert len(msg.from_addr) >= 12
-
-    # --- send_email (unsupported) ---
-
-    def test_send_email_raises_not_implemented(
-        self, wa_adapter, sample_email_request
-    ):
-        with pytest.raises(NotImplementedError, match="no soporta email"):
-            wa_adapter.send_email(sample_email_request)
-
-    # --- send_sms (unsupported) ---
-
-    def test_send_sms_raises_not_implemented(
-        self, wa_adapter, sample_sms_request
-    ):
-        with pytest.raises(NotImplementedError, match="no soporta SMS"):
-            wa_adapter.send_sms(sample_sms_request)
-
-    # --- send_notification ---
-
-    def test_send_notification_returns_message(
-        self, wa_adapter, sample_notification_request
-    ):
-        msg = wa_adapter.send_notification(sample_notification_request)
-        assert isinstance(msg, Message)
-        assert msg.to == "faker_user_42"
-        assert msg.body == "*Payment Received*\n\nYou have received $500 MXN"
-        assert msg.channel == MessageChannel.WHATSAPP
-        assert msg.status == MessageStatus.SENT
-
-    def test_send_notification_id_format(
-        self, wa_adapter, sample_notification_request
-    ):
-        msg = wa_adapter.send_notification(sample_notification_request)
-        assert msg.id.startswith("wa_notif_")
-
-    def test_send_notification_metadata(
-        self, wa_adapter, sample_notification_request
-    ):
-        msg = wa_adapter.send_notification(sample_notification_request)
-        assert msg.metadata == {"amount": 500}
-
-    # --- Response parsing ---
-
-    def test_send_whatsapp_timestamps(
-        self, wa_adapter, sample_whatsapp_request
-    ):
-        msg = wa_adapter.send_whatsapp(sample_whatsapp_request)
-        assert msg.created_at
-        assert msg.sent_at
-        datetime.fromisoformat(msg.created_at)
-        datetime.fromisoformat(msg.sent_at)
-
-    def test_send_whatsapp_unicode_body(self, wa_adapter):
-        req = WhatsAppRequest(to="+525555555555", message="¡Hola! 🎊 Acentos: áéíóú")
-        msg = wa_adapter.send_whatsapp(req)
-        assert msg.body == "¡Hola! 🎊 Acentos: áéíóú"
-
-    def test_send_whatsapp_empty_metadata(self, wa_adapter):
-        req = WhatsAppRequest(to="+525555555555", message="Hi")
-        msg = wa_adapter.send_whatsapp(req)
-        assert msg.metadata == {}
-
-    # --- Production simulation ---
-
-    @patch(
-        "b2b_ai.integrations.comunicacion.whatsapp_business_adapter"
-        ".WhatsAppBusinessAdapter.send_whatsapp"
-    )
-    def test_whatsapp_timeout(self, mock_send):
-        mock_send.side_effect = TimeoutError("Meta API timed out")
-        adapter = WhatsAppBusinessAdapter()
-        adapter.connect()
-        with pytest.raises(TimeoutError, match="timed out"):
-            adapter.send_whatsapp(
-                WhatsAppRequest(to="+521111111111", message="Hi")
-            )
-
-    @patch(
-        "b2b_ai.integrations.comunicacion.whatsapp_business_adapter"
-        ".WhatsAppBusinessAdapter.send_whatsapp"
-    )
-    def test_whatsapp_400_invalid_phone(self, mock_send):
-        mock_send.side_effect = CommunicationAdapterError(
-            "Invalid phone number format",
-            code="BAD_REQUEST",
-            details={"status_code": 400, "error": "invalid_phone_number"},
-        )
-        adapter = WhatsAppBusinessAdapter()
-        adapter.connect()
-        with pytest.raises(CommunicationAdapterError, match="Invalid phone"):
-            adapter.send_whatsapp(
-                WhatsAppRequest(to="invalid", message="Hi")
-            )
-
-    @patch(
-        "b2b_ai.integrations.comunicacion.whatsapp_business_adapter"
-        ".WhatsAppBusinessAdapter.send_whatsapp"
-    )
-    def test_whatsapp_401_auth_error(self, mock_send):
-        mock_send.side_effect = CommunicationAdapterError(
-            "Invalid access token",
-            code="AUTH_ERROR",
-            details={"status_code": 401},
-        )
-        adapter = WhatsAppBusinessAdapter()
-        adapter.connect()
-        with pytest.raises(CommunicationAdapterError, match="Invalid access token"):
-            adapter.send_whatsapp(
-                WhatsAppRequest(to="+521111111111", message="Hi")
-            )
-
-    @patch(
-        "b2b_ai.integrations.comunicacion.whatsapp_business_adapter"
-        ".WhatsAppBusinessAdapter.send_whatsapp"
-    )
-    def test_whatsapp_500_server_error(self, mock_send):
-        mock_send.side_effect = CommunicationAdapterError(
-            "Meta server error",
-            code="SERVER_ERROR",
-            details={"status_code": 500},
-        )
-        adapter = WhatsAppBusinessAdapter()
-        adapter.connect()
-        with pytest.raises(CommunicationAdapterError, match="server error"):
-            adapter.send_whatsapp(
-                WhatsAppRequest(to="+521111111111", message="Hi")
-            )
-
-    @patch(
-        "b2b_ai.integrations.comunicacion.whatsapp_business_adapter"
-        ".WhatsAppBusinessAdapter.send_whatsapp"
-    )
-    def test_whatsapp_retry_success(self, mock_send):
-        """First attempt fails with 500, retry succeeds."""
-        success = Message(
-            id="wamid_retry_ok",
-            to="+521111111111",
-            from_addr="+520987654321",
-            body="OK",
-            channel=MessageChannel.WHATSAPP,
-            status=MessageStatus.SENT,
-            created_at=datetime.now().isoformat(),
-            sent_at=datetime.now().isoformat(),
-        )
-        mock_send.side_effect = [
-            CommunicationAdapterError("Transient 500", code="SERVER_ERROR"),
-            success,
-        ]
-        adapter = WhatsAppBusinessAdapter()
-        adapter.connect()
-
-        for attempt in range(3):
-            try:
-                msg = adapter.send_whatsapp(
-                    WhatsAppRequest(to="+521111111111", message="Hi")
-                )
-                assert msg.id == "wamid_retry_ok"
-                break
-            except CommunicationAdapterError:
-                continue
-        assert mock_send.call_count == 2
-
-
-# ============================================================================
 # 4. Cross-adapter Interface Contract Tests
 # ============================================================================
 
@@ -795,14 +555,14 @@ class TestCommunicationAdapterInterface:
 
     @pytest.mark.parametrize(
         "adapter_cls",
-        [SendGridAdapter, TwilioAdapter, WhatsAppBusinessAdapter],
+        [SendGridAdapter, TwilioAdapter],
     )
     def test_is_abstract_subclass(self, adapter_cls):
         assert issubclass(adapter_cls, CommunicationAdapter)
 
     @pytest.mark.parametrize(
         "adapter_cls",
-        [SendGridAdapter, TwilioAdapter, WhatsAppBusinessAdapter],
+        [SendGridAdapter, TwilioAdapter],
     )
     def test_has_required_methods(self, adapter_cls):
         for method in ("connect", "send_email", "send_sms", "send_whatsapp",
@@ -814,7 +574,6 @@ class TestCommunicationAdapterInterface:
         [
             (SendGridAdapter, "sendgrid"),
             (TwilioAdapter, "twilio"),
-            (WhatsAppBusinessAdapter, "whatsapp_business"),
         ],
     )
     def test_default_provider_name(self, adapter_cls, expected_provider):
@@ -823,7 +582,7 @@ class TestCommunicationAdapterInterface:
 
     @pytest.mark.parametrize(
         "adapter_cls",
-        [SendGridAdapter, TwilioAdapter, WhatsAppBusinessAdapter],
+        [SendGridAdapter, TwilioAdapter],
     )
     def test_is_connected_before_connect(self, adapter_cls):
         adapter = adapter_cls()
@@ -831,7 +590,7 @@ class TestCommunicationAdapterInterface:
 
     @pytest.mark.parametrize(
         "adapter_cls",
-        [SendGridAdapter, TwilioAdapter, WhatsAppBusinessAdapter],
+        [SendGridAdapter, TwilioAdapter],
     )
     def test_ensure_connected_before_connect(self, adapter_cls):
         adapter = adapter_cls()
