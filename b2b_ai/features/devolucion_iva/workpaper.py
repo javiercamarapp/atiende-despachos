@@ -30,6 +30,33 @@ from .service import (
     calcular_saldo_favor,
     calcular_monto_devolucion,
 )
+from b2b_ai.features.reconciliacion_ingresos_egresos.models import (
+    PapelTrabajoConciliacion,
+)
+
+
+# ---------------------------------------------------------------------------
+# REQ-IVA-009 — Sección 7, "no discrepancia fiscal — depósitos bancarios"
+# ---------------------------------------------------------------------------
+#
+# ADR-4 / REQ-IVA-011: el Art. 59 fracción III CFF NUNCA se aplica por
+# cuenta propia. Un depósito clasificado por el motor de reglas
+# (financiamiento/aportación de socio/garantía, u "otro no gravable") es
+# siempre una SUGERENCIA automática de primera pasada, nunca una
+# determinación fiscal firme — reclasificar un depósito a ingreso gravado
+# exige evidencia documental real (contrato de mutuo, acta de asamblea,
+# contrato de garantía) y revisión/aprobación humana explícita. Esta
+# advertencia se repite literalmente en cada fila y en el nivel de sección
+# para que nunca se pierda al exportar/imprimir el papel de trabajo.
+ADVERTENCIA_ART_59_FRACC_III = (
+    "Ninguna clasificación de depósito de esta sección es una determinación "
+    "fiscal firme. La presunción de ingreso gravado del Art. 59 fracción III "
+    "CFF exige facultades de comprobación previas (PRODECON 1/2026) y "
+    "evidencia documental real (contrato de mutuo, acta de asamblea, "
+    "contrato de garantía); toda clasificación automática de primera pasada "
+    "es una sugerencia sujeta a revisión y aprobación humana explícita "
+    "(ADR-4)."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -54,13 +81,14 @@ CAMPOS_FED_ANEXO7 = (
 class WorkpaperGenerator:
     """Generate structured working paper (papel de trabajo) for IVA refund.
 
-    The working paper has 6 sections:
+    The working paper has 7 sections:
       1. Summary of period
       2. DIOT by supplier
       3. Conciliation CFDI vs DIOT
       4. Conciliation DIOT vs Declarations
       5. Balance calculation
       6. Supporting documents list
+      7. No discrepancia fiscal — depósitos bancarios (REQ-IVA-009)
     """
 
     def generate(
@@ -71,8 +99,20 @@ class WorkpaperGenerator:
         declaraciones: List[DeclaracionMensual],
         tenant_id: Optional[str] = None,
         documentos_soporte: Optional[List[str]] = None,
+        papel_conciliacion_depositos: Optional[PapelTrabajoConciliacion] = None,
     ) -> Dict[str, Any]:
         """Generate a complete working paper.
+
+        Parameters
+        ----------
+        papel_conciliacion_depositos : Optional[PapelTrabajoConciliacion]
+            REQ-IVA-009 — el `PapelTrabajoConciliacion` producido por
+            `reconciliacion_ingresos_egresos` (clasificaciones de depósito
+            bancario + `articulo_cff`) para el mismo `periodo`/tenant. Es
+            opcional: sin él, la sección 7 se genera igual pero marcada
+            como "sin datos" — el papel de trabajo siempre tiene 7
+            secciones, nunca 6, independientemente de si hay o no
+            conciliación de depósitos disponible para este período.
 
         Returns a structured dict ready for PDF/Excel export.
         """
@@ -94,6 +134,11 @@ class WorkpaperGenerator:
         # Section 6: Supporting documents
         section6 = self._section_documentos(documentos_soporte or [])
 
+        # Section 7 (REQ-IVA-009): no discrepancia fiscal — depósitos bancarios
+        section7 = self._section_no_discrepancia_fiscal_depositos(
+            papel_conciliacion_depositos
+        )
+
         return {
             "periodo": periodo,
             "tenant_id": tenant_id,
@@ -104,6 +149,7 @@ class WorkpaperGenerator:
                 "4_conciliacion_diot_declaracion": section4,
                 "5_calculo_saldo": section5,
                 "6_documentos_soporte": section6,
+                "7_no_discrepancia_fiscal_depositos": section7,
             },
             "metadata": {
                 "generado_por": "B2B AI Enterprise - Devolución de IVA Agent",
@@ -280,6 +326,84 @@ class WorkpaperGenerator:
                 "estados_cuenta": any("banco" in d.lower() or "estado" in d.lower() for d in documentos),
                 "balanza": any("balanza" in d.lower() for d in documentos),
             },
+        }
+
+    def _section_no_discrepancia_fiscal_depositos(
+        self,
+        papel_conciliacion_depositos: Optional[PapelTrabajoConciliacion],
+    ) -> Dict[str, Any]:
+        """Section 7 (REQ-IVA-009): "no discrepancia fiscal — depósitos bancarios".
+
+        Incorpora el `PapelTrabajoConciliacion` de
+        `reconciliacion_ingresos_egresos`: las clasificaciones de depósito
+        bancario (con su `articulo_cff`, poblado por REQ-IVA-001 para
+        financiamiento/aportación de socio/garantía) y las discrepancias
+        bancarias detectadas por esa conciliación, para que el expediente
+        final de devolución de IVA quede conectado con el análisis de
+        depósitos bancarios del periodo.
+
+        REGLA DURA (ADR-4, Art. 59 fracc. III CFF): esta sección nunca
+        presenta una clasificación de depósito como determinación fiscal
+        firme — cada fila y la sección completa llevan la advertencia
+        explícita de que se trata de una sugerencia automática de primera
+        pasada sujeta a revisión humana (ver `ADVERTENCIA_ART_59_FRACC_III`).
+        """
+        if papel_conciliacion_depositos is None:
+            return {
+                "disponible": False,
+                "mensaje": (
+                    "No se proporcionó papel de conciliación de "
+                    "ingresos/egresos (depósitos bancarios) para este "
+                    "período; sección informativa sin datos."
+                ),
+                "total_depositos_clasificados": 0,
+                "clasificaciones_depositos": [],
+                "resumen_por_clasificacion": {},
+                "total_discrepancias_bancarias": 0,
+                "requiere_revision_humana": False,
+                "conclusiones_conciliacion_depositos": [],
+                "advertencia_fiscal": ADVERTENCIA_ART_59_FRACC_III,
+            }
+
+        clasificaciones = papel_conciliacion_depositos.clasificaciones
+
+        resumen_por_clasificacion: Dict[str, int] = {}
+        for c in clasificaciones:
+            resumen_por_clasificacion[c.clasificacion.value] = (
+                resumen_por_clasificacion.get(c.clasificacion.value, 0) + 1
+            )
+
+        detalle_clasificaciones = [
+            {
+                "deposito_id": c.deposito_id,
+                "clasificacion": c.clasificacion.value,
+                "articulo_cff": c.articulo_cff,
+                "confianza": c.confianza,
+                "razon": c.razon,
+                "requires_human_review": c.requires_human_review,
+                "es_sugerencia_no_determinacion_firme": True,
+            }
+            for c in clasificaciones
+        ]
+
+        requiere_revision_humana = bool(
+            papel_conciliacion_depositos.requires_human_review
+        ) or any(c.requires_human_review for c in clasificaciones)
+
+        return {
+            "disponible": True,
+            "periodo": papel_conciliacion_depositos.periodo,
+            "total_depositos_clasificados": len(clasificaciones),
+            "clasificaciones_depositos": detalle_clasificaciones,
+            "resumen_por_clasificacion": resumen_por_clasificacion,
+            "total_discrepancias_bancarias": len(
+                papel_conciliacion_depositos.discrepancias
+            ),
+            "requiere_revision_humana": requiere_revision_humana,
+            "conclusiones_conciliacion_depositos": list(
+                papel_conciliacion_depositos.conclusiones
+            ),
+            "advertencia_fiscal": ADVERTENCIA_ART_59_FRACC_III,
         }
 
     # -----------------------------------------------------------------
