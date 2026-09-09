@@ -12,6 +12,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -341,6 +342,15 @@ class AutoClassifier:
         self._trained = False
         self._overrides: Dict[str, str] = {}  # rfc → last category override
 
+        # Procedencia de los datos con los que se entrenó el modelo ACTIVO.
+        # 'synthetic' = generate_synthetic_dataset(); 'real' = correcciones
+        # humanas reales (ver PipelineOrchestrator.retrain_from_corrections).
+        # None mientras el modelo no se ha entrenado todavía.
+        self._trained_on: Optional[str] = None
+        self._trained_at: Optional[str] = None
+        self._n_training_samples: int = 0
+        self._model_path = model_path
+
         if model_path and os.path.exists(model_path):
             self._load(model_path)
         elif HAS_SKLEARN:
@@ -385,13 +395,17 @@ class AutoClassifier:
     ) -> Dict[str, Any]:
         """Train the classifier.
 
-        If cfdis/labels are None, generates synthetic training data.
-        Returns training metrics including cross-validation score.
+        If cfdis/labels are None, generates synthetic training data — this
+        is the ONLY case that produces a 'synthetic' model. Passing real
+        cfdis/labels (e.g. from PipelineOrchestrator.retrain_from_corrections,
+        built out of actual human corrections) produces a 'real' model — see
+        `trained_on` below, which callers and logs use to tell the two apart.
         """
         if not HAS_SKLEARN:
             return {"status": "skipped", "reason": "scikit-learn not installed"}
 
-        if cfdis is None or labels is None:
+        used_synthetic = cfdis is None or labels is None
+        if used_synthetic:
             cfdis, labels = generate_synthetic_dataset(n_samples_per_category=n_synthetic)
 
         X = _build_feature_df(cfdis)
@@ -401,6 +415,9 @@ class AutoClassifier:
         # Fit the model
         self._model.fit(X, y)
         self._trained = True
+        self._trained_on = "synthetic" if used_synthetic else "real"
+        self._trained_at = datetime.now(timezone.utc).isoformat()
+        self._n_training_samples = len(cfdis)
 
         train_acc = float(self._model.score(X, y))
 
@@ -416,17 +433,23 @@ class AutoClassifier:
             cv_std = float(np.std(cv_scores))
             log.info(
                 "AutoClassifier trained: %d samples, %d categories, "
-                "train_acc=%.4f, cv%d_mean=%.4f (±%.4f)",
+                "train_acc=%.4f, cv%d_mean=%.4f (±%.4f), trained_on=%s",
                 n_samples, n_categories, train_acc, cv, cv_mean, cv_std,
+                self._trained_on,
             )
         except Exception as exc:
             # Fallback if cross-validation fails (e.g., too few samples per class)
             cv_mean = train_acc
             cv_std = 0.0
-            log.warning("Cross-validation failed (%s); using train accuracy", exc)
+            log.warning(
+                "Cross-validation failed (%s); using train accuracy (trained_on=%s)",
+                exc, self._trained_on,
+            )
 
         return {
             "status": "trained",
+            "trained_on": self._trained_on,
+            "trained_at": self._trained_at,
             "n_samples": n_samples,
             "n_categories": n_categories,
             "categories": self._categories,
@@ -510,9 +533,16 @@ class AutoClassifier:
         return best_cat, confidence
 
     def save(self, path: str) -> None:
-        """Save the trained model to disk."""
+        """Save the trained model to disk, including trained_on provenance
+        so a reloaded model doesn't lose the real-vs-synthetic flag."""
         if HAS_SKLEARN and self._trained:
-            joblib.dump({"model": self._model, "categories": self._categories}, path)
+            joblib.dump({
+                "model": self._model,
+                "categories": self._categories,
+                "trained_on": self._trained_on,
+                "trained_at": self._trained_at,
+                "n_training_samples": self._n_training_samples,
+            }, path)
 
     def _load(self, path: str) -> None:
         """Load a trained model from disk."""
@@ -521,6 +551,12 @@ class AutoClassifier:
             self._model = data["model"]
             self._categories = data.get("categories", [])
             self._trained = True
+            # Modelos guardados antes de este campo no tienen procedencia
+            # registrada — se marcan explícitamente como desconocida en vez
+            # de asumir 'synthetic' u otra cosa.
+            self._trained_on = data.get("trained_on", "unknown")
+            self._trained_at = data.get("trained_at")
+            self._n_training_samples = data.get("n_training_samples", 0)
 
     @property
     def is_trained(self) -> bool:
@@ -529,3 +565,16 @@ class AutoClassifier:
     @property
     def categories(self) -> List[str]:
         return list(self._categories)
+
+    @property
+    def trained_on(self) -> Optional[str]:
+        """'real' | 'synthetic' | 'unknown' | None (never trained)."""
+        return self._trained_on
+
+    @property
+    def trained_at(self) -> Optional[str]:
+        return self._trained_at
+
+    @property
+    def n_training_samples(self) -> int:
+        return self._n_training_samples

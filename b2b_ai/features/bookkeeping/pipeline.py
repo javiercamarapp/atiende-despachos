@@ -9,8 +9,9 @@ Coordinates all 5 agents.
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from b2b_ai.features.bookkeeping.models import (
     CFDIClassification,
@@ -437,4 +438,178 @@ class PipelineOrchestrator:
             "jobs_by_stage": by_stage,
             "erp_status": self._erp.get_status(),
             "override_stats": self._overrides.get_statistics(tenant_id),
+            # Visibilidad de si el modelo ACTIVO se entrenó con datos reales
+            # (correcciones humanas) o con el dataset sintético por defecto —
+            # ver AutoClassifier.trained_on / retrain_from_corrections().
+            "classifier_trained_on": self._classifier.trained_on,
+            "classifier_trained_at": self._classifier.trained_at,
+            "classifier_n_training_samples": self._classifier.n_training_samples,
         }
+
+    # -----------------------------------------------------------------------
+    # Feedback loop: correcciones humanas reales → reentrenamiento real
+    # -----------------------------------------------------------------------
+    #
+    # ML-01/HO-02: AutoClassifier.train() por defecto usa
+    # generate_synthetic_dataset() porque ningún llamador real le pasaba
+    # cfdis/labels reales. HumanOverrideManager.get_suggestions_for_retraining()
+    # existía pero nada lo conectaba de vuelta a train(). Lo que sigue cierra
+    # ese ciclo: junta cada corrección humana (HumanOverrideManager) con el
+    # snapshot REAL del CFDI que fue clasificado (capturado en
+    # job.classifications durante process_cfdis) y usa ese par
+    # (features reales, etiqueta corregida por un humano) como ejemplo de
+    # entrenamiento real para AutoClassifier.train(cfdis=..., labels=...).
+
+    def get_retraining_dataset(
+        self, tenant_id: str = ""
+    ) -> Tuple[List[Dict[str, Any]], List[str], Dict[str, Any]]:
+        """Construye un dataset de entrenamiento REAL a partir de correcciones
+        humanas ya hechas.
+
+        Para cada override:
+          - RECLASSIFY con new_categoria → la etiqueta real es new_categoria
+            (el humano corrigió la predicción del modelo).
+          - APPROVE con original_categoria → la etiqueta real es
+            original_categoria (el humano confirmó que la predicción del
+            modelo era correcta).
+        En ambos casos la etiqueta viene de un humano, no del modelo.
+
+        El override sólo se registra por cfdi_uuid — no guarda los features
+        del CFDI (descripción, montos, etc.). Para obtener un vector de
+        features REAL (no sintético) se busca la clasificación original de
+        ese mismo cfdi_uuid entre los jobs ya procesados por este
+        orchestrator (ahí sí se capturaron los datos reales del CFDI en el
+        momento de clasificarlo). Si el UUID nunca pasó por
+        process_cfdis en este proceso, no hay snapshot de features y ese
+        override se cuenta en n_skipped_no_snapshot pero no se usa para
+        entrenar (evita inventar features).
+
+        Returns:
+            (cfdis, labels, meta) — listos para AutoClassifier.train().
+        """
+        by_uuid: Dict[str, CFDIClassification] = {}
+        for job in self._jobs.values():
+            if tenant_id and job.tenant_id != tenant_id:
+                continue
+            for cls in job.classifications:
+                if cls.cfdi_uuid:
+                    # Última clasificación conocida para ese UUID gana.
+                    by_uuid[cls.cfdi_uuid] = cls
+
+        cfdis: List[Dict[str, Any]] = []
+        labels: List[str] = []
+        skipped_no_snapshot = 0
+        skipped_no_label = 0
+
+        for record in self._overrides.get_overrides(tenant_id=tenant_id, limit=1_000_000):
+            label = ""
+            if record.action == OverrideAction.RECLASSIFY and record.new_categoria:
+                label = record.new_categoria
+            elif record.action == OverrideAction.APPROVE and record.original_categoria:
+                label = record.original_categoria
+
+            if not label:
+                skipped_no_label += 1
+                continue
+
+            cls = by_uuid.get(record.cfdi_uuid)
+            if cls is None:
+                skipped_no_snapshot += 1
+                continue
+
+            cfdis.append({
+                "descripcion": cls.descripcion,
+                "subtotal": cls.subtotal,
+                "iva": cls.iva,
+                "total": cls.total,
+                "tasa_iva": cls.tasa_iva,
+                "tipo_cfdi": cls.tipo_cfdi,
+                "uso_cfdi": cls.uso_cfdi,
+                "regimen_emisor": cls.regimen_emisor,
+                "rfc_emisor": cls.rfc_emisor,
+            })
+            labels.append(label)
+
+        meta = {
+            "n_examples": len(cfdis),
+            "n_categories": len(set(labels)),
+            "n_skipped_no_snapshot": skipped_no_snapshot,
+            "n_skipped_no_label": skipped_no_label,
+        }
+        return cfdis, labels, meta
+
+    def retrain_from_corrections(
+        self,
+        tenant_id: str = "",
+        min_examples: int = 10,
+        min_examples_per_category: int = 2,
+    ) -> Dict[str, Any]:
+        """Reentrena el AutoClassifier con datos REALES (correcciones
+        humanas), en vez del dataset sintético por defecto.
+
+        Se niega a reentrenar — y deja el modelo activo intacto — si no hay
+        señal humana suficiente todavía; un puñado de correcciones no debe
+        poder degradar en producción un modelo que ya funciona. El llamador
+        (endpoint /retrain o un job programado) recibe status=
+        'insufficient_data' con el motivo exacto en ese caso.
+        """
+        cfdis, labels, meta = self.get_retraining_dataset(tenant_id=tenant_id)
+
+        if len(cfdis) < min_examples:
+            log.info(
+                "Retrain con datos reales OMITIDO (tenant=%s): %d ejemplos "
+                "reales disponibles, se requieren %d. Modelo activo sigue "
+                "trained_on=%s.",
+                tenant_id or "*", len(cfdis), min_examples,
+                self._classifier.trained_on,
+            )
+            return {
+                "status": "insufficient_data",
+                "reason": (
+                    f"Se requieren al menos {min_examples} correcciones "
+                    f"humanas con CFDI conocido; hay {len(cfdis)}."
+                ),
+                **meta,
+                "trained_on": self._classifier.trained_on,
+            }
+
+        per_category = Counter(labels)
+        if len(per_category) < 2:
+            log.info(
+                "Retrain con datos reales OMITIDO (tenant=%s): sólo hay una "
+                "categoría confirmada por humanos (%s); se necesitan al "
+                "menos 2 para entrenar un clasificador.",
+                tenant_id or "*", dict(per_category),
+            )
+            return {
+                "status": "insufficient_data",
+                "reason": "Se necesitan al menos 2 categorías reales distintas para entrenar.",
+                "categories_seen": dict(per_category),
+                **meta,
+                "trained_on": self._classifier.trained_on,
+            }
+
+        weak_categories = {c: n for c, n in per_category.items() if n < min_examples_per_category}
+        if weak_categories:
+            log.info(
+                "Retrain con datos reales OMITIDO (tenant=%s): categorías "
+                "con muy pocos ejemplos reales %s (mínimo %d).",
+                tenant_id or "*", weak_categories, min_examples_per_category,
+            )
+            return {
+                "status": "insufficient_data",
+                "reason": "Categorías con muy pocos ejemplos reales para generalizar.",
+                "weak_categories": weak_categories,
+                **meta,
+                "trained_on": self._classifier.trained_on,
+            }
+
+        report = self._classifier.train(cfdis=cfdis, labels=labels)
+        log.info(
+            "AutoClassifier REENTRENADO con datos REALES (tenant=%s): "
+            "%d ejemplos de correcciones humanas, %d categorías, "
+            "trained_on=%s, train_acc=%.4f",
+            tenant_id or "*", len(cfdis), meta["n_categories"],
+            report.get("trained_on"), report.get("train_accuracy", 0.0),
+        )
+        return {"status": "trained", **report, **meta}
