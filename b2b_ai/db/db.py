@@ -4,6 +4,32 @@ db.py — Capa de base de datos multi-tenant (SQLite para dev, PG-ready).
 
 Siempre filtra por tenant_id en las lecturas para aislar datos entre
 despachos. Aplica migraciones versionadas automáticamente.
+
+Convenciones de escritura (commit) — NO son intercambiables por gusto:
+  * `with self.conn:` para escrituras multi-statement que deben ser
+    atómicas (todo o nada) — sqlite3 y el wrapper de psycopg3 en pg.py
+    hacen commit al salir sin excepción y rollback si algo revienta dentro.
+  * `self.conn.execute(...)` + `self.conn.commit()` explícito para una
+    escritura simple de un solo statement.
+  Ambos patrones conviven en este archivo (histórico, ~80 métodos de
+  escritura) y NO se migraron todos a `with self.conn:` en esta ronda: es
+  un cambio de superficie grande sin bug funcional detectado (todo método
+  de escritura sí hace commit, ver auditoría en PR fix/db-core), y tocar
+  los ~80 sin poder correr la suite completa contra PostgreSQL real habría
+  sido el cambio más arriesgado de este archivo. Al tocar un método de
+  escritura nuevo, preferir `with self.conn:` por default.
+
+Pools de conexión — hay CUATRO implementaciones en el repo (pg.py:PGPool,
+que es la que usa esta clase vía `_get_pg_pool`; pool.py:ConnectionPool,
+usada por api/v2.py; postgres_adapter.py:PostgresAdapter/SQLiteAdapter,
+solo importada por adapter_factory.py — que a su vez NO llega a usarse
+desde aquí, ver import eliminado en este mismo PR; e
+infrastructure/db_pool.py:EnterpriseConnectionPool, sin ningún caller de
+producción, solo tests). NO se consolidaron en este PR: dos de las cuatro
+(pg.py y pool.py) tienen callers de producción DISTINTOS (esta clase y
+api/v2.py respectivamente) que habría que tocar y probar juntos, y este
+PR tiene mandato explícito de no tocar archivos fuera de db.py/tenants.py.
+Ver detalle y evidencia completa en la descripción del PR/commit.
 """
 from __future__ import annotations
 
@@ -21,9 +47,6 @@ DEFAULT_DB = (os.environ.get("B2B_DB_URL")
               or os.environ.get("B2B_DB_PATH")
               or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
                   os.path.abspath(__file__)))), "b2b_ai.db"))
-
-# Import adapter factory for PostgreSQL/SQLite switching
-from b2b_ai.db.adapter_factory import create_adapter, is_postgres as _is_postgres_url
 
 # Campos de tenant_config que se cifran en reposo (PII / credenciales).
 # Cualquier otro valor se guarda en claro.
@@ -52,6 +75,30 @@ def _get_pg_pool(dsn: str):
             retries=int(os.environ.get("B2B_PG_RETRIES", "3")),
         )
     return _PG_POOLS[dsn]
+
+
+def _is_pg_unreachable_error(exc: Exception) -> bool:
+    """True si `exc` indica que PostgreSQL está inalcanzable/rechazando la
+    conexión (host caído, credenciales, DB no existe, red) — a diferencia de
+    un error "benigno" de migración (tabla ya existe, ya está en head).
+
+    Se usa para decidir si `_pg_migrate()` debe fallar rápido y explícito en
+    vez de tragarse el error y dejar que el arranque "tenga éxito" sobre una
+    base de datos con la que en realidad nunca pudo hablar.
+    """
+    try:
+        import psycopg
+        if isinstance(exc, psycopg.OperationalError):
+            return True
+    except Exception:  # noqa: BLE001 — psycopg no instalado
+        pass
+    try:
+        from sqlalchemy.exc import OperationalError as _SAOperationalError
+        if isinstance(exc, _SAOperationalError):
+            return True
+    except Exception:  # noqa: BLE001 — sqlalchemy no instalado
+        pass
+    return False
 
 
 def _is_integrity_error(exc: Exception) -> bool:
@@ -239,6 +286,22 @@ class Database:
             # el error "Multiple head revisions are present".
             command.upgrade(alembic_cfg, "heads")
         except Exception as e:
+            if _is_pg_unreachable_error(e):
+                # FAIL-FAST: PostgreSQL está configurado (self._is_pg=True)
+                # pero inalcanzable/rechazando la conexión. Antes esto se
+                # tragaba como "no fatal" y el arranque seguía sin haber
+                # podido hablar nunca con la base — el primer síntoma real
+                # aparecía después, en medio de una request, como un error
+                # de pool genérico y confuso. Preferimos morir aquí, ahora,
+                # con un mensaje claro. NUNCA degradamos a SQLite en su
+                # lugar: eso mezclaría datos de producción con un archivo
+                # local efímero sin que nadie lo pidiera.
+                raise RuntimeError(
+                    "No se pudo conectar a PostgreSQL para aplicar "
+                    "migraciones (Alembic). No se degrada a SQLite: "
+                    "revisa disponibilidad/credenciales de la base antes "
+                    f"de reintentar. Detalle: {e}"
+                ) from e
             # TOLERANTE: si la migración falla porque las tablas YA existen
             # (DuplicateTable) o la DB ya está al head, no matamos el arranque.
             # La app funciona igual; el esquema ya está migrado en la DB de
@@ -255,7 +318,13 @@ class Database:
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_outstanding_unique
                 ON outstanding_invoices(tenant_id, factura_id)
             """)
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
+            if _is_pg_unreachable_error(e):
+                raise RuntimeError(
+                    "No se pudo conectar a PostgreSQL (índice defensivo de "
+                    "outstanding_invoices). No se degrada a SQLite: revisa "
+                    f"disponibilidad/credenciales de la base. Detalle: {e}"
+                ) from e
             pass  # table or index doesn't exist yet — fine
 
     def schema_version(self):
@@ -278,7 +347,9 @@ class Database:
         return cur.lastrowid
 
     def list_tenants(self):
-        return [dict(r) for r in self.conn.execute("SELECT * FROM tenants ORDER BY id")]
+        return [dict(r) for r in self.conn.execute(
+            "SELECT id, name, rfc, created_at, blocked "
+            "FROM tenants ORDER BY id")]
 
     def create_user(self, tenant_id, name, email="", role="contador"):
         cur = self.conn.execute(
@@ -385,10 +456,20 @@ class Database:
         )
         self.conn.commit()
 
+    # Columnas explícitas de `invoices` (evita SELECT * en las lecturas
+    # más sensibles de la capa multi-tenant: facturas fiscales por cliente).
+    _INVOICE_COLUMNS = (
+        "id, tenant_id, folio_fiscal, archivo, fecha, tipo, serie, folio, "
+        "emisor_rfc, emisor_nombre, receptor_rfc, subtotal, iva, total, "
+        "moneda, descripcion, categoria, confianza, razon_clasificacion, "
+        "valido, requires_human_review, issues, erp_poliza, erp_status, "
+        "status, procesado_en, created_at"
+    )
+
     def list_invoices(self, tenant_id=None, limit=None,
                       categoria=None, valido=None, fecha_desde=None,
                       fecha_hasta=None):
-        q = "SELECT * FROM invoices"
+        q = f"SELECT {self._INVOICE_COLUMNS} FROM invoices"
         params = []
         clauses = []
         if tenant_id is not None:
@@ -440,7 +521,7 @@ class Database:
         }
 
     def get_invoice(self, invoice_id, tenant_id=None):
-        q = "SELECT * FROM invoices WHERE id=?"
+        q = f"SELECT {self._INVOICE_COLUMNS} FROM invoices WHERE id=?"
         params = [invoice_id]
         if tenant_id is not None:
             q += " AND tenant_id=?"
@@ -468,7 +549,8 @@ class Database:
         return cur.lastrowid
 
     def list_audit(self, tenant_id=None, tool_name=None, limit=100):
-        q = "SELECT * FROM audit_log"
+        q = ("SELECT id, tenant_id, tool_name, action, entity, entity_id, "
+             "payload, status, created_at FROM audit_log")
         params = []
         clauses = []
         if tenant_id is not None:
@@ -482,12 +564,25 @@ class Database:
         q += f" ORDER BY id DESC LIMIT {int(limit)}"
         return [dict(r) for r in self.conn.execute(q, params).fetchall()]
 
-    def count_audit(self, tool_name=None):
+    def count_audit(self, tool_name=None, tenant_id=None):
+        """Cuenta entradas de audit_log. `tenant_id=None` cuenta TODOS los
+        tenants (uso legítimo: dashboards/CLI de administración global).
+        Cualquier caller que ya tenga un tenant_id concreto en contexto
+        DEBE pasarlo aquí — antes este método no lo aceptaba en absoluto,
+        así que un endpoint scoped por tenant (p.ej. GET
+        /api/v1/dashboard/analytics) no tenía forma de pedir el conteo de
+        SU tenant y terminaba mostrando el conteo global de audit_log de
+        todos los despachos (fuga de datos entre tenants)."""
         q = "SELECT COUNT(*) FROM audit_log"
-        params = []
+        clauses, params = [], []
         if tool_name:
-            q += " WHERE tool_name=?"
+            clauses.append("tool_name=?")
             params.append(tool_name)
+        if tenant_id is not None:
+            clauses.append("tenant_id=?")
+            params.append(tenant_id)
+        if clauses:
+            q += " WHERE " + " AND ".join(clauses)
         return self.conn.execute(q, params).fetchone()[0]
 
     # ---- Billing (FASE cobros) ----
@@ -757,11 +852,17 @@ class Database:
         return cur.lastrowid, key_hash
 
     def get_api_key(self, key):
-        """Busca una API key (se hashea internamente). Devuelve fila o None."""
+        """Busca una API key (se hashea internamente). Devuelve fila o None.
+
+        No selecciona `key_hash`: el llamador ya tiene la key en claro (o no
+        la necesita) y el hash no debe viajar más allá de esta consulta —
+        misma convención que `list_api_keys`, que ya lo excluía.
+        """
         import hashlib
         key_hash = hashlib.sha256(key.encode("utf-8")).hexdigest()
         row = self.conn.execute(
-            "SELECT * FROM api_keys WHERE key_hash=? AND active=1",
+            "SELECT id, tenant_id, name, active, created_at "
+            "FROM api_keys WHERE key_hash=? AND active=1",
             (key_hash,)).fetchone()
         return dict(row) if row else None
 
@@ -798,7 +899,18 @@ class Database:
         return cur.lastrowid
 
     def list_leads(self, limit=100):
-        q = "SELECT * FROM leads ORDER BY id DESC"
+        """Leads de la landing page pública (POST /api/v1/leads, sin auth).
+
+        NO filtra por tenant_id A PROPÓSITO: la tabla `leads` no tiene
+        columna tenant_id (ver models.py) porque estos son prospectos
+        anónimos que aún no son clientes — no hay ningún tenant al que
+        aislar todavía. Confirmado antes de tocar este PR: el único
+        consumidor fuera de tests es el alta pública, y el método en sí
+        solo se usa desde tests como aserción. No es la misma tabla que
+        `outreach_campaign_leads` (leads de campañas de un tenant, que sí
+        filtra por tenant_id en `list_outreach_leads`).
+        """
+        q = "SELECT id, nombre, despacho, email, facturas, mensaje, status, created_at FROM leads ORDER BY id DESC"
         if limit:
             q += f" LIMIT {int(limit)}"
         return [dict(r) for r in self.conn.execute(q).fetchall()]
@@ -1266,9 +1378,12 @@ class Database:
         return bool(blocked)
 
     def get_tenant_by_id(self, tenant_id):
-        """Fila completa de un tenant (incluye `blocked`)."""
+        """Fila de un tenant por PK (incluye `blocked`). Lookup indexado
+        por id — NO iterar `list_tenants()` (ver TenantManager._find_tenant,
+        que usaba ese full-scan y ahora reutiliza este método)."""
         row = self.conn.execute(
-            "SELECT * FROM tenants WHERE id=?", (tenant_id,)).fetchone()
+            "SELECT id, name, rfc, created_at, blocked "
+            "FROM tenants WHERE id=?", (tenant_id,)).fetchone()
         return dict(row) if row else None
 
     # ---- Usage tracking (enterprise API v2) ----------------------------
@@ -1511,9 +1626,16 @@ class Database:
         self.conn.commit()
         return cur.lastrowid
 
+    # Columnas explícitas de `client_users` (incluye password_hash: lo
+    # necesita el flujo de login para verificar la contraseña).
+    _CLIENT_USER_COLUMNS = (
+        "id, tenant_id, email, password_hash, name, role, created_at, "
+        "accepted_privacy_at"
+    )
+
     def get_client_user_by_email(self, email, tenant_id=None):
         """Usuario del portal por email (opcionalmente scoped por tenant)."""
-        q = "SELECT * FROM client_users WHERE email=?"
+        q = f"SELECT {self._CLIENT_USER_COLUMNS} FROM client_users WHERE email=?"
         params = [email]
         if tenant_id is not None:
             q += " AND tenant_id=?"
@@ -1527,12 +1649,12 @@ class Database:
 
     def get_client_user(self, user_id):
         row = self.conn.execute(
-            "SELECT * FROM client_users WHERE id=?",
+            f"SELECT {self._CLIENT_USER_COLUMNS} FROM client_users WHERE id=?",
             (user_id,)).fetchone()
         return dict(row) if row else None
 
     def list_client_users(self, tenant_id=None):
-        q = "SELECT * FROM client_users"
+        q = f"SELECT {self._CLIENT_USER_COLUMNS} FROM client_users"
         params = []
         if tenant_id is not None:
             q += " WHERE tenant_id=?"
@@ -1568,8 +1690,11 @@ class Database:
         expires_at} o None si el token no existe o está caducado."""
         import hashlib
         th = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        # No selecciona `token_hash`: ya lo tenemos en `th` y no hace falta
+        # que el opaco hasheado de sesión salga de esta consulta.
         row = self.conn.execute(
-            "SELECT * FROM portal_sessions WHERE token_hash=?",
+            "SELECT id, user_id, expires_at, created_at "
+            "FROM portal_sessions WHERE token_hash=?",
             (th,)).fetchone()
         if not row:
             return None
