@@ -14,6 +14,7 @@ CFF el fiscal — de `04-leyes-fiscales.md`).
 from __future__ import annotations
 
 from b2b_ai.cfdi import catalogs
+from b2b_ai.common.confidence import CONFIDENCE_FLOOR
 from typing import Any, Dict, List
 
 KEYWORDS: Dict[str, List[str]] = {
@@ -116,7 +117,9 @@ def classify_cfdi(datos: Dict[str, Any]) -> Dict[str, Any]:
     tie_penalty = 0.05 * max(0, tied_categories - 1)
     confianza = min(0.98, max(0.30, 0.55 + 0.20 * n_matches - tie_penalty))
     palabras = ", ".join(sorted(set(matched[best_cat])))
-    requires = confianza < 0.50 or best_cat == "desconocido"
+    # Umbral compartido: b2b_ai.common.confidence.CONFIDENCE_FLOOR
+    # (única fuente de verdad, también usada por agent/loop.py).
+    requires = confianza < CONFIDENCE_FLOOR or best_cat == "desconocido"
 
     return {
         "categoria": best_cat,
