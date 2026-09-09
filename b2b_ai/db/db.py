@@ -39,8 +39,46 @@ import sqlite3
 import threading
 import uuid
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from b2b_ai.db.models import MIGRATIONS
+
+# `invoices.subtotal/iva/total` son NUMERIC(18,2) en PostgreSQL desde
+# migrations/versions/0014_invoices_money_numeric.py (antes TEXT — ver esa
+# migración para el porqué). SQLite (dev/test) sigue guardándolos con
+# afinidad TEXT (b2b_ai/db/models.py, MIGRATIONS), así que registramos un
+# adaptador para que un Decimal se pueda bindear igual que antes: sin esto,
+# sqlite3 rechaza el parámetro con "Error binding parameter - probably
+# unsupported type".
+sqlite3.register_adapter(Decimal, str)
+
+
+def _to_money(value):
+    """Normaliza un monto (subtotal/iva/total) antes de guardarlo.
+
+    Nunca fuerza el valor a texto -- eso es justo el bug que
+    0014_invoices_money_numeric corrige en el esquema: guardar cualquier
+    cosa como string permitía "", "N/A" o "1,160.00" en una columna de
+    dinero. Aquí:
+      - None / cadena vacía / solo espacios -> None (NULL real, no "").
+      - Decimal/int/float -> se pasan como Decimal (tipo nativo NUMERIC).
+      - Otro valor (str numérica, o lo que traiga un `datos` externo) ->
+        se intenta parsear a Decimal; si no es un número válido, se
+        guarda NULL en vez de basura -- no se inventa un monto.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, (int, float)):
+        return Decimal(str(value))
+    s = str(value).strip()
+    if not s:
+        return None
+    try:
+        return Decimal(s)
+    except (InvalidOperation, ValueError):
+        return None
 
 DEFAULT_DB = (os.environ.get("B2B_DB_URL")
               or os.environ.get("DATABASE_URL")  # Railway/Heroku auto-inject
@@ -374,9 +412,9 @@ class Database:
             "emisor_rfc": datos.get("emisor_rfc", ""),
             "emisor_nombre": datos.get("emisor_nombre", ""),
             "receptor_rfc": datos.get("receptor_rfc", ""),
-            "subtotal": str(datos.get("subtotal")) if datos.get("subtotal") is not None else "",
-            "iva": str(datos.get("iva")) if datos.get("iva") is not None else "",
-            "total": str(datos.get("total")) if datos.get("total") is not None else "",
+            "subtotal": _to_money(datos.get("subtotal")),
+            "iva": _to_money(datos.get("iva")),
+            "total": _to_money(datos.get("total")),
             "moneda": datos.get("moneda", "MXN"),
             "descripcion": datos.get("descripcion", ""),
             "categoria": clasif.get("categoria", "desconocido"),
@@ -496,8 +534,16 @@ class Database:
         return [dict(r) for r in self.conn.execute(q, params).fetchall()]
 
     def invoice_stats(self, tenant_id=None):
-        """Métricas agregadas sobre facturas (para GET /api/v1/stats)."""
-        q = "SELECT categoria, COUNT(*) AS n, SUM(CAST(total AS REAL)) AS monto FROM invoices"
+        """Métricas agregadas sobre facturas (para GET /api/v1/stats).
+
+        Usa CAST(... AS NUMERIC) en vez de REAL: con PostgreSQL la columna
+        ya es NUMERIC(18,2) (0014_invoices_money_numeric) y castear a REAL
+        metería de vuelta el error de redondeo binario que esa migración
+        buscaba eliminar; con SQLite (TEXT) el CAST sigue funcionando igual
+        que antes (afinidad NUMERIC). `round()` acepta tanto Decimal como
+        float sin cambios aquí.
+        """
+        q = "SELECT categoria, COUNT(*) AS n, SUM(CAST(total AS NUMERIC)) AS monto FROM invoices"
         params = []
         if tenant_id is not None:
             q += " WHERE tenant_id=?"
@@ -507,8 +553,8 @@ class Database:
         by_cat = {r["categoria"]: {"count": r["n"],
                                    "total": round(r["monto"], 2) if r["monto"] else 0}
                   for r in rows}
-        total_q = "SELECT COUNT(*), SUM(CAST(total AS REAL)), \
-                    SUM(CAST(iva AS REAL)) FROM invoices"
+        total_q = "SELECT COUNT(*), SUM(CAST(total AS NUMERIC)), \
+                    SUM(CAST(iva AS NUMERIC)) FROM invoices"
         if tenant_id is not None:
             total_q += " WHERE tenant_id=?"
         trow = self.conn.execute(total_q, params).fetchone()
