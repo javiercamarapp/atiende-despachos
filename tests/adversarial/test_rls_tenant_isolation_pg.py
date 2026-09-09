@@ -2,7 +2,7 @@
 """H-18 — Row-Level Security (PostgreSQL) como defensa en profundidad.
 
 Prueba adversarial REAL pedida en H-18: con RLS activo (migración
-0016_rls_tenant_isolation), un intento de leer/escribir la fila de OTRO
+0017_rls_tenant_isolation), un intento de leer/escribir la fila de OTRO
 tenant SIN el filtro explícito "AND tenant_id=?" debe fallar/devolver vacío,
 incluso si el código de aplicación tuviera ese bug -- simulado aquí
 ejecutando SQL crudo sin el filtro (lo que un método de `Database` con un
@@ -64,7 +64,7 @@ pytestmark = pytest.mark.skipif(
 
 def _app_role_dsn() -> str:
     """DSN al mismo host/db que ADMIN_DSN pero autenticando como el rol de
-    mínimo privilegio que crea 0016_rls_tenant_isolation."""
+    mínimo privilegio que crea 0017_rls_tenant_isolation."""
     # ADMIN_DSN: postgresql://user:pass@host:port/db
     prefix, rest = ADMIN_DSN.split("://", 1)
     _, hostpart = rest.split("@", 1)
