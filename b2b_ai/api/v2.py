@@ -70,6 +70,7 @@ from b2b_ai.services.pipeline import process_file
 from b2b_ai.db.tenants import TenantManager
 from b2b_ai.api import webhooks as wh
 from b2b_ai.api.auth import resolve_tenant_from_env
+from b2b_ai.infrastructure.job_store import get_store as _get_job_store
 
 _v2_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -109,33 +110,96 @@ class TenantConfigRequest(BaseModel):
 
 
 # ==========================================================================
-# Store de jobs async (en memoria, single-node MVP)
+# Store de jobs async (PO-02 / SCALE-02)
 # ==========================================================================
-_JOBS: dict = {}
+# Persistido en PostgreSQL vía b2b_ai.infrastructure.job_store cuando hay un
+# DSN configurado (B2B_DB_URL / DATABASE_URL) -- así un job creado por una
+# réplica es visible/consultable desde cualquier otra, y sobrevive a un
+# restart del proceso. Sin DSN (dev/test con SQLite) cae de vuelta al dict
+# en memoria de siempre, sin cambiar el comportamiento previo.
+_JOB_TYPE_BATCH_V2 = "batch_v2"
+_JOBS: dict = {}  # fallback en memoria (mismo dict/forma que antes)
 _JOBS_LOCK = threading.Lock()
 
 
 def _new_job(tenant_id):
     job_id = uuid.uuid4().hex[:12]
-    with _JOBS_LOCK:
-        _JOBS[job_id] = {"id": job_id, "tenant_id": tenant_id,
-                         "status": "running", "created_at": datetime.now()
-                         .isoformat(timespec="seconds"),
-                         "summary": None, "results": None}
+    now = datetime.now()
+    record = {"id": job_id, "tenant_id": tenant_id, "status": "running",
+             "created_at": now.isoformat(timespec="seconds"),
+             "summary": None, "results": None}
+    store = _get_job_store()
+    if store is not None:
+        store.save_job(job_id=job_id, job_type=_JOB_TYPE_BATCH_V2,
+                       tenant_id=tenant_id or "", stage="running",
+                       progress_pct=0.0, payload=record, errors=[],
+                       started_at=now)
+    else:
+        with _JOBS_LOCK:
+            _JOBS[job_id] = record
     return job_id
 
 
 def _finish_job(job_id, summary, results):
-    with _JOBS_LOCK:
-        if job_id in _JOBS:
-            _JOBS[job_id]["status"] = "completed"
-            _JOBS[job_id]["summary"] = summary
-            _JOBS[job_id]["results"] = results
+    store = _get_job_store()
+    if store is not None:
+        row = store.get_job(job_id)
+        if row is None or row["job_type"] != _JOB_TYPE_BATCH_V2:
+            return
+        record = dict(row["payload"])
+        record["status"] = "completed"
+        record["summary"] = summary
+        record["results"] = results
+        store.save_job(job_id=job_id, job_type=_JOB_TYPE_BATCH_V2,
+                       tenant_id=row["tenant_id"], stage="completed",
+                       progress_pct=100.0, payload=record,
+                       errors=row["errors"], completed_at=datetime.now())
+    else:
+        with _JOBS_LOCK:
+            if job_id in _JOBS:
+                _JOBS[job_id]["status"] = "completed"
+                _JOBS[job_id]["summary"] = summary
+                _JOBS[job_id]["results"] = results
+
+
+def _fail_job(job_id, error):
+    store = _get_job_store()
+    if store is not None:
+        row = store.get_job(job_id)
+        if row is None or row["job_type"] != _JOB_TYPE_BATCH_V2:
+            return
+        record = dict(row["payload"])
+        record["status"] = "error"
+        record["error"] = error
+        store.save_job(job_id=job_id, job_type=_JOB_TYPE_BATCH_V2,
+                       tenant_id=row["tenant_id"], stage="error",
+                       progress_pct=row["progress_pct"], payload=record,
+                       errors=list(row["errors"]) + [error],
+                       completed_at=datetime.now())
+    else:
+        with _JOBS_LOCK:
+            if job_id in _JOBS:
+                _JOBS[job_id]["status"] = "error"
+                _JOBS[job_id]["error"] = error
 
 
 def _get_job(job_id):
+    store = _get_job_store()
+    if store is not None:
+        row = store.get_job(job_id)
+        if row is None or row["job_type"] != _JOB_TYPE_BATCH_V2:
+            return None
+        return row["payload"]
     with _JOBS_LOCK:
         return _JOBS.get(job_id)
+
+
+def _count_jobs() -> int:
+    store = _get_job_store()
+    if store is not None:
+        return store.count_jobs(job_type=_JOB_TYPE_BATCH_V2)
+    with _JOBS_LOCK:
+        return len(_JOBS)
 
 
 # ==========================================================================
@@ -501,10 +565,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
                                        job_id=job_id, dbx=dbx)
             _finish_job(job_id, out["summary"], out["results"])
         except Exception as e:  # noqa: BLE001
-            with _JOBS_LOCK:
-                if job_id in _JOBS:
-                    _JOBS[job_id]["status"] = "error"
-                    _JOBS[job_id]["error"] = str(e)
+            _fail_job(job_id, str(e))
         finally:
             dbx.close()
 
@@ -656,7 +717,7 @@ def build_v2_router(db: Database, require_api_key, auth=None):
             "connection_pool": pool.stats,
             "cache": cache.stats,
             "rate_limiter": rl.stats,
-            "async_jobs": len(_JOBS),
+            "async_jobs": _count_jobs(),
         }
 
     # --- Tenant admin ------------------------------------------------------
