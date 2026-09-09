@@ -26,7 +26,7 @@ Salida:
     - Inserciones en la BD indicada.
 
 Conexión (orden de precedencia):
-    1. `--db <ruta|dsn>`  : ruta SQLite o DSN Postgres (psycopg2).
+    1. `--db <ruta|dsn>`  : ruta SQLite o DSN Postgres (psycopg v3).
     2. env B2B_DB_URL     : DSN Postgres (postgresql://...).
     3. env B2B_DB_PATH    : ruta SQLite.
     4. por defecto        : `b2b_ai.db` (SQLite, junto al script).
@@ -648,10 +648,11 @@ def _conectar(db: Optional[str]) -> Any:
         dsn = os.path.join(_BASE_DIR, "b2b_ai.db")
     if dsn.startswith("postgres") or dsn.startswith("postgresql"):
         try:
-            import psycopg2  # type: ignore
+            import psycopg  # type: ignore
         except ImportError as e:
-            sys.exit(f"Necesitas psycopg2 para Postgres (pip install psycopg2-binary). {e}")
-        conn = psycopg2.connect(dsn)
+            sys.exit(f"Necesitas psycopg para Postgres (ya declarado en "
+                     f"requirements-production.txt / pyproject.toml). {e}")
+        conn = psycopg.connect(dsn)
         conn.autocommit = False
         return conn
     if "://" in dsn:
