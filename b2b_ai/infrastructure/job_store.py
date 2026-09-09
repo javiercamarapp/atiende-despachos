@@ -37,10 +37,13 @@ Payload como TEXT (no JSONB)
 El resultado completo del job (para bookkeeping: clasificaciones, pólizas,
 referencias ERP, conciliación; para batch v2: summary + results) se guarda
 serializado con ``json.dumps``/``json.loads`` en una columna ``TEXT``, no
-``JSONB``. Es el mismo patrón que ya usa ``b2b_ai/db/models.py`` para
-columnas de documento (ver comentario ahí sobre JSONB) — evita depender de
-cómo cada versión del driver adapta/decodifica jsonb, y hace trivial mover
-el payload a otro almacén de texto plano si hiciera falta.
+``JSONB``. A diferencia de ``audit_log.payload``/``webhook_deliveries.payload``
+en ``b2b_ai/db/models.py`` (que sí usan ``JSONB``, por ser documentos que la
+capa de datos "core" consulta), este módulo es deliberadamente independiente
+de esa capa (ver ``_is_postgres_dsn`` arriba) y no necesita consultar dentro
+del payload -- lo trata siempre como blob opaco escribe/lee completo. TEXT
+evita depender de cómo cada versión del driver adapta/decodifica jsonb, y
+hace trivial mover el payload a otro almacén de texto plano si hiciera falta.
 
 Fallback opcional: sin DSN de PostgreSQL configurado (dev/test con SQLite),
 ``get_store()`` devuelve ``None`` y el llamador debe seguir usando su
