@@ -20,6 +20,7 @@ Sigue el patrón `build_*_router(db, require_api_key)` del proyecto.
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -134,13 +135,24 @@ def build_billing_router(db: Any = None,
         summary="Recibe eventos de pago de Conekta (webhook firmado).",
     )
     async def webhook(request: Request):
-        """Procesa un evento de Conekta. Verifica la firma HMAC si viene."""
+        """Procesa un evento de Conekta. Verifica la firma HMAC si viene.
+
+        La firma se verifica contra `raw_body` (los bytes crudos tal como
+        llegaron), leído ANTES de parsear el JSON — nunca contra una
+        reserialización del body ya parseado, que no es byte-idéntica al
+        original y podría permitir un bypass de firma.
+        """
         raw_body = await request.body()
-        payload = await request.json()
+        try:
+            payload = json.loads(raw_body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=f"Payload inválido: {exc}")
         signature = request.headers.get("X-Conekta-Signature", "")
 
         try:
-            result = service.handle_webhook_event(payload, signature)
+            result = service.handle_webhook_event(
+                payload, signature, raw_body=raw_body
+            )
         except BillingError as exc:
             raise HTTPException(status_code=401, detail=exc.message)
 
