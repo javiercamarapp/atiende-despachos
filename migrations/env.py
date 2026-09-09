@@ -29,7 +29,13 @@ if _dsn:
     if _dsn.lower().startswith("postgresql://") and "+psycopg" not in _dsn:
         _dsn = _dsn.replace("postgresql://", "postgresql+psycopg://", 1)
     if _dsn.lower().startswith("postgres://") and "+psycopg" not in _dsn:
-        _dsn = _dsn.replace("postgres://", "postgres+psycopg://", 1)
+        # SQLAlchemy no registra un dialecto "postgres" a secas (solo
+        # "postgresql"): usar "postgres+psycopg://" aquí lanza
+        # NoSuchModuleError. El resto del repo (is_postgres, _is_postgres,
+        # _pool_is_postgres) sí trata "postgres://" como equivalente a
+        # "postgresql://" (estilo Heroku/Railway), así que normalizamos
+        # al mismo dialecto reconocido por SQLAlchemy.
+        _dsn = _dsn.replace("postgres://", "postgresql+psycopg://", 1)
     config.set_main_option("sqlalchemy.url", _dsn)
 
 target_metadata = None
