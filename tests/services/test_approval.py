@@ -77,7 +77,7 @@ class TestApprove:
         assert r["ok"] is False
         assert r["status"] == "blocked_efirma"
 
-    def test_approve_auto_approved不需要_efirma(self):
+    def test_approve_auto_approved_no_requiere_efirma(self):
         mgr = ApprovalManager()
         inv = {"total": "10000.00", "folio_fiscal": "F1"}
         r = mgr.approve(inv, "Juan", efirma_ok=False)

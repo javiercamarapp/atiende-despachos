@@ -202,7 +202,7 @@
 | Onboarding (setup, training) | $4,000 | $2,500 | $1,500 |
 | **Total CAC** | **$24,000** | **$15,500** | **$9,500** |
 
-*Nota: Los números anteriores incluyen overhead de equipo分配. El CAC directo es menor.*
+*Nota: Los números anteriores incluyen overhead de equipo asignado. El CAC directo es menor.*
 
 ### LTV (Lifetime Value)
 
