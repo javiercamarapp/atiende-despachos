@@ -348,8 +348,33 @@ class TestSATPACs:
     def test_corefi(self):
         self._test_pac("CorefiAdapter", "corefi")
 
-    def test_facturapi(self):
-        self._test_pac("FacturapiAdapter", "facturapi")
+    def test_facturapi_sin_api_key_es_fail_closed(self):
+        """FacturapiAdapter es una integración REAL (ver
+        b2b_ai/integrations/sat/pacs/facturapi_adapter.py), a diferencia de
+        Corefi/PAXFACTURAS/Multifactura (aún 100% simulados, que sí "timbran"
+        sin ninguna configuración). Por eso no comparte `_test_pac`, que
+        asume que connect()+timbrar_cfdi() siempre tienen éxito sin
+        credenciales: para un adaptador real eso significaría fingir una
+        respuesta exitosa sin haber llamado a ningún PAC. Sin
+        FACTURAPI_API_KEY configurada, el contrato correcto es fail-closed.
+        El camino feliz real (contra un simulador local del contrato de
+        FacturAPI) se prueba en tests/test_facturapi_adapter.py.
+        """
+        from b2b_ai.integrations.sat.pacs import FacturapiAdapter
+        from b2b_ai.integrations.sat.adapter import SATAdapterError
+        from b2b_ai.integrations.sat.models import CFDIRequest
+
+        adapter = FacturapiAdapter(config={"api_key": "", "pac_name": "facturapi"})
+
+        assert adapter.connect() is False
+        assert not adapter.is_connected
+
+        with pytest.raises(SATAdapterError) as exc_info:
+            adapter.timbrar_cfdi(CFDIRequest(
+                rfc_emisor="XAXX010101000", rfc_receptor="AAA010101AAA",
+                subtotal=10000.00, total=11600.00,
+            ))
+        assert exc_info.value.code == "NO_CONFIGURADO"
 
     def test_paxfacturas(self):
         self._test_pac("PAXFACTURASAdapter", "paxfacturas")
