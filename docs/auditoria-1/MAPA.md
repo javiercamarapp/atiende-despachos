@@ -37,9 +37,9 @@ descrito, anótalo — es información, no un error tuyo.
    Socio de despacho contable, plan Pro", sin cliente real) y una cifra "56%
    menos tiempo en captura" sin fuente en el `<title>` y meta description.
 3. **El producto tiene tres nombres en el mismo repo:** el README dice "B&B
-   AI", el landing dice "Likida AI", el repo de GitHub es
+   AI", el landing dice "Atiende Despachos", el repo de GitHub es
    `likida-ai-enterprise`. Verifica si ya se corrigió (hay un commit reciente
-   de "rebrand B&B AI → Likida AI Enterprise across codebase").
+   de "rebrand B&B AI → Atiende Despachos across codebase").
 4. **"Computer use" sobre CONTPAQi/Aspel está mockeado, no es real** —
    `computer_use/browser.py` es un `MockBrowser`; `contpaqi_driver.py` y
    `aspel_driver.py` existen pero el README lo admite: "conexión real a

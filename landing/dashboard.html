@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Dashboard — Likida AI Enterprise Agente Contable</title>
-<meta name="description" content="Dashboard del agente contable Likida AI Enterprise: métricas, facturas procesadas y estado del pipeline. Disponible offline como PWA." />
+<title>Dashboard — Atiende Despachos Agente Contable</title>
+<meta name="description" content="Dashboard del agente contable Atiende Despachos: métricas, facturas procesadas y estado del pipeline. Disponible offline como PWA." />
 <meta name="theme-color" content="#0b0f19" />
 <meta name="robots" content="noindex" />
 
@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Likida AI Enterprise" />
+<meta name="apple-mobile-web-app-title" content="Atiende Despachos" />
 
 <style>
 :root{
@@ -131,9 +131,9 @@ input,select,button{font-size:16px}
 <nav class="nav">
   <div class="container">
     <div class="row">
-      <a class="logo" href="/"><span class="dot"></span>Likida AI Enterprise</a>
+      <a class="logo" href="/"><span class="dot"></span>Atiende Despachos</a>
       <div class="nav-actions">
-        <button id="logoutBtn" class="btn btn-ghost btn-sm" style="display:none" aria-label="Cerrar sesión">🔒 Salir</button>
+        <button id="logoutBtn" class="btn btn-ghost btn-sm" style="display:none" aria-label="Cerrar sesión">Salir</button>
         <button id="installBtn" class="btn btn-ghost btn-sm" aria-label="Instalar app">⬇ Instalar</button>
         <a href="/" class="btn btn-ghost btn-sm">← Landing</a>
       </div>
@@ -148,7 +148,7 @@ input,select,button{font-size:16px}
   <!-- AUTH GATE -->
   <section id="gate" class="gate" style="display:none">
     <h2>Acceso al dashboard</h2>
-    <p>Ingresa tu API key de Likida AI Enterprise para ver métricas y facturas.</p>
+    <p>Ingresa tu API key de Atiende Despachos para ver métricas y facturas.</p>
     <form id="keyForm">
       <div class="field">
         <label for="apiKey">API Key</label>
@@ -213,7 +213,7 @@ input,select,button{font-size:16px}
 </main>
 
 <footer>
-  <div>Likida AI Enterprise — el profesional determina y firma.</div>
+  <div>Atiende Despachos — el profesional determina y firma.</div>
   <div style="margin-top:6px"><a href="/">Landing</a> · <a href="/docs">API docs</a> · <a href="/health">Health</a></div>
 </footer>
 
@@ -265,7 +265,7 @@ input,select,button{font-size:16px}
       banner.textContent = '';
     } else {
       banner.className = 'banner offline';
-      banner.textContent = '📴 Sin conexión — mostrando datos de caché';
+      banner.textContent = 'Sin conexión — mostrando datos de caché';
     }
   }
   window.addEventListener('online', updateStatus);
@@ -282,14 +282,14 @@ input,select,button{font-size:16px}
     if(!deferredPrompt) return;
     deferredPrompt.prompt();
     deferredPrompt.userChoice.then(function(choice){
-      if(choice.outcome === 'accepted') toast('✅ App instalada');
+      if(choice.outcome === 'accepted') toast('App instalada');
       else toast('Instalación cancelada');
       installBtn.classList.remove('show');
       deferredPrompt = null;
     });
   });
   window.addEventListener('appinstalled', function(){
-    toast('✅ Likida AI Enterprise instalada en tu dispositivo');
+    toast('Atiende Despachos instalada en tu dispositivo');
     installBtn.classList.remove('show');
   });
 
@@ -406,12 +406,12 @@ input,select,button{font-size:16px}
       if(cached){
         render(cached.stats, { invoices: cached.invoices });
         banner.className = 'banner offline';
-        banner.textContent = '📴 Mostrando datos de caché';
+        banner.textContent = 'Mostrando datos de caché';
         toast('Mostrando datos guardados (offline)');
       } else {
         invList.innerHTML = '<div class="empty">Sin datos disponibles y sin conexión.</div>';
         banner.className = 'banner offline';
-        banner.textContent = '📴 Sin conexión';
+        banner.textContent = 'Sin conexión';
       }
     });
   }
@@ -497,7 +497,7 @@ input,select,button{font-size:16px}
         '<div class="details">' +
           (i.razon_clasificacion ? 'Clasificación: '+esc(i.razon_clasificacion)+'<br>' : '') +
           (i.erp_poliza ? 'Póliza ERP: <b>'+esc(i.erp_poliza)+'</b>' : '') +
-          (i.requires_human_review ? '<br><span style="color:var(--warn)">⚠ requiere revisión humana</span>' : '') +
+          (i.requires_human_review ? '<br><span style="color:var(--warn)">requiere revisión humana</span>' : '') +
         '</div>' +
       '</article>';
     });

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-demo_server.py — Live demo server for Likida AI Enterprise.
+demo_server.py — Live demo server for Atiende Despachos.
 
 FastAPI app that demonstrates CFDI processing to prospects.
 Run with: python demo_server.py
@@ -42,8 +42,8 @@ logger = logging.getLogger(__name__)
 # App state
 # ---------------------------------------------------------------------------
 app = FastAPI(
-    title="Likida AI Enterprise — Demo CFDI",
-    description="Demo server for Likida AI Enterprise CFDI processing",
+    title="Atiende Despachos — Demo CFDI",
+    description="Demo server for Atiende Despachos CFDI processing",
     version="1.0.0",
 )
 
@@ -255,7 +255,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Likida AI Enterprise — Demo Procesamiento CFDI</title>
+<title>Atiende Despachos — Demo Procesamiento CFDI</title>
 <style>
 :root {
   --blue: #2563EB;
@@ -671,7 +671,7 @@ tr:hover td { background: var(--gray-50); }
 <div class="header">
   <div class="header-inner">
     <div>
-      <div class="logo">Likida AI Enterprise <span>— Agente Contable Inteligente</span></div>
+      <div class="logo">Atiende Despachos <span>— Agente Contable Inteligente</span></div>
     </div>
     <div class="header-badge">DEMO — Procesamiento CFDI</div>
   </div>
@@ -700,21 +700,21 @@ tr:hover td { background: var(--gray-50); }
 
   <!-- Tabs -->
   <div class="tabs">
-    <div class="tab active" data-tab="dashboard">📊 Dashboard</div>
-    <div class="tab" data-tab="upload">📤 Subir CFDI</div>
-    <div class="tab" data-tab="results">📋 Resultados</div>
+    <div class="tab active" data-tab="dashboard">Dashboard</div>
+    <div class="tab" data-tab="upload">Subir CFDI</div>
+    <div class="tab" data-tab="results">Resultados</div>
   </div>
 
   <!-- Tab: Dashboard -->
   <div class="tab-content active" id="tab-dashboard">
     <div class="section">
-      <div class="section-title">⚡ Acciones Rápidas</div>
+      <div class="section-title">Acciones Rápidas</div>
       <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="processAll()" id="btn-process-all">
-          🔄 Procesar los 10 CFDI de Demo
+          Procesar los 10 CFDI de Demo
         </button>
-        <button class="btn btn-secondary" onclick="loadResults()">📋 Ver Resultados</button>
-        <button class="btn btn-secondary" onclick="refreshStatus()">🔄 Actualizar Status</button>
+        <button class="btn btn-secondary" onclick="loadResults()">Ver Resultados</button>
+        <button class="btn btn-secondary" onclick="refreshStatus()">Actualizar Status</button>
       </div>
       <div class="progress-bar" id="progress-bar" style="display:none;">
         <div class="progress-fill" id="progress-fill" style="width:0%"></div>
@@ -723,7 +723,7 @@ tr:hover td { background: var(--gray-50); }
 
     <!-- Category chart -->
     <div class="section" id="chart-section" style="display:none;">
-      <div class="section-title">📊 Distribución por Categoría</div>
+      <div class="section-title">Distribución por Categoría</div>
       <div id="chart-container"></div>
     </div>
   </div>
@@ -731,9 +731,8 @@ tr:hover td { background: var(--gray-50); }
   <!-- Tab: Upload -->
   <div class="tab-content" id="tab-upload">
     <div class="section">
-      <div class="section-title">📤 Subir CFDI XML</div>
+      <div class="section-title">Subir CFDI XML</div>
       <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
-        <div class="icon">📄</div>
         <p><strong>Arrastra un archivo XML aquí</strong> o haz clic para seleccionar</p>
         <p style="margin-top:0.25rem;font-size:0.8rem;color:var(--gray-400);">CFDI 4.0 — Formato estándar del SAT</p>
       </div>
@@ -745,17 +744,16 @@ tr:hover td { background: var(--gray-50); }
   <!-- Tab: Results -->
   <div class="tab-content" id="tab-results">
     <div class="section">
-      <div class="section-title">📋 Facturas Procesadas</div>
+      <div class="section-title">Facturas Procesadas</div>
       <div class="table-wrap" id="results-table-wrap">
         <div class="empty-state">
-          <div class="icon">📭</div>
-          <p>No hay resultados aún. Procesa los CFDI de demo o sube un archivo.</p>
+            <p>No hay resultados aún. Procesa los CFDI de demo o sube un archivo.</p>
         </div>
       </div>
     </div>
 
     <div class="section" id="anomalies-section" style="display:none;">
-      <div class="section-title">🚨 Anomalías Detectadas</div>
+      <div class="section-title">Anomalías Detectadas</div>
       <div id="anomalies-container"></div>
     </div>
   </div>
@@ -770,7 +768,7 @@ tr:hover td { background: var(--gray-50); }
 <div class="toast" id="toast"></div>
 
 <div class="footer">
-  <strong>Likida AI Enterprise</strong> — Agente contable inteligente para despachos mexicanos.<br>
+  <strong>Atiende Despachos</strong> — Agente contable inteligente para despachos mexicanos.<br>
   Los resultados son informativos y no constituyen asesoría fiscal.
 </div>
 
@@ -836,16 +834,16 @@ async function processAll() {
     renderResultsTable();
     renderAnomalies();
     renderChart(data.summary.por_categoria || {});
-    showToast(`✅ ${data.processed} facturas procesadas en ${data.elapsed_seconds}s`);
+    showToast(`${data.processed} facturas procesadas en ${data.elapsed_seconds}s`);
 
     // Switch to results tab
     document.querySelector('[data-tab="results"]').click();
   } catch (err) {
     clearInterval(iv);
-    showToast('❌ Error: ' + err.message);
+    showToast('Error: ' + err.message);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '🔄 Procesar los 10 CFDI de Demo';
+    btn.innerHTML = 'Procesar los 10 CFDI de Demo';
     setTimeout(() => {
       document.getElementById('progress-bar').style.display = 'none';
       document.getElementById('progress-fill').style.width = '0%';
@@ -886,19 +884,19 @@ async function uploadFile(file) {
     const hasAnomaly = (result.anomalias || []).length > 0;
     resultDiv.innerHTML = `
       <div style="padding:1rem;background:${hasAnomaly ? 'var(--amber-light)' : 'var(--green-light)'};border-radius:8px;">
-        <strong>${hasAnomaly ? '⚠️' : '✅'} ${file.name} procesado</strong>
+        <strong>${hasAnomaly ? 'Advertencia: ' : ''}${file.name} procesado</strong>
         <div style="font-size:0.85rem;margin-top:0.25rem;color:var(--gray-600);">
           Categoría: <strong>${result.clasificacion.categoria}</strong> |
           Confianza: ${(result.clasificacion.confianza * 100).toFixed(0)}% |
           Total: ${fmtMonto(result.datos.total)}
-          ${hasAnomaly ? '| <span style="color:var(--red);">⚠ ' + result.anomalias.length + ' anomalía(s)</span>' : ''}
+          ${hasAnomaly ? '| <span style="color:var(--red);">' + result.anomalias.length + ' anomalía(s)</span>' : ''}
         </div>
       </div>`;
-    showToast('✅ ' + file.name + ' procesado correctamente');
+    showToast(file.name + ' procesado correctamente');
   } catch (err) {
     resultDiv.innerHTML = `<div style="padding:1rem;background:var(--red-light);border-radius:8px;">
-      <strong>❌ Error:</strong> ${err.message}</div>`;
-    showToast('❌ Error: ' + err.message);
+      <strong>Error:</strong> ${err.message}</div>`;
+    showToast('Error: ' + err.message);
   }
 }
 
@@ -909,9 +907,9 @@ async function refreshStatus() {
     const data = await resp.json();
     document.getElementById('val-total').textContent = data.total_processed;
     document.getElementById('val-anomalias').textContent = data.total_anomalies;
-    showToast('🔄 Status actualizado');
+    showToast('Status actualizado');
   } catch (err) {
-    showToast('❌ Error al obtener status');
+    showToast('Error al obtener status');
   }
 }
 
@@ -926,7 +924,7 @@ async function loadResults() {
     renderAnomalies();
     document.querySelector('[data-tab="results"]').click();
   } catch (err) {
-    showToast('❌ Error al cargar resultados');
+    showToast('Error al cargar resultados');
   }
 }
 
@@ -966,7 +964,7 @@ function updateStatsFromResults() {
 function renderResultsTable() {
   const wrap = document.getElementById('results-table-wrap');
   if (!allResults.length) {
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No hay resultados aún.</p></div>';
+    wrap.innerHTML = '<div class="empty-state"><p>No hay resultados aún.</p></div>';
     return;
   }
 
@@ -1038,7 +1036,7 @@ function renderAnomalies() {
       </div>
       <div class="anomaly-desc">${a.descripcion||''}</div>
       <div class="anomaly-detail"><strong>Detalle:</strong> ${detStr}</div>
-      ${a.referencia_legal ? '<div class="anomaly-legal">📋 ' + a.referencia_legal + '</div>' : ''}
+      ${a.referencia_legal ? '<div class="anomaly-legal">' + a.referencia_legal + '</div>' : ''}
       <div class="anomaly-detail"><strong>Factura:</strong> ${a.archivo||''}</div>
     </div>`;
   });
@@ -1086,8 +1084,8 @@ function showDetail(idx) {
 
   panel.innerHTML = `
     <h3 style="display:flex;justify-content:space-between;align-items:center;">
-      📄 ${r.archivo || 'CFDI'}
-      <button class="btn btn-sm btn-secondary" onclick="closeDetail()">✕ Cerrar</button>
+      ${r.archivo || 'CFDI'}
+      <button class="btn btn-sm btn-secondary" onclick="closeDetail()">Cerrar</button>
     </h3>
     <div style="margin-bottom:1rem;">
       <div class="detail-row"><span class="label">Versión</span><span class="val">${d.version||'?'}</span></div>
@@ -1112,18 +1110,18 @@ function showDetail(idx) {
       <div class="detail-row"><span class="label">Categoría</span><span class="val"><span class="badge badge-info">${c.categoria||'?'}</span></span></div>
       <div class="detail-row"><span class="label">Confianza</span><span class="val">${((c.confianza||0)*100).toFixed(0)}%</span></div>
       <div class="detail-row"><span class="label">Razón</span><span class="val" style="max-width:300px;text-align:right;">${c.razon||'?'}</span></div>
-      <div class="detail-row"><span class="label">Revisión humana</span><span class="val">${c.requires_human_review ? '⚠️ Sí' : '✅ No'}</span></div>
+      <div class="detail-row"><span class="label">Revisión humana</span><span class="val">${c.requires_human_review ? ' Sí' : 'No'}</span></div>
     </div>
     ${conceptsHtml ? '<div style="margin-bottom:1rem;"><strong style="font-size:0.85rem;">Conceptos:</strong>' + conceptsHtml + '</div>' : ''}
-    ${(r.anomalias||[]).length ? '<div style="margin-top:1rem;"><strong style="font-size:0.85rem;color:var(--red);">🚨 Anomalías:</strong></div>' +
+    ${(r.anomalias||[]).length ? '<div style="margin-top:1rem;"><strong style="font-size:0.85rem;color:var(--red);">Anomalías:</strong></div>' +
       r.anomalias.map(a => `<div class="anomaly-card ${a.severity}" style="margin-top:0.5rem;">
         <div class="anomaly-header">
           <span class="anomaly-type">${(a.tipo||'').replace(/_/g,' ')}</span>
           <span class="badge badge-${a.severity==='high'||a.severity==='critical'?'error':'warn'}">${(a.severity||'').toUpperCase()}</span>
         </div>
         <div class="anomaly-desc">${a.descripcion||''}</div>
-        ${a.referencia_legal ? '<div class="anomaly-legal">📋 ' + a.referencia_legal + '</div>' : ''}
-      </div>`).join('') : '<p style="color:var(--gray-400);margin-top:1rem;">✅ Sin anomalías detectadas</p>'}
+        ${a.referencia_legal ? '<div class="anomaly-legal">' + a.referencia_legal + '</div>' : ''}
+      </div>`).join('') : '<p style="color:var(--gray-400);margin-top:1rem;">Sin anomalías detectadas</p>'}
   `;
 
   document.getElementById('detail-overlay').classList.add('open');
@@ -1151,10 +1149,10 @@ async def dashboard():
 # ===========================================================================
 
 if __name__ == "__main__":
-    print("\n  🚀 Likida AI Enterprise — Demo Server")
+    print("\n  Atiende Despachos — Demo Server")
     print("  " + "=" * 40)
-    print(f"  📂 Demo data: {DEMO_DATA_DIR}")
-    print(f"  🌐 Dashboard: http://localhost:8080")
-    print(f"  📡 API docs:  http://localhost:8080/docs")
+    print(f"  Demo data: {DEMO_DATA_DIR}")
+    print(f"  Dashboard: http://localhost:8080")
+    print(f"  API docs:  http://localhost:8080/docs")
     print("  " + "=" * 40 + "\n")
     uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")

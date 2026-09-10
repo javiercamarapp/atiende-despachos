@@ -1327,14 +1327,14 @@ class Consulta69B:
                 'en_listado': True,
                 'rfc': rfc_upper,
                 'estatus': 'Presunto EFOS',
-                'mensaje': '⚠️ Este proveedor está en el listado 69-B del SAT'
+                'mensaje': ' Este proveedor está en el listado 69-B del SAT'
             }
 
         return {
             'en_listado': False,
             'rfc': rfc_upper,
             'estatus': 'No encontrado',
-            'mensaje': '✅ Este proveedor NO está en el listado 69-B'
+            'mensaje': 'Este proveedor NO está en el listado 69-B'
         }
 
     def verificar_lista_proveedores(self, rfcs: list) -> list:
@@ -2058,17 +2058,17 @@ Desventaja: Menos adoption que Facturapi
 
 | Característica | Facturapi | Finkok | SW Sapien | Timbox | FiscalAPI |
 |---------------|-----------|--------|-----------|--------|-----------|
-| **API REST** | ✅ | ❌ (SOAP) | ✅ | ✅ | ✅ |
+| **API REST** | Sí | (SOAP) | Sí | Sí | Sí |
 | **Documentación** | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **SDK Python** | ✅ Oficial | ❌ | ✅ | ❌ | ✅ |
-| **CFDI 4.0** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Carta Porte** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Nómina** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Multi-RFC** | ✅ | ❌ | ✅ | ❌ | ✅ |
-| **Sandbox/Test** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Dashboard** | ✅ | ❌ | ✅ | ✅ | ✅ |
-| **Webhooks** | ✅ | ❌ | ✅ | ❌ | ✅ |
-| **Cancelación** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **SDK Python** | Oficial | No | Sí | No | Sí |
+| **CFDI 4.0** | Sí | Sí | Sí | Sí | Sí |
+| **Carta Porte** | Sí | Sí | Sí | Sí | Sí |
+| **Nómina** | Sí | Sí | Sí | Sí | Sí |
+| **Multi-RFC** | Sí | No | Sí | No | Sí |
+| **Sandbox/Test** | Sí | Sí | Sí | Sí | Sí |
+| **Dashboard** | Sí | No | Sí | Sí | Sí |
+| **Webhooks** | Sí | No | Sí | No | Sí |
+| **Cancelación** | Sí | Sí | Sí | Sí | Sí |
 | **Precio base** | $499/mes | $199/mes | $599/mes | $299/mes | $399/mes |
 | **Calidad API** | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
 

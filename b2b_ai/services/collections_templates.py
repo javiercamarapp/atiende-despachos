@@ -43,7 +43,7 @@ TEMPLATES: Dict[str, Dict] = {
             ),
         },
         "whatsapp": (
-            "Hola {nombre_empresa}! 👋 Te recordamos amablemente que la factura "
+            "Hola {nombre_empresa}! Te recordamos amablemente que la factura "
             "{factura_id} por {monto} vence en breve. Si ya la pagaste, "
             "ignora este mensaje. ¡Gracias!"
         ),

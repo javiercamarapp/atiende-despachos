@@ -13,7 +13,7 @@
 3. [ERPs Mexicanos (Integración)](#3-erps-mexicanos-integración)
 4. [Banca y Pagos](#4-banca-y-pagos)
 5. [Tabla Comparativa Resumen](#5-tabla-comparativa-resumen)
-6. [Recomendaciones para Likida AI](#6-recomendaciones-para-likida-ai)
+6. [Recomendaciones para Atiende Despachos](#6-recomendaciones-para-likida-ai)
 
 ---
 
@@ -295,7 +295,7 @@ client.invoices.send_by_email(invoice["id"], {"email": "kim@example.com"})
 
 **SDKs oficiales:** Node.js, .NET, PHP, cURL
 
-**Ventajas para Likida AI:**
+**Ventajas para Atiende Despachos:**
 - API REST limpia, fácil de integrar con Python
 - Multi-RFC: perfecto para despachos con múltiples clientes
 - Webhooks para notificaciones asíncronas
@@ -381,7 +381,7 @@ invoice = requests.post(f"{BASE}/invoices", json={
 
 **SDKs oficiales:** C#, Python, JavaScript, PHP, Java
 
-**Ventajas para Likida AI:**
+**Ventajas para Atiende Despachos:**
 - Pricing escalado favorable para alto volumen ($0.49/timbre a 100K)
 - Descarga Masiva integrada
 - Multi-RFC nativo
@@ -395,7 +395,7 @@ invoice = requests.post(f"{BASE}/invoices", json={
 **Contacto:** info@finkok.com, Tel: +52 (55) 46-24-01-81
 **Oficina:** Morelia, Michoacán
 
-> ⚠️ **ADVERTENCIA:** Finkok tuvo su autorización como PAC revocada por el SAT en 2019. Verificar estatus actual antes de integrarse.
+> **ADVERTENCIA:** Finkok tuvo su autorización como PAC revocada por el SAT en 2019. Verificar estatus actual antes de integrarse.
 
 **Descripción:** Facturación electrónica OnDemand. Modelo de pago por consumo sin pago anticipado.
 
@@ -552,7 +552,7 @@ dbo.ADMCIPROVEEDORES  -- Proveedores
 dbo.ADMCIPRODUCTOS    -- Productos
 ```
 
-**Integración para agentes Likida:**
+**Integración para agentes Atiende Despachos:**
 ```python
 # Conexión directa a BD CONTPAQi vía pyodbc
 import pyodbc
@@ -848,9 +848,9 @@ GET  /api/res.partner           # Listar contactos
 - Disponible para personas físicas y morales
 
 **Integración directa:**
-- ❌ No hay API directa de Banxico para enviar SPEI
-- ✅ Cada banco ofrece su propia API para operaciones SPEI
-- ✅ STP (Sistema de Transferencias y Pagos) ofrece API para fintechs
+- No hay API directa de Banxico para enviar SPEI
+- Cada banco ofrece su propia API para operaciones SPEI
+- STP (Sistema de Transferencias y Pagos) ofrece API para fintechs
 
 **STP (Proveedor tecnológico):**
 - URL: https://www.stpmex.com
@@ -987,12 +987,12 @@ Header: Authorization: Bearer key_test_xxx    # Pruebas
 | **Webhooks** | POST | `/webhooks` | Crear webhook |
 
 **Métodos de pago soportados:**
-- 💳 Tarjetas (Visa, Mastercard, Amex)
-- 🏪 OXXO (efectivo)
-- 🏦 Transferencia SPEI
-- 📱 Apple Pay / Google Pay
-- 💰 Pago en plazos (meses sin intereses)
-- 🔄 Cobros recurrentes
+- Tarjetas (Visa, Mastercard, Amex)
+- OXXO (efectivo)
+- Transferencia SPEI
+- Apple Pay / Google Pay
+- Pago en plazos (meses sin intereses)
+- Cobros recurrentes
 
 **Ejemplo — Crear cargo con OXXO:**
 ```python
@@ -1059,10 +1059,10 @@ Header: Authorization: Bearer pk_live_xxx   # Publishable key
 | **Checkout** | POST | `/v1/checkout/sessions` | Crear sesión checkout |
 
 **Métodos de pago México:**
-- 💳 Tarjetas (Visa, Mastercard, Amex)
-- 🏦 OXXO Pay
-- 📱 SPEI (transferencia)
-- 🍎 Apple Pay
+- Tarjetas (Visa, Mastercard, Amex)
+- OXXO Pay
+- SPEI (transferencia)
+- Apple Pay
 
 **Ejemplo Python:**
 ```python
@@ -1105,16 +1105,16 @@ payment_intent = stripe.PaymentIntent.create(
 | Tarjetas | 2.9% + $2.50 | 3.6% + $3.00 |
 | OXXO | $5.00 | $10.00 |
 | SPEI | $5.00 | 2.9% + $3.00 |
-| Apple Pay | ✅ | ✅ |
-| Google Pay | ✅ | ✅ |
-| Meses sin intereses | ✅ | ❌ |
-| Cobros recurrentes | ✅ | ✅ |
-| SDK Python | ✅ | ✅ |
-| Webhooks | ✅ | ✅ |
-| Soporte en español | ✅ | Limitado |
+| Apple Pay | Sí | Sí |
+| Google Pay | Sí | Sí |
+| Meses sin intereses | Sí | No |
+| Cobros recurrentes | Sí | Sí |
+| SDK Python | Sí | Sí |
+| Webhooks | Sí | Sí |
+| Soporte en español | Sí | Limitado |
 | Integración CFDI | vía Facturapi | vía Facturapi |
 
-**Recomendación para Likida AI:** Conekta para cobros (menor costo, más métodos MX), Stripe para clientes internacionales.
+**Recomendación para Atiende Despachos:** Conekta para cobros (menor costo, más métodos MX), Stripe para clientes internacionales.
 
 ---
 
@@ -1124,12 +1124,12 @@ payment_intent = stripe.PaymentIntent.create(
 
 | Servicio | Pricing | Multi-RFC | SDK Python | API REST | Descarga Masiva | Recomendado |
 |----------|---------|-----------|------------|----------|-----------------|-------------|
-| **Facturapi** | $299/mes + $0.60/timbre | ✅ | ❌ (Node, .NET, PHP) | ✅ | ✅ | ⭐⭐⭐ |
-| **FiscalAPI** | $199/mes + paquetes | ✅ | ✅ | ✅ | ✅ | ⭐⭐⭐ |
-| **Finkok** | OnDemand | ❓ | ❌ | SOAP/REST | ❌ | ⚠️ |
-| **SW Sapien** | No público | ❓ | ❓ | ✅ | ❓ | ⭐⭐ |
-| **Timbox** | No público | ❓ | ❓ | ✅ | ❓ | ⭐⭐ |
-| **CONTPAQi Timbra** | Por volumen | ❓ | ❓ | ✅ | ❓ | ⭐⭐ |
+| **Facturapi** | $299/mes + $0.60/timbre | Sí | (Node, .NET, PHP) | Sí | Sí | ⭐⭐⭐ |
+| **FiscalAPI** | $199/mes + paquetes | Sí | Sí | Sí | Sí | ⭐⭐⭐ |
+| **Finkok** | OnDemand | N/D | No | SOAP/REST | No | Advertencia |
+| **SW Sapien** | No público | N/D | N/D | Sí | N/D | ⭐⭐ |
+| **Timbox** | No público | N/D | N/D | Sí | N/D | ⭐⭐ |
+| **CONTPAQi Timbra** | Por volumen | N/D | N/D | Sí | N/D | ⭐⭐ |
 
 ### ERPs
 
@@ -1147,15 +1147,15 @@ payment_intent = stripe.PaymentIntent.create(
 
 | Servicio | SPEI | Tarjetas | OXXO | Cobros recurrentes | API REST |
 |----------|------|----------|------|--------------------|----------| 
-| **Conekta** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Stripe MX** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **STP** | ✅ | ❌ | ❌ | ❌ | ✅ |
-| **BBVA API** | ✅ | ❌ | ❌ | ❓ | ✅ |
-| **Banorte API** | ✅ | ❌ | ❌ | ❓ | ✅ |
+| **Conekta** | Sí | Sí | Sí | Sí | Sí |
+| **Stripe MX** | Sí | Sí | Sí | Sí | Sí |
+| **STP** | Sí | No | No | No | Sí |
+| **BBVA API** | Sí | No | No | N/D | Sí |
+| **Banorte API** | Sí | No | No | N/D | Sí |
 
 ---
 
-## 6. Recomendaciones para Likida AI
+## 6. Recomendaciones para Atiende Despachos
 
 ### Stack de Integración Recomendado
 
@@ -1184,7 +1184,7 @@ banca:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   LIKIDA AI AGENTS                   │
+│                   ATIENDE DESPACHOS AGENTS                   │
 │                                                      │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ │
 │  │ Agent    │ │ Agent    │ │ Agent    │ │ Agent  │ │

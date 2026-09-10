@@ -143,10 +143,10 @@ class WebhookProcessor:
         )
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "LikidaAI-Webhook/1.0",
-            "X-Likida-Signature": f"sha256={signature}",
-            "X-Likida-Event": event.event_type.value,
-            "X-Likida-Event-Id": event.id,
+            "User-Agent": "AtiendeDespachos-Webhook/1.0",
+            "X-Atiende Despachos-Signature": f"sha256={signature}",
+            "X-Atiende Despachos-Event": event.event_type.value,
+            "X-Atiende Despachos-Event-Id": event.id,
         }
 
         attempt = 0

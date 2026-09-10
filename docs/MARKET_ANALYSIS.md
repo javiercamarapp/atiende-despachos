@@ -1,4 +1,4 @@
-# Market Analysis — Likida AI Enterprise
+# Market Analysis — Atiende Despachos
 
 **Date:** 2026-08-01
 **Status:** Living document
@@ -46,7 +46,7 @@
 - 62% of Mexican despachos plan to increase tech spending in 2026 (encuesta CONTPAQi)
 - Cloud adoption accelerating post-COVID
 - Remote work driving demand for cloud-native solutions
-- **Implication:** Tailwinds for Likida's cloud-first, AI-native approach
+- **Implication:** Tailwinds for Atiende Despachos's cloud-first, AI-native approach
 
 ### 2.2 AI Adoption in Financial Services
 - Global AI in accounting market growing at 30% CAGR (2024-2030)
@@ -110,7 +110,7 @@
 
 ## 4. Barriers to Entry
 
-### For Likida (Challenges)
+### For Atiende Despachos (Challenges)
 - **Brand recognition:** New player against decades-old brands
 - **Switching costs:** Clients have years of data in legacy systems
 - **Trust deficit:** AI in regulated finance requires proof
@@ -121,7 +121,7 @@
 - **Data moat:** Legacy systems have years of workflow data
 - **Partner networks:** Established reseller/integrator channels
 
-### How Likida Overcomes Barriers
+### How Atiende Despachos Overcomes Barriers
 - Computer-use bridges legacy systems during transition
 - Free pilot programs reduce risk
 - Human-in-the-loop builds trust
@@ -163,7 +163,7 @@
 
 |                    | Low Tech | High Tech |
 |--------------------|----------|-----------|
-| **High Mexican Fit** | Aspel | CONTPAQi → **Likida** |
+| **High Mexican Fit** | Aspel | CONTPAQi → **Atiende Despachos** |
 | **Low Mexican Fit** | Small tools | QuickBooks, Xero |
 
 ### Market Share (Estimated)

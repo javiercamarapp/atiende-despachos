@@ -742,7 +742,7 @@ class TestSerializeHtml:
     def test_footer(self):
         report = generate_balance_general()
         result = serialize_html(report)
-        assert "Likida AI Enterprise" in result
+        assert "Atiende Despachos" in result
 
 
 # ===========================================================================

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""demo_pilot.py — Demo Likida AI Enterprise en un solo comando.
+"""demo_pilot.py — Demo Atiende Despachos en un solo comando.
 
 Levanta el servidor FastAPI, puebla la base demo y recorre el flujo completo
 CFDI → bookkeeping → conciliación, más 3 escenarios comerciales, todo con
@@ -94,7 +94,7 @@ def _kv(key: str, value: str):
 
 
 def _warn(text: str):
-    print(_c(_YELLOW, "  ⚠ " + text))
+    print(_c(_YELLOW, "  " + text))
 
 
 def _money(x) -> str:
@@ -178,7 +178,7 @@ def seed_db(db_path: Path) -> None:
     tail = (proc.stdout or "").strip().splitlines()[-14:]
     print("\n".join("    " + ln for ln in tail))
     if proc.returncode != 0:
-        sys.exit(_c(_RED, "\n  ✘ El seed falló:\n") + (proc.stderr or proc.stdout))
+        sys.exit(_c(_RED, "\n  El seed falló:\n") + (proc.stderr or proc.stdout))
     _ok(f"Base demo lista: {db_path}")
 
 
@@ -397,7 +397,7 @@ def scenario_conciliacion(base: str):
 # ── main ─────────────────────────────────────────────────────────────────────
 def main(argv=None) -> int:
     import argparse
-    p = argparse.ArgumentParser(description="Demo Likida AI Enterprise en un comando.")
+    p = argparse.ArgumentParser(description="Demo Atiende Despachos en un comando.")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--db", default=str(_DEFAULT_DB),
@@ -406,7 +406,7 @@ def main(argv=None) -> int:
 
     db_path = Path(args.db).expanduser().resolve()
 
-    _banner("LIKIDA AI ENTERPRISE — DEMO AUTOMÁTICA")
+    _banner("ATIENDE DESPACHOS — DEMO AUTOMÁTICA")
     print(_c(_DIM, "  Pipeline contable end-to-end para presentación a prospecto"))
 
     # 1) Semilla

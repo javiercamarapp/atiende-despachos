@@ -1,4 +1,4 @@
-# 🔥 AUDITORÍA DE DESTRUCCIÓN — Fiscal + Edge Cases
+# AUDITORÍA DE DESTRUCCIÓN — Fiscal + Edge Cases
 
 > **Objetivo:** Encontrar bugs que causarían datos incorrectos, rechazo del SAT, o pérdida de dinero real.
 > **Método:** Lectura línea-por-línea de `b2b_ai/` (parser, validadores, servicios, API, compliance).
@@ -28,7 +28,7 @@ def parse_cfdi_bytes(xml_bytes: bytes):
     ...
 ```
 
-**Severidad:** 🔴 CRÍTICA — Denegación de servicio, pérdida de datos en batch.
+**Severidad:** CRÍTICA — Denegación de servicio, pérdida de datos en batch.
 
 ---
 
@@ -52,7 +52,7 @@ def parse_cfdi_bytes(xml_bytes: bytes):
     root = etree.fromstring(text.encode('utf-8'))
 ```
 
-**Severidad:** 🟡 ALTA — Silenciosamente corrompe datos fiscales válidos.
+**Severidad:** ALTA — Silenciosamente corrompe datos fiscales válidos.
 
 ---
 
@@ -72,7 +72,7 @@ Pero si la nota de crédito tiene subtotal=0 y total negativo (CFDI 4.0 lo permi
 
 **Fix:** Validar que para TipoDeComprobante="E", el total puede ser 0 (nunca negativo según SAT, pero el subtotal puede ser 0 con impuestos negativos por retención).
 
-**Severidad:** 🟡 ALTA — Bloquea el flujo de notas de crédito.
+**Severidad:** ALTA — Bloquea el flujo de notas de crédito.
 
 ---
 
@@ -91,7 +91,7 @@ if datos.get("emisor_rfc") in RFCS_GENERICOS:
     warnings.append("CFDI al público en general: no deducible, IVA no acreditable")
 ```
 
-**Severidad:** 🔴 CRÍTICA — Incluye IVA no acreditable en DIOT = rechazo del SAT.
+**Severidad:** CRÍTICA — Incluye IVA no acreditable en DIOT = rechazo del SAT.
 
 ---
 
@@ -111,7 +111,7 @@ El parser solo extrae el UUID pero ignora `TipoRelacion` (01=Nota de crédito, 0
 
 **Fix:** Extraer también `TipoRelacion` del nodo padre.
 
-**Severidad:** 🟡 ALTA — Pierde metadatos fiscales obligatorios.
+**Severidad:** ALTA — Pierde metadatos fiscales obligatorios.
 
 ---
 
@@ -136,7 +136,7 @@ def validate_montos(data: NominaData) -> List[str]:
     return errors
 ```
 
-**Severidad:** 🔴 CRÍTICA — Nóminas inválidas pasan al SAT.
+**Severidad:** CRÍTICA — Nóminas inválidas pasan al SAT.
 
 ---
 
@@ -150,7 +150,7 @@ def validate_montos(data: NominaData) -> List[str]:
 
 **Fix:** El parser de nómina ya extrae `cfdi_emisor_rfc` del comprobante. Debe extraer también `cfdi_receptor_rfc` y validarlo.
 
-**Severidad:** 🟡 ALTA — Nóminas sin receptor identificado pasan validación.
+**Severidad:** ALTA — Nóminas sin receptor identificado pasan validación.
 
 ---
 
@@ -174,7 +174,7 @@ dias_año = 366 if isleap(year) else 365
 monto = sd * dias_ley * (dt / Decimal(str(dias_año)))
 ```
 
-**Severidad:** 🟡 BAJA — Pérdida de dinero real pero pequeña por empleado.
+**Severidad:** BAJA — Pérdida de dinero real pero pequeña por empleado.
 
 ---
 
@@ -198,7 +198,7 @@ elif data.num_dias_pagados <= 0:
     errors.append(...)
 ```
 
-**Severidad:** 🔴 CRÍTICA — Bloquea el timbrado de aguinaldos.
+**Severidad:** CRÍTICA — Bloquea el timbrado de aguinaldos.
 
 ---
 
@@ -217,7 +217,7 @@ Cuando el SAT publica la nueva tabla para 2025 (o cualquier año), hay que actua
 
 **Fix:** Centralizar tablas en un módulo único `fiscal_tables.py` con versionado por año.
 
-**Severidad:** 🔴 CRÍTICA — Afecta TODOS los cálculos fiscales al cambiar de año.
+**Severidad:** CRÍTICA — Afecta TODOS los cálculos fiscales al cambiar de año.
 
 ---
 
@@ -244,7 +244,7 @@ Un ingreso de exactamente $312.415 cae entre rangos (>= 312.41 y < 312.42) → n
 if lower <= taxable_income <= upper:
 ```
 
-**Severidad:** 🟡 MEDIA — Solo afecta ingresos en gaps de $0.01, pero es un error aritmético.
+**Severidad:** MEDIA — Solo afecta ingresos en gaps de $0.01, pero es un error aritmético.
 
 ---
 
@@ -258,7 +258,7 @@ if lower <= taxable_income <= upper:
 
 **Fix:** Usar las tablas oficiales publicadas por el SAT sin derivar una de la otra.
 
-**Severidad:** 🟡 BAJA — Diferencias de centavos, pero genera inconsistencias en conciliación.
+**Severidad:** BAJA — Diferencias de centavos, pero genera inconsistencias en conciliación.
 
 ---
 
@@ -276,7 +276,7 @@ if sbc < r["imss_uma_diario"]:
     raise ValueError(f"SBC ({sbc}) no puede ser menor a UMA diaria ({r['imss_uma_diario']})")
 ```
 
-**Severidad:** 🔴 CRÍTICA — Evade retenciones de seguridad social.
+**Severidad:** CRÍTICA — Evade retenciones de seguridad social.
 
 ---
 
@@ -294,7 +294,7 @@ El subsidio se calcula sobre el ingreso gravado usando la tabla 2025, pero el IS
 
 **Fix:** Sincronizar ambas tablas al mismo año fiscal.
 
-**Severidad:** 🔴 CRÍTICA — Cálculo fiscal incorrecto para TODOS los empleados.
+**Severidad:** CRÍTICA — Cálculo fiscal incorrecto para TODOS los empleados.
 
 ---
 
@@ -313,7 +313,7 @@ Para ingresos de $10,000,000.00, `float` tiene precisión limitada: `10000000.1 
 
 **Fix:** Usar `Decimal` en todo el módulo de declaraciones (como ya hace `payroll.py`).
 
-**Severidad:** 🟡 MEDIA — Diferencias de centavos que escalan con ingresos altos.
+**Severidad:** MEDIA — Diferencias de centavos que escalan con ingresos altos.
 
 ---
 
@@ -334,7 +334,7 @@ if iva_pagado > iva_cobrado * 3:
     iva_data.human_review_reason = "IVA acreditable > 3× IVA trasladado"
 ```
 
-**Severidad:** 🟡 ALTA — El contador se entera cuando el SAT rechaza, no antes.
+**Severidad:** ALTA — El contador se entera cuando el SAT rechaza, no antes.
 
 ---
 
@@ -362,7 +362,7 @@ Para tasa 0%, `expected_rate=0.16` (hardcodeado como default) genera un IVA espe
 
 **Fix:** Hacer `expected_rate` un parámetro obligatorio, no default a 0.16.
 
-**Severidad:** 🟡 ALTA — Bloquea exportaciones legítimas.
+**Severidad:** ALTA — Bloquea exportaciones legítimas.
 
 ---
 
@@ -376,7 +376,7 @@ Para tasa 0%, `expected_rate=0.16` (hardcodeado como default) genera un IVA espe
 
 **Fix:** La DIOT es solo para IVA, así que esto es parcialmente correcto. Pero el sistema debe advertir que el CFDI tiene IEPS para que se reporte en la declaración de IEPS aparte.
 
-**Severidad:** 🟡 MEDIA — IEPS requiere declaración separada que el sistema no maneja.
+**Severidad:** MEDIA — IEPS requiere declaración separada que el sistema no maneja.
 
 ---
 
@@ -399,7 +399,7 @@ Para `iva_cobrado = $16.01`: `16.01 % 0.16 ≈ 0.01`. Esto pasa el check (`remai
 
 **Fix:** Eliminar este check engañoso o reemplazarlo con: `abs(iva_cobrado - subtotal * 0.16) < tolerance`.
 
-**Severidad:** 🟡 MEDIA — Validación inútil que da falsa confianza.
+**Severidad:** MEDIA — Validación inútil que da falsa confianza.
 
 ---
 
@@ -422,7 +422,7 @@ if txn.amount == pol.monto and txn.date == pol.fecha:
 if abs(txn.amount - pol.monto) < 0.01 and txn.date == pol.fecha:
 ```
 
-**Severidad:** 🟡 ALTA — Genera falsos positivos en conciliación.
+**Severidad:** ALTA — Genera falsos positivos en conciliación.
 
 ---
 
@@ -441,7 +441,7 @@ def parse_amount(raw: str) -> float:
     return float(cleaned)
 ```
 
-**Severidad:** 🟡 ALTA — Conciliación inutilizable sin parser de CSV.
+**Severidad:** ALTA — Conciliación inutilizable sin parser de CSV.
 
 ---
 
@@ -459,7 +459,7 @@ El detector de duplicados usa `(amount, date)` como key y las marca como duplica
 
 **Fix:** Incluir referencia/descripción en el key de duplicados, y solo marcar como duplicado si TODOS los campos coinciden (no solo monto+fecha).
 
-**Severidad:** 🟡 ALTA — Puede causar reversión de pagos legítimos.
+**Severidad:** ALTA — Puede causar reversión de pagos legítimos.
 
 ---
 
@@ -473,7 +473,7 @@ El detector de duplicados usa `(amount, date)` como key y las marca como duplica
 
 **Fix:** Implementar extracción de PDF (pdfplumber/tabula) o al menos rechazar con mensaje claro.
 
-**Severidad:** 🟡 MEDIA — Limita la base de clientes potenciales.
+**Severidad:** MEDIA — Limita la base de clientes potenciales.
 
 ---
 
@@ -489,7 +489,7 @@ El detector de duplicados usa `(amount, date)` como key y las marca como duplica
 
 **Fix:** No enviar al ERP cuando `requires_human_review=True`. Crear borrador primero.
 
-**Severidad:** 🔴 CRÍTICA — Envía datos incorrectos al sistema contable.
+**Severidad:** CRÍTICA — Envía datos incorrectos al sistema contable.
 
 ---
 
@@ -503,7 +503,7 @@ El detector de duplicados usa `(amount, date)` como key y las marca como duplica
 
 **Fix:** Implementar cola de revisión con notificación al contador.
 
-**Severidad:** 🟡 ALTA — Acumulación silenciosa de trabajo pendiente.
+**Severidad:** ALTA — Acumulación silenciosa de trabajo pendiente.
 
 ---
 
@@ -521,7 +521,7 @@ Ambas categorías suman score → empate → `requires_human_review=True` con co
 
 **Fix:** Usar word boundaries: `re.search(r'\b' + re.escape(w) + r'\b', texto)`.
 
-**Severidad:** 🟡 MEDIA — Genera ruido pero el flag de revisión mitiga.
+**Severidad:** MEDIA — Genera ruido pero el flag de revisión mitiga.
 
 ---
 
@@ -544,7 +544,7 @@ def _get_service() -> MultiTenantService:
 `self._current_context` es un atributo de instancia. Dos requests simultáneos:
 1. Request A (tenant_A): `switch_tenant_context("tenant_A")`
 2. Request B (tenant_B): `switch_tenant_context("tenant_B")`
-3. Request A: `get_current_context()` → retorna **tenant_B** ❌
+3. Request A: `get_current_context()` → retorna **tenant_B**
 
 **Resultado incorrecto:** Tenant A accede a datos de Tenant B. Violación de aislamiento de datos. En contexto fiscal: un contribuyente ve facturas, RFCs y nóminas de otro. Violación de LFPDPPP.
 
@@ -554,7 +554,7 @@ import contextvars
 _tenant_ctx = contextvars.ContextVar('tenant_ctx', default=None)
 ```
 
-**Severidad:** 🔴 CRÍTICA — Violación de aislamiento de datos fiscales.
+**Severidad:** CRÍTICA — Violación de aislamiento de datos fiscales.
 
 ---
 
@@ -575,7 +575,7 @@ _solicitudes: Dict[str, SolicitudDevolucion] = {}
 
 **Fix:** Persistir en la DB que ya existe en `db/`.
 
-**Severidad:** 🔴 CRÍTICA — Pérdida total de estado fiscal en cada restart.
+**Severidad:** CRÍTICA — Pérdida total de estado fiscal en cada restart.
 
 ---
 
@@ -597,7 +597,7 @@ Cada `process_file` carga el XML completo en memoria. Para 1000 XMLs de 1MB = 1G
 
 **Fix:** Procesar en chunks de 50 con limpieza de memoria entre chunks.
 
-**Severidad:** 🔴 CRÍTICA — Batch grande causa OOM.
+**Severidad:** CRÍTICA — Batch grande causa OOM.
 
 ---
 
@@ -611,7 +611,7 @@ Cada `process_file` carga el XML completo en memoria. Para 1000 XMLs de 1MB = 1G
 
 **Fix:** TTL para jobs completados (24h), purgar periódicamente.
 
-**Severidad:** 🟡 ALTA — Memory leak gradual pero inevitable.
+**Severidad:** ALTA — Memory leak gradual pero inevitable.
 
 ---
 
@@ -625,7 +625,7 @@ Cada `process_file` carga el XML completo en memoria. Para 1000 XMLs de 1MB = 1G
 
 **Fix:** `ThreadPoolExecutor(max_workers=4)` con queue.
 
-**Severidad:** 🟡 ALTA — Escalabilidad rota.
+**Severidad:** ALTA — Escalabilidad rota.
 
 ---
 
@@ -646,7 +646,7 @@ El validador rechaza: `FechaPago (2025-01-01) está fuera del rango [2024-12-16,
 
 **Fix:** Permitir FechaPago hasta 3 días después de FechaFinalPago (tolerancia bancaria).
 
-**Severidad:** 🔴 CRÍTICA — Bloquea nóminas reales de fin de año.
+**Severidad:** CRÍTICA — Bloquea nóminas reales de fin de año.
 
 ---
 
@@ -664,7 +664,7 @@ El validador rechaza: `FechaPago (2025-01-01) está fuera del rango [2024-12-16,
 
 **Fix:** Usar timezone de México: `datetime.now(ZoneInfo("America/Mexico_City")).date()`.
 
-**Severidad:** 🟡 BAJA — Off-by-one en días restantes.
+**Severidad:** BAJA — Off-by-one en días restantes.
 
 ---
 
@@ -682,7 +682,7 @@ Pero no valida que `pagos_provisionales_acumulados` corresponda al mismo año. S
 
 **Fix:** Validar que los provisionales correspondan al año de la declaración.
 
-**Severidad:** 🟡 MEDIA — Error de usuario pero el sistema debería prevenirlo.
+**Severidad:** MEDIA — Error de usuario pero el sistema debería prevenirlo.
 
 ---
 
@@ -696,7 +696,7 @@ Pero no valida que `pagos_provisionales_acumulados` corresponda al mismo año. S
 
 **Fix:** Agregar: `if (f_timb - f_emi).days > 3: warning("CFDI timbrado fuera de plazo (72h)")`.
 
-**Severidad:** 🟡 BAJA — Es un warning, no un rechazo automático del SAT.
+**Severidad:** BAJA — Es un warning, no un rechazo automático del SAT.
 
 ---
 
@@ -704,10 +704,10 @@ Pero no valida que `pagos_provisionales_acumulados` corresponda al mismo año. S
 
 | Severidad | Cantidad | Bugs |
 |-----------|----------|------|
-| 🔴 CRÍTICA | 13 | #1, #4, #6, #9, #10, #13, #14, #24, #27, #28, #29, #32 |
-| 🟡 ALTA | 13 | #2, #3, #5, #7, #11, #16, #17, #20, #21, #22, #25, #30, #31 |
-| 🟡 MEDIA | 7 | #8, #15, #18, #19, #23, #26, #34 |
-| 🟡 BAJA | 4 | #12, #33, #35, #8 |
+| CRÍTICA | 13 | #1, #4, #6, #9, #10, #13, #14, #24, #27, #28, #29, #32 |
+| ALTA | 13 | #2, #3, #5, #7, #11, #16, #17, #20, #21, #22, #25, #30, #31 |
+| MEDIA | 7 | #8, #15, #18, #19, #23, #26, #34 |
+| BAJA | 4 | #12, #33, #35, #8 |
 
 ### Top 5 más peligrosos:
 

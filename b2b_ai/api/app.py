@@ -567,11 +567,11 @@ def create_app(db=None):
         # logging de cualquier request que siga en vuelo.
         _shutdown_mgr.run_cleanup_tasks()
 
-    app = FastAPI(title="Likida AI Enterprise — API", version=__version__,
+    app = FastAPI(title="Atiende Despachos — API", version=__version__,
                   description="Agente contable IA enterprise para despachos "
                               "contables. Endpoints /api/v1/* requieren API "
                               "key en el header X-API-Key.",
-                  contact={"name": "Likida AI Enterprise", "email": os.environ.get("B2B_DEFAULT_EMAIL", "")},
+                  contact={"name": "Atiende Despachos", "email": os.environ.get("B2B_DEFAULT_EMAIL", "")},
                   lifespan=lifespan)
 
     # Cabeceras de seguridad (HSTS, CSP, X-Frame-Options, nosniff, etc.)
@@ -876,7 +876,7 @@ def create_app(db=None):
             dias_pagados=req.periodo.get("dias_pagados"))
         if req.generar_cfdi:
             emisor = req.emisor or {"rfc": "DESP820101AB1",
-                                    "nombre": "Despacho Contable Likida",
+                                    "nombre": "Despacho Contable Atiende Despachos",
                                     "regimen_fiscal": "601"}
             res["cfdi_xml"] = generate_payroll_cfdi(
                 req.empleado, emisor, req.periodo, resultados=res)
@@ -1439,7 +1439,7 @@ def create_app(db=None):
     if is_demo_mode():
         mount_demo_routes(app)
         logging.getLogger("b2b_ai").info(
-            "🎭 Demo mode ACTIVO — /api/demo/* mock endpoints habilitados.")
+            "Demo mode ACTIVO — /api/demo/* mock endpoints habilitados.")
 
     # Enterprise OpenAPI docs: error schemas, auth flows, webhook examples.
     install_openapi_docs(app)

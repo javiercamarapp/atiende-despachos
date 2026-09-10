@@ -113,7 +113,7 @@ constancia de que se verificó, no se asumió.
 Todas las variables de esta sección se confirmaron con `grep` contra el
 código que las lee. Ninguna se documenta "por si acaso" sin evidencia.
 
-### 3.1 PAC de CFDI (timbrado) — ⚠️ NO es una integración real todavía
+### 3.1 PAC de CFDI (timbrado) — NO es una integración real todavía
 
 Archivos: `b2b_ai/integrations/sat/pacs/{corefi,facturapi,multifactura,
 paxfacturas}_adapter.py`, `b2b_ai/integrations/sat/ecodex.py`,

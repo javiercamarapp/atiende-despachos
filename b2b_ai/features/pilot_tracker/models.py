@@ -11,7 +11,7 @@ Modelos:
                       de sus factores (JSON).
   - PilotReport     : reporte agregado de un período (metrics_summary JSON).
 
-Mide el valor real que Likida genera para el cliente — crítico para convertir
+Mide el valor real que Atiende Despachos genera para el cliente — crítico para convertir
 pilotos en clientes que pagan.
 """
 from __future__ import annotations

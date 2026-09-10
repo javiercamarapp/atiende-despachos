@@ -211,7 +211,12 @@ class TestRateLimitingEnterprise:
             def check_and_consume(self, key, limit, window):
                 return 0, time.time() + window
             def get_usage(self, key, window):
-                return limit + 1
+                # Sentinel muy por encima de cualquier `effective_limit` real:
+                # este backend fake no conoce el limit configurado aquí (solo
+                # lo recibe `check_and_consume`), así que basta con un valor
+                # que siempre lea como "excedido" en la comparación del
+                # middleware (`get_usage(...) > effective_limit`).
+                return 10**9
             def reset(self, key=None):
                 pass
             @property

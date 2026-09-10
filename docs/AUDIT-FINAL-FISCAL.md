@@ -108,7 +108,7 @@
 
 ## 4. INFONAVIT
 
-### ✅ CORRECTO — Separación patronal/trabajador
+### CORRECTO — Separación patronal/trabajador
 - **Archivo:** b2b_ai/services/payroll.py:236-258, 453-479
 - **Descripción:** La aportación del 5% SBC está correctamente marcada como `provision_patronal` (art. 29-II Ley INFONAVIT). Las deducciones del trabajador muestran `"infonavit": "0.00"` (línea 479). El XML de nómina incluye comentario explicativo (líneas 624-627). **Implementación correcta.**
 
@@ -149,7 +149,7 @@
 - **Severidad:** MEDIO
 - **Fix:** Validar IVA por concepto individual (ya lo hace por concepto pero no para tasa 0%/8%). Agregar proporción de acreditamiento cuando hay mezcla de tasa 0% y 16%.
 
-### ✅ Tasas IVA correctas (0%, 8%, 16%)
+### Tasas IVA correctas (0%, 8%, 16%)
 - validator.py:30-34 define las tres tasas. compliance.py:106 `VALID_IVA_RATES = {0, 0.0, 8, 0.08, 16, 0.16}`. engine.py:59-61. **Correcto.**
 
 ---
@@ -231,7 +231,7 @@
 - **Severidad:** MEDIO
 - **Fix:** Agregar validación post-parsing: (1) warning si el número de movimientos < 2 (posible parse fallido), (2) validar que montos son numéricos, (3) warning si fechas están fuera del mes esperado.
 
-### ✅ Matching Engine: 4 niveles implementados
+### Matching Engine: 4 niveles implementados
 - **Archivo:** b2b_ai/features/reconciliation_agent/matching_engine.py
 - **Descripción:** Nivel 1 (Exacto), Nivel 2 (Fuzzy con rapidfuzz), Nivel 3 (Multi-línea/subset sum), Nivel 4 (LLM). Implementación robusta con tolerancias configurables. **Buena cobertura.**
 

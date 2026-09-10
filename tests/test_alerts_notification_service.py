@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from b2b_ai.features.alertas.notification_service import (
     AlertNotificationService,
-    LIKIDA_EMAIL_TEMPLATE,
+    EMAIL_TEMPLATE,
     NotificationConfig,
 )
 from b2b_ai.features.alertas.models import Alert, AlertSeverity, AlertType
@@ -25,8 +25,8 @@ def _alert(**kw):
 
 class TestEmailRendering:
     def test_template_has_likida_branding(self):
-        assert "Likida" in LIKIDA_EMAIL_TEMPLATE
-        assert "Inteligencia de Negocio" in LIKIDA_EMAIL_TEMPLATE
+        assert "Atiende Despachos" in EMAIL_TEMPLATE
+        assert "Inteligencia de Negocio" in EMAIL_TEMPLATE
 
     def test_render_email_html_contains_fields(self):
         svc = AlertNotificationService(now_fn=lambda: BASE)
@@ -57,7 +57,7 @@ class TestChannels:
         )
         assert len(res) == 1
         assert res[0]["channel"] == "email"
-        assert "Likida" in captured[0][2]
+        assert "Atiende Despachos" in captured[0][2]
         assert captured[0][0] == "x@likida.mx"
 
     def test_whatsapp_sent(self):

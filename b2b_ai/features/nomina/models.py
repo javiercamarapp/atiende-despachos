@@ -2,7 +2,7 @@
 """
 models.py — Esquemas del módulo de Nómina (payroll).
 
-Modelos Pydantic para el procesamiento de nómina del MVP de Likida AI:
+Modelos Pydantic para el procesamiento de nómina del MVP de Atiende Despachos:
 
   - NominaStatus    : ciclo de vida de una nómina (DRAFT → VALIDATED → PAID / VOIDED).
   - ConceptType     : tipo de concepto (PERCEPCION / DEDUCCION).

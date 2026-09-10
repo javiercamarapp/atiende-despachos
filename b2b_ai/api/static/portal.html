@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Portal de facturas · Likida AI Enterprise</title>
+<title>Portal de facturas · Atiende Despachos</title>
 <style>
   :root{
     --bg:#ffffff; --surface:#f7f8fa; --surface-2:#eef0f4;
@@ -120,7 +120,7 @@
 <div id="authView" class="wrap hidden">
   <div class="auth">
     <h1>Portal de facturas</h1>
-    <p class="sub">Sube tus CFDI y deja que Likida AI Enterprise los valide y clasifique.</p>
+    <p class="sub">Sube tus CFDI y deja que Atiende Despachos los valide y clasifique.</p>
     <div class="tabrow">
       <button id="tabPass" class="active" onclick="showTab('pass')">Contraseña</button>
       <button id="tabMagic" onclick="showTab('magic')">Enlace mágico</button>
@@ -158,7 +158,7 @@
   <div class="stats" id="statsRow"></div>
 
   <div class="drop" id="drop">
-    <div class="big">📄</div>
+    <div class="big"></div>
     <div class="t">Arrastra tus facturas aquí</div>
     <div class="s">o haz clic para elegir archivos · XML o PDF</div>
     <input type="file" id="fileInput" accept=".xml,.pdf" multiple class="hidden">
@@ -427,7 +427,7 @@ function startPoll(jobId, card, name){
         clearInterval(polls[jobId]); delete polls[jobId];
         card.querySelector(".bar").remove();
         card.querySelector(".st").className="st done";
-        card.querySelector(".st").textContent = st.result && st.result.valido ? "Válida ✓" : "Revisar ⚠";
+        card.querySelector(".st").textContent = st.result && st.result.valido ? "Válida ✓" : "Revisar";
         loadInvoices(); loadStats();
         setTimeout(()=>card.remove(), 6000);
       } else if(st.status==="error"){

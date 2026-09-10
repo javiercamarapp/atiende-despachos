@@ -1,4 +1,4 @@
-# Auditoría técnica — Likida AI Enterprise (b2b_ai)
+# Auditoría técnica — Atiende Despachos (b2b_ai)
 
 **Fecha:** 2026-08-01
 **Revisión auditada:** `8fb951b` (rama `claude/repository-audit-j6mhgp`)
@@ -41,7 +41,7 @@ Vale la pena decirlo antes de la lista de problemas, porque es mucho:
 
 ## Hallazgos
 
-### 🔴 CRÍTICO — 1. Secreto JWT de desarrollo como fallback silencioso · ✅ CORREGIDO
+### CRÍTICO — 1. Secreto JWT de desarrollo como fallback silencioso · CORREGIDO
 
 **`b2b_ai/auth/middleware.py:42-47`**
 
@@ -62,7 +62,7 @@ Nota: la propia prueba del repositorio lo detecta y está fallando (`tests/test_
 
 ---
 
-### 🟠 ALTO — 2. Lectura de archivos arbitrarios del servidor vía `xml_path` / `folder` · ✅ CORREGIDO
+### ALTO — 2. Lectura de archivos arbitrarios del servidor vía `xml_path` / `folder` · CORREGIDO
 
 **`b2b_ai/api/app.py:541-546` y `1043-1053`**
 
@@ -84,7 +84,7 @@ La ruta viene del cuerpo de la petición y solo se comprueba que exista. No hay 
 
 ---
 
-### 🟠 ALTO — 3. Fuga entre tenants en la búsqueda del audit log (precedencia SQL) · ✅ CORREGIDO
+### ALTO — 3. Fuga entre tenants en la búsqueda del audit log (precedencia SQL) · CORREGIDO
 
 **`b2b_ai/audit/trail.py:113-119`**
 
@@ -109,7 +109,7 @@ q = ("SELECT * FROM audit_entries WHERE (action LIKE ? OR ... OR ip LIKE ?)")
 
 ---
 
-### 🟠 ALTO — 4. Estado de conciliación bancaria en un global de proceso · ✅ CORREGIDO
+### ALTO — 4. Estado de conciliación bancaria en un global de proceso · CORREGIDO
 
 **`b2b_ai/api/reconciliation.py:33-40`**
 
@@ -136,7 +136,7 @@ El diccionario vive a nivel de módulo, no está ligado a la instancia de aplica
 
 ---
 
-### 🟡 MEDIO — 5. El CI despliega a producción sin ejecutar las pruebas · ✅ CORREGIDO
+### MEDIO — 5. El CI despliega a producción sin ejecutar las pruebas · CORREGIDO
 
 **`.github/workflows/deploy.yml`**
 
@@ -148,7 +148,7 @@ Hoy mismo eso significaría desplegar con **8 pruebas en rojo**, dos de las cual
 
 ---
 
-### 🟡 MEDIO — 6. Excepción sin capturar en la ruta JSON de `/api/v1/invoices/process` · ✅ CORREGIDO
+### MEDIO — 6. Excepción sin capturar en la ruta JSON de `/api/v1/invoices/process` · CORREGIDO
 
 **`b2b_ai/api/app.py:546`**
 
@@ -158,7 +158,7 @@ La rama multipart captura `CFDIError` y responde 422 correctamente (líneas 525-
 
 ---
 
-### 🟡 MEDIO — 7. El limitador de peticiones crece sin límite y no cruza procesos · ⚠️ CORREGIDO EN PARTE
+### MEDIO — 7. El limitador de peticiones crece sin límite y no cruza procesos · CORREGIDO EN PARTE
 
 **`b2b_ai/api/app.py:247-265`**
 
@@ -170,7 +170,7 @@ Además, al ser estado por proceso, el límite efectivo se multiplica por el nú
 
 ---
 
-### 🟡 MEDIO — 8. Base SQLite versionada en git · ✅ CORREGIDO
+### MEDIO — 8. Base SQLite versionada en git · CORREGIDO
 
 `b2b_ai.db-wal` (4,1 MB) y `b2b_ai.db-shm` están rastreados. El `.gitignore` cubre `*.db` pero no los archivos auxiliares del modo WAL.
 
@@ -180,19 +180,19 @@ El contenido inspeccionado es de demostración (RFC ficticios, `despacho@b2b-ai.
 
 ---
 
-### 🔵 BAJO — 9. Manejo de errores demasiado permisivo · ABIERTO
+### BAJO — 9. Manejo de errores demasiado permisivo · ABIERTO
 
 84 bloques `except Exception` en `b2b_ai/`, de los cuales 18 son un `pass` silencioso. En los caminos best-effort (auditoría, notificaciones) es una decisión defendible y está comentada. En `api/auth.py:57`, en cambio, un fallo de base de datos al resolver una API key se convierte en un 401 indistinguible de una key inválida, lo que hará que un incidente de base de datos se diagnostique como problema de autenticación.
 
 ---
 
-### 🔵 BAJO — 10. Ruta duplicada y muerta · ABIERTO
+### BAJO — 10. Ruta duplicada y muerta · ABIERTO
 
 `/portal/invoices/export.csv` está definida dos veces: en `api/portal.py:379` y en `portal/routes.py:328`. Como `build_portal_router` se registra antes (`app.py:973`) que `build_portal_pages_router` (`app.py:979`), la segunda nunca se ejecuta.
 
 ---
 
-### 🔵 BAJO — 11. Afirmación desactualizada sobre XXE · ABIERTO
+### BAJO — 11. Afirmación desactualizada sobre XXE · ABIERTO
 
 `requirements-production.txt` afirma «defusedxml usado para DOMParse». **`defusedxml` no está en las dependencias ni se importa en ningún sitio.** `b2b_ai/cfdi/parser.py:86` usa `etree.parse(xml_path)` con el parser por defecto de lxml.
 
@@ -202,7 +202,7 @@ Para ser justos: **verifiqué que hoy no es explotable.** Con `lxml==6.1.1` las 
 
 ---
 
-### 🔵 BAJO — 12. Higiene del repositorio · ⚠️ ABIERTO EN PARTE
+### BAJO — 12. Higiene del repositorio · ABIERTO EN PARTE
 
 - Cinco informes de QA en la raíz (`QA_REPORT.md`, `QA_REPORT_CURRENT.md`, `QA_REPORT_FINAL.md`, `QA_REPORT_LANDING_FIX.md`, `PG_BUG_REPORT.md`) más `reports/`. Es imposible saber cuál está vigente.
 - `landing/` (13 MB) y `landing-b/` (3,8 MB) conviven con `index.html` distintos; el CI solo despliega `landing/`. `landing-b/` está sin usar.

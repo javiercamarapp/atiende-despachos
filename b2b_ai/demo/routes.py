@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-routes.py — Demo mode API routes for Likida AI Enterprise.
+routes.py — Demo mode API routes for Atiende Despachos.
 
 When ``DEMO_MODE=true`` is set in the environment, these routes are mounted
 on the FastAPI app and provide realistic mock data for all major endpoints.
@@ -74,7 +74,7 @@ def mount_demo_routes(app) -> None:
         return {
             "status": "healthy",
             "mode": "demo",
-            "message": "Likida AI Enterprise Demo Mode — todos los datos son simulados.",
+            "message": "Atiende Despachos Demo Mode — todos los datos son simulados.",
             "timestamp": datetime.now().isoformat(),
         }
 
@@ -518,7 +518,7 @@ def mount_demo_routes(app) -> None:
 
             return FileResponse(
                 path=pdf_path,
-                filename="Likida_AI_Reporte_ROI_Demo.pdf",
+                filename="Atiende_Despachos_Reporte_ROI_Demo.pdf",
                 media_type="application/pdf",
             )
         except Exception as e:

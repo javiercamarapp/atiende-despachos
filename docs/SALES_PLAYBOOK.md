@@ -1,4 +1,4 @@
-# Sales Playbook — Likida AI Enterprise
+# Sales Playbook — Atiende Despachos
 
 ## Overview
 
@@ -13,7 +13,7 @@ Guía de ventas para el equipo comercial. Incluye manejo de objeciones, script d
 ### Objeción 1: "Es muy caro"
 
 **Respuesta:**
-> "Entiendo su preocupación. Déjeme mostrarle el ROI: un despacho de 10 contadores gasta ~40 horas/semana en captura manual. A $300/hora, eso es $12,000/semana. Likida AI cuesta $25,000/mes y reduce 70% de ese tiempo. En un mes se paga solo."
+> "Entiendo su preocupación. Déjeme mostrarle el ROI: un despacho de 10 contadores gasta ~40 horas/semana en captura manual. A $300/hora, eso es $12,000/semana. Atiende Despachos cuesta $25,000/mes y reduce 70% de ese tiempo. En un mes se paga solo."
 
 **Herramienta:** ROI Calculator (ver abajo)
 
@@ -21,14 +21,14 @@ Guía de ventas para el equipo comercial. Incluye manejo de objeciones, script d
 - "¿Cuántos contadores tiene?"
 - "¿Cuántas horas promedio gastan en captura manual?"
 - "¿Cuánto les paga por hora?"
-- "Con esos números, Likida AI se paga en [X] semanas"
+- "Con esos números, Atiende Despachos se paga en [X] semanas"
 
 ---
 
 ### Objeción 2: "No confío en la IA"
 
 **Respuesta:**
-> "Totalmente entendible. Por eso Likida AI tiene 'human-in-the-loop': la IA procesa, pero el contador aprueba cada cosa. Nunca se envía algo al SAT sin revisión humana. Es como tener un asistente que hace el trabajo pesado, pero usted mantiene el control."
+> "Totalmente entendible. Por eso Atiende Despachos tiene 'human-in-the-loop': la IA procesa, pero el contador aprueba cada cosa. Nunca se envía algo al SAT sin revisión humana. Es como tener un asistente que hace el trabajo pesado, pero usted mantiene el control."
 
 **Key points:**
 - 100% de las transacciones requieren aprobación humana
@@ -41,7 +41,7 @@ Guía de ventas para el equipo comercial. Incluye manejo de objeciones, script d
 ### Objeción 3: "Ya tengo un sistema"
 
 **Respuesta:**
-> "Perfecto, no necesitamos cambiarlo. Likida AI se integra con CONTPAQi/Aspel/QuickBooks. Usted sigue usando su sistema como siempre, pero la captura automática se hace por debajo. Es como agregar un motor turbo a su carro — mismo carro, más potencia."
+> "Perfecto, no necesitamos cambiarlo. Atiende Despachos se integra con CONTPAQi/Aspel/QuickBooks. Usted sigue usando su sistema como siempre, pero la captura automática se hace por debajo. Es como agregar un motor turbo a su carro — mismo carro, más potencia."
 
 **Key points:**
 - Integración directa con su sistema actual
@@ -103,17 +103,17 @@ Guía de ventas para el equipo comercial. Incluye manejo de objeciones, script d
 **Notas:**
 - Escuchar más que hablar
 - Tomar notas de respuestas específicas
-- Conectar respuestas con beneficios de Likida AI
+- Conectar respuestas con beneficios de Atiende Despachos
 - Identificar al tomador de decisiones
 
 ---
 
 ### Step 2: Solution Overview (5 minutos)
 
-**Objetivo:** Presentar Likida AI como solución a sus problemas específicos
+**Objetivo:** Presentar Atiende Despachos como solución a sus problemas específicos
 
 **Script:**
-> "Basado en lo que me contó, veo que su equipo gasta [X horas] en captura manual y enfrenta [problema específico]. Likida AI resuelve exactamente eso."
+> "Basado en lo que me contó, veo que su equipo gasta [X horas] en captura manual y enfrenta [problema específico]. Atiende Despachos resuelve exactamente eso."
 
 **Demostrar:**
 1. **Integración:** "Se conecta directamente con su CONTPAQi en 1 día"
@@ -153,7 +153,7 @@ Guía de ventas para el equipo comercial. Incluye manejo de objeciones, script d
 **Objetivo:** Presentar pricing de forma clara y justificar valor
 
 **Script:**
-> "Likida AI tiene 3 planes, todos incluyen integración con su sistema actual:"
+> "Atiende Despachos tiene 3 planes, todos incluyen integración con su sistema actual:"
 
 **Planes:**
 | Plan | Precio | Incluye |
@@ -207,13 +207,13 @@ Antes de cerrar el deal, verificar:
 
 ### Post-Demo Follow-up
 
-**Asunto:** Resumen de nuestra demo — Likida AI para [Despacho]
+**Asunto:** Resumen de nuestra demo — Atiende Despachos para [Despacho]
 
 > Hola [Nombre],
 >
 > ¡Gracias por su tiempo en la demo de hoy! Me encantó conocer más sobre [Despacho].
 >
-> Como le mostré, Likida AI puede:
+> Como le mostré, Atiende Despachos puede:
 > - Reducir 70% del tiempo de captura manual
 > - Eliminar errores fiscales antes de que lleguen al SAT
 > - Integrarse con su CONTPAQi en 1 día
@@ -224,7 +224,7 @@ Antes de cerrar el deal, verificar:
 >
 > Saludos,
 > [Nombre]
-> Likida AI
+> Atiende Despachos
 
 ---
 
@@ -298,7 +298,7 @@ Antes de cerrar el deal, verificar:
 ## Quick Reference Card
 
 **Elevator Pitch (30 seg):**
-> "Likida AI es un agente contable con IA que se integra con CONTPAQi/Aspel y automatiza la captura de facturas. Reduce 70% del tiempo manual y elimina errores fiscales. Se implementa en 1 día."
+> "Atiende Despachos es un agente contable con IA que se integra con CONTPAQi/Aspel y automatiza la captura de facturas. Reduce 70% del tiempo manual y elimina errores fiscales. Se implementa en 1 día."
 
 **Key Benefits:**
 1. 70% menos tiempo de captura

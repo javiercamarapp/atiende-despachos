@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""seed — Datos de demo para el primer piloto de Likida AI.
+"""seed — Datos de demo para el primer piloto de Atiende Despachos.
 
 Genera y persiste un dataset realista (despacho contable ficticio, CFDIs de
 muestra y transacciones bancarias) para que el primer cliente piloto pueda

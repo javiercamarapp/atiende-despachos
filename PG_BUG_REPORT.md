@@ -15,9 +15,9 @@ Cada fallo fue reproducido con comando real y su traceback está en la sección 
 
 | # | Bug (este reporte) | Causa real verificada | QA_REPORT_CURRENT.md decía | ¿Era correcto? |
 |---|---|---|---|---|
-| 1 | `insert_invoice`: placeholders `:name` de sqlite no traducidos | `SyntaxError: syntax error at or near ":"` | "JSON vacío en columna json" | ❌ Incorrecto |
-| 2 | `log_call`: payload vacío se escribe como `''` en columna `jsonb` | `InvalidTextRepresentation ... JSON data line 1: ''` | "payload no serializable" | ⚠️ Parcial (el caso que falla es vacío, no no-serializable) |
-| 3 | `upsert_outstanding_invoice`: `ON CONFLICT` sin constraint único en la DB | `no unique or exclusion constraint matching the ON CONFLICT` | "ON CONFLICT sin columna de inferencia" | ❌ Desactualizado (el SQL YA tiene el target) |
+| 1 | `insert_invoice`: placeholders `:name` de sqlite no traducidos | `SyntaxError: syntax error at or near ":"` | "JSON vacío en columna json" | Incorrecto |
+| 2 | `log_call`: payload vacío se escribe como `''` en columna `jsonb` | `InvalidTextRepresentation ... JSON data line 1: ''` | "payload no serializable" | Parcial (el caso que falla es vacío, no no-serializable) |
+| 3 | `upsert_outstanding_invoice`: `ON CONFLICT` sin constraint único en la DB | `no unique or exclusion constraint matching the ON CONFLICT` | "ON CONFLICT sin columna de inferencia" | Desactualizado (el SQL YA tiene el target) |
 | 4 | Deriva de esquema: la DB real no coincide con `migrations/` | `alembic_version=0003_seed`, pero `audit_log.payload`=jsonb y `outstanding_invoices` sin constraint | — | (no lo mencionaba) |
 
 **Veredicto: la capa SQLite/API sigue verde; la capa PG no está lista para entregar hasta aplicar los fixes 1 y 3 (bloqueantes) y el 2 (correcto igualmente).**
@@ -88,7 +88,7 @@ Opción B (genérica): extender `qmark_to_percent` para mapear `:ident` → `%(i
 INSERT ... VALUES (:tenant_id, :folio_fiscal)
 → INSERT ... VALUES (%(tenant_id)s, %(folio_fiscal)s)
 ```
-⚠️ Cuidado: la implementación debe respetar casts `::tipo`, literales `'...'::timestamp` y `:` dentro de strings, además de los `?` dentro de literales (el parser actual ya maneja comillas; hay que añadir `:`). Requiere más pruebas que la Opción A.
+ Cuidado: la implementación debe respetar casts `::tipo`, literales `'...'::timestamp` y `:` dentro de strings, además de los `?` dentro de literales (el parser actual ya maneja comillas; hay que añadir `:`). Requiere más pruebas que la Opción A.
 
 ### Test de reproducción
 ```bash
@@ -271,7 +271,7 @@ SELECT conname ... outstanding_invoices ... contype='u';       → []  (ninguno)
 - Bug 5 (`with self.conn:` sin commit en PG): riesgo por lectura de código, **no** reproducido (el test falla antes por Bug 3). Comando que lo movería a verificado: arreglar #3 y luego correr `test_upsert_contracts_pg` comprobando persistencia real tras re-conexión.
 - "Editar `0001_initial.py` después de sellar `head`" como causa de la deriva: plausible, no probado con historial git (el directorio no es repo git).
 
-**✗ Incierto / no revisado**
+**Incierto / no revisado**
 - El resto de la suite de producción PG (`test_pg_backend.py`, `test_pg_migrations.py`, `test_production_*`) no se ejecutó en esta corrida (fuera del alcance de los 4 bugs).
 - Duplicados preexistentes de `(tenant_id, factura_id)` en `outstanding_invoices` (podrían bloquear la migración 0004).
 

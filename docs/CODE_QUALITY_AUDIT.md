@@ -1,4 +1,4 @@
-# 📋 Code Quality Audit Report
+# Code Quality Audit Report
 
 **Project:** B2B-AI-MVP Enterprise  
 **Audit Date:** August 1, 2026  
@@ -6,7 +6,7 @@
 
 ---
 
-## 📊 Executive Summary
+## Executive Summary
 
 | Metric | Value | Status |
 |--------|-------|--------|
@@ -17,13 +17,13 @@
 | Test Functions | 515 | — |
 | Comment Lines | 3,855 | — |
 
-**Overall Health:** 🟡 **FAIR** — Good architecture with critical quality debt in error handling, type safety, and test coverage.
+**Overall Health:** **FAIR** — Good architecture with critical quality debt in error handling, type safety, and test coverage.
 
 ---
 
-## 1. 🐛 Code Smells
+## 1. Code Smells
 
-### 1.1 God Classes (>500 lines) — 🔴 CRITICAL
+### 1.1 God Classes (>500 lines) — CRITICAL
 
 | Class | File | Lines |
 |-------|------|-------|
@@ -63,7 +63,7 @@
 
 ---
 
-## 2. 🔒 Type Safety
+## 2. Type Safety
 
 ### 2.1 Type Hint Coverage
 
@@ -72,9 +72,9 @@
 | Functions with return type hints | 1,132 / 2,473 | **46%** |
 | Functions with param type hints | 1,015 / 2,473 | **41%** |
 
-**Status:** 🟡 **FAIR** — Nearly half of functions lack type annotations.
+**Status:** **FAIR** — Nearly half of functions lack type annotations.
 
-### 2.2 `Any` Type Usage — 🟡 WARNING
+### 2.2 `Any` Type Usage — WARNING
 
 Found **15+ explicit `Any` type annotations** in non-test code:
 
@@ -93,7 +93,7 @@ Found **15+ explicit `Any` type annotations** in non-test code:
 
 ---
 
-## 3. ⚠️ Error Handling — 🔴 CRITICAL
+## 3. Error Handling — CRITICAL
 
 ### 3.1 Exception Handling Summary
 
@@ -105,7 +105,7 @@ Found **15+ explicit `Any` type annotations** in non-test code:
 | Swallowed exceptions (`except ... pass`) | **41** |
 | `raise` statements | 463 |
 
-### 3.2 Swallowed Exceptions (except ... pass) — 🔴 HIGH
+### 3.2 Swallowed Exceptions (except ... pass) — HIGH
 
 **41 instances** of exceptions silently swallowed. Critical areas:
 
@@ -130,7 +130,7 @@ Found **15+ explicit `Any` type annotations** in non-test code:
 - `billing/conekta_provider.py:80`
 - `billing/stripe_provider.py:77`
 
-### 3.3 `except Exception` Without Specific Handling — 🟡 WARNING
+### 3.3 `except Exception` Without Specific Handling — WARNING
 
 Top offenders by file:
 
@@ -151,7 +151,7 @@ Top offenders by file:
 
 ---
 
-## 4. 📝 Docstring Coverage
+## 4. Docstring Coverage
 
 ### 4.1 Coverage by File (Worst Offenders)
 
@@ -181,23 +181,23 @@ Files with significant gaps (functions without docstrings):
 | Docstring markers (`"""`) | 3,342 |
 | Comment lines | 3,855 |
 
-**Status:** 🟡 **FAIR** — Service layer has significant gaps.
+**Status:** **FAIR** — Service layer has significant gaps.
 
 ---
 
-## 5. 🧪 Test Coverage
+## 5. Test Coverage
 
 ### 5.1 Coverage Summary
 
 | Metric | Value | Status |
 |--------|-------|--------|
 | Total Python files (non-test) | 299 | — |
-| Files WITHOUT tests | **252** | 🔴 **84% of files lack tests** |
+| Files WITHOUT tests | **252** | **84% of files lack tests** |
 | Files WITH tests | 47 | — |
 | Test functions | 515 | — |
 | Test code LOC | 4,901 | — |
 | Production code LOC | ~70,710 | — |
-| **Test-to-Code Ratio** | **~7%** | 🔴 **CRITICAL** |
+| **Test-to-Code Ratio** | **~7%** | **CRITICAL** |
 
 ### 5.2 Files Without Tests (Critical Modules)
 
@@ -252,29 +252,29 @@ Files with significant gaps (functions without docstrings):
 
 ---
 
-## 6. 🚨 TODO/FIXME/HACK/XXX
+## 6. TODO/FIXME/HACK/XXX
 
-**Result:** ✅ **CLEAN** — No TODO/FIXME/HACK/XXX markers found in codebase.
+**Result:** **CLEAN** — No TODO/FIXME/HACK/XXX markers found in codebase.
 
 This is unusual and positive — indicates either clean code or markers were removed without resolution. Verify that known technical debt is tracked in issue tracker.
 
 ---
 
-## 7. 📈 Priority Recommendations
+## 7. Priority Recommendations
 
-### 🔴 P0 — Critical (Fix Immediately)
+### P0 — Critical (Fix Immediately)
 
 1. **Swallowed Exceptions** — Add logging to all 41 `except ... pass` blocks, especially in `db/`, `auth/`, and `billing/`
 2. **Test Coverage** — Add tests for `db/db.py`, `auth/`, `api/app.py`, `services/llm.py` (84% of files untested)
 3. **God Classes** — Decompose `Database` (1,463 lines) and `RateLimiter` (1,109 lines) into smaller, focused classes
 
-### 🟡 P1 — High (Fix This Sprint)
+### P1 — High (Fix This Sprint)
 
 4. **Error Handling** — Replace 97 `except Exception` with specific exception types; add retry logic for transient failures
 5. **Type Hints** — Increase return type hint coverage from 46% to 80%+; replace all `Any` annotations
 6. **Service Layer Docstrings** — Add docstrings to `services/llm.py`, `services/payroll.py`, `services/demo.py`
 
-### 🟢 P2 — Medium (Backlog)
+### P2 — Medium (Backlog)
 
 7. **Magic Numbers** — Extract domain thresholds into named constants
 8. **Comment Quality** — Review 3,855 comment lines for accuracy and necessity
@@ -283,13 +283,13 @@ This is unusual and positive — indicates either clean code or markers were rem
 
 ---
 
-## 8. 📁 Files Created
+## 8. Files Created
 
 - `docs/CODE_QUALITY_AUDIT.md` — This audit report
 
 ---
 
-## 9. 🔍 Audit Methodology
+## 9. Audit Methodology
 
 - Static analysis via `grep`, `find`, `wc`, and Python AST parsing
 - Function-level type hint detection

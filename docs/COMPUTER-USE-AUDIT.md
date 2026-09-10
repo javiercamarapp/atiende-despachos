@@ -49,7 +49,7 @@ El proyecto tiene **dos capas paralelas de abstracción ERP** que no están cone
 | 82–100 | `AspelDriver.register_invoice()` | MockDesktop | **MOCK** | Alto | Necesita flujo real de Aspel SAE |
 | 140–144 | `aspel_register()` helper | Delega a `get_default_aspel()` | **MOCK** | Medio | Helper no se usa en producción |
 
-### 1.4 `playwright_desktop.py` (477 líneas) — PlaywrightDesktop ✅
+### 1.4 `playwright_desktop.py` (477 líneas) — PlaywrightDesktop
 
 | Línea | Clase/Función | Driver | Mock/Real | Riesgo | Cambio necesario |
 |-------|---------------|--------|-----------|--------|------------------|
@@ -59,7 +59,7 @@ El proyecto tiene **dos capas paralelas de abstracción ERP** que no están cone
 | 100+ | `launch()`, `click()`, `type_text()`, `screenshot()`, `press_key()` | Playwright real | **REAL** | Ninguno | Conectar al pipeline |
 | 200+ | `fill_form()`, `select_dropdown()`, `extract_table()` | Playwright real | **REAL** | Ninguno | Conectar al pipeline |
 
-### 1.5 `contpaqi_real_driver.py` (498 líneas) — CONTPAQiRealDriver ✅
+### 1.5 `contpaqi_real_driver.py` (498 líneas) — CONTPAQiRealDriver
 
 | Línea | Clase/Función | Driver | Mock/Real | Riesgo | Cambio necesario |
 |-------|---------------|--------|-----------|--------|------------------|
@@ -70,7 +70,7 @@ El proyecto tiene **dos capas paralelas de abstracción ERP** que no están cone
 | 300–350 | `extract_invoices()` | Playwright real + parsing | **REAL** | Bajo | Conectar al pipeline |
 | 396–450 | `register_invoice()` | Playwright real | **REAL** | Bajo | Conectar al pipeline |
 
-### 1.6 `aspel_real_driver.py` (506 líneas) — AspelRealDriver ✅
+### 1.6 `aspel_real_driver.py` (506 líneas) — AspelRealDriver
 
 | Línea | Clase/Función | Driver | Mock/Real | Riesgo | Cambio necesario |
 |-------|---------------|--------|-----------|--------|------------------|
@@ -253,9 +253,9 @@ El proyecto tiene **dos capas paralelas de abstracción ERP** que no están cone
 ## 7. HALLAZGOS CRÍTICOS
 
 ### 7.1 Drivers reales existen pero no se usan
-- `PlaywrightDesktop` ✅ implementado, testeable, Playwright instalado en Docker
-- `CONTPAQiRealDriver` ✅ implementado sobre PlaywrightDesktop
-- `AspelRealDriver` ✅ implementado sobre PlaywrightDesktop
+- `PlaywrightDesktop` implementado, testeable, Playwright instalado en Docker
+- `CONTPAQiRealDriver` implementado sobre PlaywrightDesktop
+- `AspelRealDriver` implementado sobre PlaywrightDesktop
 - **Ninguno** es invocado por `agent/loop.py`, `tools/tools.py`, `tenants.erp_factory()`, o `features/bookkeeping/`
 
 ### 7.2 "Real" classes usan Mock por defecto
@@ -305,13 +305,13 @@ FLUJO NECESARIO:
 
 | # | Hallazgo | Severidad | Archivo(s) |
 |---|----------|-----------|------------|
-| 1 | Pipeline productivo siempre usa MockCONTPAQi | 🔴 CRÍTICO | tools/tools.py:86, tenants.py:178 |
-| 2 | Drivers reales (Playwright, CONTPAQiReal, AspelReal) nunca invocados | 🔴 CRÍTICO | computer_use/*.py |
-| 3 | "Real" classes fallback a MockDesktop silenciosamente | 🟠 ALTO | erp/contpaqi_real.py:45, erp/aspel_real.py:43 |
-| 4 | URLs placeholder en defaults de drivers reales | 🟠 ALTO | contpaqi_real_driver.py:100, aspel_real_driver.py:105 |
-| 5 | ABC `ComputerUseDriver` huérfana (nadie la implementa) | 🟡 MEDIO | computer_use/interface.py |
-| 6 | Tres ABCs no alineadas (DesktopAutomation, BrowserAutomation, ComputerUseDriver) | 🟡 MEDIO | Múltiples |
-| 7 | Import frágil de Playwright en `__init__.py` | 🟡 MEDIO | computer_use/__init__.py:53 |
-| 8 | No hay tests para drivers reales | 🟡 MEDIO | tests/ |
-| 9 | docker-compose sin env vars de ERP ni health de Playwright | 🟡 MEDIO | docker-compose.yml |
-| 10 | Sin volumen Docker para screenshots de auditoría | 🟢 BAJO | docker-compose.yml |
+| 1 | Pipeline productivo siempre usa MockCONTPAQi | CRÍTICO | tools/tools.py:86, tenants.py:178 |
+| 2 | Drivers reales (Playwright, CONTPAQiReal, AspelReal) nunca invocados | CRÍTICO | computer_use/*.py |
+| 3 | "Real" classes fallback a MockDesktop silenciosamente | ALTO | erp/contpaqi_real.py:45, erp/aspel_real.py:43 |
+| 4 | URLs placeholder en defaults de drivers reales | ALTO | contpaqi_real_driver.py:100, aspel_real_driver.py:105 |
+| 5 | ABC `ComputerUseDriver` huérfana (nadie la implementa) | MEDIO | computer_use/interface.py |
+| 6 | Tres ABCs no alineadas (DesktopAutomation, BrowserAutomation, ComputerUseDriver) | MEDIO | Múltiples |
+| 7 | Import frágil de Playwright en `__init__.py` | MEDIO | computer_use/__init__.py:53 |
+| 8 | No hay tests para drivers reales | MEDIO | tests/ |
+| 9 | docker-compose sin env vars de ERP ni health de Playwright | MEDIO | docker-compose.yml |
+| 10 | Sin volumen Docker para screenshots de auditoría | BAJO | docker-compose.yml |

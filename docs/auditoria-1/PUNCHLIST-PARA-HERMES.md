@@ -234,7 +234,7 @@ lead_id = db.create_outreach_lead(name=lead.name, email=lead.email, ...)
 ```
 `Database` no tiene el método `create_outreach_lead` — existe `add_outreach_lead(self, campaign_id, tenant_id, email, first_name=..., ...)`, con firma distinta (pide `campaign_id`/`tenant_id` que `LeadCreate` ni siquiera declara). Probado en vivo: `POST /api/v1/outreach/leads` con una key válida y body válido según el schema devuelve **500 Internal Server Error** siempre — `AttributeError: 'Database' object has no attribute 'create_outreach_lead'`.
 
-Escenario: un integrador (o Likida mismo) llama al endpoint documentado en el router para dar de alta un lead de outreach → 500 sin excepción, en cada intento, sin excepción de casos borde: el método simplemente no existe.
+Escenario: un integrador (o Atiende Despachos mismo) llama al endpoint documentado en el router para dar de alta un lead de outreach → 500 sin excepción, en cada intento, sin excepción de casos borde: el método simplemente no existe.
 
 Consecuencia: la única vía documentada para crear un lead vía API está muerta desde que se escribió. `tests/test_outreach.py` nunca la ejercita — prueba `OutreachManager`/`Database` directo, sin `TestClient`, así que 74 tests de esta zona pasan en verde sin haber llamado nunca a esta ruta.
 
@@ -389,12 +389,12 @@ Escenario (ejecutado, código vs. LFT art. 76 vigente desde 1-ene-2023):
 | Antigüedad | Código | Ley |
 |---|---|---|
 | 1-5 años | 12/14/16/18/20 | 12/14/16/18/20 ✓ |
-| **6 años** | **20** | **22** ✗ |
-| 7, 8, 9 años | 20 | 22 ✗ |
+| **6 años** | **20** | **22** |
+| 7, 8, 9 años | 20 | 22 |
 | 10 años | 22 | 22 ✓ |
-| **11-14 años** | **22** | **24** ✗ |
+| **11-14 años** | **22** | **24** |
 | 15 años | 24 | 24 ✓ |
-| **16-19 años** | **24** | **26** ✗ |
+| **16-19 años** | **24** | **26** |
 
 El texto reformado dice «A partir del **sexto** año, el período de vacaciones
 aumentará en dos días por cada cinco de servicios» — el escalón abre en el año 6,
@@ -582,7 +582,7 @@ mock-first, y nunca se conectó al pipeline que produce el efecto fiscal.
 ### El aviso de privacidad no existe para el titular — solo en el repo
 `landing/index.html:894`, `docs/legal/PRIVACY-POLICY.md` (documento completo, nunca enlazado ni servido)
 Escenario: un visitante entra a `landing/index.html`, ve la tarjeta "LFPDPPP" que dice literalmente *"Cumplimiento total de la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. Aviso de privacidad incluido."* (línea 894) y busca el aviso — no hay ningún `<a href>` hacia él en `landing/index.html` ni en `landing-b/` (confirmado por grep de `href=` contra "privac|legal|terms"), y ninguna ruta de `b2b_ai/api/*.py` ni `b2b_ai/portal/routes.py` sirve `docs/legal/PRIVACY-POLICY.md` como página web (confirmado por grep de `PRIVACY-POLICY|privacy-policy|/legal/` contra las rutas). El documento real vive solo como Markdown en `docs/legal/`, con `RFC: [PENDIENTE — completar con RFC legal de la empresa]` sin rellenar (línea 6), y el formulario de contacto de la landing (`landing/index.html:995-1028`) no tiene checkbox de aceptación de aviso ni enlace a él.
-Consecuencia: la afirmación "Aviso de privacidad incluido" es falsa tal como se despliega hoy. Cualquier dato que entre por el formulario de contacto, por el registro del portal o por la carga de documentos se recaba sin que el titular haya tenido oportunidad de leer el aviso — el requisito more básico de la LFPDPPP (que el aviso esté "a su disposición" antes o al momento de la recolección) no se cumple. Para el despacho cliente esto es una responsabilidad heredada: si el titular de un dato de un CFDI reclama, Likida no puede probar que hubo aviso.
+Consecuencia: la afirmación "Aviso de privacidad incluido" es falsa tal como se despliega hoy. Cualquier dato que entre por el formulario de contacto, por el registro del portal o por la carga de documentos se recaba sin que el titular haya tenido oportunidad de leer el aviso — el requisito more básico de la LFPDPPP (que el aviso esté "a su disposición" antes o al momento de la recolección) no se cumple. Para el despacho cliente esto es una responsabilidad heredada: si el titular de un dato de un CFDI reclama, Atiende Despachos no puede probar que hubo aviso.
 Causa raíz probable: el documento se redactó pero nunca se conectó a ninguna ruta ni a la landing.
 
 
@@ -590,7 +590,7 @@ Causa raíz probable: el documento se redactó pero nunca se conectó a ninguna 
 ### Datos de nómina de un tercero (no del Cliente) viajan sin filtrar a un LLM externo
 `b2b_ai/agent/loop.py:156`, `b2b_ai/cfdi/parser.py:250-267`, `b2b_ai/services/llm.py:69-88,222-226`
 Escenario: el pipeline procesa un CFDI tipo nómina. `cfdi/parser.py:250-267` extrae del complemento Nomina el `curp`, `num_empleado`, `salario_diario` (SBC) y `total_percepciones`/`total_deducciones` del trabajador y los mete en `datos["nomina"]`. Ese `datos` completo — sin quitar el sub-dict `nomina` — se pasa tal cual a `self.llm.classify_invoice(datos)` en `agent/loop.py:156`. Dentro de `llm.py`, `_sanitize_payload()` (líneas 69-88) recorre dicts anidados y los deja pasar — solo trunca longitud y quita tags XML, no redacta CURP ni salario — y `_render_prompt` (líneas 222-226) serializa ese payload completo dentro del `[DATOS]...[/DATOS]` del prompt `user`. Si el tenant tiene `B2B_LLM_PROVIDER=openai|anthropic|deepseek|openrouter` configurado (los cuatro proveedores reales existen en el mismo archivo, líneas 356-573), ese prompt —con CURP, salario y percepciones/deducciones de un trabajador real— sale por HTTP hacia la API de un tercero fuera de México.
-Consecuencia: el titular de esos datos no es "el Cliente" (el despacho, que sí firmó el ToS) sino el trabajador del cliente del despacho — un tercero que nunca vio ni el ToS ni el aviso de privacidad de Likida. `PRIVACY-POLICY.md §4.1` (líneas 81-87) solo contempla transferencias a "proveedores de infraestructura tecnológica (cloud providers)" para "la operación de la Plataforma" — no nombra ni contempla el envío de datos de nómina a un proveedor de modelos de lenguaje para clasificación. Es una transferencia de datos personales sin base ni cobertura, del tipo que el propio rubro marca como techo de 3/10.
+Consecuencia: el titular de esos datos no es "el Cliente" (el despacho, que sí firmó el ToS) sino el trabajador del cliente del despacho — un tercero que nunca vio ni el ToS ni el aviso de privacidad de Atiende Despachos. `PRIVACY-POLICY.md §4.1` (líneas 81-87) solo contempla transferencias a "proveedores de infraestructura tecnológica (cloud providers)" para "la operación de la Plataforma" — no nombra ni contempla el envío de datos de nómina a un proveedor de modelos de lenguaje para clasificación. Es una transferencia de datos personales sin base ni cobertura, del tipo que el propio rubro marca como techo de 3/10.
 Causa raíz probable: `classify_invoice` recibe el `datos` completo del parser en vez de una vista filtrada por tipo de comprobante (el `tipo == "N"` ya se distingue en otras partes del código, p. ej. `services/llm.py:604-605`, pero no se usa para excluir el sub-dict `nomina` antes de mandarlo al LLM).
 
 ## Hallazgos adicionales

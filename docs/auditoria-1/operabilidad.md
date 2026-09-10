@@ -220,7 +220,7 @@ pendiente en los README de deploy.
 Escenario: 12 archivos markdown en la raíz documentan estado o deploy,
 cinco de ellos variantes de "QA_REPORT" y tres de deploy, sin ningún
 `INDEX.md` ni cabecera que diga cuál es la fuente de verdad vigente ni cuál
-quedó obsoleto tras el rebrand "B&B AI → Likida AI" que `MAPA.md` (punto 3)
+quedó obsoleto tras el rebrand "B&B AI → Atiende Despachos" que `MAPA.md` (punto 3)
 señala en curso.
 
 Consecuencia: cualquier persona nueva —o el propio equipo, meses después—

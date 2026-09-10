@@ -2,7 +2,7 @@
 """
 prometeo.py — Adapter de la Prometeo Banking API (cuentas bancarias reales MX).
 
-Conecta Likida AI con cuentas bancarias reales en México a través de la API
+Conecta Atiende Despachos con cuentas bancarias reales en México a través de la API
 agregadora de Prometeo. A diferencia de los adapters OFX/CNBV/mock, este
 adapter hace llamadas HTTP reales a la API de Prometeo:
 

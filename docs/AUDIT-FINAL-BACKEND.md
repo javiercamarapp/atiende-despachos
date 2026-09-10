@@ -1,4 +1,4 @@
-# Auditoría Backend & Arquitectura — Likida AI Enterprise
+# Auditoría Backend & Arquitectura — Atiende Despachos
 
 > Auditoría exhaustiva de `b2b_ai/api/`, `b2b_ai/services/`, `b2b_ai/features/`, `b2b_ai/infrastructure/`
 > Fecha: 2026-08-01
@@ -96,13 +96,13 @@
 ### 3.1 ALTO — Orden de middleware subóptimo
 - **Archivo**: `b2b_ai/api/app.py:508-603`
 - **Descripción**: Orden actual de middleware (de más externo a más interno):
-  1. `SecurityHeadersMiddleware` (línea 508) — ✅ correcto como externo
-  2. `CORSMiddleware` (línea 528) — ✅ correcto
-  3. Rate limit (línea 548) — ⚠️ debería ser antes del parsing de body
-  4. Metrics (línea 567) — ⚠️ cuenta requests rechazadas por rate limit
-  5. Request context (línea 583) — ✅ correcto
-  6. Audit middleware (línea 598) — ✅ correcto
-  7. Size limit (línea 603) — ❌ dice "outermost" pero se registra DESPUÉS de audit
+  1. `SecurityHeadersMiddleware` (línea 508) — correcto como externo
+  2. `CORSMiddleware` (línea 528) — correcto
+  3. Rate limit (línea 548) — debería ser antes del parsing de body
+  4. Metrics (línea 567) — cuenta requests rechazadas por rate limit
+  5. Request context (línea 583) — correcto
+  6. Audit middleware (línea 598) — correcto
+  7. Size limit (línea 603) — dice "outermost" pero se registra DESPUÉS de audit
 
   El comentario en línea 602 dice "Registered after all other middleware so it is the outermost layer" pero en ASGI/FastAPI, el **último** `add_middleware` es el más **externo**. Así que size limit SÍ es externo — el comentario es correcto pero confuso.
   
@@ -350,24 +350,24 @@
 
 | Componente | Construido | Instalado | Estado |
 |------------|:----------:|:---------:|--------|
-| Structured error handling | ✅ | ❌ | **Dead code** |
-| Trace IDs | ✅ | ❌ | **Dead code** |
-| Idempotency middleware | ✅ | ❌ | **Dead code** |
-| Versioning middleware | ✅ | ❌ | **Dead code** |
-| OpenAPI enhancement | ✅ | ❌ | **Dead code** |
-| Graceful shutdown | ✅ | ❌ | **Dead code** |
-| Enterprise rate limiter | ✅ | ❌ | **Dead code** |
-| Pydantic config | ✅ | ❌ | **Dead code** |
-| Health check registry | ✅ | ❌ parcial | Solo /health, /health/detailed |
-| Security headers | ✅ | ✅ | Funcionando |
-| CORS | ✅ | ✅ | Funcionando |
-| Auth (API key) | ✅ | ✅ | Funcionando |
-| Audit middleware | ✅ | ✅ | Funcionando |
-| Request size limit | ✅ | ✅ | Funcionando |
-| Prometheus metrics | ✅ | ✅ | Funcionando |
-| Alert engine | ✅ | ✅ | Funcionando |
-| Circuit breaker | ✅ | ✅ | Usado en integraciones |
-| Encryption at rest | ✅ | ✅ | AES-GCM opt-in |
-| PII detection | ✅ | ✅ | En pipeline CFDI |
-| SSRF protection | ✅ | ✅ | En webhooks |
-| CSP nonce-based | ✅ | ✅ | En security_headers |
+| Structured error handling | Sí | No | **Dead code** |
+| Trace IDs | Sí | No | **Dead code** |
+| Idempotency middleware | Sí | No | **Dead code** |
+| Versioning middleware | Sí | No | **Dead code** |
+| OpenAPI enhancement | Sí | No | **Dead code** |
+| Graceful shutdown | Sí | No | **Dead code** |
+| Enterprise rate limiter | Sí | No | **Dead code** |
+| Pydantic config | Sí | No | **Dead code** |
+| Health check registry | Sí | parcial | Solo /health, /health/detailed |
+| Security headers | Sí | Sí | Funcionando |
+| CORS | Sí | Sí | Funcionando |
+| Auth (API key) | Sí | Sí | Funcionando |
+| Audit middleware | Sí | Sí | Funcionando |
+| Request size limit | Sí | Sí | Funcionando |
+| Prometheus metrics | Sí | Sí | Funcionando |
+| Alert engine | Sí | Sí | Funcionando |
+| Circuit breaker | Sí | Sí | Usado en integraciones |
+| Encryption at rest | Sí | Sí | AES-GCM opt-in |
+| PII detection | Sí | Sí | En pipeline CFDI |
+| SSRF protection | Sí | Sí | En webhooks |
+| CSP nonce-based | Sí | Sí | En security_headers |

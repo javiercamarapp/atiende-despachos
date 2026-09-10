@@ -114,7 +114,7 @@ def main() -> int:
                   f"{r['rss_max_MB']}")
         print(f"\nSeñal de leak (retención último - primero): {leak_signal:.2f} MB")
         if leak_signal > 10:
-            print("⚠  Posible memory leak: la retención crece con cada bloque.")
+            print(" Posible memory leak: la retención crece con cada bloque.")
         else:
             print("✓ Sin señal de leak: la retención post-GC se estabiliza.")
     return 0

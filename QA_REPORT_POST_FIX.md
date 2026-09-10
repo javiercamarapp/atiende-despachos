@@ -8,15 +8,15 @@
 
 ## 1. Resumen ejecutivo
 
-**Veredicto: ✅ LISTO PARA ENTREGAR (respecto a los 11 persistent failures).**
+**Veredicto: LISTO PARA ENTREGAR (respecto a los 11 persistent failures).**
 
 Los **11 fallos persistentes** detectados en el baseline (QA_REPORT_BASELINE.md) están **todos resueltos**:
 los 129 tests de los módulos críticos pasan 100% y los 115 tests de regression pasan 100%.
 
 | Suite | Tests | Passed | Failed | Skipped | Resultado |
 |---|---|---|---|---|---|
-| Críticos (portal, onboarding, bank_reconciliation, security_hardening) | 129 | **129** | **0** | 0 | ✅ |
-| Regression (sat, audit, billing, cfdi_coverage) | 115 | **115** | **0** | 0 | ✅ |
+| Críticos (portal, onboarding, bank_reconciliation, security_hardening) | 129 | **129** | **0** | 0 | Sí |
+| Regression (sat, audit, billing, cfdi_coverage) | 115 | **115** | **0** | 0 | Sí |
 
 > Antes (baseline): 11 persistent failures. Después (post-fix): **0 failures** en ambos sets.
 

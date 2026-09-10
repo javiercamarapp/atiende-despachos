@@ -1,5 +1,5 @@
 # AUDITORÍA FINAL — SEGURIDAD Y AUTENTICACIÓN
-## Likida AI Enterprise — b2b_ai
+## Atiende Despachos — b2b_ai
 
 **Fecha:** 2026-08-01
 **Alcance:** b2b_ai/auth/, b2b_ai/api/app.py, b2b_ai/api/middleware.py, b2b_ai/billing/, b2b_ai/infrastructure/, b2b_ai/api/security.py, b2b_ai/api/webhooks.py, b2b_ai/api/portal.py, b2b_ai/api/security_headers.py
@@ -12,10 +12,10 @@
 
 | Severidad | Hallazgos |
 |-----------|-----------|
-| 🔴 Crítica | 3 |
-| 🟠 Alta    | 8 |
-| 🟡 Media   | 9 |
-| 🟢 Baja    | 4 |
+| Crítica | 3 |
+| Alta    | 8 |
+| Media   | 9 |
+| Baja    | 4 |
 | **Total**  | **24** |
 
 ---
@@ -25,7 +25,7 @@
 ### C-01 — ARCO Endpoints Públicos: Datos Personales sin Autenticación
 
 **Archivo:** `b2b_ai/api/app.py:1402-1509`
-**Severidad:** 🔴 CRÍTICA
+**Severidad:** CRÍTICA
 
 **Descripción:** Los endpoints ARCO (Acceso, Rectificación, Cancelación, Oposición) están definidos **sin protección `require_api_key`** y **sin autenticación JWT**:
 
@@ -60,7 +60,7 @@ async def arco_acceso(email: str, ctx: dict = Depends(jwt.require_auth)):
 ### C-02 — Token Blacklist en Memoria: Logout Inefectivo en Multi-Worker
 
 **Archivo:** `b2b_ai/auth/middleware.py:39-40`
-**Severidad:** 🔴 CRÍTICA
+**Severidad:** CRÍTICA
 
 **Descripción:** La blacklist de tokens JWT vive en un `dict` en memoria del proceso:
 ```python
@@ -96,7 +96,7 @@ def is_token_revoked(self, token: str) -> bool:
 ### C-03 — Webhook de Conekta: Firma Verificada contra JSON Re-serializado, no Raw Body
 
 **Archivo:** `b2b_ai/billing/webhook_receiver.py:331-332`
-**Severidad:** 🔴 CRÍTICA
+**Severidad:** CRÍTICA
 
 **Descripción:** En `process_webhook()`, la firma se verifica contra el JSON re-serializado:
 ```python
@@ -128,7 +128,7 @@ async def conekta_webhook(request: Request):
 ### A-01 — Portal Login: tenant_id del Body Controla Búsqueda Cross-Tenant
 
 **Archivo:** `b2b_ai/api/portal.py:189`
-**Severidad:** 🟠 ALTA
+**Severidad:** ALTA
 
 **Descripción:** El login del portal acepta `tenant_id` del body del request:
 ```python
@@ -154,7 +154,7 @@ user = db.get_client_user_by_email(email, tenant_id=body.tenant_id)
 ### A-02 — Onboarding: CIEC, e.firma y Contraseñas de ERP en Plaintext
 
 **Archivo:** `b2b_ai/onboarding/api.py:49-69`
-**Severidad:** 🟠 ALTA
+**Severidad:** ALTA
 
 **Descripción:** El wizard de onboarding acepta credenciales sensibles como campos Pydantic:
 ```python
@@ -180,7 +180,7 @@ No hay evidencia de que estos campos se cifren con `encrypt_field()` antes de pe
 ### A-03 — Rate Limiting No Cubre Endpoints ARCO ni Portal Auth
 
 **Archivo:** `b2b_ai/api/app.py:431-435, 547-561`
-**Severidad:** 🟠 ALTA
+**Severidad:** ALTA
 
 **Descripción:** El rate limiter exime estas rutas:
 ```python
@@ -215,7 +215,7 @@ ENDPOINT_LIMITS["/api/v1/arco/"] = 3  # 3 solicitudes/min
 ### A-04 — /metrics/prometheus Público: Expone Datos Operativos Sensibles
 
 **Archivo:** `b2b_ai/api/app.py:653-661`
-**Severidad:** 🟠 ALTA
+**Severidad:** ALTA
 
 **Descripción:** El endpoint de métricas Prometheus es público (sin `require_api_key`):
 ```python
@@ -251,7 +251,7 @@ def metrics_prometheus(request: Request):
 ### A-05 — Dashboard SPA sin Autenticación
 
 **Archivo:** `b2b_ai/api/app.py:1127-1132`
-**Severidad:** 🟠 ALTA
+**Severidad:** ALTA
 
 **Descripción:** El dashboard SPA es accesible sin autenticación:
 ```python
@@ -280,7 +280,7 @@ def dashboard_spa(request: Request):
 ### A-06 — Portal Magic Link: Token Devuelto en Respuesta HTTP en Dev
 
 **Archivo:** `b2b_ai/api/portal.py:232-240`
-**Severidad:** 🟠 ALTA
+**Severidad:** ALTA
 
 **Descripción:** En entornos de desarrollo, el magic link token se devuelve en la respuesta HTTP:
 ```python
@@ -304,7 +304,7 @@ if _is_dev_env():
 ### A-07 — Encrypt Field Degrada Silenciosamente a Plaintext
 
 **Archivo:** `b2b_ai/api/security.py:161-172`
-**Severidad:** 🟠 ALTA
+**Severidad:** ALTA
 
 **Descripción:** `encrypt_field()` devuelve el valor en plaintext si la clave no está configurada:
 ```python
@@ -336,7 +336,7 @@ def encrypt_field(value: str) -> str:
 ### A-08 — FIEL Password Hardcodeado en Ejemplo/Tests
 
 **Archivo:** `b2b_ai/features/declaraciones/fiel_signer.py:54` y `sat_submitter.py:92`
-**Severidad:** 🟠 ALTA
+**Severidad:** ALTA
 
 **Descripción:** Password de ejemplo hardcodeado en el docstring y código:
 ```python
@@ -362,7 +362,7 @@ password: str  # sin default, requerido
 ### M-01 — SQL Injection Potencial en Migrations (f-string en execute)
 
 **Archivo:** `b2b_ai/db/migration.py:117,185,225`
-**Severidad:** 🟡 MEDIA
+**Severidad:** MEDIA
 
 **Descripción:** F-strings dentro de `execute()`:
 ```python
@@ -388,7 +388,7 @@ if table not in _ALLOWED_TABLES:
 ### M-02 — JWT Config: MIN_SECRET_LEN = 32 en Auth, pero 16 en Config/Infrastructure
 
 **Archivo:** `b2b_ai/auth/middleware.py:52` vs `b2b_ai/infrastructure/config.py:113`
-**Severidad:** 🟡 MEDIA
+**Severidad:** MEDIA
 
 **Descripción:** Inconsistencia en longitud mínima del JWT secret:
 - `auth/middleware.py`: `MIN_SECRET_LEN = 32`
@@ -403,7 +403,7 @@ Si se usa el `Settings` de infrastructure para validar (y no el middleware direc
 ### M-03 — Rate Limiter Enterprise Definido pero No Instalado
 
 **Archivo:** `b2b_ai/api/rate_limiter.py` (332 líneas) vs `b2b_ai/api/app.py`
-**Severidad:** 🟡 MEDIA
+**Severidad:** MEDIA
 
 **Descripción:** Se implementó un rate limiter enterprise completo (Redis-backed, per-tenant, per-endpoint, per-role) en `rate_limiter.py`, pero `app.py` solo usa el rate limiter básico en memoria (300 req/min global). El enterprise limiter nunca se instala.
 
@@ -424,7 +424,7 @@ install_enterprise_rate_limit(app)
 ### M-04 — Webhook Subscription: URL del Tenant sin Validación de Esquema Robusta
 
 **Archivo:** `b2b_ai/api/webhooks.py:336-338`
-**Severidad:** 🟡 MEDIA
+**Severidad:** MEDIA
 
 **Descripción:** La suscripción de webhook valida el esquema de forma superficial:
 ```python
@@ -448,7 +448,7 @@ tm.set_config(scope, webhook_url=sub.url)
 ### M-05 — CSP Permite unsafe-inline para Estilos
 
 **Archivo:** `b2b_ai/api/security_headers.py:33`
-**Severidad:** 🟡 MEDIA
+**Severidad:** MEDIA
 
 **Descripción:** La CSP permite `'unsafe-inline'` para estilos:
 ```python
@@ -464,7 +464,7 @@ Aunque `'unsafe-inline'` es ignorado cuando hay un nonce en navegadores modernos
 ### M-06 — Token Blacklist: Cleanup Race Condition
 
 **Archivo:** `b2b_ai/auth/middleware.py:309-313`
-**Severidad:** 🟡 MEDIA
+**Severidad:** MEDIA
 
 **Descripción:** El cleanup de la blacklist ocurre inline en `revoke_token()`:
 ```python
@@ -487,7 +487,7 @@ En un endpoint de logout concurrente, múltiples hilos iteran y modifican `_toke
 ### M-07 — Endpoint de Leads Público: Sin Protección Anti-Spam Efectiva
 
 **Archivo:** `b2b_ai/api/app.py:801-812`
-**Severidad:** 🟡 MEDIA
+**Severidad:** MEDIA
 
 **Descripción:** El endpoint de leads es público y solo valida que nombre y email no estén vacíos:
 ```python
@@ -515,7 +515,7 @@ Sin CAPTCHA, honeypot, ni verificación de email, un atacante puede:
 ### M-08 — Structured Logging: Filtro de Campos Sensibles Incompleto
 
 **Archivo:** `b2b_ai/monitoring/logger.py:56`, `b2b_ai/infrastructure/structured_logging.py:63`
-**Severidad:** 🟡 MEDIA
+**Severidad:** MEDIA
 
 **Descripción:** Los filtros de logging enmascaran `webhook_url` y `notif_recipient`, pero no:
 - `ciec` (clave CIEC del SAT)
@@ -531,7 +531,7 @@ Sin CAPTCHA, honeypot, ni verificación de email, un atacante puede:
 ### M-09 — CORS: Wildcard Posible con B2B_CORS_ORIGINS=*
 
 **Archivo:** `b2b_ai/api/app.py:523-535`
-**Severidad:** 🟡 MEDIA
+**Severidad:** MEDIA
 
 **Descripción:** El código permite `*` como origen CORS:
 ```python
@@ -555,7 +555,7 @@ if "*" in _cors_origins and _allow_creds:
 ### B-01 — Health Endpoint Expone Conteo de Tenants e Invoices
 
 **Archivo:** `b2b_ai/api/app.py:633-645`
-**Severidad:** 🟢 BAJA
+**Severidad:** BAJA
 
 **Descripción:** El endpoint `/health` es público y devuelve:
 ```python
@@ -572,7 +572,7 @@ Esto permite a un atacante inferir el tamaño de la plataforma.
 ### B-02 — B2B_TRUST_PROXY: Doble Implementación Inconsistente
 
 **Archivo:** `b2b_ai/api/app.py:348-366` vs `b2b_ai/api/security_headers.py:50-54`
-**Severidad:** 🟢 BAJA
+**Severidad:** BAJA
 
 **Descripción:** Dos implementaciones de trust proxy:
 - `app.py`: acepta lista de IPs separadas por coma
@@ -589,7 +589,7 @@ Un operador que configure `B2B_TRUST_PROXY=10.0.0.1,10.0.0.2` tendrá:
 ### B-03 — OpenAPI/Docs Públicos en Producción
 
 **Archivo:** `b2b_ai/api/app.py:431-435` (eximidos de rate limit)
-**Severidad:** 🟢 BAJA
+**Severidad:** BAJA
 
 **Descripción:** `/docs` y `/openapi.json` están accesibles públicamente y eximidos de rate limiting. En producción, exponen toda la superficie de la API, facilitando el descubrimiento de endpoints.
 
@@ -605,7 +605,7 @@ if not _is_dev_env():
 ### B-04 — BCRYPT_ROUNDS Configurable por Env (Posible Degradación)
 
 **Archivo:** `b2b_ai/auth/users.py:26`
-**Severidad:** 🟢 BAJA
+**Severidad:** BAJA
 
 **Descripción:**
 ```python
@@ -626,84 +626,84 @@ BCRYPT_ROUNDS = max(12, int(os.environ.get("B2B_BCRYPT_ROUNDS", "12")))
 ### 1. Auth Bypass
 | Endpoint | Protegido | Estado |
 |----------|-----------|--------|
-| `/health` | ❌ | ✅ OK (público por diseño) |
-| `/metrics` | ✅ require_api_key | ✅ OK |
-| `/metrics/prometheus` | ❌ | ⚠️ Ver A-04 |
-| `/health/detailed` | ✅ require_api_key | ✅ OK |
-| `/api/v1/invoices/*` | ✅ require_api_key | ✅ OK |
-| `/api/v1/leads` | ❌ | ✅ OK (público por diseño, ver M-07) |
-| `/api/v1/arco/*` | ❌❌❌ | 🔴 **CRÍTICO** (ver C-01) |
-| `/portal/auth/*` | ❌ (login público) | ⚠️ Ver A-01 |
-| `/portal/invoices/*` | ✅ require_user | ✅ OK |
-| `/dashboard/` | ❌ | ⚠️ Ver A-05 |
-| Todos los routers montados vía `include_router` | ✅ require_api_key | ✅ OK |
-| Webhook billing | ❌ (usa firma HMAC) | ✅ OK (ver C-03 para receiver) |
+| `/health` | No | OK (público por diseño) |
+| `/metrics` | require_api_key | OK |
+| `/metrics/prometheus` | No | Ver A-04 |
+| `/health/detailed` | require_api_key | OK |
+| `/api/v1/invoices/*` | require_api_key | OK |
+| `/api/v1/leads` | No | OK (público por diseño, ver M-07) |
+| `/api/v1/arco/*` | No | **CRÍTICO** (ver C-01) |
+| `/portal/auth/*` | (login público) | Ver A-01 |
+| `/portal/invoices/*` | require_user | OK |
+| `/dashboard/` | No | Ver A-05 |
+| Todos los routers montados vía `include_router` | require_api_key | OK |
+| Webhook billing | (usa firma HMAC) | OK (ver C-03 para receiver) |
 
 ### 2. JWT
-- ✅ Tokens con JTI único (`secrets.token_urlsafe`)
-- ✅ Blacklist implementada (ver C-02 para problema de persistencia)
-- ✅ Refresh token rotation (VULN-12: revoca el viejo antes de emitir nuevo)
-- ✅ TTLs configurables por env (access=30min, refresh=7d, reset=1h)
-- ✅ Secret mínimo 32 chars enforced en middleware
-- ⚠️ Inconsistencia con config.py (ver M-02)
+- Tokens con JTI único (`secrets.token_urlsafe`)
+- Blacklist implementada (ver C-02 para problema de persistencia)
+- Refresh token rotation (VULN-12: revoca el viejo antes de emitir nuevo)
+- TTLs configurables por env (access=30min, refresh=7d, reset=1h)
+- Secret mínimo 32 chars enforced en middleware
+- Inconsistencia con config.py (ver M-02)
 
 ### 3. Multi-tenant
-- ✅ `tenant_id` se deriva del token/API key en la mayoría de endpoints
-- ✅ `_scope(auth_info)` siempre prioriza el token
-- ⚠️ Portal login acepta `tenant_id` del body (ver A-01)
-- ✅ ARCO endpoints NO son multi-tenant (son públicos) — ver C-01
-- ✅ Webhook email: tenant del token, no del body (VULN-13 ya parchado)
+- `tenant_id` se deriva del token/API key en la mayoría de endpoints
+- `_scope(auth_info)` siempre prioriza el token
+- Portal login acepta `tenant_id` del body (ver A-01)
+- ARCO endpoints NO son multi-tenant (son públicos) — ver C-01
+- Webhook email: tenant del token, no del body (VULN-13 ya parchado)
 
 ### 4. Inyección
-- ✅ SQL: La mayoría de queries usa parámetros (? placeholders)
-- ⚠️ f-strings en migrations (ver M-01) — bajo riesgo actual
-- ✅ Path traversal: `_resolve_local_path()` resuelve symlinks y valida contra roots
-- ✅ SSRF: `_assert_http_scheme()` bloquea IPs privadas y localhost (VULN-08)
-- ✅ Upload: solo .xml/.pdf permitidos
-- ⚠️ Leads: sin sanitización HTML (ver M-07)
+- SQL: La mayoría de queries usa parámetros (? placeholders)
+- f-strings en migrations (ver M-01) — bajo riesgo actual
+- Path traversal: `_resolve_local_path()` resuelve symlinks y valida contra roots
+- SSRF: `_assert_http_scheme()` bloquea IPs privadas y localhost (VULN-08)
+- Upload: solo .xml/.pdf permitidos
+- Leads: sin sanitización HTML (ver M-07)
 
 ### 5. Secrets
-- ✅ No hay secretos hardcodeados en código de producción
-- ✅ JWT secret se lee de env, falla en prod si no está
-- ⚠️ Password de ejemplo en docstrings FIEL (ver A-08)
-- ✅ API key comparison es constant-time (`hmac.compare_digest`)
-- ✅ Logging enmascara webhook_url y notif_recipient
-- ⚠️ Filtro de logging incompleto (ver M-08)
+- No hay secretos hardcodeados en código de producción
+- JWT secret se lee de env, falla en prod si no está
+- Password de ejemplo en docstrings FIEL (ver A-08)
+- API key comparison es constant-time (`hmac.compare_digest`)
+- Logging enmascara webhook_url y notif_recipient
+- Filtro de logging incompleto (ver M-08)
 
 ### 6. Rate Limiting
-- ✅ Rate limiter básico activo (300/min global)
-- ⚠️ Enterprise limiter implementado pero NO instalado (ver M-03)
-- ⚠️ Límites por endpoint no activos (ver A-03)
-- ✅ Leads tiene límite definido (10/min) pero no activo
+- Rate limiter básico activo (300/min global)
+- Enterprise limiter implementado pero NO instalado (ver M-03)
+- Límites por endpoint no activos (ver A-03)
+- Leads tiene límite definido (10/min) pero no activo
 
 ### 7. CORS
-- ✅ Por defecto CORS desactivado (más seguro)
-- ✅ Headers explícitos, no wildcard por defecto
-- ⚠️ Wildcard posible via env (ver M-09)
-- ✅ `allow_credentials` default `false`
+- Por defecto CORS desactivado (más seguro)
+- Headers explícitos, no wildcard por defecto
+- Wildcard posible via env (ver M-09)
+- `allow_credentials` default `false`
 
 ### 8. CSP/HSTS
-- ✅ CSP activa con nonce-based scripts
-- ✅ HSTS activo por defecto (VULN-07 ya parchado)
-- ✅ X-Frame-Options: DENY
-- ✅ X-Content-Type-Options: nosniff
-- ✅ Referrer-Policy: strict-origin-when-cross-origin
-- ⚠️ `unsafe-inline` en styles (ver M-05)
+- CSP activa con nonce-based scripts
+- HSTS activo por defecto (VULN-07 ya parchado)
+- X-Frame-Options: DENY
+- X-Content-Type-Options: nosniff
+- Referrer-Policy: strict-origin-when-cross-origin
+- `unsafe-inline` en styles (ver M-05)
 
 ### 9. Encryption at Rest
-- ✅ AES-GCM con `cryptography` library
-- ✅ `B2B_ENCRYPTION_KEY` requerido en producción (fail-fast)
-- ⚠️ `encrypt_field()` degrada silenciosamente (ver A-07)
-- ⚠️ CIEC/e.firma/ERP passwords no verificados como cifrados (ver A-02)
-- ✅ Prefijo `enc1:` identifica valores cifrados
+- AES-GCM con `cryptography` library
+- `B2B_ENCRYPTION_KEY` requerido en producción (fail-fast)
+- `encrypt_field()` degrada silenciosamente (ver A-07)
+- CIEC/e.firma/ERP passwords no verificados como cifrados (ver A-02)
+- Prefijo `enc1:` identifica valores cifrados
 
 ### 10. Webhook Signatures
-- ✅ `billing/api.py`: verifica contra `raw_body` (correcto)
-- 🔴 `billing/webhook_receiver.py`: verifica contra JSON re-serializado (ver C-03)
-- ✅ `hmac.compare_digest` para comparación (previene timing attacks)
-- ✅ Sin secret → siempre rechaza (nunca bypass)
-- ✅ Conekta: formato `hmac_sha256=<hash>,t=<timestamp>` parseado correctamente
-- ✅ Stripe: formato `t=<ts>,v1=<sig>` parseado correctamente
+- `billing/api.py`: verifica contra `raw_body` (correcto)
+- `billing/webhook_receiver.py`: verifica contra JSON re-serializado (ver C-03)
+- `hmac.compare_digest` para comparación (previene timing attacks)
+- Sin secret → siempre rechaza (nunca bypass)
+- Conekta: formato `hmac_sha256=<hash>,t=<timestamp>` parseado correctamente
+- Stripe: formato `t=<ts>,v1=<sig>` parseado correctamente
 
 ---
 

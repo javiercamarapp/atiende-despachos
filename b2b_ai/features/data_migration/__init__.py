@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""data_migration — Módulo de migración de datos hacia Likida AI.
+"""data_migration — Módulo de migración de datos hacia Atiende Despachos.
 
 Importa información de sistemas existentes (CONTPAQi, Excel, CSV) al MVP de
-Likida AI. El primer piloto importa los datos del despacho actual.
+Atiende Despachos. El primer piloto importa los datos del despacho actual.
 
 Expone:
   - MigrationStatus, MigrationDataType, MigrationFileType, MigrationJob,

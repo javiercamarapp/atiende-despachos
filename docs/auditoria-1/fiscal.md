@@ -135,12 +135,12 @@ Escenario (ejecutado, código vs. LFT art. 76 vigente desde 1-ene-2023):
 | Antigüedad | Código | Ley |
 |---|---|---|
 | 1-5 años | 12/14/16/18/20 | 12/14/16/18/20 ✓ |
-| **6 años** | **20** | **22** ✗ |
-| 7, 8, 9 años | 20 | 22 ✗ |
+| **6 años** | **20** | **22** |
+| 7, 8, 9 años | 20 | 22 |
 | 10 años | 22 | 22 ✓ |
-| **11-14 años** | **22** | **24** ✗ |
+| **11-14 años** | **22** | **24** |
 | 15 años | 24 | 24 ✓ |
-| **16-19 años** | **24** | **26** ✗ |
+| **16-19 años** | **24** | **26** |
 
 El texto reformado dice «A partir del **sexto** año, el período de vacaciones
 aumentará en dos días por cada cinco de servicios» — el escalón abre en el año 6,

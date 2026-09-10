@@ -133,7 +133,7 @@ Los dos comparten el mismo defecto: la raíz saturada de markdown solapado. `ent
 
 **`likida.ai`.** 233 commits. Los mensajes no describen el diff, describen el hallazgo: *«barrera: el contador aprende a olvidar un `-1` que nunca llegó (0031)»*, *«ci: las dos pruebas de tiempo existían y CI no las corría ni una vez»*, *«dominio: `cuadra.mx` NO ES NUESTRO — estaba impreso en cada PDF de liquidación»*. Con esa historia se puede hacer `git bisect`, revisar por diff y saber cuándo entró un fallo. Resta un `.DS_Store` versionado.
 
-**`enterprise`.** 10 commits para 27 000 líneas, con mensajes de brocha gorda («✨ feat: demo server, landing assets cleanup, CI/deploy updates, billing & LLM improvements» agrupa cinco cambios sin relación). Y tres problemas concretos de higiene:
+**`enterprise`.** 10 commits para 27 000 líneas, con mensajes de brocha gorda («feat: demo server, landing assets cleanup, CI/deploy updates, billing & LLM improvements» agrupa cinco cambios sin relación). Y tres problemas concretos de higiene:
 
 - **`b2b_ai/api/portal 2.py`** está versionado: un duplicado de Finder, con contenido distinto a `portal.py`, que no importa nadie.
 - **La base SQLite y su WAL estaban versionados.** El WAL llegó a 4,1 MB de páginas con datos de facturas, y se recomitó incluso después de que esta rama lo sacara. Además rompe el árbol de quien lo clona: restaurar un WAL sobre una base que ya avanzó hace fallar SQLite con *malformed database schema*, cosa que verifiqué sin querer durante la auditoría.

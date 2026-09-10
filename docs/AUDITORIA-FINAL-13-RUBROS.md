@@ -1,4 +1,4 @@
-# 🔒 AUDITORÍA FINAL — 13 RUBROS — Likida AI Enterprise
+# AUDITORÍA FINAL — 13 RUBROS — Atiende Despachos
 
 **Fecha:** 2026-08-02
 **Entorno:** Post-P0 fixes, 243 tests passing
@@ -11,19 +11,19 @@
 
 | # | Rubro | Score | Estado |
 |---|-------|-------|--------|
-| 1 | Seguridad Multi-Tenant | 8/10 | ✅ Fuerte |
-| 2 | Autenticación / Autorización | 8/10 | ✅ Fuerte |
-| 3 | Pagos / Webhooks | 7/10 | ⚠️ Bueno con gaps |
-| 4 | Tablas Fiscales 2026 | 9/10 | ✅ Excelente |
-| 5 | Computer Use | 8/10 | ✅ Fuerte |
-| 6 | Pipeline Contable | 9/10 | ✅ Excelente |
-| 7 | Cobertura de Tests | 9/10 | ✅ Excelente |
-| 8 | Deploy / CI | 8/10 | ✅ Fuerte |
-| 9 | Catálogos Comerciales | 9/10 | ✅ Excelente |
-| 10 | Dominio / Producto | 9/10 | ✅ Excelente |
-| 11 | Credenciales en Claro | 8/10 | ✅ Fuerte |
-| 12 | Manejo de Errores | 8/10 | ✅ Fuerte |
-| 13 | Infraestructura | 8/10 | ✅ Fuerte |
+| 1 | Seguridad Multi-Tenant | 8/10 | Fuerte |
+| 2 | Autenticación / Autorización | 8/10 | Fuerte |
+| 3 | Pagos / Webhooks | 7/10 | Bueno con gaps |
+| 4 | Tablas Fiscales 2026 | 9/10 | Excelente |
+| 5 | Computer Use | 8/10 | Fuerte |
+| 6 | Pipeline Contable | 9/10 | Excelente |
+| 7 | Cobertura de Tests | 9/10 | Excelente |
+| 8 | Deploy / CI | 8/10 | Fuerte |
+| 9 | Catálogos Comerciales | 9/10 | Excelente |
+| 10 | Dominio / Producto | 9/10 | Excelente |
+| 11 | Credenciales en Claro | 8/10 | Fuerte |
+| 12 | Manejo de Errores | 8/10 | Fuerte |
+| 13 | Infraestructura | 8/10 | Fuerte |
 | | **TOTAL** | **109/130 (84%)** | **8.4/10 promedio** |
 
 ---
@@ -122,18 +122,18 @@
 ### Evidencia
 
 **ISR mensual second bracket:**
-- `b2b_ai/fiscal_tables.py:143`: `(844.60, 7168.51, 16.22, 0.0640)` — second bracket upper limit = **$7,168.51** ✅
+- `b2b_ai/fiscal_tables.py:143`: `(844.60, 7168.51, 16.22, 0.0640)` — second bracket upper limit = **$7,168.51**
 
 **Subsidio max:**
-- `fiscal_tables.py:202`: `("9912.55", "11492.66", "209.13")` — max subsidio bracket = **$11,492.66** ✅
+- `fiscal_tables.py:202`: `("9912.55", "11492.66", "209.13")` — max subsidio bracket = **$11,492.66**
 
 **UMA 2026:**
-- `fiscal_tables.py:132`: `UMA_DIARIO_2026 = "117.31"` ✅
-- `fiscal_tables.py:133`: `UMA_MENSUAL_2026 = "3566.22"` ✅
-- `fiscal_tables.py:134`: `UMA_ANUAL_2026 = "42794.64"` ✅
+- `fiscal_tables.py:132`: `UMA_DIARIO_2026 = "117.31"`
+- `fiscal_tables.py:133`: `UMA_MENSUAL_2026 = "3566.22"`
+- `fiscal_tables.py:134`: `UMA_ANUAL_2026 = "42794.64"`
 
 **Payroll uses UMA:**
-- `b2b_ai/services/payroll.py:84`: `"imss_uma_diario": Decimal("117.31")` ✅
+- `b2b_ai/services/payroll.py:84`: `"imss_uma_diario": Decimal("117.31")`
 - `tests/services/test_payroll.py:65-80`: Test anchored to UMA=117.31, verifies IMSS calculation.
 
 **Tests pass:**
@@ -239,24 +239,24 @@ Result: 243 passed, 1 warning in 5.47s
 ### Evidencia
 
 **deploy.yml has pytest-timeout:**
-- `.github/workflows/deploy.yml:44`: `pytest -q --timeout=120 -m "not computer_use_e2e"` ✅
+- `.github/workflows/deploy.yml:44`: `pytest -q --timeout=120 -m "not computer_use_e2e"`
 
 **Chromium install:**
-- `deploy.yml:33`: `python -m playwright install --with-deps chromium` ✅
+- `deploy.yml:33`: `python -m playwright install --with-deps chromium`
 
 **B2B_ENV set:**
-- `deploy.yml:46`: `B2B_ENV: development` in test step ✅
-- `docker-compose.prod.yml:57`: `B2B_ENV: production` in prod compose ✅
+- `deploy.yml:46`: `B2B_ENV: development` in test step
+- `docker-compose.prod.yml:57`: `B2B_ENV: production` in prod compose
 
 **Railway health:**
-- `railway.toml:24`: `healthcheckPath = "/health"` ✅
-- `railway.toml:25-27`: timeout=30, interval=15, startPeriod=60 ✅
+- `railway.toml:24`: `healthcheckPath = "/health"`
+- `railway.toml:25-27`: timeout=30, interval=15, startPeriod=60
 
 **CI features:**
-- `deploy.yml:8-9`: Concurrency cancel-in-progress ✅
-- `deploy.yml:13`: `timeout-minutes: 40` ✅
-- `deploy.yml:53-54`: Bandit security lint ✅
-- `deploy.yml:48-51`: Separate E2E Computer Use step with Chromium ✅
+- `deploy.yml:8-9`: Concurrency cancel-in-progress
+- `deploy.yml:13`: `timeout-minutes: 40`
+- `deploy.yml:53-54`: Bandit security lint
+- `deploy.yml:48-51`: Separate E2E Computer Use step with Chromium
 
 ### Issues restantes
 - Bandit runs with `|| true` (line 54) — security findings don't fail the build.
@@ -277,7 +277,7 @@ Result: 243 passed, 1 warning in 5.47s
 | `_src/index.source.html:46-48` (JSON-LD) | $4,999 | $14,999 | $0 (cotización) |
 | `tests/test_billing.py:62` | $4,999 | — | — |
 
-**Consistent:** All files reference the same pricing ✅
+**Consistent:** All files reference the same pricing
 
 ### Issues restantes
 - Conekta gateway only defines starter price inline; professional/enterprise should reference `pricing.py` instead of duplicating.
@@ -289,7 +289,7 @@ Result: 243 passed, 1 warning in 5.47s
 ### Evidencia
 
 **Landing page describes accounting platform:**
-- `_src/index.source.html:6`: `<title>Likida AI Enterprise — Agente contable IA para despachos | 56% de ahorro en captura</title>`
+- `_src/index.source.html:6`: `<title>Atiende Despachos — Agente contable IA para despachos | 56% de ahorro en captura</title>`
 - `_src/index.source.html:9`: Meta description: "Automatiza la captura, validación y registro de facturas CFDI 4.0 con IA."
 - `_src/index.source.html:391`: `<h1>Tu despacho,<br><em>corriendo en automático.</em></h1>`
 - JSON-LD structured data (line 34-51): `"applicationCategory": "BusinessApplication"`, offers with pricing.
@@ -356,9 +356,9 @@ Result: 243 passed, 1 warning in 5.47s
 ### Evidencia
 
 **Railway health:**
-- `railway.toml:24`: `healthcheckPath = "/health"` ✅
-- `railway.toml:25-27`: timeout=30s, interval=15s, startPeriod=60s ✅
-- `railway.toml:30-31`: `restartPolicyType = "ON_FAILURE"`, maxRetries=5 ✅
+- `railway.toml:24`: `healthcheckPath = "/health"`
+- `railway.toml:25-27`: timeout=30s, interval=15s, startPeriod=60s
+- `railway.toml:30-31`: `restartPolicyType = "ON_FAILURE"`, maxRetries=5
 
 **PostgreSQL backend:**
 - `b2b_ai/api/app.py:354-356`: Reads `B2B_DATABASE_URL` or `DATABASE_URL` (Railway standard).
@@ -418,6 +418,6 @@ Result: 243 passed, 1 warning in 5.47s
 
 ## CERTIFICATION
 
-This audit verifies that Likida AI Enterprise has implemented P0 security fixes for multi-tenant isolation, fiscal table accuracy, fail-closed payment processing, credential encryption, and production mock guards. The codebase shows strong security engineering with 243 passing tests. Remaining gaps are operational (Redis for shared state, CI hardening) rather than architectural.
+This audit verifies that Atiende Despachos has implemented P0 security fixes for multi-tenant isolation, fiscal table accuracy, fail-closed payment processing, credential encryption, and production mock guards. The codebase shows strong security engineering with 243 passing tests. Remaining gaps are operational (Redis for shared state, CI hardening) rather than architectural.
 
 **Audit methodology:** Direct code reading of 20+ source files, test execution with `--timeout=60`, grep-based evidence verification across the full codebase.
