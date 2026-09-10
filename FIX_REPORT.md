@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-07-31  
 **Ejecutado por:** Hermes Agent (subagent)  
-**Estado:** ✅ Todos los tests verdes — 927 passed, 0 failed, 15 skipped
+**Estado:** Todos los tests verdes — 927 passed, 0 failed, 15 skipped
 
 ---
 

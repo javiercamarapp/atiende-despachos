@@ -70,7 +70,7 @@ def _render_report(report: dict) -> str:
         imp = mod["import"]["status"]
         rte = mod["routes"]["status"]
         mdl = mod["models"]["status"]
-        flag = "✓" if mod["status"] == "ok" else "✗"
+        flag = "✓" if mod["status"] == "ok" else ""
         n_routes = mod["routes"].get("route_count", 0)
         n_models = mod["models"].get("model_count", 0)
         lines.append(
@@ -82,7 +82,7 @@ def _render_report(report: dict) -> str:
         lines.append("-" * 62)
         lines.append("  ERRORES:")
         for e in report["errors"]:
-            lines.append(f"    ✗ {e['module']:<30} {e['detail']}")
+            lines.append(f"    {e['module']:<30} {e['detail']}")
     lines.append("=" * 62)
     return "\n".join(lines)
 

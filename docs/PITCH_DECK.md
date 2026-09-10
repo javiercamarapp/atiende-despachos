@@ -1,10 +1,10 @@
-# Likida AI Enterprise — Pitch Deck (Seed A)
+# Atiende Despachos — Pitch Deck (Seed A)
 
 ---
 
 ## Slide 1: Cover
 
-**Likida AI**
+**Atiende Despachos**
 *Agentes IA para despachos contables en México*
 
 Seed A — Agosto 2026
@@ -27,7 +27,7 @@ Seed A — Agosto 2026
 
 ## Slide 3: La Solución
 
-### Likida AI — Agentes IA que preparan y validan; tú determinas y firmas
+### Atiende Despachos — Agentes IA que preparan y validan; tú determinas y firmas
 
 Un agente de IA que:
 1. **Navega tu ERP** (CONTPAQi, Aspel, QuickBooks) vía Computer Use
@@ -110,12 +110,12 @@ Un agente de IA que:
 
 | Métrica | Estado |
 |---------|--------|
-| **Producto funcional** | ✅ API completa, 11 módulos, 50+ integraciones, tests unitarios y de integración |
-| **Landing page** | ✅ En producción en likida.ai |
-| **Docker desplegable** | ✅ Stack completo: API + PostgreSQL + Redis + Nginx |
-| **Onboarding wizard** | ✅ Checklist interactivo para nuevos clientes |
-| **Beta testing** | 🔄 En proceso con 2 despachos piloto |
-| **Revenue** | 🔜 Pre-revenue (pilotos gratuitos) |
+| **Producto funcional** | API completa, 11 módulos, 50+ integraciones, tests unitarios y de integración |
+| **Landing page** | En producción en likida.ai |
+| **Docker desplegable** | Stack completo: API + PostgreSQL + Redis + Nginx |
+| **Onboarding wizard** | Checklist interactivo para nuevos clientes |
+| **Beta testing** | En proceso con 2 despachos piloto |
+| **Revenue** | Pre-revenue (pilotos gratuitos) |
 | **Equipo fundador** | 1 persona full-stack + IA |
 
 > Transparencia: Estamos en etapa de piloto. El producto está construido y funcional, pero aún no tenemos revenue recurrente. Los pilotos nos darán las métricas de conversión para el Series A.
@@ -153,7 +153,7 @@ Un agente de IA que:
 
 **Founder & CEO**
 - Full-stack engineer con experiencia en IA y fintech
-- Construyó Likida AI de 0: arquitectura, integraciones SAT, computer use, billing
+- Construyó Atiende Despachos de 0: arquitectura, integraciones SAT, computer use, billing
 
 **Próximas contrataciones (con funding):**
 - 1 × Sales/Partnerships (despachos contables en México)
@@ -185,7 +185,7 @@ Un agente de IA que:
 
 ### México tiene 50,000 despachos contables procesando millones de facturas al mes manualmente.
 
-Likida AI convierte ese trabajo repetitivo en un pipeline automatizado donde el contador se enfoca en lo que importa: asesorar, decidir y firmar.
+Atiende Despachos convierte ese trabajo repetitivo en un pipeline automatizado donde el contador se enfoca en lo que importa: asesorar, decidir y firmar.
 
 **La máquina prepara. El profesional determina.**
 

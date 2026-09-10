@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-structured_logging.py — Fortune 500 structured logging for Likida AI Enterprise.
+structured_logging.py — Fortune 500 structured logging for Atiende Despachos.
 
 Features:
     - JSON structured logging with correlation IDs per request

@@ -1,4 +1,4 @@
-# QA_REPORT_FINAL — Likida AI Enterprise Enterprise MVP + Landing
+# QA_REPORT_FINAL — Atiende Despachos MVP + Landing
 
 **Fecha:** 2026-07-31 · **QA:** Leonardo (Ingeniería de Calidad)
 **Alcance:** Suite completa, API v1/v2, Portal de cliente, CLI, Landing, Seguridad
@@ -14,14 +14,14 @@ core está sano).
 
 | Área | Estado | Bloqueante |
 |---|---|---|
-| Suite de tests | ✅ 422/422 pasan | No |
-| API v1 (upload, list, stats) | ✅ Funciona | No |
-| Portal de cliente (login + upload) | ✅ Funciona | No |
-| CLI (process/batch/report/status) | ✅ Funciona | No |
-| Landing — estructura/responsive | ✅ OK | No |
-| Landing — assets de hero | ❌ **3 recursos 404** | **SÍ** |
-| Seguridad | ✅ Auth + rate-limit + no secrets servidos | No |
-| Performance | ⚠️ Video hero 5.5MB sin compresión | No (recomendado) |
+| Suite de tests | 422/422 pasan | No |
+| API v1 (upload, list, stats) | Funciona | No |
+| Portal de cliente (login + upload) | Funciona | No |
+| CLI (process/batch/report/status) | Funciona | No |
+| Landing — estructura/responsive | OK | No |
+| Landing — assets de hero | **3 recursos 404** | **SÍ** |
+| Seguridad | Auth + rate-limit + no secrets servidos | No |
+| Performance | Video hero 5.5MB sin compresión | No (recomendado) |
 
 ---
 
@@ -34,7 +34,7 @@ core está sano).
 ```
 
 - **Total:** 422 · **Passed:** 422 · **Failed:** 0 · **Skipped:** 0
-- **Umbral objetivo (422+):** ✅ superado exactamente.
+- **Umbral objetivo (422+):** superado exactamente.
 - 1 warning: `DeprecationWarning` de starlette/TestClient sobre cookies — no afecta.
 
 **Cobertura verificada:** CFDI parse/validate/classify, router, tools, tenants
@@ -50,25 +50,25 @@ Servidor uvicorn local levantado; auth por header `X-API-Key`.
 | Endpoint / caso | Método | Resultado |
 |---|---|---|
 | `/health` | GET | 200 |
-| `POST /api/v1/invoices/process` (sin key) | POST | 401 ✅ |
-| `POST .../process` con `xml_file` CFDI válido | POST | 200 — `valido:true`, clasificado `gasto_operativo`/`inversion`, póliza ERP `POL-*` generada, `total` correcto ✅ |
-| `POST .../process` con archivo NO XML | POST | 422 — `CFDI inválido: XML mal formado` ✅ |
-| `GET /api/v1/invoices` | GET | 200 — `count:3` (scope demo) ✅ |
-| `GET /api/v1/stats` | GET | 200 — total_facturas 237, monto 331,606.66 ✅ |
-| `GET /api/v1/dashboard/summary` | GET | 200 — 237 válidas, 0 inválidas ✅ |
+| `POST /api/v1/invoices/process` (sin key) | POST | 401 |
+| `POST .../process` con `xml_file` CFDI válido | POST | 200 — `valido:true`, clasificado `gasto_operativo`/`inversion`, póliza ERP `POL-*` generada, `total` correcto |
+| `POST .../process` con archivo NO XML | POST | 422 — `CFDI inválido: XML mal formado` |
+| `GET /api/v1/invoices` | GET | 200 — `count:3` (scope demo) |
+| `GET /api/v1/stats` | GET | 200 — total_facturas 237, monto 331,606.66 |
+| `GET /api/v1/dashboard/summary` | GET | 200 — 237 válidas, 0 inválidas |
 
 **Portal de cliente (FASE 5):**
 
 | Caso | Resultado |
 |---|---|
-| `POST /portal/auth/login` credenciales inválidas | 401 `Credenciales inválidas.` ✅ |
-| `POST /portal/auth/login` correctas | 200 — token opaco (43 chars) + tenant_id + expires ✅ |
-| `GET /portal/auth/me` con Bearer | 200 — usuario demo ligado a tenant ✅ |
-| `POST /portal/invoices/upload` (async job) | 200 — `job_id` devuelto ✅ |
-| `GET /portal/invoices/{job}/status` (polling) | `status:"done"`, invoice_id, resultado pipeline ✅ |
-| `GET /portal/invoices` | 200 — filtrado por tenant ✅ |
-| `GET /portal/dashboard/stats` | 200 ✅ |
-| Token inválido en `/portal/invoices` | 401 ✅ |
+| `POST /portal/auth/login` credenciales inválidas | 401 `Credenciales inválidas.` |
+| `POST /portal/auth/login` correctas | 200 — token opaco (43 chars) + tenant_id + expires |
+| `GET /portal/auth/me` con Bearer | 200 — usuario demo ligado a tenant |
+| `POST /portal/invoices/upload` (async job) | 200 — `job_id` devuelto |
+| `GET /portal/invoices/{job}/status` (polling) | `status:"done"`, invoice_id, resultado pipeline |
+| `GET /portal/invoices` | 200 — filtrado por tenant |
+| `GET /portal/dashboard/stats` | 200 |
+| Token inválido en `/portal/invoices` | 401 |
 
 > Nota: para probar el login completo se reseteó la contraseña del usuario demo
 > local (`demo@cliente.mx`) a un valor conocido (`qa-test-1234`). No es cambio de
@@ -87,11 +87,11 @@ servicio `anomaly.detect_anomalies`.
 
 | Comando | Resultado |
 |---|---|
-| `python -m b2b_ai.cli --help` | OK — lista process/batch/report/status ✅ |
-| `python -m b2b_ai.cli status` | 200 — versión 1.0.0, esquema 7, 2 tenants, 237 facturas ✅ |
-| `python -m b2b_ai.cli process fixtures/cfdis/04_nomina_pago.xml` | OK — validación 12/12, NOMINA conf 0.98, póliza ERP ✅ |
-| `python -m b2b_ai.cli batch fixtures/cfdis` | OK — 7 procesadas, 7 válidas, 0 observaciones ✅ |
-| `python -m b2b_ai.cli report` | OK — 237 facturas, totales por categoría, "presentación fiscal requiere humano" ✅ |
+| `python -m b2b_ai.cli --help` | OK — lista process/batch/report/status |
+| `python -m b2b_ai.cli status` | 200 — versión 1.0.0, esquema 7, 2 tenants, 237 facturas |
+| `python -m b2b_ai.cli process fixtures/cfdis/04_nomina_pago.xml` | OK — validación 12/12, NOMINA conf 0.98, póliza ERP |
+| `python -m b2b_ai.cli batch fixtures/cfdis` | OK — 7 procesadas, 7 válidas, 0 observaciones |
+| `python -m b2b_ai.cli report` | OK — 237 facturas, totales por categoría, "presentación fiscal requiere humano" |
 
 ---
 
@@ -138,14 +138,14 @@ nombre del logo a `logo.png`. Verificar con `curl` que los 3 URLs den 200.
 
 | Chequeo | Resultado |
 |---|---|
-| Render completo (nav, hero, secciones, pricing, form) | ✅ |
+| Render completo (nav, hero, secciones, pricing, form) | Sí |
 | JS errors en consola | 0 (solo los 4 "Failed to load resource" = BUG-1) |
 | Links internos / anchors | 13 links, 0 targets rotos (`missing_anchor_targets: []`) |
-| `/dashboard` link | 200 ✅ |
-| Overflow horizontal 375px | ✅ `scrollWidth=375=clientWidth`, 0 elementos desbordados |
-| Overflow 768px | ✅ |
-| Overflow 1440px | ✅ |
-| Form de contacto (campos + submit) | ✅ presente, campos requeridos correctos |
+| `/dashboard` link | 200 |
+| Overflow horizontal 375px | `scrollWidth=375=clientWidth`, 0 elementos desbordados |
+| Overflow 768px | Sí |
+| Overflow 1440px | Sí |
+| Form de contacto (campos + submit) | presente, campos requeridos correctos |
 
 ### 5.3 Performance
 
@@ -158,7 +158,7 @@ Sin Lighthouse CLI disponible; medido con Navigation Timing real (Playwright):
 | desktop 1440 | 2ms | 35ms | 187ms |
 
 - Carga global **rápida** (< 550ms load incluso en el primer paint de 375px).
-- ⚠️ **Recomendación:** `hero-ai-dashboard.mp4` pesa **5.5 MB** y se referencia 2×
+- **Recomendación:** `hero-ai-dashboard.mp4` pesa **5.5 MB** y se referencia 2×
   (dos `<source>`), total landing ~11 MB. En móvil/3G es pesado. Sugerir: comprimir
   a WebM/H.265 (~1–2MB), `preload="none"` en móvil, o lazy-load del video bajo el
   fold. No es bloqueante (la carga estática inicial es rápida), pero mejora Core Web Vitals.
@@ -169,15 +169,15 @@ Sin Lighthouse CLI disponible; medido con Navigation Timing real (Playwright):
 
 | Chequeo | Resultado | Evidencia |
 |---|---|---|
-| Secrets en código | ✅ Ninguno real | Escaneo regex (SK-, AKIA, ghp_, RSA keys, password=, api_key=, B2B_API_KEY=) → solo valores de ejemplo (`secret`, `change-me`, `mi-secreto`) en docs/README/Dockerfile. Test `test_secrets_scan_repo` PASSED. |
-| Secrets servidos vía web | ✅ Ninguno | La API key no aparece en la landing ni en respuestas `/stats` (grep count = 0). Test `test_secrets_scan_no_servidos_via_web` PASSED. |
-| Auth API (X-API-Key) | ✅ | Sin key → 401 · key inválida → 401 · key válida → 200. Comparación constant-time (`hmac.compare_digest`). Intento fallido auditado. |
-| Auth portal | ✅ | Login inválido 401, token inválido 401, sesiones guardadas **hashadas** (SHA-256 64 hex, nunca token en claro en DB), TTL 30 días. |
-| Rate limiting | ✅ ACTIVO | Middleware global (default 300 req/min/IP+path, configurable `B2B_RATE_LIMIT_PER_MIN` / `B2B_RATE_LIMIT=off`). Bajo carga → **429** `Demasiadas peticiones.` con `Retry-After`. Health/metrics/estáticos exentos. Multi-tenant: limitador por tenant en v2. |
-| XSS | ✅ | Tests `test_xss_*` PASSED (escapes en dashboard HTML, JSON no servido como HTML, leads no almacenan HTML). |
-| Auth bypass | ✅ | `test_auth_bypass_medios_alternativos` PASSED. |
-| Path traversal (icons) | ✅ | Solo `.png` y validación de resolve dentro de LANDING_DIR. |
-| Contenedor | ✅ | Dockerfile corre como usuario no-root (`USER b2b`), healthcheck curl. |
+| Secrets en código | Ninguno real | Escaneo regex (SK-, AKIA, ghp_, RSA keys, password=, api_key=, B2B_API_KEY=) → solo valores de ejemplo (`secret`, `change-me`, `mi-secreto`) en docs/README/Dockerfile. Test `test_secrets_scan_repo` PASSED. |
+| Secrets servidos vía web | Ninguno | La API key no aparece en la landing ni en respuestas `/stats` (grep count = 0). Test `test_secrets_scan_no_servidos_via_web` PASSED. |
+| Auth API (X-API-Key) | Sí | Sin key → 401 · key inválida → 401 · key válida → 200. Comparación constant-time (`hmac.compare_digest`). Intento fallido auditado. |
+| Auth portal | Sí | Login inválido 401, token inválido 401, sesiones guardadas **hashadas** (SHA-256 64 hex, nunca token en claro en DB), TTL 30 días. |
+| Rate limiting | ACTIVO | Middleware global (default 300 req/min/IP+path, configurable `B2B_RATE_LIMIT_PER_MIN` / `B2B_RATE_LIMIT=off`). Bajo carga → **429** `Demasiadas peticiones.` con `Retry-After`. Health/metrics/estáticos exentos. Multi-tenant: limitador por tenant en v2. |
+| XSS | Sí | Tests `test_xss_*` PASSED (escapes en dashboard HTML, JSON no servido como HTML, leads no almacenan HTML). |
+| Auth bypass | Sí | `test_auth_bypass_medios_alternativos` PASSED. |
+| Path traversal (icons) | Sí | Solo `.png` y validación de resolve dentro de LANDING_DIR. |
+| Contenedor | Sí | Dockerfile corre como usuario no-root (`USER b2b`), healthcheck curl. |
 
 **Hallazgo menor:** `.env` local contiene una API key real de 32 hex en claro. Como
 **no hay repo git** en el directorio, no está en VCS (no comprometido), pero en el
@@ -220,7 +220,7 @@ higiene de secretos.
 - La anomalía del dashboard (== total) es un problema real — falta revisar el umbral
   del detector para confirmar si es bug o comportamiento esperado con datos demo.
 
-**✗ No verificado**
+**No verificado**
 - Lighthouse oficial (no instalado) — se sustituyó por Navigation Timing real.
 - Docker/nginx en vivo (no se levantó el stack prod completo; se validó la lógica
   de nginx + Dockerfile por lectura, y el comportamiento FastAPI es idéntico).

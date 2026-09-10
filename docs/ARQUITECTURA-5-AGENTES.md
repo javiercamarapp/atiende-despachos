@@ -1,7 +1,7 @@
-# Arquitectura Técnica — 5 Agentes Likida AI Enterprise
+# Arquitectura Técnica — 5 Agentes Atiende Despachos
 
 **Versión:** 1.0 — Agosto 2026
-**Autor:** Likida AI Architecture Team
+**Autor:** Atiende Despachos Architecture Team
 **Estado:** Diseño técnico listo para implementación
 
 ---
@@ -21,7 +21,7 @@
 
 ## 1. Resumen Ejecutivo
 
-El proyecto Likida AI Enterprise ya cuenta con una base sólida: un pipeline CFDI
+El proyecto Atiende Despachos ya cuenta con una base sólida: un pipeline CFDI
 funcional, calculadora de nómina con ISR/IMSS/INFONAVIT, conciliación bancaria
 con scoring, contabilidad electrónica (catálogo SAT + balanza), sistema de
 declaraciones, pre-auditoría, cobranza automatizada, integración con +15 ERPs
@@ -53,83 +53,83 @@ procesamiento masivo.
 
 ## 2. Lo que Ya Existe y se Puede Reutilizar
 
-### 2.1 Pipeline CFDI (✅ Completo — Reutilizable al 100%)
+### 2.1 Pipeline CFDI (Completo — Reutilizable al 100%)
 
 | Componente | Archivo | Estado | Qué hace |
 |---|---|---|---|
-| Parser XML | `cfdi/parser.py` | ✅ Producción | Parseo CFDI 4.0, extracción de campos |
-| Validador fiscal | `cfdi/validator.py` | ✅ Producción | Validación contra XSD SAT, UUID, totales |
-| Catálogos SAT | `cfdi/catalogs.py` | ✅ Producción | Catálogos de claves SAT (c_UsoCFDI, etc.) |
-| Cancelación | `cfdi/cancellation.py` | ✅ Producción | Flujo de cancelación CFDI |
-| Clasificador | `services/classify.py` | ✅ Producción | Clasificación de gastos por categoría |
-| Pipeline orquestador | `services/pipeline.py` | ✅ Producción | `parse → validate → classify → register → notify` |
+| Parser XML | `cfdi/parser.py` | Producción | Parseo CFDI 4.0, extracción de campos |
+| Validador fiscal | `cfdi/validator.py` | Producción | Validación contra XSD SAT, UUID, totales |
+| Catálogos SAT | `cfdi/catalogs.py` | Producción | Catálogos de claves SAT (c_UsoCFDI, etc.) |
+| Cancelación | `cfdi/cancellation.py` | Producción | Flujo de cancelación CFDI |
+| Clasificador | `services/classify.py` | Producción | Clasificación de gastos por categoría |
+| Pipeline orquestador | `services/pipeline.py` | Producción | `parse → validate → classify → register → notify` |
 
 **Reutilización:** El Agente 1 (Fiscal) invocará directamente el pipeline existente.
 El classify.py alimentará el motor de reglas contables con la categoría detectada.
 
-### 2.2 Servicio de Nómina (✅ Completo — Reutilizable al 100%)
+### 2.2 Servicio de Nómina (Completo — Reutilizable al 100%)
 
 | Componente | Archivo | Estado | Qué hace |
 |---|---|---|---|
-| Calculadora ISR | `features/compliance.py` | ✅ Producción | Tabla ISR progresiva Art. 96 LISR 2024 |
-| Calculadora IMSS | `features/nomina_completa/service.py` | ✅ Producción | Cuota obrera (~1.20%) + patronal (~20.40%) |
-| Subsidio empleo | `features/nomina_completa/service.py` | ✅ Producción | Tabla subsidio Art. 113 LISR |
-| INFONAVIT | `features/nomina_completa/service.py` | ✅ Producción | 5% SBC (aportación patronal) |
-| CFDI Nómina | `features/nomina_completa/service.py` | ✅ Producción | Generación de CFDI de nómina |
-| Routes nómina | `features/nomina_completa/routes.py` | ✅ Producción | API REST para cálculo |
+| Calculadora ISR | `features/compliance.py` | Producción | Tabla ISR progresiva Art. 96 LISR 2024 |
+| Calculadora IMSS | `features/nomina_completa/service.py` | Producción | Cuota obrera (~1.20%) + patronal (~20.40%) |
+| Subsidio empleo | `features/nomina_completa/service.py` | Producción | Tabla subsidio Art. 113 LISR |
+| INFONAVIT | `features/nomina_completa/service.py` | Producción | 5% SBC (aportación patronal) |
+| CFDI Nómina | `features/nomina_completa/service.py` | Producción | Generación de CFDI de nómina |
+| Routes nómina | `features/nomina_completa/routes.py` | Producción | API REST para cálculo |
 
 **Reutilización:** El Agente 5 (Nómina) será una capa de orquestación sobre este
 servicio existente, añadiendo: procesamiento batch, scheduler de quincenas, y
 declaración IMSS/INFONAVIT automática.
 
-### 2.3 Conciliación Bancaria (✅ Completo — Reutilizable al 100%)
+### 2.3 Conciliación Bancaria (Completo — Reutilizable al 100%)
 
 | Componente | Archivo | Estado | Qué hace |
 |---|---|---|---|
-| Parser CSV bancario | `services/reconcile.py` | ✅ Producción | Parser multi-formato (BBVA, Banorte, etc.) |
-| Parser PDF bancario | `services/reconcile.py` | ✅ Producción | Extracción de movimientos desde PDF |
-| Conciliación avanzada | `services/bank_reconciliation.py` | ✅ Producción | Matching 3 niveles (exact/partial/AI) + scoring |
-| Reporte conciliación | `services/reconcile.py` | ✅ Producción | Reporte de conciliación estructurado |
+| Parser CSV bancario | `services/reconcile.py` | Producción | Parser multi-formato (BBVA, Banorte, etc.) |
+| Parser PDF bancario | `services/reconcile.py` | Producción | Extracción de movimientos desde PDF |
+| Conciliación avanzada | `services/bank_reconciliation.py` | Producción | Matching 3 niveles (exact/partial/AI) + scoring |
+| Reporte conciliación | `services/reconcile.py` | Producción | Reporte de conciliación estructurado |
 
 **Reutilización:** El Agente 4 (AP/AR) usará `BankReconciliation` como motor
 de cruce para cuentas por pagar/cobrar.
 
-### 2.4 ERP CONTPAQi Mock + IntegrationHub (✅ Completo)
+### 2.4 ERP CONTPAQi Mock + IntegrationHub (Completo)
 
 | Componente | Archivo | Estado | Qué hace |
 |---|---|---|---|
-| CONTPAQi Desktop | `integrations/erp/contpaqi_desktop.py` | ✅ Producción | Adapter SQL Server + mock fallback |
-| IntegrationHub | `integrations/hub.py` | ✅ Producción | Registro central de +15 adaptadores ERP |
-| Modelos ERP | `integrations/erp/models.py` | ✅ Producción | Poliza, CuentaContable, Balanza, Invoice |
-| Otros ERPs | `integrations/erp/*.py` | ✅ Producción | Aspel, QuickBooks, Xero, Peak, etc. |
+| CONTPAQi Desktop | `integrations/erp/contpaqi_desktop.py` | Producción | Adapter SQL Server + mock fallback |
+| IntegrationHub | `integrations/hub.py` | Producción | Registro central de +15 adaptadores ERP |
+| Modelos ERP | `integrations/erp/models.py` | Producción | Poliza, CuentaContable, Balanza, Invoice |
+| Otros ERPs | `integrations/erp/*.py` | Producción | Aspel, QuickBooks, Xero, Peak, etc. |
 
 **Reutilización:** Todos los agentes escriben al ERP a través del IntegrationHub.
 El adapter pattern ya permite cambiar de ERP sin tocar la lógica de negocio.
 
-### 2.5 Sistema de Notificaciones (✅ Completo)
+### 2.5 Sistema de Notificaciones (Completo)
 
 | Componente | Archivo | Estado | Qué hace |
 |---|---|---|---|
-| Email sender | `notifications/sender.py` | ✅ Producción | SMTP con fallback simulado |
-| WhatsApp | `notifications/whatsapp.py` | ✅ Producción | Envío vía WhatsApp Business API |
-| Scheduler | `notifications/scheduler.py` | ✅ Producción | Programación de notificaciones |
-| Templates HTML | `notifications/templates/*.html` | ✅ Producción | Templates para 8 tipos de evento |
-| API notificaciones | `notifications/api.py` | ✅ Producción | Router FastAPI para gestión |
+| Email sender | `notifications/sender.py` | Producción | SMTP con fallback simulado |
+| WhatsApp | `notifications/whatsapp.py` | Producción | Envío vía WhatsApp Business API |
+| Scheduler | `notifications/scheduler.py` | Producción | Programación de notificaciones |
+| Templates HTML | `notifications/templates/*.html` | Producción | Templates para 8 tipos de evento |
+| API notificaciones | `notifications/api.py` | Producción | Router FastAPI para gestión |
 
 **Reutilización:** Todos los agentes emiten notificaciones a través de este
 sistema existente. Los templates cubren: factura procesada, anomalía, cobranza,
 resumen diario/semanal, aprobación requerida.
 
-### 2.6 Base de Datos Multi-Tenant (✅ Completo)
+### 2.6 Base de Datos Multi-Tenant (Completo)
 
 | Componente | Archivo | Estado | Qué hace |
 |---|---|---|---|
-| DB principal | `db/db.py` | ✅ Producción | SQLite/PG, thread-safe, migraciones |
-| PostgreSQL adapter | `db/postgres_adapter.py` | ✅ Producción | Pool de conexiones PG |
-| Adapter factory | `db/adapter_factory.py` | ✅ Producción | Switching SQLite ↔ PG |
-| Tenant manager | `db/tenants.py` | ✅ Producción | CRUD tenants, config, aislamiento |
-| Multi-tenant service | `features/multi_tenant/service.py` | ✅ Producción | Ciclo vida completo de tenants |
-| Migraciones | `db/migration.py` | ✅ Producción | Migraciones versionadas automáticas |
+| DB principal | `db/db.py` | Producción | SQLite/PG, thread-safe, migraciones |
+| PostgreSQL adapter | `db/postgres_adapter.py` | Producción | Pool de conexiones PG |
+| Adapter factory | `db/adapter_factory.py` | Producción | Switching SQLite ↔ PG |
+| Tenant manager | `db/tenants.py` | Producción | CRUD tenants, config, aislamiento |
+| Multi-tenant service | `features/multi_tenant/service.py` | Producción | Ciclo vida completo de tenants |
+| Migraciones | `db/migration.py` | Producción | Migraciones versionadas automáticas |
 
 **Reutilización:** Toda la capa de persistencia se reutiliza. Los nuevos agentes
 añaden tablas a las migraciones existentes.
@@ -1035,21 +1035,21 @@ def flujo_conciliacion_apar(tenant_id, statement_path, bank):
 │                                                                   │
 │  CAPA                 TECNOLOGÍA          ESTADO    USO          │
 │  ─────────────────    ──────────────      ────────  ──────────   │
-│  API Framework        FastAPI              ✅ Existe  REST API    │
+│  API Framework        FastAPI              Existe  REST API    │
 │  Task Queue           Celery + Redis       🆕 Nuevo   Batch jobs │
 │  Message Bus          Redis Streams        🆕 Nuevo   Eventos    │
 │  Cache                Redis                🆕 Nuevo   Cache      │
-│  DB Dev               SQLite               ✅ Existe  Dev/test   │
-│  DB Prod              PostgreSQL           ✅ Existe  Producción │
-│  ORM/Query            psycopg (raw SQL)    ✅ Existe  Queries    │
-│  XML Parsing          lxml/xml.etree       ✅ Existe  CFDI XML   │
+│  DB Dev               SQLite               Existe  Dev/test   │
+│  DB Prod              PostgreSQL           Existe  Producción │
+│  ORM/Query            psycopg (raw SQL)    Existe  Queries    │
+│  XML Parsing          lxml/xml.etree       Existe  CFDI XML   │
 │  SAT SOAP             zeep                 🆕 Nuevo   API SAT    │
 │  PDF Parsing          pdfplumber           🆕 Nuevo   Bank stmts │
 │  ML/Clasificación     scikit-learn         🆕 Nuevo   Accounts   │
-│  LLM Service          OpenAI/mock          ✅ Existe  Classify   │
+│  LLM Service          OpenAI/mock          Existe  Classify   │
 │  Scheduler            APScheduler          🆕 Nuevo   Cron-like  │
-│  Monitoring           Custom audit_log     ✅ Existe  Auditoría  │
-│  Testing              pytest               ✅ Existe  Tests      │
+│  Monitoring           Custom audit_log     Existe  Auditoría  │
+│  Testing              pytest               Existe  Tests      │
 │  Containerization     Docker               🆕 Nuevo   Deploy     │
 │  Process Manager      systemd/Docker       🆕 Nuevo   Workers    │
 └─────────────────────────────────────────────────────────────────┘
@@ -1117,7 +1117,7 @@ services:
 ```
 b2b_ai/
 ├── agent/
-│   ├── loop.py                    # ✅ Existente
+│   ├── loop.py                    # Existente
 │   └── orchestrator.py            # 🆕 AgentOrchestrator
 │
 ├── agents/                        # 🆕 Directorio de agentes
@@ -1130,17 +1130,17 @@ b2b_ai/
 │   └── nomina_agent.py            # 🆕 Agente 5: Nómina
 │
 ├── services/
-│   ├── pipeline.py                # ✅ Existente
-│   ├── classify.py                # ✅ Existente
-│   ├── payroll.py                 # ✅ Existente
-│   ├── reconcile.py               # ✅ Existente
-│   ├── bank_reconciliation.py     # ✅ Existente
-│   ├── collections.py             # ✅ Existente
-│   ├── accounting.py              # ✅ Existente
-│   ├── catalogo_cuentas.py        # ✅ Existente
-│   ├── balanza.py                 # ✅ Existente
-│   ├── contabilidad_electronica.py # ✅ Existente
-│   ├── diot_service.py            # ✅ Existente
+│   ├── pipeline.py                # Existente
+│   ├── classify.py                # Existente
+│   ├── payroll.py                 # Existente
+│   ├── reconcile.py               # Existente
+│   ├── bank_reconciliation.py     # Existente
+│   ├── collections.py             # Existente
+│   ├── accounting.py              # Existente
+│   ├── catalogo_cuentas.py        # Existente
+│   ├── balanza.py                 # Existente
+│   ├── contabilidad_electronica.py # Existente
+│   ├── diot_service.py            # Existente
 │   ├── accounting_rules_engine.py # 🆕 Motor de reglas contables
 │   ├── declaration_engine.py      # 🆕 Motor de declaraciones
 │   ├── close_manager.py           # 🆕 Gestor de cierre
@@ -1155,22 +1155,22 @@ b2b_ai/
 │   └── health.py                  # 🆕 Health check agentes
 │
 ├── db/
-│   ├── db.py                      # ✅ Existente
-│   ├── models.py                  # ✅ Existente (añadir nuevas tablas)
+│   ├── db.py                      # Existente
+│   ├── models.py                  # Existente (añadir nuevas tablas)
 │   └── migrations/                # 🆕 Migraciones SQL
 │       └── 027_agent_tables.sql   # 🆕 SQL de las nuevas tablas
 │
-├── integrations/                  # ✅ Todo existente
+├── integrations/                  # Todo existente
 │   ├── hub.py
 │   ├── erp/
 │   ├── bancos/
 │   ├── sat/
 │   └── ...
 │
-├── notifications/                 # ✅ Todo existente
-├── cfdi/                          # ✅ Todo existente
+├── notifications/                 # Todo existente
+├── cfdi/                          # Todo existente
 └── api/
-    ├── app.py                     # ✅ Existente (añadir nuevos routers)
+    ├── app.py                     # Existente (añadir nuevos routers)
     └── v3_agents.py               # 🆕 API endpoints para agentes
 ```
 

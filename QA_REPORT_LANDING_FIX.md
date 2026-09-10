@@ -31,7 +31,7 @@ El HTML fue actualizado por Zuck: paths relativos cambiados a `/static/assets/..
 
 La página carga sin errores JS (0 errores en consola) y todos los recursos se resuelven correctamente (0 HTTP ≥400 en `performance.getEntriesByType('resource')`).
 
-- Título: "Likida AI Enterprise — Agente contable IA para despachos | 56% de ahorro en captura"
+- Título: "Atiende Despachos — Agente contable IA para despachos | 56% de ahorro en captura"
 - Navegación presente: Problema, Solución, Precios, Contacto, Dashboard
 - Secciones visibles: Hero, Video showcase, Problema, Solución, Características, Precios, Contacto
 
@@ -103,10 +103,10 @@ $ curl -s http://localhost:8000/health
 
 ## Hallazgos
 
-- ✅ **Bug ORIGINAL (404 assets):** FIXEADO por Zuck. El HTML ya no usa rutas relativas `assets/hero.jpg` sino `/static/assets/hero.jpg`. Todos los assets se sirven correctamente.
-- ✅ **Logo:** El HTML referencia `/static/assets/logo.png` que SÍ existe en disco. Anteriormente referenciaba `assets/logo-likida.jpg` que NO existe.
-- ✅ **Video poster:** Hero video usa poster `/static/assets/hero.jpg` que existe y carga.
-- ✅ **Sin regresiones:** 422 tests pasan, 0 errores JS, 0 errores 5xx.
+- **Bug ORIGINAL (404 assets):** FIXEADO por Zuck. El HTML ya no usa rutas relativas `assets/hero.jpg` sino `/static/assets/hero.jpg`. Todos los assets se sirven correctamente.
+- **Logo:** El HTML referencia `/static/assets/logo.png` que SÍ existe en disco. Anteriormente referenciaba `assets/logo-likida.jpg` que NO existe.
+- **Video poster:** Hero video usa poster `/static/assets/hero.jpg` que existe y carga.
+- **Sin regresiones:** 422 tests pasan, 0 errores JS, 0 errores 5xx.
 
 ---
 

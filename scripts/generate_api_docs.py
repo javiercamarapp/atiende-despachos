@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 generate_api_docs.py — Genera documentación API completa desde el OpenAPI spec
-de la app real de Likida AI Enterprise.
+de la app real de Atiende Despachos.
 
 Importa `b2b_ai.api.app:app`, obtiene el contrato OpenAPI con `app.openapi()`
 y lo convierte a documentación Markdown (o HTML) con:
@@ -370,7 +370,7 @@ def _md_to_html(md: str) -> str:
     body = "\n".join(out)
     return f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
-<title>API Reference — Likida AI Enterprise</title>
+<title>API Reference — Atiende Despachos</title>
 <style>
 body{{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
 max-width:980px;margin:24px auto;padding:0 18px;line-height:1.55;color:#1a1a1a}}
@@ -397,7 +397,7 @@ def _build_markdown(app: Any) -> str:
     meta = spec.get("info", {})
     desc = _demote_headings(_normalize_and_balance_md(meta.get("description", "")))
     lines = [
-        f"# API Reference — {spec.get('info',{}).get('title','Likida AI Enterprise')}",
+        f"# API Reference — {spec.get('info',{}).get('title','Atiende Despachos')}",
         "",
         desc,
         "",

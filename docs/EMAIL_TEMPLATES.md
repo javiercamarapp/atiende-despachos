@@ -1,4 +1,4 @@
-# Likida AI Enterprise — Email Templates
+# Atiende Despachos — Email Templates
 
 ## Template 1: Cold Outreach
 
@@ -20,10 +20,10 @@ La mayoría de los despachos en México pierden entre 40 y 60 horas mensuales en
 - Conciliación de pagos con facturas
 - Corrección de errores de digitación
 
-**Likida AI Enterprise** automatiza todo este proceso con inteligencia artificial. Nuestros clientes reportan:
-- ✅ 90% de reducción en tiempo de captura
-- ✅ 99.8% de precisión en datos extraídos
-- ✅ Cumplimiento automático con el SAT
+**Atiende Despachos** automatiza todo este proceso con inteligencia artificial. Nuestros clientes reportan:
+- 90% de reducción en tiempo de captura
+- 99.8% de precisión en datos extraídos
+- Cumplimiento automático con el SAT
 
 ¿Te gustaría ver cómo funciona? Puedo mostrarte en 20 minutos cómo aplicaría para tu despacho.
 
@@ -32,14 +32,14 @@ La mayoría de los despachos en México pierden entre 40 y 60 horas mensuales en
 Saludos,
 {{tu_nombre}}
 {{tu_cargo}}
-Likida AI Enterprise
+Atiende Despachos
 
 ---
 
 ## Template 2: Follow-up
 
 ### Subject Line
-"¿Te envié la info sobre Likida AI?"
+"¿Te envié la info sobre Atiende Despachos?"
 
 ### Preview Text
 "Automatiza la captura de CFDIs y ahorra 40 horas al mes"
@@ -48,7 +48,7 @@ Likida AI Enterprise
 
 Hola {{nombre}},
 
-Te escribí hace unos días sobre cómo Likida AI Enterprise puede ayudar a tu despacho a automatizar la captura de facturas. No sé si llegaste a verlo, así que te reenvío los puntos clave:
+Te escribí hace unos días sobre cómo Atiende Despachos puede ayudar a tu despacho a automatizar la captura de facturas. No sé si llegaste a verlo, así que te reenvío los puntos clave:
 
 **El problema que resolvemos:**
 Los contadores mexicanos pasan horas capturando datos de CFDIs manualmente — tiempo que podría dedicarse a consultoría estratégica y atención al cliente.
@@ -79,7 +79,7 @@ Saludos,
 "Agenda tu demo de 20 minutos — automatiza tu contabilidad"
 
 ### Preview Text
-"Ve en vivo cómo Likida procesa CFDIs en segundos"
+"Ve en vivo cómo Atiende Despachos procesa CFDIs en segundos"
 
 ### Body
 
@@ -87,7 +87,7 @@ Hola {{nombre}},
 
 ¿Listo para ver cómo la IA puede transformar tu despacho contable?
 
-Te invito a una demo personalizada de Likida AI Enterprise donde verás:
+Te invito a una demo personalizada de Atiende Despachos donde verás:
 
 **Lo que mostraremos:**
 - Procesamiento en tiempo real de un CFDI
@@ -103,14 +103,14 @@ Te invito a una demo personalizada de Likida AI Enterprise donde verás:
 
 **La demo dura solo 20 minutos** — sin compromiso, sin presión. Solo verás cómo funciona y si aplica a tu caso.
 
-📅 **Selecciona tu horario aquí:** [Enlace de calendario]
+**Selecciona tu horario aquí:** [Enlace de calendario]
 
 ¿Tienes alguna pregunta antes de la demo? Responde a este correo y con gusto te ayudo.
 
 Saludos,
 {{tu_nombre}}
 {{tu_cargo}}
-Likida AI Enterprise
+Atiende Despachos
 
 ---
 
@@ -132,7 +132,7 @@ Hice un cálculo rápido para despachos contables como el tuyo:
 - 50 horas/mes × $500/hora de contador = **$25,000 MXN/mes**
 - Horas dedicadas a tareas repetitivas de captura
 
-**Con Likida AI Enterprise:**
+**Con Atiende Despachos:**
 - 5 horas/mes (supervisión) × $500/hora = **$2,500 MXN/mes**
 - Ahorro mensual: **$22,500 MXN**
 - Ahorro anual: **$270,000 MXN**
@@ -171,16 +171,16 @@ Quería compartirte el caso de éxito de un despacho contable que se enfrentaba 
 - Estrés constante por fechas límite del SAT
 
 **La solución:**
-Implementaron Likida AI Enterprise en 3 días.
+Implementaron Atiende Despachos en 3 días.
 
 **Los resultados (después de 3 meses):**
 - ⏱️ Tiempo de captura: 60h → 3h mensuales
-- 🎯 Precisión: 88% → 99.8%
-- 💰 Ahorro: $180,000 MXN anuales
-- 😊 Satisfacción del equipo: dramatically improved
+- Precisión: 88% → 99.8%
+- Ahorro: $180,000 MXN anuales
+- Satisfacción del equipo: dramatically improved
 
 **Lo que dice el socio director:**
-"Likida transformó nuestra operación. Ahora podemos enfocarnos en lo que realmente importa: asesorar a nuestros clientes."
+"Atiende Despachos transformó nuestra operación. Ahora podemos enfocarnos en lo que realmente importa: asesorar a nuestros clientes."
 
 ¿Te gustaría lograr resultados similares? Puedo mostrarte exactamente cómo.
 

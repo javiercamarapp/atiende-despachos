@@ -106,7 +106,7 @@ class OpenAIAdapter(AIAdapter):
 
         return AIResponse(
             id=f"openai_{_uuid.uuid4().hex[:12]}",
-            content="Respuesta mock de OpenAI GPT-4 para Likida AI.",
+            content="Respuesta mock de OpenAI GPT-4 para Atiende Despachos.",
             model=model,
             usage={"prompt_tokens": 50, "completion_tokens": 20, "total_tokens": 70},
             finish_reason="stop",

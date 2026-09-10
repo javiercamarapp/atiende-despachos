@@ -1,4 +1,4 @@
-# 🔍 Quality Audit Report — B2B AI Enterprise Platform
+# Quality Audit Report — B2B AI Enterprise Platform
 
 **Date:** 2026-08-01  
 **Auditor:** Sam (Calidad)  
@@ -6,18 +6,18 @@
 
 ---
 
-## 📊 1. Test Results
+## 1. Test Results
 
 | Metric | Value |
 |--------|-------|
 | **Total collected** | 4,812 |
-| **Passed** | 4,796 ✅ |
-| **Failed** | 0 ✅ |
+| **Passed** | 4,796 |
+| **Failed** | 0 |
 | **Skipped** | 16 |
 | **Warnings** | 1,027 |
 | **Runtime** | 4m 5s |
 
-**Verdict: ✅ ALL TESTS PASSING**
+**Verdict: ALL TESTS PASSING**
 
 ### Warnings Breakdown
 - FastAPI `on_event` deprecation (lifespan migration needed): ~800 warnings
@@ -27,19 +27,19 @@
 
 ---
 
-## 🔒 2. Security Findings
+## 2. Security Findings
 
-### ✅ PASS — No Critical Vulnerabilities
+### PASS — No Critical Vulnerabilities
 
 | Check | Status | Details |
 |-------|--------|---------|
-| Hardcoded secrets | ⚠️ LOW | 22 mock defaults in adapter fallbacks (non-functional `mock_*_key` strings) |
-| SQL injection (f-strings) | ✅ PASS | 0 matches — all queries use parameterized SQL |
-| `eval()`/`exec()` | ✅ PASS | 0 matches |
-| `pickle` deserialization | ✅ PASS | 0 matches |
-| CORS configuration | ✅ PASS | Env-var driven (`B2B_CORS_ORIGINS`), defaults to disabled |
+| Hardcoded secrets | LOW | 22 mock defaults in adapter fallbacks (non-functional `mock_*_key` strings) |
+| SQL injection (f-strings) | PASS | 0 matches — all queries use parameterized SQL |
+| `eval()`/`exec()` | PASS | 0 matches |
+| `pickle` deserialization | PASS | 0 matches |
+| CORS configuration | PASS | Env-var driven (`B2B_CORS_ORIGINS`), defaults to disabled |
 
-### ⚠️ Advisory — Mock Credentials in Production Code
+### Advisory — Mock Credentials in Production Code
 
 22 adapter files contain hardcoded mock defaults like:
 ```python
@@ -49,19 +49,19 @@ config = config or AIConfig(provider=AIProvider.OPENAI, api_key="mock_openai_key
 **Risk:** If env vars are unset, adapters silently use mock keys → API calls fail silently.  
 **Recommendation:** Raise an error if env vars are missing in non-test contexts. Add `if not api_key: raise ValueError(...)` guards.
 
-### ✅ Security Hardening Module (`compliance.py`)
-- ✅ RFC masking in logs (CFF Art. 82)
-- ✅ SQL injection pattern detection
-- ✅ XSS prevention (script tag stripping)
-- ✅ Output encoding (HTML entity escaping)
-- ✅ Input sanitization with field-length limits
-- ✅ Tenant isolation verification
-- ✅ Safe error messages (no internal state leakage)
-- ✅ Idempotency key generation
+### Security Hardening Module (`compliance.py`)
+- RFC masking in logs (CFF Art. 82)
+- SQL injection pattern detection
+- XSS prevention (script tag stripping)
+- Output encoding (HTML entity escaping)
+- Input sanitization with field-length limits
+- Tenant isolation verification
+- Safe error messages (no internal state leakage)
+- Idempotency key generation
 
 ---
 
-## 🧹 3. Code Quality Issues
+## 3. Code Quality Issues
 
 ### Summary Statistics
 
@@ -73,15 +73,15 @@ config = config or AIConfig(provider=AIProvider.OPENAI, api_key="mock_openai_key
 | Functions with return type hints | 120 | 44% — needs improvement |
 | Functions without return type hints | 151 | 56% — should add |
 | `# type: ignore` / `# noqa` suppressions | 99 | Moderate — review needed |
-| `print()` statements in core code | 94 | ⚠️ Should use logging |
+| `print()` statements in core code | 94 | Should use logging |
 | `logging.*` calls | 67 | Good — but `print()` still prevalent |
-| Bare `except Exception` blocks | 117 | ⚠️ Broad exception handling |
-| Bare `pass` in except blocks | 39 | ⚠️ Silent exception swallowing |
+| Bare `except Exception` blocks | 117 | Broad exception handling |
+| Bare `pass` in except blocks | 39 | Silent exception swallowing |
 | TODO/FIXME markers | 5 | Low — acceptable |
 
 ### Priority Issues
 
-#### 🔴 HIGH — Silent Exception Swallowing (39 instances)
+#### HIGH — Silent Exception Swallowing (39 instances)
 Files with `except Exception: pass` or `except: pass` — errors are silently lost:
 - `db/db.py` (4 instances)
 - `features/dashboard/service.py` (7 instances)
@@ -90,7 +90,7 @@ Files with `except Exception: pass` or `except: pass` — errors are silently lo
 
 **Recommendation:** At minimum, log the exception. Ideally, handle specific exception types.
 
-#### 🟡 MEDIUM — `print()` in Production Code (94 instances)
+#### MEDIUM — `print()` in Production Code (94 instances)
 Heavy users:
 - `cli.py` (47) — acceptable for CLI output
 - `services/demo.py` (24) — acceptable for demo mode
@@ -100,50 +100,50 @@ Heavy users:
 
 **Recommendation:** Replace `print()` with `logging.info/debug/warning` in non-CLI code.
 
-#### 🟡 MEDIUM — Missing Return Type Hints (56% of functions)
+#### MEDIUM — Missing Return Type Hints (56% of functions)
 Many functions lack return type annotations, reducing IDE support and making APIs harder to document.
 
-#### 🟢 LOW — Broad Exception Handling (117 `except Exception`)
+#### LOW — Broad Exception Handling (117 `except Exception`)
 Not all are problematic — many are in error-handling middleware or fallback paths. But 39 with `pass` are concerning.
 
 ---
 
-## 📜 4. Compliance Status
+## 4. Compliance Status
 
 ### CFF Art. 82 (Data Protection in Logs)
 | Requirement | Status |
 |-------------|--------|
-| RFC masking in logs | ✅ Implemented via `mask_rfc()` |
-| Amount masking >100k | ✅ Implemented via `mask_amount()` |
-| Safe log function | ✅ `safe_log()` with regex masking |
+| RFC masking in logs | Implemented via `mask_rfc()` |
+| Amount masking >100k | Implemented via `mask_amount()` |
+| Safe log function | `safe_log()` with regex masking |
 
 ### CFF Art. 89 (Fiscal Output Requirements)
 | Requirement | Status |
 |-------------|--------|
-| `referencia_legal` | ✅ Required field in `FiscalOutput` |
-| `supuesto` | ✅ Required field in `FiscalOutput` |
-| `requires_human_review` | ✅ Default `True` |
-| `human_review_reason` | ✅ Supported |
-| `escalation_path` | ✅ Default `"review_by_contador"` |
-| `idempotency_key` | ✅ Auto-generated SHA256 |
+| `referencia_legal` | Required field in `FiscalOutput` |
+| `supuesto` | Required field in `FiscalOutput` |
+| `requires_human_review` | Default `True` |
+| `human_review_reason` | Supported |
+| `escalation_path` | Default `"review_by_contador"` |
+| `idempotency_key` | Auto-generated SHA256 |
 
 ### LFPDPPP (Data Privacy)
 | Requirement | Status |
 |-------------|--------|
-| Tenant isolation | ✅ `verify_tenant_access()` |
-| Input sanitization | ✅ `sanitize_string()`, `sanitize_rfc()`, `sanitize_email()` |
-| Output encoding | ✅ `encode_output()` |
-| Error message safety | ✅ `SafeError` class + `SAFE_ERRORS` dict |
+| Tenant isolation | `verify_tenant_access()` |
+| Input sanitization | `sanitize_string()`, `sanitize_rfc()`, `sanitize_email()` |
+| Output encoding | `encode_output()` |
+| Error message safety | `SafeError` class + `SAFE_ERRORS` dict |
 
 ### ISR/LIVA (Tax Calculations)
 | Requirement | Status |
 |-------------|--------|
-| ISR progressive table 2024 | ✅ Monthly + Annual tables |
-| Valid IVA rates (0/8/16%) | ✅ `VALID_IVA_RATES` validation |
+| ISR progressive table 2024 | Monthly + Annual tables |
+| Valid IVA rates (0/8/16%) | `VALID_IVA_RATES` validation |
 
 ---
 
-## 📋 5. Recommendations
+## 5. Recommendations
 
 ### Critical (Fix Immediately)
 1. **Silent exception swallowing** — Add logging to all 39 `except: pass` blocks
@@ -165,7 +165,7 @@ Not all are problematic — many are in error-handling middleware or fallback pa
 
 ---
 
-## ✅ Overall Assessment
+## Overall Assessment
 
 | Category | Grade | Notes |
 |----------|-------|-------|

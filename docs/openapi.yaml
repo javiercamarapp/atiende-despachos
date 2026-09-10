@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  title: Likida AI Enterprise — API
-  description: '# Likida AI Enterprise — API Documentation
+  title: Atiende Despachos — API
+  description: '# Atiende Despachos — API Documentation
 
 
     ## Authentication
@@ -80,7 +80,7 @@ info:
 
     '
   contact:
-    name: Likida AI Enterprise
+    name: Atiende Despachos
     email: ''
   version: 0.1.0
 paths:

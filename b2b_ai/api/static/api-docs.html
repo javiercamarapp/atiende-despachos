@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Likida AI Enterprise — API Documentation</title>
+<title>Atiende Despachos — API Documentation</title>
 <style>
 /* ====== RESET & VARIABLES ====== */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -62,7 +62,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);line-height:1
 .sidebar-search input:focus{border-color:var(--acc)}
 .sidebar-search{position:relative}
 .sidebar-search::before{
-  content:'🔍';position:absolute;left:32px;top:50%;transform:translateY(-50%);
+  content:'';position:absolute;left:32px;top:50%;transform:translateY(-50%);
   font-size:13px;pointer-events:none;
 }
 .sidebar-nav{flex:1;overflow-y:auto;padding:8px 12px 20px}
@@ -300,9 +300,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);line-height:1
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <div class="sidebar-logo">
-      <div class="logo-icon">Likida</div>
+      <div class="logo-icon">Atiende Despachos</div>
       <div>
-        <h1>Likida AI Enterprise</h1>
+        <h1>Atiende Despachos</h1>
         <div class="version">Enterprise API v2</div>
       </div>
     </div>
@@ -318,7 +318,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);line-height:1
 <div class="main">
   <header class="main-header">
     <div style="display:flex;align-items:center;gap:12px">
-      <button class="hamburger" onclick="toggleSidebar()">☰</button>
+      <button class="hamburger" onclick="toggleSidebar()"></button>
       <h2>API Documentation</h2>
     </div>
     <div class="right">
@@ -330,7 +330,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);line-height:1
   <div class="content">
     <!-- HERO -->
     <div class="hero">
-      <h1>Likida AI Enterprise Enterprise API</h1>
+      <h1>Atiende Despachos API</h1>
       <p>Agente contable IA para despachos contables mexicanos. Procesamiento de CFDI, conciliación bancaria, contabilidad electrónica, nómina, cobranza y más.</p>
       <div class="stats">
         <div class="stat"><div class="stat-num" id="total-endpoints">0</div><div class="stat-label">Endpoints</div></div>
@@ -342,7 +342,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);line-height:1
 
     <!-- AUTH -->
     <div class="auth-box">
-      <h3>🔐 Authentication</h3>
+      <h3>Authentication</h3>
       <div class="auth-steps">
         <div class="auth-step">
           <div class="step-num">1</div>
@@ -782,7 +782,7 @@ b2b_http_requests_total{path="/api/v1/stats",status="200"} 120`},
   },
   "emisor": {
     "rfc": "DESP820101AB1",
-    "nombre": "Despacho Contable Likida",
+    "nombre": "Despacho Contable Atiende Despachos",
     "regimen_fiscal": "601"
   },
   "periodo": {
@@ -1047,7 +1047,7 @@ b2b_http_requests_total{path="/api/v1/stats",status="200"} 120`},
       {method:"GET",path:"/api/v1/dashboard/data",summary:"Dashboard data as JSON (for live refresh).",auth:true,
        params:[],
        response:`{
-  "service": "Likida AI Enterprise — Enterprise",
+  "service": "Atiende Despachos — Enterprise",
   "metricas": { "total_facturas": 42, "monto_total": 630000 },
   "graficas": { "por_categoria": [...], "por_mes": [...] },
   "conciliacion": { "tasa_conciliacion": 78.3 }
@@ -1811,8 +1811,8 @@ function renderAll() {
     data.endpoints.forEach((ep, i) => {
       const epId = tagId + '-ep-' + i;
       const authBadge = ep.auth
-        ? (ep.jwt ? '<span class="ep-badge auth">🔑 JWT Auth</span>' : '<span class="ep-badge auth">🔑 API Key</span>')
-        : '<span class="ep-badge public">🌐 Public</span>';
+        ? (ep.jwt ? '<span class="ep-badge auth">JWT Auth</span>' : '<span class="ep-badge auth">API Key</span>')
+        : '<span class="ep-badge public">Public</span>';
 
       let bodyHTML = '';
 

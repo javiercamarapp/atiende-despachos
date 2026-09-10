@@ -109,7 +109,7 @@ Wall 42.77 s · Throughput 233.81 CFDI/s
 - El fix thread-local no introduce regresión de aislamiento multi-tenant —
   cubierto por tests, pero no probado contra PostgreSQL real (requiere PG).
 
-**✗ Incierto / no revisado**
+**Incierto / no revisado**
 - Benchmarks de QPS corren contra SQLite en memoria; no son comparables a una
   base de datos de producción (PostgreSQL). Los números de "queries/s" son
   orientativos.

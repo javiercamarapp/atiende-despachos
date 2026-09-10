@@ -1,4 +1,4 @@
-# Target Customer Profile — Likida AI Enterprise
+# Target Customer Profile — Atiende Despachos
 
 ## Ideal Customer Profile (ICP)
 
@@ -101,4 +101,4 @@
 | QuickBooks | $1,500–5,000/mes | No está diseñado para despachos mexicanos |
 | Finkok | $2,000–8,000/mes | Solo timbrado, no procesamiento |
 
-**Likida AI differentiation:** IA + integración con sistema existente + automatización end-to-end
+**Atiende Despachos differentiation:** IA + integración con sistema existente + automatización end-to-end

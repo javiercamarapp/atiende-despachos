@@ -1,8 +1,8 @@
-# Likida AI Enterprise — Brand Guidelines
+# Atiende Despachos — Brand Guidelines
 
 ## Brand Identity
 
-**Brand Name:** Likida AI Enterprise  
+**Brand Name:** Atiende Despachos  
 **Tagline:** "Tu despacho contable, corriendo en automático"
 
 ---
@@ -89,7 +89,7 @@
 ## Logo Usage
 
 ### Primary Logo
-- Text: "Likida AI Enterprise"
+- Text: "Atiende Despachos"
 - Color: `#4f8cff` on light backgrounds
 - Minimum padding: 1x logo height on all sides
 
@@ -130,7 +130,7 @@
 ## Messaging Framework
 
 ### Value Proposition
-> "Likida AI Enterprise automatiza la captura, procesamiento y conciliación de CFDIs para despachos contables mexicanos, eliminando errores manuales y ahorrando horas de trabajo repetitivo."
+> "Atiende Despachos automatiza la captura, procesamiento y conciliación de CFDIs para despachos contables mexicanos, eliminando errores manuales y ahorrando horas de trabajo repetitivo."
 
 ### Key Messages
 

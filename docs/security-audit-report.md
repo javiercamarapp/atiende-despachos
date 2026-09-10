@@ -9,10 +9,10 @@ Comando de verificación global: `.venv/bin/python -m pytest -q -p no:cacheprovi
 
 | Área | Estado | Hallazgos críticos |
 |---|---|---|
-| Bandit (estático) | ✅ LIMPIO | 1 HIGH y 5 MEDIUM corregidos; 14 LOW documentados (todos benignos) |
-| Dependencias (pip_audit) | ⚠️ 13 paquetes con CVEs | Causa raíz: **Python 3.9.6 (EOL)**. Fix = migrar a 3.11+. Ver §2 |
-| API security | ✅ | Rate limit, validación Pydantic, CORS restrictivo, headers, rotación de keys |
-| Data security | ✅ | Cifrado AES-GCM, PII masking, audit trail, retención |
+| Bandit (estático) | LIMPIO | 1 HIGH y 5 MEDIUM corregidos; 14 LOW documentados (todos benignos) |
+| Dependencias (pip_audit) | 13 paquetes con CVEs | Causa raíz: **Python 3.9.6 (EOL)**. Fix = migrar a 3.11+. Ver §2 |
+| API security | Sí | Rate limit, validación Pydantic, CORS restrictivo, headers, rotación de keys |
+| Data security | Sí | Cifrado AES-GCM, PII masking, audit trail, retención |
 
 **Veredicto:** la app está **lista para producción con un bloqueador operativo**: el runtime Python 3.9.6 es EOL y bloquea el parcheo de dependencias. No se debe desplegar sin migrar a Python 3.11+.
 
@@ -92,13 +92,13 @@ Creado en `requirements-production.txt` con SOLO las dependencias de runtime rea
 
 | Control | Estado | Evidencia |
 |---|---|---|
-| Rate limiting por IP+ruta | ✅ | `RateLimiter` (app.py) ventana deslizante, default 300/min, configurable `B2B_RATE_LIMIT*`, responde 429 con Retry-After |
-| Input validation con Pydantic | ✅ | Schemas `BaseModel` en app.py (ProcessRequest, LeadRequest, etc.) + límites Query (ge/le) + `allowed_upload_extension` (solo .xml/.pdf) |
-| CORS restricted | ✅ | Solo si `B2B_CORS_ORIGINS`; vacío = desactivado (same-origin). Credenciales off por defecto |
-| Security headers | ✅ | `SecurityHeadersMiddleware`: HSTS (31536000, includeSubDomains, preload), CSP (object-src 'none', frame-ancestors 'none'), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy |
-| API key rotation | ✅ (nuevo) | Añadido `db.set_api_key_active()`: emitir nueva key + desactivar vieja. Verificado end-to-end |
-| Auth robusto | ✅ | X-API-Key header, comparación timing-safe (`hmac.compare_digest`), key hasheada (SHA-256) en DB, bloqueo de tenants, intentos fallidos auditados |
-| Mitigación SSRF | ✅ (nuevo) | Guardas de esquema http/https en webhooks y LLM |
+| Rate limiting por IP+ruta | Sí | `RateLimiter` (app.py) ventana deslizante, default 300/min, configurable `B2B_RATE_LIMIT*`, responde 429 con Retry-After |
+| Input validation con Pydantic | Sí | Schemas `BaseModel` en app.py (ProcessRequest, LeadRequest, etc.) + límites Query (ge/le) + `allowed_upload_extension` (solo .xml/.pdf) |
+| CORS restricted | Sí | Solo si `B2B_CORS_ORIGINS`; vacío = desactivado (same-origin). Credenciales off por defecto |
+| Security headers | Sí | `SecurityHeadersMiddleware`: HSTS (31536000, includeSubDomains, preload), CSP (object-src 'none', frame-ancestors 'none'), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy |
+| API key rotation | (nuevo) | Añadido `db.set_api_key_active()`: emitir nueva key + desactivar vieja. Verificado end-to-end |
+| Auth robusto | Sí | X-API-Key header, comparación timing-safe (`hmac.compare_digest`), key hasheada (SHA-256) en DB, bloqueo de tenants, intentos fallidos auditados |
+| Mitigación SSRF | (nuevo) | Guardas de esquema http/https en webhooks y LLM |
 
 ---
 
@@ -106,10 +106,10 @@ Creado en `requirements-production.txt` con SOLO las dependencias de runtime rea
 
 | Control | Estado | Evidencia |
 |---|---|---|
-| Cifrado en reposo | ✅ | `security.py`: AES-GCM, clave de 32B derivada de `B2B_ENCRYPTION_KEY`. Aplica a webhook_url, notif_recipient. Roundtrip verificado |
-| PII masking en logs | ✅ | `monitoring/logger.py::JsonFormatter` + `mask_pii` (RFC, CURP, emails, teléfonos, tarjetas). `detect_pii` en pipeline |
-| Audit trail | ✅ | `audit_log` + `db.log_call()` en auth (denied), onboarding, webhook mutations |
-| Data retention | ✅ | `enforce_retention()` (audit_log, webhook_deliveries, notifications, portal_sessions) configurable `B2B_RETENTION_DAYS` (default 365). Facturas NO se tocan (las manda SAT). Purga verificada |
+| Cifrado en reposo | Sí | `security.py`: AES-GCM, clave de 32B derivada de `B2B_ENCRYPTION_KEY`. Aplica a webhook_url, notif_recipient. Roundtrip verificado |
+| PII masking en logs | Sí | `monitoring/logger.py::JsonFormatter` + `mask_pii` (RFC, CURP, emails, teléfonos, tarjetas). `detect_pii` en pipeline |
+| Audit trail | Sí | `audit_log` + `db.log_call()` en auth (denied), onboarding, webhook mutations |
+| Data retention | Sí | `enforce_retention()` (audit_log, webhook_deliveries, notifications, portal_sessions) configurable `B2B_RETENTION_DAYS` (default 365). Facturas NO se tocan (las manda SAT). Purga verificada |
 
 ### Config de producción (mejorado)
 
@@ -145,7 +145,7 @@ Creado en `requirements-production.txt` con SOLO las dependencias de runtime rea
 **? Inferido**
 - El parcheo de CVEs funcionará tras migrar a py3.11 — no lo pude probar aquí (no es mi alcance).
 
-**✗ Incierto / no revisado**
+**Incierto / no revisado**
 - No audité el código de la landing estática ni los drivers de desktop (contpaqi/aspel/browser) con bandit (fueron excluidos por estar fuera del alcance `b2b_ai/` de la tarea).
 - La rotación de keys no tiene endpoint de API expuesto (solo método DB + CLI); si se quiere rotación vía HTTP, es trabajo futuro.
 - `safety check` no se usó (requiere API key comercial); se usó `pip_audit` (DB PyPA/OSV pública).

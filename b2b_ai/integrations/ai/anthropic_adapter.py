@@ -115,7 +115,7 @@ class AnthropicAdapter(AIAdapter):
 
         return AIResponse(
             id=f"anthropic_{_uuid.uuid4().hex[:12]}",
-            content="Respuesta mock de Anthropic Claude para Likida AI.",
+            content="Respuesta mock de Anthropic Claude para Atiende Despachos.",
             model=model,
             usage={"input_tokens": 50, "output_tokens": 20},
             finish_reason="end_turn",

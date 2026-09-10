@@ -1,5 +1,5 @@
 # AUDITORIA FINAL — Rubros 6-10
-## Likida AI Enterprise (B2B-AI-MVP)
+## Atiende Despachos (B2B-AI-MVP)
 
 **Fecha:** 2026-08-02
 **Ambiente:** /tmp/enterprise-clean (clean build)
@@ -11,19 +11,19 @@
 
 | Rubro | Calificación | Hallazgos Críticos | Hallazgos Medios |
 |-------|-------------|-------------------|-----------------|
-| 6. Operación | ✅ A | 0 | 1 |
-| 7. Pruebas | ✅ A | 0 | 2 |
-| 8. Modelo de Datos | ✅ A+ | 0 | 0 |
-| 9. Integraciones | ✅ A | 0 | 2 |
-| 10. Cumplimiento Legal | ✅ A | 0 | 1 |
+| 6. Operación | A | 0 | 1 |
+| 7. Pruebas | A | 0 | 2 |
+| 8. Modelo de Datos | A+ | 0 | 0 |
+| 9. Integraciones | A | 0 | 2 |
+| 10. Cumplimiento Legal | A | 0 | 1 |
 
 **Resultado global Rubros 6-10: A — APROBADO para producción**
 
 ---
 
-## RUBRO 6: OPERACIÓN — ✅ CALIFICACIÓN A
+## RUBRO 6: OPERACIÓN — CALIFICACIÓN A
 
-### 6.1 Dockerfile — ✅ SOLIDO
+### 6.1 Dockerfile — SOLIDO
 - **Multi-stage build** (builder → runtime): `python:3.11-slim-bookworm`
 - **No corre como root**: usuario `b2b` con UID 1000
 - **Playwright + Chromium** instalados para scraping/PDF
@@ -31,19 +31,19 @@
 - **CMD**: uvicorn con `$PORT` (Railway) o `$B2B_PORT` (Docker local), `--proxy-headers`
 - **OCI labels** presentes (`org.opencontainers.image.*`)
 
-### 6.2 railway.toml — ✅ CORRECTO
+### 6.2 railway.toml — CORRECTO
 - `builder = "DOCKERFILE"` (no Nixpacks)
 - `healthcheckPath = "/health"`, timeout 30s, interval 15s
 - `restartPolicyType = "ON_FAILURE"`, maxRetries 5
 - `startCommand` usa `${PORT:-8000}` y `${B2B_WORKERS:-1}`
 
-### 6.3 Health Checks — ✅ MULTICAPA
+### 6.3 Health Checks — MULTICAPA
 - **Docker HEALTHCHECK**: `curl -fsS http://127.0.0.1:8000/health || exit 1` (30s interval, 5s timeout, 3 retries)
 - **Railway healthcheck**: `/health` endpoint con status, version, backend, schema_version, uptime, total_requests
 - **Health detallado** (`/health/detailed`): DB latency, Redis status, disco, memoria, uptime
 - **Health router** (`routes_health.py`): GET/HEAD /health, /health/detailed, /metrics, /metrics/prometheus
 
-### 6.4 Graceful Shutdown — ✅ FORTUNE-500
+### 6.4 Graceful Shutdown — FORTUNE-500
 - **Archivo**: `infrastructure/graceful_shutdown.py` (310 líneas)
 - **SIGTERM/SIGINT** handlers instalados
 - **3 fases**: drain (espera requests activas) → cleanup tasks → flush logs
@@ -52,7 +52,7 @@
 - **Health endpoints** permitidos durante drain (k8s readiness)
 - **atexit handler** como fallback de seguridad
 
-### 6.5 Circuit Breaker — ✅ COMPLETO
+### 6.5 Circuit Breaker — COMPLETO
 - **Archivo**: `infrastructure/circuit_breaker.py` (310 líneas)
 - **3 estados**: CLOSED → OPEN → HALF_OPEN con auto-transición por timeout
 - **Thread-safe** con `threading.RLock`
@@ -65,7 +65,7 @@
 - **Registry singleton** con `all_metrics()`, `all_states()`, `any_open()`
 - **Decorador `@cb.protect`** + context manager + fallback callable
 
-### 6.6 Connection Pool — ✅ ENTERPRISE
+### 6.6 Connection Pool — ENTERPRISE
 - **Archivo**: `infrastructure/db_pool.py` (pool completo)
 - **Configuración**: min_size=2, max_size=10, overflow=5
 - **Pre-ping** (health check antes de entregar conexión)
@@ -73,7 +73,7 @@
 - **Slow query logging** (>500ms)
 - **Métricas Prometheus** del pool (active, idle, overflow, wait times)
 
-### 6.7 Metrics — ✅ PROMETHEUS-READY
+### 6.7 Metrics — PROMETHEUS-READY
 - **Archivo**: `monitoring/metrics.py` + `api/metrics.py`
 - **Operativas**: `b2b_requests_total{path,status}`, `b2b_request_duration_seconds`, `b2b_errors_total`
 - **Negocio**: `b2b_invoices_processed_total`, `b2b_anomalies_detected_total`
@@ -82,13 +82,13 @@
 - **Thread-safe** con lock
 
 ### Hallazgo Medio (1):
-- ⚠️ **B2B_WORKERS debe ser 1 con SQLite** (documentado en Dockerfile comments). En Postgres puede escalar. Sin validación que bloquee `workers > 1` con SQLite.
+- **B2B_WORKERS debe ser 1 con SQLite** (documentado en Dockerfile comments). En Postgres puede escalar. Sin validación que bloquee `workers > 1` con SQLite.
 
 ---
 
-## RUBRO 7: PRUEBAS — ✅ CALIFICACIÓN A
+## RUBRO 7: PRUEBAS — CALIFICACIÓN A
 
-### 7.1 Cantidad de Tests — ✅ MASIVO
+### 7.1 Cantidad de Tests — MASIVO
 - **6,380 tests** colectados en el suite completo
 - **178 archivos de test** en `tests/`
 - **116 tests** ejecutados en los 3 archivos objetivo — **116 passed, 0 failed**
@@ -96,10 +96,10 @@
 ### 7.2 Desglose Tests Ejecutados
 | Archivo | Tests | Resultado |
 |---------|-------|-----------|
-| `test_computer_use_unit.py` | 31 | ✅ ALL PASS |
-| `test_computer_use_e2e.py` | 9 | ✅ ALL PASS |
-| `test_enterprise_hardening.py` | 76 | ✅ ALL PASS |
-| **Total** | **116** | **✅ 100%** |
+| `test_computer_use_unit.py` | 31 | ALL PASS |
+| `test_computer_use_e2e.py` | 9 | ALL PASS |
+| `test_enterprise_hardening.py` | 76 | ALL PASS |
+| **Total** | **116** | **100%** |
 
 ### 7.3 Cobertura por Dominio
 - **Computer use**: unit (31) + e2e (9) + factory + metrics + security = ~60+ tests
@@ -111,7 +111,7 @@
 - **Infra**: postgres adapter, pg integration, pg migrations, infrastructure
 - **Producción**: chaos, infra postgres/redis, production e2e, security prod
 
-### 7.4 Tests Decorativos — ✅ NO DETECTADOS
+### 7.4 Tests Decorativos — NO DETECTADOS
 Los tests verifican lógica real: factories producen datos válidos, integration tests llaman endpoints reales, XML snapshots verifican estructura.
 
 ### 7.5 E2E Chromium
@@ -120,60 +120,60 @@ Los tests verifican lógica real: factories producen datos válidos, integration
 - Tests de scraping/PDF endpoints
 
 ### Hallazgos Medios (2):
-- ⚠️ Mark `computer_use_e2e` no registrado en `pytest.ini` / `pyproject.toml` (warning visible)
-- ⚠️ Sin `conftest.py` con fixture de Chromium headless para E2E locales (depende de Docker)
+- Mark `computer_use_e2e` no registrado en `pytest.ini` / `pyproject.toml` (warning visible)
+- Sin `conftest.py` con fixture de Chromium headless para E2E locales (depende de Docker)
 
 ---
 
-## RUBRO 8: MODELO DE DATOS — ✅ CALIFICACIÓN A+
+## RUBRO 8: MODELO DE DATOS — CALIFICACIÓN A+
 
-### 8.1 Tablas — ✅ 40 TABLAS
+### 8.1 Tablas — 40 TABLAS
 Tablas completas del esquema:
 
 | # | Tabla | Tenant Isolation | FK References |
 |---|-------|-----------------|---------------|
 | 1 | `tenants` | — (raíz) | — |
-| 2 | `users` | ✅ tenant_id | → tenants |
-| 3 | `invoices` | ✅ tenant_id | → tenants |
-| 4 | `classifications` | ✅ tenant_id | → invoices, tenants |
-| 5 | `audit_log` | ✅ tenant_id | → tenants |
-| 6 | `notifications` | ✅ tenant_id | → tenants |
+| 2 | `users` | tenant_id | → tenants |
+| 3 | `invoices` | tenant_id | → tenants |
+| 4 | `classifications` | tenant_id | → invoices, tenants |
+| 5 | `audit_log` | tenant_id | → tenants |
+| 6 | `notifications` | tenant_id | → tenants |
 | 7 | `schema_version` | — (global) | — |
-| 8 | `api_keys` | ✅ tenant_id | → tenants |
-| 9 | `leads` | ✅ tenant_id | → tenants |
-| 10 | `tenant_config` | ✅ tenant_id | → tenants |
-| 11 | `reviews` | ✅ tenant_id | → tenants |
-| 12 | `webhook_deliveries` | ✅ tenant_id | → tenants |
-| 13 | `collection_events` | ✅ tenant_id | → tenants |
-| 14 | `outstanding_invoices` | ✅ tenant_id | → tenants |
-| 15 | `tenant_usage` | ✅ tenant_id | → tenants |
-| 16 | `webhook_subscriptions` | ✅ tenant_id | → tenants |
-| 17 | `cuentas_contables` | ✅ tenant_id | → tenants |
-| 18 | `asientos_contables` | ✅ tenant_id | → tenants, cuentas |
-| 19 | `balanzas_mensuales` | ✅ tenant_id | → tenants |
-| 20 | `paquetes_contabilidad` | ✅ tenant_id | → tenants |
-| 21 | `client_users` | ✅ tenant_id | → tenants |
+| 8 | `api_keys` | tenant_id | → tenants |
+| 9 | `leads` | tenant_id | → tenants |
+| 10 | `tenant_config` | tenant_id | → tenants |
+| 11 | `reviews` | tenant_id | → tenants |
+| 12 | `webhook_deliveries` | tenant_id | → tenants |
+| 13 | `collection_events` | tenant_id | → tenants |
+| 14 | `outstanding_invoices` | tenant_id | → tenants |
+| 15 | `tenant_usage` | tenant_id | → tenants |
+| 16 | `webhook_subscriptions` | tenant_id | → tenants |
+| 17 | `cuentas_contables` | tenant_id | → tenants |
+| 18 | `asientos_contables` | tenant_id | → tenants, cuentas |
+| 19 | `balanzas_mensuales` | tenant_id | → tenants |
+| 20 | `paquetes_contabilidad` | tenant_id | → tenants |
+| 21 | `client_users` | tenant_id | → tenants |
 | 22 | `portal_sessions` | — (user_id) | → client_users |
-| 23 | `billing_customers` | ✅ tenant_id | → tenants |
-| 24 | `billing_subscriptions` | ✅ tenant_id | → billing_customers |
-| 25 | `billing_invoices` | ✅ tenant_id | → billing_customers |
-| 26 | `billing_payment_methods` | ✅ tenant_id | → billing_customers |
-| 27 | `audit_entries` | ✅ tenant_id | → tenants |
-| 28 | `feature_flags` | ✅ tenant_id | → tenants |
-| 29 | `outreach_campaigns` | ✅ tenant_id | → tenants |
-| 30 | `outreach_campaign_leads` | ✅ tenant_id | → campaigns |
-| 31 | `outreach_emails` | ✅ tenant_id | → leads, campaigns |
-| 32 | `outreach_events` | ✅ tenant_id | → emails, leads |
-| 33 | `bank_transactions` | ✅ tenant_id | → tenants |
-| 34 | `bank_confirmations` | ✅ tenant_id | → tenants |
-| 35 | `collection_payments` | ✅ tenant_id | → tenants |
-| 36 | `collection_config` | ✅ tenant_id | → tenants |
-| 37 | `conciliation_sessions` | ✅ tenant_id | → tenants |
+| 23 | `billing_customers` | tenant_id | → tenants |
+| 24 | `billing_subscriptions` | tenant_id | → billing_customers |
+| 25 | `billing_invoices` | tenant_id | → billing_customers |
+| 26 | `billing_payment_methods` | tenant_id | → billing_customers |
+| 27 | `audit_entries` | tenant_id | → tenants |
+| 28 | `feature_flags` | tenant_id | → tenants |
+| 29 | `outreach_campaigns` | tenant_id | → tenants |
+| 30 | `outreach_campaign_leads` | tenant_id | → campaigns |
+| 31 | `outreach_emails` | tenant_id | → leads, campaigns |
+| 32 | `outreach_events` | tenant_id | → emails, leads |
+| 33 | `bank_transactions` | tenant_id | → tenants |
+| 34 | `bank_confirmations` | tenant_id | → tenants |
+| 35 | `collection_payments` | tenant_id | → tenants |
+| 36 | `collection_config` | tenant_id | → tenants |
+| 37 | `conciliation_sessions` | tenant_id | → tenants |
 | 38 | `conciliation_matches` | — (session_id) | → sessions |
-| 39 | `reconciliation_jobs` | ✅ tenant_id | → tenants |
-| 40 | `job_queue` | ✅ tenant_id | → tenants |
+| 39 | `reconciliation_jobs` | tenant_id | → tenants |
+| 40 | `job_queue` | tenant_id | → tenants |
 
-### 8.2 Foreign Keys — ✅ 31 REFERENCIAS
+### 8.2 Foreign Keys — 31 REFERENCIAS
 Todas las tablas de datos referencian `tenants(id)`. Relaciones secundarias:
 - `invoices(id)` ← classifications
 - `cuentas_contables(id)` ← asientos_contables
@@ -182,7 +182,7 @@ Todas las tablas de datos referencian `tenants(id)`. Relaciones secundarias:
 - `outreach_campaigns(id)` ← campaign_leads, emails
 - `conciliation_sessions(id)` ← conciliation_matches
 
-### 8.3 Índices — ✅ 55 ÍNDICES
+### 8.3 Índices — 55 ÍNDICES
 Índices cubren:
 - **tenant_id** en TODAS las tablas multi-tenant
 - **fechas**: `invoices(fecha)`, `asientos_contables(fecha)`, `balanzas(periodo)`
@@ -191,7 +191,7 @@ Todas las tablas de datos referencian `tenants(id)`. Relaciones secundarias:
 - **compuestos**: `job_queue(status, priority DESC, id ASC)` para scheduler
 - **audit**: `audit_entries(tenant_id, timestamp)`, `audit_entries(resource)`
 
-### 8.4 Multi-Tenant Isolation — ✅ HERMÉTICO
+### 8.4 Multi-Tenant Isolation — HERMÉTICO
 - **22 de 25** tablas de datos tienen `tenant_id INTEGER NOT NULL`
 - **Toda consulta del servicio filtra SIEMPRE por tenant_id** (documentado en `db.py`)
 - `audit_entries` filtra por `tenant_id` en `get_audit_log()`
@@ -201,138 +201,138 @@ Todas las tablas de datos referencian `tenants(id)`. Relaciones secundarias:
 
 ---
 
-## RUBRO 9: INTEGRACIONES — ✅ CALIFICACIÓN A
+## RUBRO 9: INTEGRACIONES — CALIFICACIÓN A
 
 ### 9.1 Total de Adapters: 61 ARCHIVOS, 137 MÓDULOS IMPORTABLES
 
 #### Pagos (7 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `stripe_adapter.py` | Stripe | ✅ |
-| `conekta_adapter.py` | Conekta | ✅ |
-| `mercadopago_adapter.py` | MercadoPago | ✅ |
-| `paypal_adapter.py` | PayPal | ✅ |
-| `openpay_adapter.py` | OpenPay | ✅ |
-| `kushki_adapter.py` | Kushki | ✅ |
-| `paypal_mexico_adapter.py` | PayPal MX | ✅ |
+| `stripe_adapter.py` | Stripe | Sí |
+| `conekta_adapter.py` | Conekta | Sí |
+| `mercadopago_adapter.py` | MercadoPago | Sí |
+| `paypal_adapter.py` | PayPal | Sí |
+| `openpay_adapter.py` | OpenPay | Sí |
+| `kushki_adapter.py` | Kushki | Sí |
+| `paypal_mexico_adapter.py` | PayPal MX | Sí |
 
 #### Comunicación (7 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `twilio_adapter.py` | Twilio | ✅ |
-| `sendgrid_adapter.py` | SendGrid | ✅ |
-| `whatsapp_business_adapter.py` | WhatsApp Business | ✅ |
-| `mailgun_adapter.py` | Mailgun | ✅ |
-| `vonage_adapter.py` | Vonage | ✅ |
-| `aws_ses_adapter.py` | AWS SES | ✅ |
-| `messagebird_adapter.py` | MessageBird | ✅ |
+| `twilio_adapter.py` | Twilio | Sí |
+| `sendgrid_adapter.py` | SendGrid | Sí |
+| `whatsapp_business_adapter.py` | WhatsApp Business | Sí |
+| `mailgun_adapter.py` | Mailgun | Sí |
+| `vonage_adapter.py` | Vonage | Sí |
+| `aws_ses_adapter.py` | AWS SES | Sí |
+| `messagebird_adapter.py` | MessageBird | Sí |
 
 #### SAT / PACs (4 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `facturapi_adapter.py` | Facturapi | ✅ |
-| `multifactura_adapter.py` | Multifactura | ✅ |
-| `paxfacturas_adapter.py` | Paxfacturas | ✅ |
-| `corefi_adapter.py` | CoreFi | ✅ |
+| `facturapi_adapter.py` | Facturapi | Sí |
+| `multifactura_adapter.py` | Multifactura | Sí |
+| `paxfacturas_adapter.py` | Paxfacturas | Sí |
+| `corefi_adapter.py` | CoreFi | Sí |
 
 #### ERP & Bancos (2 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `erp/adapter.py` | CONTPAQi/genérico | ✅ |
-| `bancos/adapter.py` | SPEI STP/genérico | ✅ |
+| `erp/adapter.py` | CONTPAQi/genérico | Sí |
+| `bancos/adapter.py` | SPEI STP/genérico | Sí |
 
 #### Storage (6 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `s3_adapter.py` | AWS S3 | ✅ |
-| `google_drive_adapter.py` | Google Drive | ✅ |
-| `dropbox_adapter.py` | Dropbox | ✅ |
-| `gcs_adapter.py` | Google Cloud Storage | ✅ |
-| `box_adapter.py` | Box | ✅ |
-| `onedrive_adapter.py` | OneDrive | ✅ |
+| `s3_adapter.py` | AWS S3 | Sí |
+| `google_drive_adapter.py` | Google Drive | Sí |
+| `dropbox_adapter.py` | Dropbox | Sí |
+| `gcs_adapter.py` | Google Cloud Storage | Sí |
+| `box_adapter.py` | Box | Sí |
+| `onedrive_adapter.py` | OneDrive | Sí |
 
 #### Google (3 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `gmail_adapter.py` | Gmail | ✅ |
-| `google_sheets_adapter.py` | Google Sheets | ✅ |
-| `calendar_adapter.py` | Google Calendar | ✅ |
+| `gmail_adapter.py` | Gmail | Sí |
+| `google_sheets_adapter.py` | Google Sheets | Sí |
+| `calendar_adapter.py` | Google Calendar | Sí |
 
 #### Microsoft (3 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `outlook_adapter.py` | Outlook | ✅ |
-| `excel_adapter.py` | Excel | ✅ |
-| `m365_adapter.py` | Microsoft 365 | ✅ |
+| `outlook_adapter.py` | Outlook | Sí |
+| `excel_adapter.py` | Excel | Sí |
+| `m365_adapter.py` | Microsoft 365 | Sí |
 
 #### CRM (4 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `hubspot_adapter.py` | HubSpot | ✅ |
-| `salesforce_adapter.py` | Salesforce | ✅ |
-| `zoho_crm_adapter.py` | Zoho CRM | ✅ |
-| `pipedrive_adapter.py` | Pipedrive | ✅ |
+| `hubspot_adapter.py` | HubSpot | Sí |
+| `salesforce_adapter.py` | Salesforce | Sí |
+| `zoho_crm_adapter.py` | Zoho CRM | Sí |
+| `pipedrive_adapter.py` | Pipedrive | Sí |
 
 #### Firmas Digitales (3 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `fiel_adapter.py` | FIEL/SAT | ✅ |
-| `docusign_adapter.py` | DocuSign | ✅ |
-| `adobe_sign_adapter.py` | Adobe Sign | ✅ |
+| `fiel_adapter.py` | FIEL/SAT | Sí |
+| `docusign_adapter.py` | DocuSign | Sí |
+| `adobe_sign_adapter.py` | Adobe Sign | Sí |
 
 #### Analytics (3 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `google_analytics_adapter.py` | Google Analytics | ✅ |
-| `mixpanel_adapter.py` | Mixpanel | ✅ |
-| `amplitude_adapter.py` | Amplitude | ✅ |
+| `google_analytics_adapter.py` | Google Analytics | Sí |
+| `mixpanel_adapter.py` | Mixpanel | Sí |
+| `amplitude_adapter.py` | Amplitude | Sí |
 
 #### AI (2 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `openai_adapter.py` | OpenAI | ✅ |
-| `anthropic_adapter.py` | Anthropic | ✅ |
+| `openai_adapter.py` | OpenAI | Sí |
+| `anthropic_adapter.py` | Anthropic | Sí |
 
 #### Gobierno (4 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `imss_adapter.py` | IMSS | ✅ |
-| `infonavit_adapter.py` | Infonavit | ✅ |
-| `condusef_adapter.py` | CONDUSEF | ✅ |
-| `sar_adapter.py` | SAR | ✅ |
+| `imss_adapter.py` | IMSS | Sí |
+| `infonavit_adapter.py` | Infonavit | Sí |
+| `condusef_adapter.py` | CONDUSEF | Sí |
+| `sar_adapter.py` | SAR | Sí |
 
 #### Social (3 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `facebook_adapter.py` | Facebook | ✅ |
-| `instagram_adapter.py` | Instagram | ✅ |
-| `linkedin_adapter.py` | LinkedIn | ✅ |
+| `facebook_adapter.py` | Facebook | Sí |
+| `instagram_adapter.py` | Instagram | Sí |
+| `linkedin_adapter.py` | LinkedIn | Sí |
 
 #### Monitoreo (5 adapters):
 | Adapter | Provider | Import OK |
 |---------|----------|-----------|
-| `sentry_adapter.py` | Sentry | ✅ |
-| `datadog_adapter.py` | Datadog | ✅ |
-| `newrelic_adapter.py` | New Relic | ✅ |
-| `logrocket_adapter.py` | LogRocket | ✅ |
-| `console_adapter.py` | Console | ✅ |
+| `sentry_adapter.py` | Sentry | Sí |
+| `datadog_adapter.py` | Datadog | Sí |
+| `newrelic_adapter.py` | New Relic | Sí |
+| `logrocket_adapter.py` | LogRocket | Sí |
+| `console_adapter.py` | Console | Sí |
 
 #### Compliance (6 adapters):
 | Adapter | Ley/Norma | Import OK |
 |---------|-----------|-----------|
-| `lfpdppp_adapter.py` | LFPDPPP | ✅ |
-| `nom151_adapter.py` | NOM-151 | ✅ |
-| `cff_adapter.py` | CFF | ✅ |
-| `lft_adapter.py` | LFT | ✅ |
-| `lisr_adapter.py` | LISR | ✅ |
-| `liva_adapter.py` | LIVA | ✅ |
+| `lfpdppp_adapter.py` | LFPDPPP | Sí |
+| `nom151_adapter.py` | NOM-151 | Sí |
+| `cff_adapter.py` | CFF | Sí |
+| `lft_adapter.py` | LFT | Sí |
+| `lisr_adapter.py` | LISR | Sí |
+| `liva_adapter.py` | LIVA | Sí |
 
 #### Otros:
 | Adapter | Domain | Import OK |
 |---------|--------|-----------|
-| `calendly_adapter.py` | Calendario | ✅ |
-| `nomina/adapter.py` | Nómina | ✅ |
-| `documentos/adapter.py` | Documentos | ✅ |
+| `calendly_adapter.py` | Calendario | Sí |
+| `nomina/adapter.py` | Nómina | Sí |
+| `documentos/adapter.py` | Documentos | Sí |
 
 ### 9.2 Verificación de Import
 ```
@@ -340,14 +340,14 @@ cd /tmp/enterprise-clean && PYTHONPATH=. python -c "..." → "OK: 137, ALL integ
 ```
 
 ### Hallazgos Medios (2):
-- ⚠️ Adapters dependen de `httpx`/`requests` en runtime — sin try/except graceful en `__init__` si librería falta
-- ⚠️ Sin test de integration end-to-end con mock servers para cada adapter (tests unitarios existen)
+- Adapters dependen de `httpx`/`requests` en runtime — sin try/except graceful en `__init__` si librería falta
+- Sin test de integration end-to-end con mock servers para cada adapter (tests unitarios existen)
 
 ---
 
-## RUBRO 10: CUMPLIMIENTO LEGAL — ✅ CALIFICACIÓN A
+## RUBRO 10: CUMPLIMIENTO LEGAL — CALIFICACIÓN A
 
-### 10.1 LFPDPPP — ✅ IMPLEMENTADO
+### 10.1 LFPDPPP — IMPLEMENTADO
 - **Adapter**: `integrations/compliance/lfpdppp_adapter.py`
 - **Clase**: `LFPDPPPCompliance` con métodos:
   - `validar_aviso_privacidad(empresa, tiene_aviso, incluye_derechos, incluye_finalidad)` — Art. 16, Reglas 41-49
@@ -357,12 +357,12 @@ cd /tmp/enterprise-clean && PYTHONPATH=. python -c "..." → "OK: 137, ALL integ
 - **Tests**: `test_new_integrations.py` → `test_lfpdppp_aviso_privacidad`
 - **Endpoint**: `/api/v1/compliance/privacy` (en `app.py`)
 
-### 10.2 Aviso de Privacidad — ✅ REGISTRADO
+### 10.2 Aviso de Privacidad — REGISTRADO
 - **DB column**: `tenant_config.privacy_accepted_at` (LFPDPPP Art. 8 — timestamp de consentimiento)
 - **Endpoint**: `/privacy` (página de política de privacidad)
 - **Modelo**: `db.models` incluye comment `-- LFPDPPP Art. 8: Consentimiento de privacidad`
 
-### 10.3 Cifrado PII — ✅ AES-256-GCM
+### 10.3 Cifrado PII — AES-256-GCM
 - **Archivo**: `api/security.py`
 - **Funciones**:
   - `encrypt_field(value)` — cifra con AES-GCM, nonce aleatorio de 12 bytes, base64url output
@@ -372,7 +372,7 @@ cd /tmp/enterprise-clean && PYTHONPATH=. python -c "..." → "OK: 137, ALL integ
 - **Uso**: `db.py` cifra config values (`_encrypt_config_value`), `multi_tenant/service.py` cifra datos sensibles
 - **Detección PII**: regex para RFC, CURP, email, teléfono, tarjetas 13-16 dígitos, CLABE 18 dígitos
 
-### 10.4 Auditoría Inmutable — ✅ DUAL-TRACK
+### 10.4 Auditoría Inmutable — DUAL-TRACK
 - **audit_log** (tabla legacy): `tool_name`, `action`, `entity`, `payload`, `status`, `tenant_id`
 - **audit_entries** (tabla enterprise): `user_id`, `tenant_id`, `action`, `resource`, `resource_id`, `details` (JSON), `ip`, `timestamp`
 - **AuditTrail** (`audit/trail.py`):
@@ -384,7 +384,7 @@ cd /tmp/enterprise-clean && PYTHONPATH=. python -c "..." → "OK: 137, ALL integ
 - **Actions enum**: CREATE, READ, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, APPROVE
 - **55 índices** incluyendo `idx_audit_entries_tenant_ts` para consultas temporales
 
-### 10.5 Otras Normas Mexicanas — ✅ CUBIERTAS
+### 10.5 Otras Normas Mexicanas — CUBIERTAS
 | Norma | Adapter | Cobertura |
 |-------|---------|-----------|
 | NOM-151 | `nom151_adapter.py` | Conservación electrónica, integridad, sellado de tiempo |
@@ -394,7 +394,7 @@ cd /tmp/enterprise-clean && PYTHONPATH=. python -c "..." → "OK: 137, ALL integ
 | LIVA | `liva_adapter.py` | Ley del Impuesto al Valor Agregado |
 
 ### Hallazgo Medio (1):
-- ⚠️ `B2B_ENCRYPTION_KEY` opcional — sin ella, cifrado es transparente (no-op). En producción esta key es **obligatoria**. Falta validación que bloquee startup sin key en modo prod.
+- `B2B_ENCRYPTION_KEY` opcional — sin ella, cifrado es transparente (no-op). En producción esta key es **obligatoria**. Falta validación que bloquee startup sin key en modo prod.
 
 ---
 
@@ -442,7 +442,7 @@ Ningún hallazgo crítico que bloquee producción.
 
 ## CONCLUSIÓN
 
-El sistema Likida AI Enterprise está **aprobado para producción** en los rubros 6-10:
+El sistema Atiende Despachos está **aprobado para producción** en los rubros 6-10:
 
 - **Operación**: Dockerfile multi-stage, Railway config, health multicapa, graceful shutdown Fortune-500, circuit breaker para 5 servicios, connection pool enterprise, métricas Prometheus
 - **Pruebas**: 6,380 tests, 116/116 ejecutados aprobados, cobertura amplia por dominio

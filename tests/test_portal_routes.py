@@ -274,7 +274,7 @@ def test_selfservice_pagina(portal):
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
     assert "Mi empresa" in r.text
-    assert "Ahorro con Likida AI" in r.text
+    assert "Ahorro con Atiende Despachos" in r.text
 
 
 def test_selfservice_sin_sesion_redirige(portal):

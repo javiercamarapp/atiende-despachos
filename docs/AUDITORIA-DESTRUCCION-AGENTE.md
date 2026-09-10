@@ -259,17 +259,17 @@ Después del `with self._lock`, se suelta el lock y hace `return conn`. Pero `_c
 
 ### Escenario destructivo
 El agente procesa un CFDI:
-1. ✅ Parse exitoso
-2. ✅ Validación exitosa
-3. ✅ Clasificación exitosa
-4. ✅ Registro en ERP exitoso (póliza POL-ABC123 creada)
-5. ❌ `insert_invoice` falla por error de DB (disk full, connection lost)
+1. Parse exitoso
+2. Validación exitosa
+3. Clasificación exitosa
+4. Registro en ERP exitoso (póliza POL-ABC123 creada)
+5. `insert_invoice` falla por error de DB (disk full, connection lost)
 
 **Resultado:** La póliza existe en CONTPAQi pero NO en la DB del agente. El CFDI queda en el limbo — el agente no sabe que ya lo procesó, y si se reintenta, crea una segunda póliza.
 
 Lo mismo ocurre al revés:
-1. ✅ ERP registration
-2. ❌ Notification fails
+1. ERP registration
+2. Notification fails
 
 El pipeline (`pipeline.py`) no tiene transacciones que agrupen ERP + DB + notification.
 
@@ -349,16 +349,16 @@ El agente procesa un batch de 500 CFDIs. Al CFDI #237, el proceso crash (OOM, se
 
 | # | Bug | Severidad | Probabilidad | Impacto |
 |---|-----|-----------|--------------|---------|
-| 1 | Clasificación errónea sin override | 🔴 CRÍTICO | Alta | Contabilidad incorrecta, SAT rechaza deducción |
-| 2 | Duplicados en ERP real | 🔴 CRÍTICO | Alta | Pólizas duplicadas, auditoría fallida |
-| 3 | Conciliación sin rollback | 🟡 ALTO | Media | Estados financieros incorrectos |
-| 4 | Confidence gate inexistente | 🔴 CRÍTICO | Alta | Facturas mal clasificadas registradas automáticamente |
-| 5 | Memory leaks | 🟡 ALTO | Media | OOM en batch grande |
-| 6 | Timeouts inexistentes | 🔴 CRÍTICO | Alta | Worker starvation, sistema colgado |
-| 7 | Race conditions | 🟡 ALTO | Baja-Media | Duplicados bajo carga concurrente |
-| 8 | Sin rollback/compensación | 🔴 CRÍTICO | Media | Estado inconsistente ERP vs DB |
-| 9 | Monitoreo ciego | 🟡 ALTO | Alta | Fallos silenciosos sin alerta |
-| 10 | Sin recovery tras crash | 🔴 CRÍTICO | Media | Pérdida de trabajo en cola |
+| 1 | Clasificación errónea sin override | CRÍTICO | Alta | Contabilidad incorrecta, SAT rechaza deducción |
+| 2 | Duplicados en ERP real | CRÍTICO | Alta | Pólizas duplicadas, auditoría fallida |
+| 3 | Conciliación sin rollback | ALTO | Media | Estados financieros incorrectos |
+| 4 | Confidence gate inexistente | CRÍTICO | Alta | Facturas mal clasificadas registradas automáticamente |
+| 5 | Memory leaks | ALTO | Media | OOM en batch grande |
+| 6 | Timeouts inexistentes | CRÍTICO | Alta | Worker starvation, sistema colgado |
+| 7 | Race conditions | ALTO | Baja-Media | Duplicados bajo carga concurrente |
+| 8 | Sin rollback/compensación | CRÍTICO | Media | Estado inconsistente ERP vs DB |
+| 9 | Monitoreo ciego | ALTO | Alta | Fallos silenciosos sin alerta |
+| 10 | Sin recovery tras crash | CRÍTICO | Media | Pérdida de trabajo en cola |
 
 **Total bugs encontrados:** 10 categorías, ~25 bugs individuales.
 **Bugs críticos (bloquean producción):** 6 de 10.

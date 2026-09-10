@@ -1,7 +1,7 @@
-# Guía de Despliegue — Likida AI a Producción (Railway)
+# Guía de Despliegue — Atiende Despachos a Producción (Railway)
 
 **Última actualización:** 2026-08-01  
-**Objetivo:** Poner la API de Likida AI en producción usando Railway (Docker), con dominio custom, SSL automático y todas las integraciones activas.
+**Objetivo:** Poner la API de Atiende Despachos en producción usando Railway (Docker), con dominio custom, SSL automático y todas las integraciones activas.
 
 ---
 
@@ -235,7 +235,7 @@ railway variables set B2B_SMTP_HOST=smtp.gmail.com
 railway variables set B2B_SMTP_PORT=587
 railway variables set B2B_SMTP_USER=tu-email@gmail.com
 railway variables set B2B_SMTP_PASS=tu-app-password
-railway variables set B2B_SMTP_FROM="Likida AI <tu-email@gmail.com>"
+railway variables set B2B_SMTP_FROM="Atiende Despachos <tu-email@gmail.com>"
 railway variables set B2B_SMTP_USE_SSL=true
 
 # --- WhatsApp (opcional) ---
@@ -557,4 +557,4 @@ ACTUALIZACIONES:
 
 ---
 
-*Guía generada para Likida AI — Deploy a Railway con Docker.*
+*Guía generada para Atiende Despachos — Deploy a Railway con Docker.*

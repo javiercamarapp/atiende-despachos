@@ -211,7 +211,7 @@ class RolesService:
         `admin` (bootstrap), de modo que RBAC nunca quede "muerto" por falta
         de vínculo user->rol.
 
-        ⚠️ INVARIANTE DE SEGURIDAD: este método DEBE llamarse SOLO desde la
+        ADVERTENCIA: INVARIANTE DE SEGURIDAD: este método DEBE llamarse SOLO desde la
         capa de creación de api_key o desde el seed script (provisión
         explícita), NUNCA dentro del request path del middleware RBAC.
         Auto-promover dentro de un request rompe el aislamiento multi-tenant:

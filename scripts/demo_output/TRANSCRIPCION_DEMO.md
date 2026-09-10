@@ -1,4 +1,4 @@
-# Transcripción de la demo — Likida AI Enterprise
+# Transcripción de la demo — Atiende Despachos
 
 Fecha : 2026-08-02 12:23
 Comando: `/private/tmp/likida_demo/.venv/bin/python /private/tmp/likida_demo/scripts/demo_pilot.py`
@@ -7,7 +7,7 @@ Comando: `/private/tmp/likida_demo/.venv/bin/python /private/tmp/likida_demo/scr
 
 ```text
 ══════════════════════════════════════════════════════════════════════════════
-                    LIKIDA AI ENTERPRISE — DEMO AUTOMÁTICA                    
+                    ATIENDE DESPACHOS — DEMO AUTOMÁTICA                    
 ══════════════════════════════════════════════════════════════════════════════
   Pipeline contable end-to-end para presentación a prospecto
 ▸ Poblando base de datos demo (seed_demo.py)

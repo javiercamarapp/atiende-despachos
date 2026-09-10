@@ -341,7 +341,7 @@ class PDFGenerator:
         if not logo and env_logo and Path(env_logo).is_file():
             logo = env_logo
         initials = "".join(w[0] for w in re.findall(r"\b\w", name))[:3].upper() \
-            or "Likida"
+            or "Atiende Despachos"
         return {"id": tenant_id, "name": name, "rfc": rfc,
                 "logo_path": logo, "initials": initials}
 
@@ -349,7 +349,7 @@ class PDFGenerator:
         """Normaliza: si se pasó dict de tenant lo usa; si no, resuelve por id."""
         if isinstance(tenant, dict):
             t = dict(tenant)
-            t.setdefault("initials", "Likida")
+            t.setdefault("initials", "Atiende Despachos")
             t.setdefault("name", "Despacho Contable")
             t.setdefault("rfc", "")
             return t
@@ -367,7 +367,7 @@ class PDFGenerator:
         d = Drawing(16 * mm, 16 * mm)
         d.add(Rect(0, 0, 16 * mm, 16 * mm, rx=3 * mm, ry=3 * mm,
                    fillColor=BRAND, strokeColor=None))
-        initials = tenant.get("initials") or "Likida"
+        initials = tenant.get("initials") or "Atiende Despachos"
         d.add(String(16 * mm / 2, 16 * mm / 2 - 3.2 * mm, initials,
                      fontName="Helvetica-Bold", fontSize=11,
                      fillColor=colors.white, textAnchor="middle"))
@@ -385,14 +385,14 @@ class PDFGenerator:
             leftMargin=20 * mm, rightMargin=20 * mm,
             topMargin=30 * mm, bottomMargin=20 * mm,
             title=f"{title} — {tenant.get('name', '')}",
-            author="Likida AI Enterprise",
+            author="Atiende Despachos",
         )
         frame = Frame(bt.leftMargin, bt.bottomMargin, bt.width, bt.height,
                       id="main")
         t_name = tenant.get("name", "")
         t_rfc = tenant.get("rfc", "")
         t_logo = tenant.get("logo_path")
-        t_initials = tenant.get("initials") or "Likida"
+        t_initials = tenant.get("initials") or "Atiende Despachos"
 
         def _draw_initials(cv, x, y):
             cv.setFillColor(BRAND)
@@ -443,7 +443,7 @@ class PDFGenerator:
             canvas.line(20 * mm, 14 * mm, w - 20 * mm, 14 * mm)
             canvas.setFillColor(MUTED)
             canvas.setFont("Helvetica", 8)
-            foot = f"Generado por Likida AI Enterprise · {_now_mx()}  ·  {subtitle}"[:110]
+            foot = f"Generado por Atiende Despachos · {_now_mx()}  ·  {subtitle}"[:110]
             canvas.drawString(20 * mm, 10 * mm, foot)
             canvas.drawRightString(w - 20 * mm, 10 * mm, f"Página {doc_obj.page}")
             canvas.restoreState()
@@ -814,7 +814,7 @@ class PDFGenerator:
         data_json = json.dumps(data, ensure_ascii=False, default=str) \
             .replace("<", "\\u003c").replace(">", "\\u003e")
         # Logo: imagen embebida (base64) o iniciales del tenant.
-        logo_html = _html_escape(ten.get("initials", "Likida"))
+        logo_html = _html_escape(ten.get("initials", "Atiende Despachos"))
         lp = ten.get("logo_path")
         if lp and Path(lp).is_file():
             try:
@@ -823,7 +823,7 @@ class PDFGenerator:
                 b64 = base64.b64encode(Path(lp).read_bytes()).decode()
                 logo_html = f'<img src="data:{mime};base64,{b64}" alt="logo">'
             except Exception:  # noqa: BLE001
-                logo_html = _html_escape(ten.get("initials", "Likida"))
+                logo_html = _html_escape(ten.get("initials", "Atiende Despachos"))
         html = tpl.read_text(encoding="utf-8")
         return (html
                 .replace("{{LOGO_HTML}}", logo_html)
@@ -831,7 +831,7 @@ class PDFGenerator:
                 .replace("{{TITLE}}", _html_escape(data.get("title", "Reporte")))
                 .replace("{{TENANT_NAME}}", _html_escape(ten.get("name", "")))
                 .replace("{{TENANT_RFC}}", _html_escape(ten.get("rfc", "")))
-                .replace("{{TENANT_INITIALS}}", _html_escape(ten.get("initials", "Likida")))
+                .replace("{{TENANT_INITIALS}}", _html_escape(ten.get("initials", "Atiende Despachos")))
                 .replace("{{LOGO_PATH}}", _html_escape(ten.get("logo_path") or ""))
                 .replace("{{GENERATED}}", _now_mx()))
 

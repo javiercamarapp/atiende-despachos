@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_reports_integration.py — Integration tests for the Likida AI Enterprise reports module.
+test_reports_integration.py — Integration tests for the Atiende Despachos reports module.
 
 Covers:
   - PDF generation edge cases (empty data, special characters, large datasets)

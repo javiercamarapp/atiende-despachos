@@ -1,4 +1,4 @@
-"""Static verification for Likida AI deploy deliverables.
+"""Static verification for Atiende Despachos deploy deliverables.
 Checks each changed file's type-appropriate validity:
   - docker-compose.prod.yml : PyYAML parse + compose semantics
   - railway.toml            : tomllib parse + deploy keys

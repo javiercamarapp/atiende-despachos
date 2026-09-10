@@ -1,4 +1,4 @@
-# SWOT Analysis — Likida AI Enterprise
+# SWOT Analysis — Atiende Despachos
 
 **Date:** 2026-08-01
 **Status:** Living document
@@ -39,7 +39,7 @@
 
 ## Detailed Analysis
 
-### 💪 Strengths
+### Strengths
 
 | Strength | Impact | Evidence |
 |----------|--------|----------|
@@ -52,7 +52,7 @@
 | **Cloud-first architecture** | MEDIUM | Enables remote work, scales better |
 | **Real-time dashboards** | LOW-MEDIUM | Differentiator but expected by modern buyers |
 
-### 🎯 Weaknesses
+### Weaknesses
 
 | Weakness | Severity | Mitigation |
 |----------|----------|------------|
@@ -64,7 +64,7 @@
 | **No testimonials** | MEDIUM | Free pilots generate early success stories |
 | **AI reliability concerns** | MEDIUM | Human-in-the-loop reduces risk; audit trails |
 
-### 🚀 Opportunities
+### Opportunities
 
 | Opportunity | Timing | Strategy |
 |-------------|--------|----------|
@@ -77,7 +77,7 @@
 | **Remote work** | NOW | Cloud-native = competitive advantage |
 | **Fiscal complexity** | ONGOING | More rules = more AI opportunity |
 
-### ⚠️ Threats
+### Threats
 
 | Threat | Probability | Impact | Mitigation |
 |--------|-------------|--------|------------|

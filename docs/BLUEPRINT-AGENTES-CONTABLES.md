@@ -1,6 +1,6 @@
 # BLUEPRINT DE PRODUCCIÓN — 5 Agentes Agenticos para Despachos Contables en México
 
-> **Proyecto:** Likida AI Enterprise
+> **Proyecto:** Atiende Despachos
 > **Versión:** 1.0 — Agosto 2026
 > **Estado:** Listo para ejecución por equipo de 3-4 ingenieros
 > **Baseline existente:** Pipeline CFDI 4.0, nómina ISR/IMSS/INFONAVIT, conciliación bancaria, contabilidad electrónica, IntegrationHub (+15 ERPs), DB multi-tenant PostgreSQL/SQLite
@@ -343,20 +343,20 @@ class OdooAdapter:
 
 | Póliza de Ajuste | ¿Automática? | Fundamento | Implementación |
 |---|---|---|---|
-| **Depreciación mensual** | ✅ AUTOMÁTICA | Fórmula fija: costo / vida útil / 12 | Calcula según LISR Art. 34-36 (porcentajes SAT por tipo de activo) |
-| **Amortización intangibles** | ✅ AUTOMÁTICA | Fórmula fija: costo / vida útil / 12 | Máximo 10% anual (LISR Art. 41) |
-| **Provisión aguinaldo** | ✅ AUTOMÁTICA | 15 días × salario diario / 12 meses | Basado en nómina registrada |
-| **Provisión vacaciones + prima** | ✅ AUTOMÁTICA | Días × salario diario / 12 + 25% prima | Tabla LFT Art. 76-78 |
-| **Provisión PTU** | ✅ AUTOMÁTICA | 10% utilidad fiscal / 12 | Solo en cierre mensual si hay utilidad |
-| **Diferencias de cambio** | ✅ AUTOMÁTICA | TC Banco de México del día vs. TC del registro | API Banxico para TC oficial |
-| **Ajuste por inflación** | ✅ AUTOMÁTICA | Factor INPC (Art. 44-45 LISR) | INPC mensual publicado por INEGI |
-| **Ajuste inventarios** | ⚠️ SEMI-AUTOMÁTICA | Cálculo automático, validación humana | Valuación PEPS/Promedio, ajuste a NRV |
-| **Valuación inversiones** | ⚠️ SEMI-AUTOMÁTICA | Datos de mercado automáticos, decisión humana | NIF C-9, requiere juicio contable |
-| **Provisión incobrables** | ⚠️ SEMI-AUTOMÁTICA | % sobre cartera según antigüedad, validación | Art. 46 LISR: reglas específicas por antigüedad |
-| **ISR diferido (DITL/DITR)** | ❌ REQUIERE HUMANO | Requiere juicio profesional sobre temporarias | NIF D-3 — complejidad alta |
-| **Precios de transferencia** | ❌ REQUIERE HUMANO | Estudio documental, análisis funcional | LISR Art. 179-181 |
-| **Consolidación fiscal** | ❌ REQUIERE HUMANO | Eliminación de intercompañías, participación | LISR Art. 61-71 |
-| **Hechos posteriores** | ❌ REQUIERE HUMANO | Juicio sobre revelación y ajuste | NIF D-7 |
+| **Depreciación mensual** | AUTOMÁTICA | Fórmula fija: costo / vida útil / 12 | Calcula según LISR Art. 34-36 (porcentajes SAT por tipo de activo) |
+| **Amortización intangibles** | AUTOMÁTICA | Fórmula fija: costo / vida útil / 12 | Máximo 10% anual (LISR Art. 41) |
+| **Provisión aguinaldo** | AUTOMÁTICA | 15 días × salario diario / 12 meses | Basado en nómina registrada |
+| **Provisión vacaciones + prima** | AUTOMÁTICA | Días × salario diario / 12 + 25% prima | Tabla LFT Art. 76-78 |
+| **Provisión PTU** | AUTOMÁTICA | 10% utilidad fiscal / 12 | Solo en cierre mensual si hay utilidad |
+| **Diferencias de cambio** | AUTOMÁTICA | TC Banco de México del día vs. TC del registro | API Banxico para TC oficial |
+| **Ajuste por inflación** | AUTOMÁTICA | Factor INPC (Art. 44-45 LISR) | INPC mensual publicado por INEGI |
+| **Ajuste inventarios** | SEMI-AUTOMÁTICA | Cálculo automático, validación humana | Valuación PEPS/Promedio, ajuste a NRV |
+| **Valuación inversiones** | SEMI-AUTOMÁTICA | Datos de mercado automáticos, decisión humana | NIF C-9, requiere juicio contable |
+| **Provisión incobrables** | SEMI-AUTOMÁTICA | % sobre cartera según antigüedad, validación | Art. 46 LISR: reglas específicas por antigüedad |
+| **ISR diferido (DITL/DITR)** | REQUIERE HUMANO | Requiere juicio profesional sobre temporarias | NIF D-3 — complejidad alta |
+| **Precios de transferencia** | REQUIERE HUMANO | Estudio documental, análisis funcional | LISR Art. 179-181 |
+| **Consolidación fiscal** | REQUIERE HUMANO | Eliminación de intercompañías, participación | LISR Art. 61-71 |
+| **Hechos posteriores** | REQUIERE HUMANO | Juicio sobre revelación y ajuste | NIF D-7 |
 
 ### 2.5 Checklist de Cierre que Genera el Agente
 
@@ -546,17 +546,17 @@ class OdooAdapter:
 
 | Dato | Formato | Frecuencia | Fuente | Obligatorio |
 |---|---|---|---|---|
-| **CFDIs (XML)** | XML CFDI 4.0 | Continuo | SAT vía PAC (Facturapi) | ✅ |
-| **Estados de cuenta bancarios** | PDF, CSV, OFX | Mensual | Banco del cliente | ✅ |
-| **Nómina (datos empleados)** | JSON/CSV | Quincenal | ERP nómina o input manual | ✅ |
-| **Catálogo de cuentas del despacho** | XML/JSON | Una vez + cambios | CONTPAQi/Aspel/ERP | ✅ |
-| **Reglas de clasificación propias** | JSON | Una vez + cambios | Input del contador | ✅ |
-| **Configuración ERP** | JSON | Una vez | Despacho | ✅ |
-| **Certificados FIEL/CSD** | .cer + .key + pwd | Una vez + renovación | Despacho | ✅ |
-| **Nómina (CFDIs nómina)** | XML | Quincenal | ERP nómina | ✅ |
-| **Inventarios (si aplica)** | CSV/JSON | Mensual | ERP | ⚠️ Opcional |
-| **Contratos de arrendamiento** | PDF | Una vez + cambios | Despacho | ⚠️ Opcional |
-| **Política de depreciación** | JSON | Anual | Despacho/contador | ⚠️ Opcional |
+| **CFDIs (XML)** | XML CFDI 4.0 | Continuo | SAT vía PAC (Facturapi) | Sí |
+| **Estados de cuenta bancarios** | PDF, CSV, OFX | Mensual | Banco del cliente | Sí |
+| **Nómina (datos empleados)** | JSON/CSV | Quincenal | ERP nómina o input manual | Sí |
+| **Catálogo de cuentas del despacho** | XML/JSON | Una vez + cambios | CONTPAQi/Aspel/ERP | Sí |
+| **Reglas de clasificación propias** | JSON | Una vez + cambios | Input del contador | Sí |
+| **Configuración ERP** | JSON | Una vez | Despacho | Sí |
+| **Certificados FIEL/CSD** | .cer + .key + pwd | Una vez + renovación | Despacho | Sí |
+| **Nómina (CFDIs nómina)** | XML | Quincenal | ERP nómina | Sí |
+| **Inventarios (si aplica)** | CSV/JSON | Mensual | ERP | Opcional |
+| **Contratos de arrendamiento** | PDF | Una vez + cambios | Despacho | Opcional |
+| **Política de depreciación** | JSON | Anual | Despacho/contador | Opcional |
 
 ### 2.7 Estimación de Esfuerzo
 
@@ -647,15 +647,15 @@ Calcula, genera XML, firma con FIEL/CSD y prepara el envío de declaraciones fis
 
 | Declaración | Periodicidad | Deadline | Fundamento | Autonomía |
 |---|---|---|---|---|
-| **DIOT** | Mensual | Día 17 mes siguiente | RMF 2.7.1.1 | ✅ Generación 100% autónoma. Envío requiere validación humana |
-| **IVA mensual** | Mensual | Día 17 mes siguiente | LIVA Art. 5 | ✅ Cálculo autónomo. Envío requiere FIEL |
-| **ISR provisional PM** | Mensual | Día 17 mes siguiente | LISR Art. 14 | ✅ Cálculo autónomo. Envío requiere FIEL |
-| **ISR provisional PF** | Mensual | Día 17 mes siguiente | LISR Art. 116 | ✅ Cálculo autónomo. Envío requiere FIEL |
-| **IEPS mensual** | Mensual | Día 17 mes siguiente | Ley IEPS | ⚠️ Solo si hay productos IEPS |
-| **ISR anual PM** | Anual | 31 de marzo | LISR Art. 9 | ✅ Cálculo autónomo. Requiere revisión contador |
-| **ISR anual PF** | Anual | 30 de abril | LISR Art. 150 | ✅ Cálculo autónomo. Requiere revisión contador |
-| **DIM** (operaciones extranjero) | Anual | 15 de febrero | CFF Art. 76 | ⚠️ Requiere datos específicos |
-| **Constancia retenciones** | Anual | 28 de febrero | CFF Art. 99 | ✅ Generación automática |
+| **DIOT** | Mensual | Día 17 mes siguiente | RMF 2.7.1.1 | Generación 100% autónoma. Envío requiere validación humana |
+| **IVA mensual** | Mensual | Día 17 mes siguiente | LIVA Art. 5 | Cálculo autónomo. Envío requiere FIEL |
+| **ISR provisional PM** | Mensual | Día 17 mes siguiente | LISR Art. 14 | Cálculo autónomo. Envío requiere FIEL |
+| **ISR provisional PF** | Mensual | Día 17 mes siguiente | LISR Art. 116 | Cálculo autónomo. Envío requiere FIEL |
+| **IEPS mensual** | Mensual | Día 17 mes siguiente | Ley IEPS | Solo si hay productos IEPS |
+| **ISR anual PM** | Anual | 31 de marzo | LISR Art. 9 | Cálculo autónomo. Requiere revisión contador |
+| **ISR anual PF** | Anual | 30 de abril | LISR Art. 150 | Cálculo autónomo. Requiere revisión contador |
+| **DIM** (operaciones extranjero) | Anual | 15 de febrero | CFF Art. 76 | Requiere datos específicos |
+| **Constancia retenciones** | Anual | 28 de febrero | CFF Art. 99 | Generación automática |
 
 ### 3.4 Autenticación SAT con FIEL/CSD
 
@@ -1148,15 +1148,15 @@ Si no hay match claro, responde: {{"registro_id": null, "confidence": 0, "razona
 
 | Situación | Acción del Agente | Alerta |
 |---|---|---|
-| **Depósito sin CFDI emitido** | Marcar como "pendiente de identificar" | ⚠️ "Depósito de $X el día Y sin factura asociada — posible ingreso no declarado" |
-| **Retiro sin CFDI recibido** | Marcar como "pendiente de identificar" | ⚠️ "Retiro de $X sin factura — verificar deducibilidad" |
-| **Transferencia entre cuentas propias** | Identificar automáticamente (misma CLABE titular) | ✅ "Transferencia entre cuentas propias — excluida de conciliación fiscal" |
+| **Depósito sin CFDI emitido** | Marcar como "pendiente de identificar" | "Depósito de $X el día Y sin factura asociada — posible ingreso no declarado" |
+| **Retiro sin CFDI recibido** | Marcar como "pendiente de identificar" | "Retiro de $X sin factura — verificar deducibilidad" |
+| **Transferencia entre cuentas propias** | Identificar automáticamente (misma CLABE titular) | "Transferencia entre cuentas propias — excluida de conciliación fiscal" |
 | **Comisión bancaria** | Clasificar como gasto bancario (6030200) | ℹ️ "Comisión bancaria de $X — gasto deducible" |
 | **Depósito de préstamo** | Preguntar al usuario | ℹ️ "Depósito grande sin factura — ¿es préstamo, cobro o anticipo?" |
-| **Depósito > ingresos declarados × 1.15** | Alerta inmediata (Art. 91 LISR) | 🔴 "ALERTA: Depósitos superan ingresos declarados — riesgo de discrepancia fiscal" |
-| **CFDI cancelado pero pago registrado** | No conciliar, alertar | 🔴 "CFDI UUID cancelado — verificar si hay sustituto" |
-| **Pago duplicado** | Marcar como duplicado | ⚠️ "Posible pago duplicado: mismo monto y proveedor en 24 horas" |
-| **Movimiento sin identificar > $50,000** | Escalar a humano inmediatamente | 🔴 "Movimiento no identificado por $X — requiere revisión urgente" |
+| **Depósito > ingresos declarados × 1.15** | Alerta inmediata (Art. 91 LISR) | "ALERTA: Depósitos superan ingresos declarados — riesgo de discrepancia fiscal" |
+| **CFDI cancelado pero pago registrado** | No conciliar, alertar | "CFDI UUID cancelado — verificar si hay sustituto" |
+| **Pago duplicado** | Marcar como duplicado | "Posible pago duplicado: mismo monto y proveedor en 24 horas" |
+| **Movimiento sin identificar > $50,000** | Escalar a humano inmediatamente | "Movimiento no identificado por $X — requiere revisión urgente" |
 
 ### 4.6 Integración SPEI para Verificación de Pagos
 
@@ -1833,20 +1833,20 @@ def recolectar_training_data(despacho_id: str) -> dict:
 
 | Decisión | ¿Autónoma? | Condición | Si falla |
 |---|---|---|---|
-| **Clasificar CFDI con confianza > 0.85** | ✅ SÍ | ML predice con alta confianza | Registrar automáticamente |
-| **Clasificar CFDI con confianza 0.6-0.85** | ⚠️ SEMI | ML sugiere, humano confirma | Enviar a cola de revisión |
-| **Clasificar CFDI con confianza < 0.6** | ❌ NO | Categoría nueva o ambigua | Escalar a contador |
-| **Generar póliza de depreciación** | ✅ SÍ | Fórmula fija, datos conocidos | Auto-generada |
-| **Generar póliza de provisión aguinaldo** | ✅ SÍ | Cálculo estándar | Auto-generada |
-| **Registrar en ERP** | ✅ SÍ | Póliza ya validada y cuadrada | Auto-registro |
-| **Conciliación bancaria > 90%** | ✅ SÍ | Matches de alta confianza | Auto-conciliar, alertar excepciones |
-| **Conciliación bancaria < 90%** | ⚠️ SEMI | Muchas excepciones | Enviar reporte al contador |
-| **Cerrar periodo contable** | ❌ NO | Requiere aprobación explícita | Checklist completo, esperar approve |
-| **Enviar declaración al SAT** | ❌ NO | Requiere FIEL + aprobación | Borrador listo, contador firma y envía |
-| **Programar pago SPEI** | ⚠️ SEMI | Dentro de política de pagos | Auto-programar, humano autoriza monto > $50K |
-| **Timbrar complemento de pago** | ✅ SÍ | Pago ya registrado y conciliado | Auto-timbrar |
-| **Emitir nota de crédito** | ❌ NO | Requiere validación del cliente | Sugerir al contador, esperar confirmación |
-| **Provisión incobrables** | ⚠️ SEMI | Según reglas de antigüedad Art. 46 | Auto-calcular, contador valida |
+| **Clasificar CFDI con confianza > 0.85** | SÍ | ML predice con alta confianza | Registrar automáticamente |
+| **Clasificar CFDI con confianza 0.6-0.85** | SEMI | ML sugiere, humano confirma | Enviar a cola de revisión |
+| **Clasificar CFDI con confianza < 0.6** | NO | Categoría nueva o ambigua | Escalar a contador |
+| **Generar póliza de depreciación** | SÍ | Fórmula fija, datos conocidos | Auto-generada |
+| **Generar póliza de provisión aguinaldo** | SÍ | Cálculo estándar | Auto-generada |
+| **Registrar en ERP** | SÍ | Póliza ya validada y cuadrada | Auto-registro |
+| **Conciliación bancaria > 90%** | SÍ | Matches de alta confianza | Auto-conciliar, alertar excepciones |
+| **Conciliación bancaria < 90%** | SEMI | Muchas excepciones | Enviar reporte al contador |
+| **Cerrar periodo contable** | NO | Requiere aprobación explícita | Checklist completo, esperar approve |
+| **Enviar declaración al SAT** | NO | Requiere FIEL + aprobación | Borrador listo, contador firma y envía |
+| **Programar pago SPEI** | SEMI | Dentro de política de pagos | Auto-programar, humano autoriza monto > $50K |
+| **Timbrar complemento de pago** | SÍ | Pago ya registrado y conciliado | Auto-timbrar |
+| **Emitir nota de crédito** | NO | Requiere validación del cliente | Sugerir al contador, esperar confirmación |
+| **Provisión incobrables** | SEMI | Según reglas de antigüedad Art. 46 | Auto-calcular, contador valida |
 
 ### 6.6 Catálogo de Cuentas SAT como Base
 
@@ -2036,13 +2036,13 @@ AGENTE 5 (Bookkeeping) — 18 semanas
 | Mes | Semanas | Entregable | Agentes |
 |---|---|---|---|
 | **Mes 1-2** | 1-8 | Infraestructura compartida (Event Bus, Celery, DB migrations) + Conciliación Bancaria (parsers + matching) + Inicio Declaraciones (motor cálculo) | Ag3, Ag2, Infra |
-| **Mes 3** | 9-12 | Conciliación Bancaria MVP completa + Declaraciones (XML + FIEL) + Inicio Close Management | Ag3 ✅, Ag2, Ag1 |
+| **Mes 3** | 9-12 | Conciliación Bancaria MVP completa + Declaraciones (XML + FIEL) + Inicio Close Management | Ag3, Ag2, Ag1 |
 | **Mes 4** | 13-16 | Close Management MVP + Declaraciones (PAC + envío) + Inicio AP/AR | Ag1, Ag2, Ag4 |
-| **Mes 5** | 17-20 | AP/AR MVP + Close Management (ERPs) + Declaraciones MVP completa | Ag4, Ag1, Ag2 ✅ |
+| **Mes 5** | 17-20 | AP/AR MVP + Close Management (ERPs) + Declaraciones MVP completa | Ag4, Ag1, Ag2 |
 | **Mes 6** | 21-24 | AP/AR (SPEI + Conekta) + Inicio Bookkeeping (reglas + ML) | Ag4, Ag5 |
-| **Mes 7-8** | 25-32 | Bookkeeping (ML + orquestación) + Close Management completa + AP/AR completa | Ag5, Ag1 ✅, Ag4 ✅ |
+| **Mes 7-8** | 25-32 | Bookkeeping (ML + orquestación) + Close Management completa + AP/AR completa | Ag5, Ag1, Ag4 |
 | **Mes 9** | 33-36 | Bookkeeping (HITL + UI) + Integración end-to-end | Ag5 |
-| **Mes 10** | 37-40 | Bookkeeping completa + Testing global + Piloto con despachos | Ag5 ✅, Todos |
+| **Mes 10** | 37-40 | Bookkeeping completa + Testing global + Piloto con despachos | Ag5, Todos |
 
 ### 7.3 Secuencia Recomendada de Desarrollo
 
@@ -2124,7 +2124,7 @@ OUTPUT: Póliza de diario con:
 | 1 | **Despachos no quieren compartir FIEL/CSD** | ALTA | ALTO | Ofrecer modo "solo borrador" (sin firma/envío). El agente calcula y genera XML, el contador firma manualmente. |
 | 2 | **Reglas fiscales cambian con reforma** | MEDIA | ALTO | Motor de reglas externalizado en JSON/YAML (no hardcodeado). Proceso de actualización semanal con contador. |
 | 3 | **Contadores desconfían de la automatización** | ALTA | ALTO | Modelo hybrid: AI propone, humano aprueba. Log de cada decisión. Empezar con tareas de bajo riesgo (conciliación) antes de declaraciones. |
-| 4 | **Competencia de Alegra (ya en México)** | MEDIA | MEDIO | Diferenciación: agentes genuinamente autónomos vs. superficiales. Integración con ERPs existentes (Alegra reemplaza, Likida complementa). |
+| 4 | **Competencia de Alegra (ya en México)** | MEDIA | MEDIO | Diferenciación: agentes genuinamente autónomos vs. superficiales. Integración con ERPs existentes (Alegra reemplaza, Atiende Despachos complementa). |
 | 5 | **Costo de APIs (Facturapi, LLMs) come márgenes** | MEDIA | MEDIO | Facturapi: $0.60/timbre es bajo. LLMs: usar GPT-4o-mini para clasificación rutinaria, GPT-4o solo para casos ambiguos. Cache de respuestas LLM. |
 | 6 | **Regulación SAT sobre IA en contabilidad** | BAJA | ALTO | El agente siempre deja audit trail. El contador humano firma y es responsable. El agente es herramienta, no autónomo legalmente. |
 

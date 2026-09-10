@@ -1,4 +1,4 @@
-# Financial Projections — Likida AI Enterprise (Seed A)
+# Financial Projections — Atiende Despachos (Seed A)
 
 > Documento de proyecciones financieras para ronda Seed A.
 > Basado en el stack actual (FastAPI + SQLite/PG, Railway/AWS, LLM APIs, WhatsApp Business API).
@@ -310,7 +310,7 @@ El valor real está en la automatización + compliance + ahorro de tiempo del co
 
 ## 8. Benchmark — SaaS B2B México
 
-| Métrica | Likida (proyección) | Benchmark SaaS B2B MX |
+| Métrica | Atiende Despachos (proyección) | Benchmark SaaS B2B MX |
 |---------|--------------------|-----------------------|
 | ARPU mensual | $16,400 | $10,000 - $50,000 |
 | CAC | $24,000 (Y1) | $15,000 - $50,000 |
@@ -319,7 +319,7 @@ El valor real está en la automatización + compliance + ahorro de tiempo del co
 | Gross margin | 35% → 73% | 60% - 80% (mature) |
 | Net retention | 110%+ | 100% - 130% |
 
-*Las métricas de Likida son agresivas pero alcanzables dado el ticket alto y la alta retención del sector contable/fiscal.*
+*Las métricas de Atiende Despachos son agresivas pero alcanzables dado el ticket alto y la alta retención del sector contable/fiscal.*
 
 ---
 
