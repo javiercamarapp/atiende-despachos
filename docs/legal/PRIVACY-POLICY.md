@@ -1,4 +1,4 @@
-# Política de Privacidad — Atiende Despachos (Atiende Despachos)
+# Política de Privacidad — Atiende Despachos
 
 **Versión:** 1.0  
 **Fecha de última actualización:** 1 de agosto de 2026  
@@ -14,8 +14,8 @@ El presente Aviso de Privacidad se emite en cumplimiento de la **Ley Federal de 
 Atiende Despachos, S.A. de C.V. es responsable del tratamiento de los datos personales que usted nos proporcione, conforme a los siguientes términos:
 
 - **Domicilio:** Ciudad de México, México
-- **Correo electrónico de contacto:** privacidad@likida.ai
-- **Página web:** www.likida.ai
+- **Correo electrónico de contacto:** [correo de contacto pendiente de asignar]
+- **Página web:** [dominio pendiente de asignar]
 
 ---
 
@@ -72,7 +72,7 @@ El Proveedor **no recaba ni trata datos personales sensibles** definidos en el a
 | Participación en encuestas de satisfacción | Consentimiento |
 | Envío de invitaciones a eventos, webinars y capacitaciones | Consentimiento |
 
-El Cliente podrá revocar su consentimiento para las finalidades secundarias en cualquier momento comunicándose a privacidad@likida.ai.
+El Cliente podrá revocar su consentimiento para las finalidades secundarias en cualquier momento comunicándose a [correo de contacto pendiente de asignar].
 
 ---
 
@@ -101,7 +101,7 @@ En cumplimiento de los artículos 28 a 35 de la LFPDPPP, el Cliente (titular de 
 
 ### 5.1 Procedimiento para ejercer los derechos ARCO
 
-1. **Solicitud:** El Cliente deberá enviar un escrito a privacidad@likida.ai o al domicilio del Proveedor, indicando:
+1. **Solicitud:** El Cliente deberá enviar un escrito a [correo de contacto pendiente de asignar] o al domicilio del Proveedor, indicando:
    - Nombre completo y domicilio (o correo electrónico para recibir notificaciones)
    - Copia de una identificación oficial vigente (IFE/INE o pasaporte)
    - Descripción clara de los datos personales sobre los que desea ejercer su derecho
@@ -192,9 +192,9 @@ Para cualquier consulta, aclaración o ejercicio de derechos relacionados con es
 
 | Canal | Datos |
 |---|---|
-| **Correo electrónico** | privacidad@likida.ai |
+| **Correo electrónico** | [correo de contacto pendiente de asignar] |
 | **Domicilio** | Ciudad de México, México |
-| **Atención a derechos ARCO** | arco@likida.ai |
+| **Atención a derechos ARCO** | [correo de contacto pendiente de asignar] |
 
 ---
 
@@ -211,5 +211,5 @@ Sitio web: https://www.gob.mx/sabg
 
 **Atiende Despachos, S.A. de C.V.**  
 Ciudad de México, México  
-Sitio web: [www.likida.ai](https://www.likida.ai)  
-Contacto de privacidad: privacidad@likida.ai
+Sitio web: [dominio pendiente de asignar]  
+Contacto de privacidad: [correo de contacto pendiente de asignar]
