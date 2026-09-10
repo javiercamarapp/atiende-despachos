@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import logging
 import os
+import asyncio
 import signal
 import tempfile
 import threading
@@ -148,6 +149,8 @@ from b2b_ai.features.bank_feeds.routes import build_bank_feeds_router
 from b2b_ai.features.monthly_close.routes import build_monthly_close_router
 from b2b_ai.features.data_migration.routes import build_data_migration_router
 from b2b_ai.features.compliance_tracker.routes import build_compliance_router
+from b2b_ai.scheduler.internal_scheduler import (
+    InternalScheduler, scheduler_enabled_from_env)
 _log = logging.getLogger(__name__)
 
 # Logger estructurado JSON (monitoring). Distinto del ToolCallLogger de
@@ -519,7 +522,36 @@ def create_app(db=None):
             _mt = _threading.Thread(target=_run_migrations, daemon=True)
             _mt.start()
 
+        # --- Scheduler interno (reemplaza la invocación manual por HTTP de
+        # SATScheduler.run_daily/run_weekly y del registro de CFDIs
+        # pendientes en CONTPAQi vía orchestrator.upload_cfdis; ver
+        # b2b_ai/scheduler/internal_scheduler.py) ---
+        # B2B_SCHEDULER_ENABLED=true por defecto, pero es inofensivo: el
+        # registro real en CONTPAQi sigue exigiendo B2B_COMPUTER_USE_MODE=
+        # playwright + B2B_COMPUTER_USE_ALLOW_WRITES=true + B2B_SAT_SUBMIT_
+        # MODE=rpa (todos con default seguro), que el scheduler NUNCA
+        # debilita por su cuenta.
+        _scheduler_task: Optional[asyncio.Task] = None
+        if scheduler_enabled_from_env():
+            _internal_scheduler = InternalScheduler(db=db)
+            _scheduler_task = asyncio.create_task(_internal_scheduler.run_forever())
+            _structured_log.info("internal_scheduler_started", extra={
+                "detail": f"interval_seconds={_internal_scheduler.interval_seconds}"})
+        else:
+            _structured_log.info("internal_scheduler_disabled", extra={
+                "detail": "B2B_SCHEDULER_ENABLED=false"})
+
         yield
+
+        # --- shutdown del scheduler interno: cancela la task en curso ---
+        if _scheduler_task is not None:
+            _scheduler_task.cancel()
+            try:
+                await _scheduler_task
+            except asyncio.CancelledError:
+                pass
+            except Exception:  # noqa: BLE001 — el shutdown no debe abortar por esto
+                _structured_log.exception("internal_scheduler_shutdown_error")
 
         # --- shutdown: liberar pools de conexiones y recursos ---
         _structured_log.info("shutdown_cleanup", extra={
