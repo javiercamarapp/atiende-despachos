@@ -599,11 +599,29 @@ def create_app(db=None):
     #                     auth con solicitudes cross-origin (default: false,
     #                     la API usa X-API-Key vía header, no cookies).
     # ------------------------------------------------------------------ #
+    # En dev/local (B2B_ENV=local|dev|development|test|testing — mismo set
+    # que _is_dev_env() de auth/middleware.py), apps/web corre en Vite
+    # (localhost:5173) contra el uvicorn de este backend en otro puerto: es
+    # cross-origin, y el login del portal usa cookie httpOnly (no header
+    # X-API-Key), así que hace falta allow_credentials=true para ese origen
+    # aunque B2B_CORS_ORIGINS no esté configurado. No afecta producción: ahí
+    # B2B_ENV no cae en ese set y esta rama no corre.
+    _dev_vite_origins = ["http://localhost:5173", "http://127.0.0.1:5173"] if _is_dev_env() else []
+
     _cors_origins_raw = os.environ.get("B2B_CORS_ORIGINS", "").strip()
-    if _cors_origins_raw:
-        _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+    _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+    for _origin in _dev_vite_origins:
+        if _origin not in _cors_origins:
+            _cors_origins.append(_origin)
+
+    if _cors_origins:
         _allow_creds = os.environ.get("B2B_CORS_ALLOW_CREDENTIALS",
                                       "false").lower() == "true"
+        # En dev, el login JSON de apps/web (POST /portal/api/login) depende
+        # de que la cookie de sesión viaje cross-origin — sin allow_credentials
+        # el navegador la descarta y el resto del panel se queda sin sesión.
+        if _dev_vite_origins:
+            _allow_creds = True
         app.add_middleware(
             CORSMiddleware,
             allow_origins=_cors_origins,
