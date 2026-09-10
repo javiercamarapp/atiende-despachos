@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# demo_run.sh — Launch Likida AI Enterprise Demo Server
+# demo_run.sh — Launch Atiende Despachos Demo Server
 #
 # Usage:
 #   ./demo_run.sh          # Start on port 8080
@@ -20,17 +20,17 @@ elif command -v python3 &>/dev/null; then
 elif command -v python &>/dev/null; then
     PYTHON="$(command -v python)"
 else
-    echo "  ❌ Error: Python not found in PATH"
+ echo " Error: Python not found in PATH"
     exit 1
 fi
 
 echo ""
-echo "  🚀 Likida AI Enterprise — Demo Server"
+echo " Atiende Despachos — Demo Server"
 echo "  ========================"
-echo "  🐍 Python:     $PYTHON"
-echo "  📂 Working dir: $DIR"
-echo "  🌐 Dashboard:   http://localhost:$PORT"
-echo "  📡 API docs:    http://localhost:$PORT/docs"
+echo " Python: $PYTHON"
+echo " Working dir: $DIR"
+echo " Dashboard: http://localhost:$PORT"
+echo " API docs: http://localhost:$PORT/docs"
 echo "  ========================"
 echo ""
 echo "  Press Ctrl+C to stop the server."

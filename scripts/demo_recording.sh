@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# demo_recording.sh — Graba la demo de Likida AI Enterprise como salida de
+# demo_recording.sh — Graba la demo de Atiende Despachos como salida de
 # terminal + transcripción Markdown (+ capturas de pantalla en macOS).
 #
 # Uso:
@@ -23,7 +23,7 @@ mkdir -p "$OUT_DIR/capturas"
 RAW="$OUT_DIR/salida_raw.txt"
 MD="$OUT_DIR/TRANSCRIPCION.md"
 
-echo "── Likida AI — grabación de demo ─────────────────────────────"
+echo "── Atiende Despachos — grabación de demo ─────────────────────────────"
 echo "  Output : $OUT_DIR"
 echo "  Python : $PYTHON"
 echo ""
@@ -47,7 +47,7 @@ echo "  Demo terminada en $((END - START))s."
 # ── 2. Limpiar ANSI para la transcripción ────────────────────────────────────
 echo "▶ Generando TRANSCRIPCION.md …"
 {
-  echo "# Transcripción de la demo — Likida AI Enterprise"
+  echo "# Transcripción de la demo — Atiende Despachos"
   echo ""
   echo "Fecha : $(date '+%Y-%m-%d %H:%M')"
   echo "Comando: \`$PYTHON $SCRIPT_DIR/demo_pilot.py\`"
@@ -72,13 +72,13 @@ if command -v screencapture >/dev/null 2>&1; then
   if screencapture -x "$SHOT" 2>/dev/null; then
     echo "  Captura: $SHOT"
   else
-    echo "  ⚠ No se pudo capturar la pantalla (¿permisos de Grabación de pantalla?)."
+ echo " No se pudo capturar la pantalla (¿permisos de Grabación de pantalla?)."
   fi
 else
   echo "  ℹ screencapture no disponible (solo macOS). Se omite la captura."
 fi
 
 echo ""
-echo "✅ Grabación completada."
+echo " Grabación completada."
 echo "   Transcripción : $MD"
 echo "   Salida cruda   : $RAW"

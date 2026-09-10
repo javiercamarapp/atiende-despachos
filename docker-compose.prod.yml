@@ -1,5 +1,5 @@
 # =============================================================================
-# Likida AI Enterprise — docker-compose.prod.yml · Stack de producción
+# Atiende Despachos — docker-compose.prod.yml · Stack de producción
 #
 # Servicios: postgres (DB real), api (FastAPI/uvicorn), nginx (reverse proxy).
 #

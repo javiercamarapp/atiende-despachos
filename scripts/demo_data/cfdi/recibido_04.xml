@@ -10,7 +10,7 @@
     LugarExpedicion="06600" SubTotal="5000.00" Total="5800.00"
     NoCertificado="00001000000000000000" Sello="T1dGbG93b2ZDb21wb2NfVGVzdA==">
     <cfdi:Emisor Rfc="TBA900404QR9" Nombre="TRANSPORTES DEL BAJIO, S.A. DE C.V." RegimenFiscal="601"/>
-    <cfdi:Receptor Rfc="LIK920101X01" Nombre="LIKIDA AI DESPACHO CONTABLE, S.C."
+    <cfdi:Receptor Rfc="ATD920101X01" Nombre="ATIENDE DESPACHOS DEMO, S.C."
         DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="G03"/>
     <cfdi:Conceptos>
         <cfdi:Concepto ClaveProdServ="78111500" Cantidad="1"

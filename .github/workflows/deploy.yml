@@ -1,4 +1,4 @@
-name: CI - Test Likida AI Enterprise
+name: CI - Test Atiende Despachos
 on:
   push:
     branches: [main]

@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Likida Likida AI Enterprise API",
-    "description": "Colección oficial de la API REST de Likida AI Enterprise (Likida) Enterprise. Generada desde docs/openapi.json. Usa el environment `likida-local` o `likida-prod`.",
+    "name": "Atiende Despachos API",
+    "description": "Colección oficial de la API REST de Atiende Despachos (Likida) Enterprise. Generada desde docs/openapi.json. Usa el environment `atiende-despachos-local` o `atiende-despachos-prod`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [

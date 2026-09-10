@@ -1,5 +1,5 @@
 /* ============================================================
-   Likida AI Enterprise — Service Worker
+   Atiende Despachos — Service Worker
    - App-shell cache-first: landing, dashboard, manifest, icons.
    - API GET network-first con fallback a caché: así las facturas
      ya procesadas quedan disponibles offline (cache de /api/v1/stats
