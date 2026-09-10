@@ -304,7 +304,7 @@ class TestConektaGatewayPayments:
         result = gateway_mock.process_charge(
             customer_id="cus_mock_1", amount=4999,
             method=PaymentMethodType.SPEI,
-            description="Likida AI Starter — mensualidad agosto",
+            description="Atiende Despachos Starter — mensualidad agosto",
         )
         assert result.ok is True
         assert result.amount == 4999
@@ -331,7 +331,7 @@ class TestConektaGatewayInvoices:
     def test_create_invoice_con_items(self, gateway_mock):
         """Invoice con line items personalizados."""
         items = [
-            {"name": "Likida AI Growth", "unit_price": 999900, "quantity": 1},
+            {"name": "Atiende Despachos Growth", "unit_price": 999900, "quantity": 1},
             {"name": "Setup fee", "unit_price": 50000, "quantity": 1},
         ]
         invoice = gateway_mock.create_invoice(

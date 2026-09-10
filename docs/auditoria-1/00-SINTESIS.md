@@ -1,6 +1,6 @@
 # Auditoría 1 — síntesis
 
-**Fecha:** 1-ago-2026. **Repo:** `likida-ai-enterprise` (B&B AI / Likida AI
+**Fecha:** 1-ago-2026. **Repo:** `likida-ai-enterprise` (B&B AI / Atiende Despachos
 Enterprise), local en `~/Desktop/B2B-AI-MVP/enterprise`. **Sha base:** `f4944ab`.
 **Modo:** local, con el operador presente. **Tipo:** primera auditoría —
 sin ronda anterior, doce rubros de cero.
@@ -33,7 +33,7 @@ menos de una hora al momento de escribir esto.
 verificó ejecutando el código de verdad (`TestClient`, Postgres real en
 Docker, mutación de funciones de producción) — no por lectura. Comparado con
 `likida.ai` (7 rondas, 6.5/10 hoy): este repo tiene en su **primera** auditoría
-más del doble de críticos que Likida acumuló en sus primeras siete rondas
+más del doble de críticos que Atiende Despachos acumuló en sus primeras siete rondas
 combinadas.
 
 ---

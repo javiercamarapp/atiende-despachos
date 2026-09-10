@@ -4,7 +4,7 @@ generator.py — PDFReportGenerator: genera reportes PDF profesionales para
 clientes del despacho contable, usando reportlab.
 
 Cada método construye un documento PDF (bytes) con:
-  - Header: logo "Likida AI", datos del despacho y período.
+  - Header: logo "Atiende Despachos", datos del despacho y período.
   - Cuerpo: tablas con datos de los módulos existentes.
   - Footer: disclaimer legal.
 
@@ -84,7 +84,7 @@ def _period_label(year: int, month: int) -> str:
 # ---------------------------------------------------------------------------
 
 DEFAULT_DESPACHO = {
-    "nombre": "Likida AI · Despacho Contable Digital",
+    "nombre": "Atiende Despachos · Despacho Contable Digital",
     "rfc": "LIA210101ABC",
     "calle": "Av. Insurgentes Sur 1234, Piso 8",
     "ciudad": "Ciudad de México, CDMX",
@@ -94,7 +94,7 @@ DEFAULT_DESPACHO = {
 }
 
 LEGAL_DISCLAIMER = (
-    "Este documento fue generado automáticamente por Likida AI a partir de la "
+    "Este documento fue generado automáticamente por Atiende Despachos a partir de la "
     "información contable y fiscal proporcionada por el contribuyente. Los "
     "montos reflejan los registros cargados en el sistema al momento de la "
     "generación. El contenido no constituye asesoría fiscal o legal y no "
@@ -240,7 +240,7 @@ class PDFReportGenerator:
         # Logo (texto) y nombre del despacho
         canvas.setFillColor(colors.HexColor("#0F5EA8"))
         canvas.setFont("Helvetica-Bold", 14)
-        canvas.drawString(margin, h - 15 * mm, "Likida AI")
+        canvas.drawString(margin, h - 15 * mm, "Atiende Despachos")
         canvas.setFillColor(colors.HexColor("#333333"))
         canvas.setFont("Helvetica", 8)
         canvas.drawString(
@@ -277,7 +277,7 @@ class PDFReportGenerator:
         # Número de página
         canvas.setFont("Helvetica", 7)
         canvas.drawCentredString(
-            w / 2, 5 * mm, f"Página {doc.page}   ·   Likida AI Reportes"
+            w / 2, 5 * mm, f"Página {doc.page}   ·   Atiende Despachos Reportes"
         )
         canvas.restoreState()
 
@@ -295,8 +295,8 @@ class PDFReportGenerator:
             leftMargin=18 * mm,
             topMargin=30 * mm,
             bottomMargin=24 * mm,
-            title="Likida AI · Reporte",
-            author="Likida AI",
+            title="Atiende Despachos · Reporte",
+            author="Atiende Despachos",
         )
         doc.build(story, onFirstPage=self._draw_header_footer,
                   onLaterPages=self._draw_header_footer)

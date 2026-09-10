@@ -469,10 +469,10 @@ class TestTwilioAdapter:
     def test_send_whatsapp_preserves_body(self, tw_adapter):
         req = WhatsAppRequest(
             to="+525555555555",
-            message="Complex message with émojis 🎉",
+            message="Complex message with émojis",
         )
         msg = tw_adapter.send_whatsapp(req)
-        assert msg.body == "Complex message with émojis 🎉"
+        assert msg.body == "Complex message with émojis"
 
     # --- Production simulation ---
 

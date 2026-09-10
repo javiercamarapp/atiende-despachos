@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-export_openapi.py — Exporta el contrato OpenAPI de la app FastAPI de Likida AI.
+export_openapi.py — Exporta el contrato OpenAPI de la app FastAPI de Atiende Despachos.
 
 Genera `openapi.json` y `openapi.yaml` desde la app real (`b2b_ai.api.app:app`),
 nunca a mano. Se usa para regenerar docs/openapi.json tras cambiar rutas.

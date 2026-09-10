@@ -1,8 +1,8 @@
-# Likida AI Enterprise — Guía de despliegue (DEPLOY.md)
+# Atiende Despachos — Guía de despliegue (DEPLOY.md)
 
 **Última actualización:** 2026-08-02
 
-Guía paso a paso para poner Likida AI Enterprise en producción. El MVP usa
+Guía paso a paso para poner Atiende Despachos en producción. El MVP usa
 **FastAPI + PostgreSQL 15** y está listo para **Railway** (recomendado, managed)
 o un **VPS con Docker Compose** (más control).
 

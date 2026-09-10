@@ -328,7 +328,7 @@ def install_openapi_docs(app: FastAPI) -> None:
 
     # Update app metadata
     app.description = (
-        "# Likida AI Enterprise — API Documentation\n\n"
+        "# Atiende Despachos — API Documentation\n\n"
         "## Authentication\n"
         "All endpoints (except `/health` and `/api/v1/leads`) require authentication "
         "via the `X-API-Key` header.\n\n"

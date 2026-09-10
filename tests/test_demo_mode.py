@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_demo_mode.py — Tests for Likida AI Enterprise demo mode.
+test_demo_mode.py — Tests for Atiende Despachos demo mode.
 
 10 tests covering:
   1. is_demo_mode() activation
@@ -38,7 +38,7 @@ from b2b_ai.demo.mock_data import (
 
 def _make_demo_app() -> FastAPI:
     """Create a FastAPI app with demo routes mounted."""
-    app = FastAPI(title="Likida AI Enterprise — Demo Test")
+    app = FastAPI(title="Atiende Despachos — Demo Test")
     mount_demo_routes(app)
     return app
 

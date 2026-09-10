@@ -2,7 +2,7 @@
 """
 models.py — Esquemas del módulo de Pipeline de Prospectos/Leads (CRM).
 
-Modelos Pydantic para el pipeline de ventas del MVP de Likida AI:
+Modelos Pydantic para el pipeline de ventas del MVP de Atiende Despachos:
 
   - LeadSource     : origen del lead (LINKEDIN / COLD_CALL / REFERRAL / WEBSITE).
   - LeadStatus     : ciclo de vida del lead (NEW → CONTACTED → QUALIFIED →

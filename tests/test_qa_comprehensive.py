@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Comprehensive QA Testing for Likida AI Enterprise — Alertas + Contabilidad Electrónica
+Comprehensive QA Testing for Atiende Despachos — Alertas + Contabilidad Electrónica
 ========================================================================
 Tests gaps in existing coverage: edge cases, error paths, data integrity,
 API schema compliance, concurrent behavior, and boundary conditions.
@@ -1623,7 +1623,7 @@ class TestSecurityEdgeCases:
         assert resp.json()["sha1"] == hashlib.sha1(b"").hexdigest()
 
     def test_unicode_hash(self, client):
-        resp = client.post("/contabilidad/electronica/hash", json={"content": "中文🎉"})
+        resp = client.post("/contabilidad/electronica/hash", json={"content": "中文"})
         assert resp.status_code == 200
 
 

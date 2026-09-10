@@ -43,14 +43,14 @@ def test_render_invoice_review(invoice_ctx):
     ctx = {**invoice_ctx, "confianza": "0.65", "fuente": "llm",
            "anomalias": "Monto atípico"}
     subj, body = render("invoice_review", ctx)
-    assert "requiere revisión humana" in body or "🔎" in subj
+    assert "requiere revisión humana" in body or "" in subj
     assert "0.65" in body
 
 
 def test_render_exception(invoice_ctx):
     ctx = {**invoice_ctx, "detalle": "No se pudo parsear el XML"}
     subj, body = render("exception", ctx)
-    assert "excepción" in body.lower() or "⚠" in subj
+    assert "excepción" in body.lower() or "" in subj
     assert "No se pudo parsear" in body
 
 

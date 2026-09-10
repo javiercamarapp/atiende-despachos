@@ -14,7 +14,7 @@ def test_landing_servida_en_raiz(tmp_path):
     assert "text/html" in r.headers["content-type"]
     body = r.text
     # Elementos de la landing
-    assert "Likida AI" in body
+    assert "Atiende Despachos" in body
     assert "Automatiza tu despacho" in body
     assert "id=\"contactForm\"" in body
 

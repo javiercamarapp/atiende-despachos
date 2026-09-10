@@ -1,4 +1,4 @@
-# Likida AI Platform — Integrations Guide
+# Atiende Despachos Platform — Integrations Guide
 
 > **Version:** 1.0 | **Last Updated:** August 2026
 > **Audience:** Developers, Integration Engineers, Technical Leads
@@ -21,7 +21,7 @@
 
 ## 1. Overview
 
-The Likida AI platform integrates with Mexico's tax authority (SAT), accounting software (ERPs), banking institutions, payroll systems, and productivity tools to automate workflows for accounting firms (despachos contables).
+The Atiende Despachos platform integrates with Mexico's tax authority (SAT), accounting software (ERPs), banking institutions, payroll systems, and productivity tools to automate workflows for accounting firms (despachos contables).
 
 ### Integration Categories
 
@@ -55,11 +55,11 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ✅ Official REST API |
+| **API** | Official REST API |
 | **URL** | `https://portalcfdi.facturaelectronica.sat.gob.mx` |
 | **Auth** | e.firma (FIEL) + CSD (Certificado de Sello Digital) |
-| **Sandbox** | ✅ Available for developers with test CSD |
-| **Computer Use** | ❌ Not required |
+| **Sandbox** | Available for developers with test CSD |
+| **Computer Use** | Not required |
 | **Cost** | Free (CSD issuance) + PAC stamping fees |
 
 **Operations:**
@@ -91,9 +91,9 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ✅ Official |
+| **API** | Official |
 | **Auth** | e.firma or CSD of the issuer |
-| **Computer Use** | ❌ Not required |
+| **Computer Use** | Not required |
 
 **Process:**
 1. Issuer submits cancellation request to SAT
@@ -113,10 +113,10 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ⚠️ Limited |
+| **API** | Limited |
 | **URL** | `https://www.sat.gob.mx/aplicacion/login/53027/genera-tu-constancia-de-situacion-fiscal` |
 | **Auth** | e.firma or SAT portal password |
-| **Computer Use** | ✅ Required (no public REST API) |
+| **Computer Use** | Required (no public REST API) |
 
 **Data Retrieved:**
 - Tax status certificate (constancia de situación fiscal)
@@ -133,9 +133,9 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ⚠️ Limited |
+| **API** | Limited |
 | **Format** | CSV (SAT format) |
-| **Computer Use** | ✅ Required (upload via web portal) |
+| **Computer Use** | Required (upload via web portal) |
 
 **Process:**
 1. Generate CSV file in SAT format
@@ -148,8 +148,8 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ✅ Official (electronic service) |
-| **Computer Use** | ❌ Not required |
+| **API** | Official (electronic service) |
+| **Computer Use** | Not required |
 | **Applies to** | Companies with assets > $46M MXN |
 
 **Documents:**
@@ -166,10 +166,10 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 
 | Type | Deadline | Computer Use Required |
 |------|----------|----------------------|
-| Monthly Declaration (IVA, ISR, IEPS) | 17th of following month | ✅ Yes |
-| Provisional Declaration (ISR) | Monthly — 17th of following month | ✅ Yes |
-| Annual Declaration | April of following year | ✅ Yes |
-| Provisional Payments | Monthly | ✅ Yes |
+| Monthly Declaration (IVA, ISR, IEPS) | 17th of following month | Yes |
+| Provisional Declaration (ISR) | Monthly — 17th of following month | Yes |
+| Annual Declaration | April of following year | Yes |
+| Provisional Payments | Monthly | Yes |
 
 > **Note:** All tax declarations are submitted through the SAT web portal (no REST API exists).
 
@@ -179,7 +179,7 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 
 | Aspect | Detail |
 |--------|--------|
-| **Computer Use** | ✅ Required |
+| **Computer Use** | Required |
 | **Note** | Generated and submitted via SAT portal. No direct API. |
 
 ---
@@ -194,9 +194,9 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 |--------|--------|
 | **Vendor** | INTRO (Grupo CONTPAQi) |
 | **Type** | Desktop |
-| **Official API** | ❌ No |
+| **Official API** | No |
 | **Integration Methods** | DB (SQL Server/ODBC), 3rd-party APIs, TXT/CSV import/export, COM automation, SDK |
-| **Computer Use** | ✅ Required |
+| **Computer Use** | Required |
 | **Cost** | License: $2,000–15,000 MXN/year |
 
 **Available Modules:**
@@ -217,9 +217,9 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 |--------|--------|
 | **Vendor** | INTRO (Grupo CONTPAQi / Aspel) |
 | **Type** | Desktop |
-| **Official API** | ❌ No |
+| **Official API** | No |
 | **Integration Methods** | DB (SQL Server), file import/export, unofficial API |
-| **Computer Use** | ✅ Required |
+| **Computer Use** | Required |
 | **Cost** | License: $1,500–10,000 MXN/year |
 
 **Available Modules:**
@@ -238,10 +238,10 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 |--------|--------|
 | **Vendor** | Intuit |
 | **Type** | Desktop |
-| **Official API** | ✅ Yes (SDK — QBXML) |
+| **Official API** | Yes (SDK — QBXML) |
 | **Auth** | OAuth 2.0 + local SDK |
-| **Sandbox** | ✅ Available (company file copy) |
-| **Computer Use** | ❌ Not required (SDK available, Windows only) |
+| **Sandbox** | Available (company file copy) |
+| **Computer Use** | Not required (SDK available, Windows only) |
 | **Cost** | License: $3,000–20,000 MXN/year |
 
 **Data Exchanged:** Customers, vendors, invoices, payments, bank transactions, chart of accounts, reports
@@ -254,10 +254,10 @@ The SAT (Servicio de Administración Tributaria) is Mexico's tax authority. Inte
 
 | Software | Vendor | Official API | Cost |
 |----------|--------|-------------|------|
-| **Peak** | Peak (Mexican) | ❌ No | $1,000–5,000 MXN/year |
-| **Multileg** | Multileg (Mexican) | ❌ No | $800–4,000 MXN/year |
-| **Euroweb** | Euroweb (Mexican) | ❌ No | $500–3,000 MXN/year |
-| **Absis** | Absis Software (Mexican) | ❌ No | $500–3,000 MXN/year |
+| **Peak** | Peak (Mexican) | No | $1,000–5,000 MXN/year |
+| **Multileg** | Multileg (Mexican) | No | $800–4,000 MXN/year |
+| **Euroweb** | Euroweb (Mexican) | No | $500–3,000 MXN/year |
+| **Absis** | Absis Software (Mexican) | No | $500–3,000 MXN/year |
 
 All four require computer-use automation. Limited documentation and small user bases.
 
@@ -271,12 +271,12 @@ All four require computer-use automation. Limited documentation and small user b
 |--------|--------|
 | **Vendor** | INTRO (Grupo CONTPAQi) |
 | **Type** | Cloud/SaaS |
-| **API** | ✅ Official REST |
+| **API** | Official REST |
 | **URL** | `https://api.contpaq.com.mx` |
 | **Docs** | `https://documentacion.contpaq.com.mx` |
 | **Auth** | OAuth 2.0 (client_id + client_secret) |
-| **Sandbox** | ✅ Available |
-| **Computer Use** | ❌ Not required |
+| **Sandbox** | Available |
+| **Computer Use** | Not required |
 | **Cost** | $500–3,000 MXN/month |
 
 **Modules:** Contabilidad, Facturación, Nómina, Compras, Cuentas por Pagar
@@ -291,12 +291,12 @@ All four require computer-use automation. Limited documentation and small user b
 |--------|--------|
 | **Vendor** | INTRO (Grupo CONTPAQi / Aspel) |
 | **Type** | Cloud/SaaS |
-| **API** | ✅ Official REST |
+| **API** | Official REST |
 | **URL** | `https://api.aspel.com.mx` |
 | **Docs** | `https://documentacion.aspel.com.mx` |
 | **Auth** | OAuth 2.0 |
-| **Sandbox** | ✅ Available |
-| **Computer Use** | ❌ Not required |
+| **Sandbox** | Available |
+| **Computer Use** | Not required |
 | **Cost** | $300–2,500 MXN/month |
 
 **Modules:** SAE Cloud, COI Cloud, Nómina Cloud
@@ -311,10 +311,10 @@ All four require computer-use automation. Limited documentation and small user b
 |--------|--------|
 | **Vendor** | Intuit |
 | **Type** | Cloud/SaaS |
-| **API** | ✅ Official REST |
+| **API** | Official REST |
 | **Auth** | OAuth 2.0 with refresh tokens |
-| **Sandbox** | ✅ Full sandbox for development |
-| **Computer Use** | ❌ Not required |
+| **Sandbox** | Full sandbox for development |
+| **Computer Use** | Not required |
 | **Cost** | $300–1,500 MXN/month |
 
 **Data Exchanged:** Customers, vendors, invoices, payments, bank transactions, chart of accounts, reports, CFDI (Mexico module)
@@ -329,11 +329,11 @@ All four require computer-use automation. Limited documentation and small user b
 |--------|--------|
 | **Vendor** | Xero Limited |
 | **Type** | Cloud/SaaS |
-| **API** | ✅ Official REST |
+| **API** | Official REST |
 | **URL** | `https://developer.xero.com/documentation/api/accounting/overview` |
 | **Auth** | OAuth 2.0 |
-| **Sandbox** | ✅ Demo company + partner sandbox |
-| **Computer Use** | ❌ Not required |
+| **Sandbox** | Demo company + partner sandbox |
+| **Computer Use** | Not required |
 | **Cost** | $400–1,200 MXN/month |
 
 **Data Exchanged:** Customers, vendors, invoices, payments, bank transactions, chart of accounts, reports, inventory
@@ -346,10 +346,10 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Software | Vendor | API | Auth | Cost |
 |----------|--------|-----|------|------|
-| **Factor D** | Factor D (Mexican) | ✅ Yes | API Key | $200–800 MXN/month |
-| **Taxko** | Taxko (Mexican) | ✅ Yes | API Key | $150–500 MXN/month |
-| **FacturaDirecta** | FacturaDirecta (Mexican) | ✅ Yes | API Key + Token | $100–600 MXN/month |
-| **Contpaqi Web** | INTRO | ❌ No | — | Included with CONTPAQi license |
+| **Factor D** | Factor D (Mexican) | Yes | API Key | $200–800 MXN/month |
+| **Taxko** | Taxko (Mexican) | Yes | API Key | $150–500 MXN/month |
+| **FacturaDirecta** | FacturaDirecta (Mexican) | Yes | API Key + Token | $100–600 MXN/month |
+| **Contpaqi Web** | INTRO | No | — | Included with CONTPAQi license |
 
 - **Factor D:** Invoicing, basic accounting, payroll via API
 - **Taxko:** Invoicing only (CFDI 4.0, cancellation, queries)
@@ -418,10 +418,10 @@ All four require computer-use automation. Limited documentation and small user b
 | Aspect | Detail |
 |--------|--------|
 | **Version** | 1.2 (current) |
-| **API** | ✅ Official (SAT stamping API) |
+| **API** | Official (SAT stamping API) |
 | **URL** | `https://portalcfdi.facturaelectronica.sat.gob.mx` |
 | **Auth** | e.firma (FIEL) + CSD of payroll issuer |
-| **Computer Use** | ❌ Not required |
+| **Computer Use** | Not required |
 | **Cost** | CSD issuance + PAC stamping ($2–5 MXN per stamp) |
 
 **Operations:**
@@ -449,22 +449,22 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ✅ Official |
+| **API** | Official |
 | **URL** | `https://serviciosdigitales.imss.gob.mx` |
 | **Auth** | e.firma (FIEL) or IMSS password |
-| **Computer Use** | ❌ Not required |
+| **Computer Use** | Not required |
 | **Cost** | Free |
 
 **Available Services:**
 
 | Service | API Available |
 |---------|--------------|
-| Employee registration (Alta) | ✅ Yes |
-| Queried weeks contributed (Semanas cotizadas) | ✅ Yes |
-| Employer quota payment (Cuotas patronales) | ✅ Yes |
-| Debt inquiry | ✅ Yes |
-| Disability/incapacity records | ✅ Yes |
-| Weeks contributed certificate | ✅ Yes |
+| Employee registration (Alta) | Yes |
+| Queried weeks contributed (Semanas cotizadas) | Yes |
+| Employer quota payment (Cuotas patronales) | Yes |
+| Debt inquiry | Yes |
+| Disability/incapacity records | Yes |
+| Weeks contributed certificate | Yes |
 
 **Limitations:** Requires employer's e.firma, some procedures require web portal, variable response times.
 
@@ -474,20 +474,20 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ✅ Official |
+| **API** | Official |
 | **URL** | `https://www.infonavit.org.mx` |
 | **Auth** | e.firma (FIEL) or INFONAVIT password |
-| **Computer Use** | ❌ Not required |
+| **Computer Use** | Not required |
 | **Cost** | Free |
 
 **Available Services:**
 
 | Service | API Available |
 |---------|--------------|
-| Employer inquiry | ✅ Yes |
-| Employer quota payment | ✅ Yes |
-| Debt inquiry | ✅ Yes |
-| No-debt certificate | ✅ Yes |
+| Employer inquiry | Yes |
+| Employer quota payment | Yes |
+| Debt inquiry | Yes |
+| No-debt certificate | Yes |
 
 ---
 
@@ -495,19 +495,19 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ✅ Official |
+| **API** | Official |
 | **URL** | `https://www.e-sar.com.mx` |
 | **Auth** | e.firma (FIEL) or SAR password |
-| **Computer Use** | ❌ Not required |
+| **Computer Use** | Not required |
 | **Cost** | Free |
 
 **Available Services:**
 
 | Service | API Available |
 |---------|--------------|
-| Employer inquiry | ✅ Yes |
-| Employer quota payment | ✅ Yes |
-| Debt inquiry | ✅ Yes |
+| Employer inquiry | Yes |
+| Employer quota payment | Yes |
+| Debt inquiry | Yes |
 
 ---
 
@@ -519,18 +519,18 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ✅ Microsoft Graph API |
+| **API** | Microsoft Graph API |
 | **Auth** | OAuth 2.0 |
-| **Computer Use** | ❌ Not required |
+| **Computer Use** | Not required |
 | **Libraries** | openpyxl, xlsxwriter (Python), EPPlus (.NET), SheetJS (JS) |
 
 #### Google Sheets API
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ✅ Google Sheets API |
+| **API** | Google Sheets API |
 | **Auth** | OAuth 2.0 |
-| **Computer Use** | ❌ Not required |
+| **Computer Use** | Not required |
 | **Libraries** | gspread (Python), sheets (Node.js) |
 
 **Data Exchanged:** Spreadsheets, data tables, financial reports, accounting templates
@@ -560,10 +560,10 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Aspect | Detail |
 |--------|--------|
-| **API** | ✅ Official |
+| **API** | Official |
 | **URL** | `https://developers.facebook.com/docs/whatsapp` |
 | **Auth** | API Key + Token |
-| **Computer Use** | ❌ Not required |
+| **Computer Use** | Not required |
 
 **Providers:**
 
@@ -583,9 +583,9 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Provider | API | Auth | Cost |
 |----------|-----|------|------|
-| Google Drive | ✅ Official | OAuth 2.0 | Free (15GB) / $2–30 USD/month |
-| OneDrive | ✅ Official (Graph API) | OAuth 2.0 | Free (5GB) / $2–10 USD/month |
-| Dropbox | ✅ Official | OAuth 2.0 | Free (2GB) / $10–20 USD/month |
+| Google Drive | Official | OAuth 2.0 | Free (15GB) / $2–30 USD/month |
+| OneDrive | Official (Graph API) | OAuth 2.0 | Free (5GB) / $2–10 USD/month |
+| Dropbox | Official | OAuth 2.0 | Free (2GB) / $10–20 USD/month |
 
 **Data Exchanged:** Files, folders, metadata, permissions
 
@@ -595,10 +595,10 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Tool | Type | Computer Use | Cost |
 |------|------|-------------|------|
-| ReportLab (Python) | Library | ❌ No | Free (open source) |
-| wkhtmltopdf | CLI/Wrapper | ❌ No | Free (open source) |
-| Puppeteer (Node.js) | Library | ❌ No | Free (open source) |
-| Adobe PDF Services API | Cloud API | ❌ No | Freemium (100 transactions/month free) |
+| ReportLab (Python) | Library | No | Free (open source) |
+| wkhtmltopdf | CLI/Wrapper | No | Free (open source) |
+| Puppeteer (Node.js) | Library | No | Free (open source) |
+| Adobe PDF Services API | Cloud API | No | Freemium (100 transactions/month free) |
 
 ---
 
@@ -635,31 +635,31 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Integration | API | Computer Use | Status | Est. Monthly Cost |
 |-------------|-----|-------------|--------|-------------------|
-| CFDI 4.0 (SAT) | ✅ | ❌ | Ready | $2–5 MXN/stamp (PAC) |
-| CFDI Cancellation | ✅ | ❌ | Ready | $2–5 MXN/stamp (PAC) |
-| Contabilidad Electrónica | ✅ | ❌ | Ready | Free |
-| CONTPAQi One | ✅ | ❌ | Ready | $500–3,000 MXN |
-| Aspel Cloud | ✅ | ❌ | Ready | $300–2,500 MXN |
-| QuickBooks Online | ✅ | ❌ | Ready | $300–1,500 MXN |
-| Xero | ✅ | ❌ | Ready | $400–1,200 MXN |
-| Factor D | ✅ | ❌ | Ready | $200–800 MXN |
-| Taxko | ✅ | ❌ | Ready | $150–500 MXN |
-| FacturaDirecta | ✅ | ❌ | Ready | $100–600 MXN |
-| BBVA México | ✅ | ❌ | Ready | Free |
-| Banorte | ✅ | ❌ | Ready | Free |
-| Santander México | ✅ | ❌ | Ready | Free |
-| HSBC México | ✅ | ❌ | Ready | Free |
-| Banamex | ✅ | ❌ | Ready | Free |
-| CFDI Nómina 1.2 | ✅ | ❌ | Ready | $2–5 MXN/stamp |
-| IMSS | ✅ | ❌ | Ready | Free |
-| INFONAVIT | ✅ | ❌ | Ready | Free |
-| SAR | ✅ | ❌ | Ready | Free |
-| Excel (Graph API) | ✅ | ❌ | Ready | Free |
-| Google Sheets | ✅ | ❌ | Ready | Free |
-| WhatsApp Business | ✅ | ❌ | Ready | Variable |
-| Google Drive | ✅ | ❌ | Ready | Free / $2–30 USD |
-| OneDrive | ✅ | ❌ | Ready | Free / $2–10 USD |
-| Dropbox | ✅ | ❌ | Ready | Free / $10–20 USD |
+| CFDI 4.0 (SAT) | Sí | No | Ready | $2–5 MXN/stamp (PAC) |
+| CFDI Cancellation | Sí | No | Ready | $2–5 MXN/stamp (PAC) |
+| Contabilidad Electrónica | Sí | No | Ready | Free |
+| CONTPAQi One | Sí | No | Ready | $500–3,000 MXN |
+| Aspel Cloud | Sí | No | Ready | $300–2,500 MXN |
+| QuickBooks Online | Sí | No | Ready | $300–1,500 MXN |
+| Xero | Sí | No | Ready | $400–1,200 MXN |
+| Factor D | Sí | No | Ready | $200–800 MXN |
+| Taxko | Sí | No | Ready | $150–500 MXN |
+| FacturaDirecta | Sí | No | Ready | $100–600 MXN |
+| BBVA México | Sí | No | Ready | Free |
+| Banorte | Sí | No | Ready | Free |
+| Santander México | Sí | No | Ready | Free |
+| HSBC México | Sí | No | Ready | Free |
+| Banamex | Sí | No | Ready | Free |
+| CFDI Nómina 1.2 | Sí | No | Ready | $2–5 MXN/stamp |
+| IMSS | Sí | No | Ready | Free |
+| INFONAVIT | Sí | No | Ready | Free |
+| SAR | Sí | No | Ready | Free |
+| Excel (Graph API) | Sí | No | Ready | Free |
+| Google Sheets | Sí | No | Ready | Free |
+| WhatsApp Business | Sí | No | Ready | Variable |
+| Google Drive | Sí | No | Ready | Free / $2–30 USD |
+| OneDrive | Sí | No | Ready | Free / $2–10 USD |
+| Dropbox | Sí | No | Ready | Free / $10–20 USD |
 
 ### 7.2 Computer-Use Required Integrations
 
@@ -681,11 +681,11 @@ All four require computer-use automation. Limited documentation and small user b
 
 | Integration | Method | Computer Use Required |
 |-------------|--------|----------------------|
-| Bank statements (CSV/OFX/PDF) | File parsing | ❌ No |
-| Email (SMTP/IMAP) | Standard protocol | ❌ No |
-| PDF generation | Local libraries | ❌ No |
-| XML parsing | Local libraries | ❌ No |
-| XML signing | Local libraries | ❌ No |
+| Bank statements (CSV/OFX/PDF) | File parsing | No |
+| Email (SMTP/IMAP) | Standard protocol | No |
+| PDF generation | Local libraries | No |
+| XML parsing | Local libraries | No |
+| XML signing | Local libraries | No |
 
 ---
 
@@ -993,4 +993,4 @@ class CircuitBreaker:
 
 ---
 
-**Document generated as part of the Likida AI platform integration research for accounting firms in Mexico.**
+**Document generated as part of the Atiende Despachos platform integration research for accounting firms in Mexico.**

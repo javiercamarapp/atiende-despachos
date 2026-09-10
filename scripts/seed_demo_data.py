@@ -417,7 +417,7 @@ def _build_sql(dataset: Dict[str, Any]) -> str:
     """Genera los INSERT statements listos para el schema de b2b_ai.db."""
     lines = [
         "-- ============================================================",
-        "-- Likida AI — seed de datos demo del piloto",
+        "-- Atiende Despachos — seed de datos demo del piloto",
         f"-- generado: {dataset['generated_at']}",
         "-- ============================================================",
         "",

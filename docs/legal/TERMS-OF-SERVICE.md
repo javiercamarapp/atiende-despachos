@@ -1,15 +1,15 @@
-# Términos de Servicio — Likida AI Enterprise (Likida AI)
+# Términos de Servicio — Atiende Despachos
 
 **Versión:** 1.0  
 **Fecha de última actualización:** 1 de agosto de 2026  
-**Empresa:** Likida AI Enterprise, S.A. de C.V. («el Proveedor»)  
+**Empresa:** Atiende Despachos, S.A. de C.V. («el Proveedor»)  
 **RFC:** [PENDIENTE — completar con RFC legal de la empresa]
 
 ---
 
 ## 1. Objeto
 
-Los presentes Términos de Servicio («Términos») regulan el acceso y uso del software de automatización contable y fiscal denominado **Likida AI Enterprise** o **Likida AI** («la Plataforma»), prestado por Likida AI Enterprise, S.A. de C.V. («el Proveedor»), a través de la modalidad de Software como Servicio (SaaS), en favor de la persona física o moral que contrate el servicio («el Cliente» o «el Despacho»).
+Los presentes Términos de Servicio («Términos») regulan el acceso y uso del software de automatización contable y fiscal denominado **Atiende Despachos** («la Plataforma»), prestado por Atiende Despachos, S.A. de C.V. («el Proveedor»), a través de la modalidad de Software como Servicio (SaaS), en favor de la persona física o moral que contrate el servicio («el Cliente» o «el Despacho»).
 
 La Plataforma comprende, entre otros: procesamiento automatizado de CFDI, conciliación bancaria, flujos de trabajo contables asistidos por inteligencia artificial y herramientas complementarias para despachos contables en los Estados Unidos Mexicanos.
 
@@ -175,7 +175,7 @@ Al registrarse en la Plataforma o firmar un contrato particular con el Proveedor
 
 ---
 
-**Likida AI Enterprise, S.A. de C.V.**  
+**Atiende Despachos, S.A. de C.V.**  
 Ciudad de México, México  
-Sitio web: [www.likida.ai](https://www.likida.ai)  
-Contacto legal: legal@likida.ai
+Sitio web: [dominio pendiente de asignar]  
+Contacto legal: [correo de contacto pendiente de asignar]

@@ -2,7 +2,7 @@
 """base.py — Base común para los importers de migración de datos.
 
 Normaliza filas (dicts de columna->valor) a los diccionarios canónicos de
-Likida AI para cada tipo de datos. Tanto el importer de Excel como el de CSV
+Atiende Despachos para cada tipo de datos. Tanto el importer de Excel como el de CSV
 producen filas como ``dict`` y delegan aquí la normalización, de modo que un
 mismo archivo CONTPAQi exportado a .xlsx o a .csv termine en el mismo esquema.
 """

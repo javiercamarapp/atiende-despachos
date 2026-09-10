@@ -24,7 +24,7 @@ TEMPLATES = {
         ),
     },
     "invoice_parse_failed": {
-        "subject": "⚠ No se pudo leer la factura {archivo}",
+        "subject": "No se pudo leer la factura {archivo}",
         "body": (
             "Hola {nombre},\n\n"
             "El agente no pudo leer el CFDI {archivo}.\n"
@@ -33,7 +33,7 @@ TEMPLATES = {
         ),
     },
     "invoice_rejected": {
-        "subject": "⚠ Factura rechazada por validación: {archivo}",
+        "subject": "Factura rechazada por validación: {archivo}",
         "body": (
             "Hola {nombre},\n\n"
             "La factura {archivo} no pasó la validación fiscal:\n"
@@ -42,7 +42,7 @@ TEMPLATES = {
         ),
     },
     "invoice_review": {
-        "subject": "🔎 Factura {folio} requiere revisión humana",
+        "subject": "Factura {folio} requiere revisión humana",
         "body": (
             "Hola {nombre},\n\n"
             "La factura {folio} de {emisor} por ${monto} fue marcada para "
@@ -66,7 +66,7 @@ TEMPLATES = {
         ),
     },
     "exception": {
-        "subject": "⚠ Excepción en factura {folio}",
+        "subject": "Excepción en factura {folio}",
         "body": (
             "Hola {nombre},\n\n"
             "Se detectó una excepción en la factura {folio} ({emisor}):\n"
@@ -118,7 +118,7 @@ TEMPLATES = {
     },
     # Alerta de anomalía (FASE notificaciones).
     "anomaly_alert": {
-        "subject": "⚠ Alerta de anomalía: {tipo}",
+        "subject": "Alerta de anomalía: {tipo}",
         "body": (
             "Hola {nombre},\n\n"
             "Se detectó una anomalía en {documento}:\n"
@@ -162,7 +162,7 @@ _HTML_SUBJECTS = {
     "approval_required": "Aprobación requerida: factura {folio} por ${monto}",
     "daily_summary": "Resumen diario {fecha}",
     "weekly_report": "Reporte semanal {periodo}",
-    "anomaly_detected": "⚠ Alerta de anomalía: {tipo}",
+    "anomaly_detected": "Alerta de anomalía: {tipo}",
     "subscription_renewal": "Tu suscripción {plan} se renueva el {fecha}",
     "collection_reminder": "Recordatorio de cobro — {cliente} — ${monto}",
 }

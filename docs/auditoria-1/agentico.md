@@ -183,7 +183,7 @@ fuerte de ambigüedad, se convirtió en evidencia a favor.
 `b2b_ai/agent/loop.py:214` (envío) vs `b2b_ai/agent/loop.py:216-217` (escalada)
 
 Escenario: CFDI con anomalía → `decision = "needs_review"` → línea 214 manda el
-correo `invoice_review` ("🔎 Factura {folio} requiere revisión humana") → línea
+correo `invoice_review` ("Factura {folio} requiere revisión humana") → línea
 216-217 crea la fila en `reviews`. Si el proceso muere en medio (deploy,
 OOM, `SIGTERM` de Railway), el contador tiene en su bandeja una factura que
 "requiere revisión" y `count_pending_reviews()` devuelve 0. No hay reintento ni

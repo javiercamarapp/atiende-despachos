@@ -2,7 +2,7 @@
 """data_validator.py — Validación de integridad de datos de migración.
 
 Valida los ítems extraídos de un archivo de origen contra el esquema de
-Likida AI. Reglas por tipo de datos:
+Atiende Despachos. Reglas por tipo de datos:
 
   Cliente          — RFC válido, razón social no vacía.
   CFDI             — UUID presente, total > 0, emisor y receptor con RFC.

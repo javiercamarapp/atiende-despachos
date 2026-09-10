@@ -571,7 +571,7 @@ class TestSocialAdapters:
         from b2b_ai.integrations.social import LinkedInAdapter
         adapter = LinkedInAdapter()
         adapter.connect()
-        result = adapter.post_update("Test post from Likida AI")
+        result = adapter.post_update("Test post from Atiende Despachos")
         assert result["status"] == "published"
 
     def test_facebook_connect_mock(self):

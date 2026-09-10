@@ -1,4 +1,4 @@
-# 🔥 AUDITORÍA DE DESTRUCCIÓN — SEGURIDAD
+# AUDITORÍA DE DESTRUCCIÓN — SEGURIDAD
 ## likida-ai-enterprise
 
 **Fecha:** 2026-08-01  
@@ -11,16 +11,16 @@
 
 | Severidad | Cantidad | Descripción |
 |-----------|----------|-------------|
-| 🔴 CRÍTICA | 4 | XXE, auth bypass multi-tenant, JWT sin revocación, session token en URL |
-| 🟠 ALTA | 5 | Sin rate limit en auth, cookie sin secure flag, HSTS off por defecto, SSRF en webhooks, encryption at rest opcional |
-| 🟡 MEDIA | 5 | CSP unsafe-inline, CORS allow_headers=*, refresh token sin blacklist, tenant_id del body sin validar, sesión portal 30 días |
-| 🔵 BAJA | 3 | FIEL password en env, f-string en LIMIT queries, sin Content-Length en chunked |
+| CRÍTICA | 4 | XXE, auth bypass multi-tenant, JWT sin revocación, session token en URL |
+| ALTA | 5 | Sin rate limit en auth, cookie sin secure flag, HSTS off por defecto, SSRF en webhooks, encryption at rest opcional |
+| MEDIA | 5 | CSP unsafe-inline, CORS allow_headers=*, refresh token sin blacklist, tenant_id del body sin validar, sesión portal 30 días |
+| BAJA | 3 | FIEL password en env, f-string en LIMIT queries, sin Content-Length en chunked |
 
 **Total: 17 vulnerabilidades**
 
 ---
 
-## 🔴 VULNERABILIDADES CRÍTICAS
+## VULNERABILIDADES CRÍTICAS
 
 ### VULN-01: XXE (XML External Entity) en Parser de CFDI
 
@@ -47,7 +47,7 @@
 def parse_cfdi(xml_path):
     # ...
     try:
-        tree = etree.parse(xml_path)  # ⚠️ SIN protección XXE
+        tree = etree.parse(xml_path)  # SIN protección XXE
     except etree.XMLSyntaxError as e:
         raise CFDIError(f"XML mal formado: {e}") from e
 ```
@@ -145,7 +145,7 @@ REFRESH_TTL = int(os.environ.get("B2B_JWT_REFRESH_TTL", "604800"))  # 7 días
 def portal_logout(user: dict = Depends(require_user)):
     db.delete_portal_session(user["token"])  # Solo portal session
     return {"ok": True}
-    # ⚠️ No invalida el access_token ni el refresh_token JWT
+    # No invalida el access_token ni el refresh_token JWT
 ```
 
 **No hay ningún mecanismo de blacklist/revocación de tokens:**
@@ -199,7 +199,7 @@ def revoke_token(self, token: str):
 def _resolve_user(db, request):
     token = request.cookies.get(COOKIE_NAME)
     if not token:
-        token = request.query_params.get("token")  # ⚠️ Token en URL
+        token = request.query_params.get("token")  # Token en URL
     if not token:
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
@@ -222,7 +222,7 @@ def _resolve_user(db, request):
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
             token = auth.split(" ", 1)[1].strip()
-    # ⚠️ ELIMINAR: token = request.query_params.get("token")
+    # ELIMINAR: token = request.query_params.get("token")
     if not token:
         return None
     # ...
@@ -230,7 +230,7 @@ def _resolve_user(db, request):
 
 ---
 
-## 🟠 VULNERABILIDADES ALTAS
+## VULNERABILIDADES ALTAS
 
 ### VULN-05: Sin Rate Limiting Específico en Endpoints de Autenticación
 
@@ -259,7 +259,7 @@ def login_submit(request, email, password):
     user = db.get_client_user_by_email(em)
     if user is None or not _check_password(password, user["password_hash"]):
         return RedirectResponse(url="/portal/login?error=1", status_code=302)
-    # ⚠️ Sin rate limit, sin delay, sin account lockout
+    # Sin rate limit, sin delay, sin account lockout
 ```
 
 **Fix:**
@@ -302,7 +302,7 @@ if not _login_limiter.check(f"{ip}:{em}"):
 # b2b_ai/portal/routes.py:254-255
 resp.set_cookie(COOKIE_NAME, token, max_age=SESSION_TTL_DAYS * 86400,
                 httponly=True, samesite="lax", path="/")
-# ⚠️ Falta: secure=True
+# Falta: secure=True
 ```
 
 Sin `secure=True`, la cookie se envía sobre conexiones HTTP (no cifradas), lo que permite:
@@ -364,9 +364,9 @@ def _assert_http_scheme(url: str) -> None:
     scheme = (urlparse(url).scheme or "").lower()
     if scheme not in ("http", "https"):
         raise ValueError(f"Esquema de URL no permitido: {scheme!r}")
-    # ⚠️ No bloquea: http://169.254.169.254 (cloud metadata)
-    # ⚠️ No bloquea: http://localhost:5432 (PostgreSQL)
-    # ⚠️ No bloquea: http://10.0.0.1 (red interna)
+    # No bloquea: http://169.254.169.254 (cloud metadata)
+    # No bloquea: http://localhost:5432 (PostgreSQL)
+    # No bloquea: http://10.0.0.1 (red interna)
 ```
 
 **Escenarios de ataque:**
@@ -414,13 +414,13 @@ def _assert_safe_webhook_url(url: str) -> None:
 def _encryption_key() -> bytes | None:
     raw = os.environ.get("B2B_ENCRYPTION_KEY", "").strip()
     if not raw or len(raw) < 16:
-        return None  # ⚠️ Sin clave → sin cifrado
+        return None  # Sin clave → sin cifrado
     return hashlib.sha256(raw.encode("utf-8")).digest()
 
 def encrypt_field(value: str) -> str:
     c = _cipher()
     if c is None:
-        return value  # ⚠️ Devuelve en claro si no hay clave
+        return value  # Devuelve en claro si no hay clave
 ```
 
 **Datos afectados:**
@@ -442,7 +442,7 @@ def check_encryption_config():
 
 ---
 
-## 🟡 VULNERABILIDADES MEDIAS
+## VULNERABILIDADES MEDIAS
 
 ### VULN-10: CSP Permite `unsafe-inline` (XSS Risk)
 
@@ -454,7 +454,7 @@ def check_encryption_config():
 _DEFAULT_CSP = (
     "default-src 'self'; "
     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-    # ⚠️ unsafe-inline permite XSS si hay inyección en templates
+    # unsafe-inline permite XSS si hay inyección en templates
     "style-src 'self' 'unsafe-inline'; "
     # ...
 )
@@ -476,7 +476,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],  # ⚠️ Permite cualquier header
+    allow_headers=["*"],  # Permite cualquier header
     allow_credentials=_allow_creds,
 )
 ```
@@ -503,7 +503,7 @@ def refresh_token(self, token: str) -> Dict[str, Any]:
     user = self.db.get_client_user(user_id)
     if user is None:
         raise InvalidTokenError("Usuario inexistente.")
-    return self._session(user)  # ⚠️ Genera nuevos tokens sin invalidar el refresh
+    return self._session(user)  # Genera nuevos tokens sin invalidar el refresh
 ```
 
 **Ataque:** Un refresh token robado puede usarse para generar nuevos access tokens indefinidamente (7 días). Hacer logout no lo invalida.
@@ -536,7 +536,7 @@ El `tenant_id` viene del body del request, no del token autenticado. Un usuario 
 
 ```python
 # b2b_ai/portal/routes.py:43
-SESSION_TTL_DAYS = 30  # ⚠️ 30 días para datos fiscales sensibles
+SESSION_TTL_DAYS = 30  # 30 días para datos fiscales sensibles
 ```
 
 Para una aplicación que maneja CFDIs, RFC, y datos contables, 30 días es excesivo. Una sesión robada es válida por un mes.
@@ -548,7 +548,7 @@ SESSION_TTL_HOURS = 8
 
 ---
 
-## 🔵 VULNERABILIDADES BAJAS
+## VULNERABILIDADES BAJAS
 
 ### VULN-15: FIEL Password Almacenado en Variable de Entorno
 
@@ -596,7 +596,7 @@ params.append(int(limit))
 # b2b_ai/api/middleware.py:66-68
 content_length = request.headers.get("content-length")
 if content_length is not None:
-    # ⚠️ Solo verifica si el header existe
+    # Solo verifica si el header existe
     # Transfer-Encoding: chunked no tiene Content-Length
 ```
 
@@ -612,7 +612,7 @@ if len(body) > _limit:
 
 ---
 
-## HALLAZGOS POSITIVOS ✅
+## HALLAZGOS POSITIVOS
 
 El código tiene buenas prácticas implementadas:
 

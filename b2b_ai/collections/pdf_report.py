@@ -140,7 +140,7 @@ def generate_aging_pdf(invoices: List[Dict[str, Any]],
     elements.append(Spacer(1, 0.5 * inch))
     elements.append(Paragraph(
         f"<i>Generado automáticamente el {datetime.utcnow().isoformat()} "
-        f"por Likida AI Enterprise — Cobranza Automatizada</i>",
+        f"por Atiende Despachos — Cobranza Automatizada</i>",
         styles["Normal"]))
 
     doc.build(elements)
@@ -240,7 +240,7 @@ def generate_projection_pdf(invoices: List[Dict[str, Any]],
 
     elements.append(Spacer(1, 0.5 * inch))
     elements.append(Paragraph(
-        f"<i>Generado el {datetime.utcnow().isoformat()} por Likida AI Enterprise</i>",
+        f"<i>Generado el {datetime.utcnow().isoformat()} por Atiende Despachos</i>",
         styles["Normal"]))
 
     doc.build(elements)
@@ -302,7 +302,7 @@ def generate_summary_pdf(invoices: List[Dict[str, Any]],
     # Alertas
     if data.get("alertas"):
         elements.append(Paragraph(
-            "<b>⚠ Alertas</b>", styles["Heading2"]))
+            "<b>Alertas</b>", styles["Heading2"]))
         for alerta in data["alertas"]:
             elements.append(Paragraph(f"• {alerta}", styles["Normal"]))
         elements.append(Spacer(1, 0.2 * inch))
@@ -354,7 +354,7 @@ def generate_summary_pdf(invoices: List[Dict[str, Any]],
 
     elements.append(Spacer(1, 0.5 * inch))
     elements.append(Paragraph(
-        f"<i>Generado el {datetime.utcnow().isoformat()} por Likida AI Enterprise</i>",
+        f"<i>Generado el {datetime.utcnow().isoformat()} por Atiende Despachos</i>",
         styles["Normal"]))
 
     doc.build(elements)
@@ -406,7 +406,7 @@ def _projection_html_fallback(data: Dict, tenant_id: Optional[int]) -> str:
 def _summary_html_fallback(data: Dict, tenant_id: Optional[int]) -> str:
     html = _html_fallback_base("Resumen Ejecutivo de Cobranza", tenant_id)
     if data.get("alertas"):
-        html += "<h2>⚠ Alertas</h2><ul>"
+        html += "<h2>Alertas</h2><ul>"
         for a in data["alertas"]:
             html += f"<li>{a}</li>"
         html += "</ul>"

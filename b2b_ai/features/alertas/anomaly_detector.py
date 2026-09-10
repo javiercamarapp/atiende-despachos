@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-anomaly_detector.py — Transaction anomaly detection for Likida AI Enterprise.
+anomaly_detector.py — Transaction anomaly detection for Atiende Despachos.
 
 Detects common anomalies in CFDI / invoice transactions:
   - Duplicate CFDI (same UUID, or same emisor+folio+amount within a window)

@@ -1,6 +1,6 @@
 # AUDITORÍA FINAL — RUBROS 1–5 (codebase real `b2b_ai/`)
 
-**Proyecto:** Likida AI Enterprise · `/Users/javiercamaraportepetit/Desktop/B2B-AI-MVP/enterprise`
+**Proyecto:** Atiende Despachos · `/Users/javiercamaraportepetit/Desktop/B2B-AI-MVP/enterprise`
 **Alcance auditado:** `b2b_ai/` (código real) + `landing/index.html` (solo para Rubro 2).
 **Fecha:** 2026-08-02 · **Estado de la suite:** Railway online, 1166 casos de prueba `def test_`.
 
@@ -12,11 +12,11 @@
 
 | Rubro | Calificación | Veredicto |
 |-------|--------------|-----------|
-| 1. Seguridad | **5/10** | ⛔ NO aprobado — 1 hallazgo CRÍTICO (auth ausente en bookkeeping) |
-| 2. Frontend (landing) | **7/10** | ✅ Aprobado con observaciones (formulario de leads inerte) |
-| 3. Backend API | **7/10** | ✅ Aprobado con observaciones — 1 CRÍTICO heredado (bookkeeping) |
-| 4. Agéntico | **6/10** | ⛔ NO aprobado — detector de anomalías FAIL-OPEN |
-| 5. Arquitectura | **8/10** | ✅ Aprobado con observaciones |
+| 1. Seguridad | **5/10** | NO aprobado — 1 hallazgo CRÍTICO (auth ausente en bookkeeping) |
+| 2. Frontend (landing) | **7/10** | Aprobado con observaciones (formulario de leads inerte) |
+| 3. Backend API | **7/10** | Aprobado con observaciones — 1 CRÍTICO heredado (bookkeeping) |
+| 4. Agéntico | **6/10** | NO aprobado — detector de anomalías FAIL-OPEN |
+| 5. Arquitectura | **8/10** | Aprobado con observaciones |
 
 **3 hallazgos CRÍTICOS** exigen corrección antes de producción:
 
@@ -56,9 +56,9 @@
 
 **769 líneas**, estilo usehandle.ai (dark, hero con video, secciones `#platform/#agents/#integrations/#security/#pricing/#contact`, mobile menu).
 
-- **Scroll reveal:** ✅ Implementado con `IntersectionObserver` en `landing.js` (39 usos de clase `reveal`, threshold 0.1, rootMargin -40px, un-observe tras revelar). Conteo animado (`.counter`), nav sticky, acordeón y menú móvil vía `addEventListener` (CSP-safe).
-- **Responsive:** ✅ 7 bloques `@media` + menú móvil + grid en `1fr`. Correcto.
-- **Assets:** ✅ `assets/hero-ai-dashboard.mp4` y `assets/logo-likida.png` existen y resuelven bajo `/static/` (montado a `LANDING_DIR` en `app.py:1131`).
+- **Scroll reveal:** Implementado con `IntersectionObserver` en `landing.js` (39 usos de clase `reveal`, threshold 0.1, rootMargin -40px, un-observe tras revelar). Conteo animado (`.counter`), nav sticky, acordeón y menú móvil vía `addEventListener` (CSP-safe).
+- **Responsive:** 7 bloques `@media` + menú móvil + grid en `1fr`. Correcto.
+- **Assets:** `assets/hero-ai-dashboard.mp4` y `assets/logo-likida.png` existen y resuelven bajo `/static/` (montado a `LANDING_DIR` en `app.py:1131`).
 - **Links:** mayormente anclas internas + redes sociales (instagram/linkedin/x) + `/legal/privacy` + fonts (preconnect). Sin links rotos a recursos estáticos.
 
 ### ALTO
@@ -84,7 +84,7 @@
 - **Endpoints públicos intencionales:** `/health` (+HEAD), landing/estáticos, `POST /api/v1/leads` (landing), `POST /api/v1/arco/solicitud` (LFPDPPP Art. 29, titular del dato). Los públicos de escritura (`/leads`, `/arco/solicitud`) **sí caen bajo rate-limit por IP** (no están en `_RATE_LIMIT_EXEMPT_PREFIXES`).
 - **Validation:** bodies vía Pydantic `BaseModel` en la gran mayoría; validación de periodos y `ge/le` en queries; `allowed_upload_extension` (solo .xml/.pdf).
 - **Rate limiting:** doble capa — limiter en memoria por `(IP, ruta)` (default 300/min, `B2B_RATE_LIMIT_PER_MIN`, con `_sweep` que evita DoS de memoria) + `install_enterprise_rate_limit` (Redis, per-tenant/rol, headers `X-RateLimit-*`, si `B2B_REDIS_URL` está configurado). `_client_ip` solo confía en `X-Forwarded-For` con `B2B_TRUST_PROXY` (evita spoofing). **Buen diseño.**
-- **Idempotencia:** middleware por `Idempotency-Key` (TTL 24h) para escrituras. ✅
+- **Idempotencia:** middleware por `Idempotency-Key` (TTL 24h) para escrituras.
 
 ### BAJO
 - **B3-BAJO · `contabilidad_balanza_get` (`app.py:837`)** hace `int(ejercicio)`/`int(mes)` sobre `periodo` sin try/except → un `periodo` no numérico lanza `ValueError` no capturado (500 en vez de 422). Mismo patrón parcial en `contabilidad_electronica_post`/`download` (ahí sí hay try/except). Robustez menor.
@@ -99,10 +99,10 @@
 ## RUBRO 4 — AGENTIC (`agent/loop.py`)
 
 Árbol de decisión explícito y human-in-the-loop (crea filas en `reviews` al escalar). Líneas clave:
-- **Confidence gate:** ✅ **Correcto.** `_CONFIDENCE_FLOOR = 0.50` (línea 203-205) fuerza `requires_human_review=True` para cualquier confianza < 0.50 "SIEMPRE, sin importar policy"; threshold efectivo por tenant `confidence_threshold` (default `DEFAULT_CONFIDENCE_THRESHOLD = 0.7`). Con `policy='hold'` no se registra ERP; con `auto_register` se registra pero con revisión (y el floor 0.50 lo blinda).
-- **PII masking antes de LLM externo:** ✅ `_SENSITIVE_KEYS = {nomina, curp, rfc_receptor, rfc_emisor}` filtrados + `_mask_pii` (SECURITY/LFPDPPP-06).
-- **Tenant explícito en prod:** ✅ `_resolve_tenant` exige `tenant_id` si no es dev (`loop.py:293-296`).
-- **`record_agent_processing`:** ✅ **Presente.** Definido en `monitoring/metrics.py:264` y llamado en `loop.py:262-266` (registra confianza + éxito; `try/except` para que métricas nunca rompan el pipeline).
+- **Confidence gate:** **Correcto.** `_CONFIDENCE_FLOOR = 0.50` (línea 203-205) fuerza `requires_human_review=True` para cualquier confianza < 0.50 "SIEMPRE, sin importar policy"; threshold efectivo por tenant `confidence_threshold` (default `DEFAULT_CONFIDENCE_THRESHOLD = 0.7`). Con `policy='hold'` no se registra ERP; con `auto_register` se registra pero con revisión (y el floor 0.50 lo blinda).
+- **PII masking antes de LLM externo:** `_SENSITIVE_KEYS = {nomina, curp, rfc_receptor, rfc_emisor}` filtrados + `_mask_pii` (SECURITY/LFPDPPP-06).
+- **Tenant explícito en prod:** `_resolve_tenant` exige `tenant_id` si no es dev (`loop.py:293-296`).
+- **`record_agent_processing`:** **Presente.** Definido en `monitoring/metrics.py:264` y llamado en `loop.py:262-266` (registra confianza + éxito; `try/except` para que métricas nunca rompan el pipeline).
 
 ### CRÍTICO
 - **A4-CRÍTICO · Detección de anomalías FAIL-OPEN en timeout LLM.**
@@ -122,8 +122,8 @@
 ## RUBRO 5 — ARQUITECTURA
 
 - **Estructura modular sólida:** `api/` (app, auth, middleware, rate_limiter, security, validators, routes_*), `features/` (24 módulos por dominio), `integrations/` (adapters por categoría), `services/`, `db/` (SQLite+PG vía `adapter_factory`), `billing/`, `cfdi/`, `auth/` (JWT+RBAC), `audit/`, `notifications/`, `portal/`, `monitoring/`, `infrastructure/`, `computer_use/`. Separación por responsabilidad clara.
-- **Factory pattern:** ✅ `build_*_router(db, require_api_key)` en cada feature, `db/adapter_factory.py`, `computer_use/factory.py`, providers de billing (`stripe_provider`, `conekta_provider`), `integrations/hub.py`. Consistente.
-- **DI:** ✅ `create_app(db=None)` (inyección de DB para tests), `AgentLoop(db=..., llm=..., erp=..., email=...)` con defaults pero overridables, clases `XxxRouter(db, require_api_key)` con `@dataclass`-style builders. Buen patrón.
+- **Factory pattern:** `build_*_router(db, require_api_key)` en cada feature, `db/adapter_factory.py`, `computer_use/factory.py`, providers de billing (`stripe_provider`, `conekta_provider`), `integrations/hub.py`. Consistente.
+- **DI:** `create_app(db=None)` (inyección de DB para tests), `AgentLoop(db=..., llm=..., erp=..., email=...)` con defaults pero overridables, clases `XxxRouter(db, require_api_key)` con `@dataclass`-style builders. Buen patrón.
 
 ### ALTO
 - **AR5-ALTO · Auth "opt-in" por router (default no seguro).** La convención es `if require_api_key: router.dependencies.append(Depends(require_api_key))`. Cuando un builder recibe `None` (o se le olvida aplicarlo, caso bookkeeping), la ruta queda **silenciosamente pública** — no hay fallo ni error en arranque. Un esquema *fail-secure* (auth obligatoria por defecto, `Depends` incondicional) habría impedido el CRÍTICO de bookkeeping. Es la causa raíz arquitectónica del hallazgo nº1.

@@ -38,7 +38,7 @@ lead_id = db.create_outreach_lead(name=lead.name, email=lead.email, ...)
 ```
 `Database` no tiene el método `create_outreach_lead` — existe `add_outreach_lead(self, campaign_id, tenant_id, email, first_name=..., ...)`, con firma distinta (pide `campaign_id`/`tenant_id` que `LeadCreate` ni siquiera declara). Probado en vivo: `POST /api/v1/outreach/leads` con una key válida y body válido según el schema devuelve **500 Internal Server Error** siempre — `AttributeError: 'Database' object has no attribute 'create_outreach_lead'`.
 
-Escenario: un integrador (o Likida mismo) llama al endpoint documentado en el router para dar de alta un lead de outreach → 500 sin excepción, en cada intento, sin excepción de casos borde: el método simplemente no existe.
+Escenario: un integrador (o Atiende Despachos mismo) llama al endpoint documentado en el router para dar de alta un lead de outreach → 500 sin excepción, en cada intento, sin excepción de casos borde: el método simplemente no existe.
 
 Consecuencia: la única vía documentada para crear un lead vía API está muerta desde que se escribió. `tests/test_outreach.py` nunca la ejercita — prueba `OutreachManager`/`Database` directo, sin `TestClient`, así que 74 tests de esta zona pasan en verde sin haber llamado nunca a esta ruta.
 

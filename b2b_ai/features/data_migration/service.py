@@ -6,7 +6,7 @@ MigrationService coordina el ciclo completo de una migración:
     start_migration(file_path, file_type, tenant_id) -> MigrationJob
         Sube/registra un archivo y extrae sus ítems (Excel / CSV / CONTPAQi).
     validate_data(items) -> dict resumen
-        Valida los ítems contra el esquema de Likida (RFC, campos requeridos).
+        Valida los ítems contra el esquema de Atiende Despachos (RFC, campos requeridos).
     execute_migration(job_id) -> MigrationJob
         Ejecuta la importación: marca ítems válidos como importados y agrega
         el resultado al job (los ítems se guardan en el store en memoria).
@@ -64,7 +64,7 @@ class MigrationError(Exception):
 
 
 class MigrationService:
-    """Servicio de migración de datos hacia Likida AI."""
+    """Servicio de migración de datos hacia Atiende Despachos."""
 
     def __init__(self, contpaqi_mapper: Optional[ContpaqiMapper] = None):
         self.mapper = contpaqi_mapper or ContpaqiMapper()
@@ -85,7 +85,7 @@ class MigrationService:
                 return imp.parse_text(text, filename=filename)
             if file_type == MigrationFileType.CONTPAQI:
                 # CONTPAQi: el mapper convierte las columnas de la exportación
-                # al esquema canónico de Likida antes de producir los ítems.
+                # al esquema canónico de Atiende Despachos antes de producir los ítems.
                 return self._parse_contpaqi(file_path, filename)
         except (ExcelImportError, CSVImportError) as exc:
             raise MigrationError(str(exc), code="invalid_file") from exc
@@ -100,7 +100,7 @@ class MigrationService:
         base), aquí las filas crudas de cada hoja se pasan por
         ``self.mapper.map_sheet()``, que conoce las columnas de exportación de
         CONTPAQi (rfc, razón social, folio fiscal, etc.) y las convierte al
-        esquema canónico de Likida.
+        esquema canónico de Atiende Despachos.
         """
         lower = (filename or "").lower()
         if lower.endswith(".xlsx"):

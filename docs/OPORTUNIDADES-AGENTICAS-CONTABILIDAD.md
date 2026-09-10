@@ -1,4 +1,4 @@
-# Oportunidades Agenticas en Contabilidad: Análisis Global para Likida (México)
+# Oportunidades Agenticas en Contabilidad: Análisis Global para Atiende Despachos (México)
 
 > Investigación realizada: 1 de agosto de 2026
 > Fuentes: Sitios web oficiales de cada empresa, structured data, documentación de producto
@@ -7,7 +7,7 @@
 
 ## RESUMEN EJECUTIVO
 
-El mercado global de contabilidad agéntica está en plena explosión. Existen al menos 15 soluciones maduras en USA/Europa que ya ejecutan tareas contables reales (no solo OCR/clasificación) y están generando revenue significativo. **Ninguna de estas soluciones opera de forma nativa en el mercado fiscal mexicano (SAT, CFDI, nómina mexicana, declaraciones provisionales/definitivas).** Esto representa una ventana de oportunidad de 12-18 meses para Likida.
+El mercado global de contabilidad agéntica está en plena explosión. Existen al menos 15 soluciones maduras en USA/Europa que ya ejecutan tareas contables reales (no solo OCR/clasificación) y están generando revenue significativo. **Ninguna de estas soluciones opera de forma nativa en el mercado fiscal mexicano (SAT, CFDI, nómina mexicana, declaraciones provisionales/definitivas).** Esto representa una ventana de oportunidad de 12-18 meses para Atiende Despachos.
 
 ### Hallazgos clave:
 1. **VicAgents™ (Vic.ai)**: Ya tiene agentes autónomos que ejecutan AP end-to-end sobre ERPs — el modelo más avanzado
@@ -49,14 +49,14 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM. Sin planes públicos.
 
-**Qué copiar para Likida:**
-- 🔴 **ALTA PRIORIDAD**: El modelo de VicAgents™ (agentes autónomos para AP) es directamente adaptable al flujo CFDI → registro contable → pago. Un agente que reciba CFDIs del SAT, los clasifique según catálogo de cuentas mexicano, y los registre automáticamente en CONTPAqi/Aspel sería equivalente.
+**Qué copiar para Atiende Despachos:**
+- **ALTA PRIORIDAD**: El modelo de VicAgents™ (agentes autónomos para AP) es directamente adaptable al flujo CFDI → registro contable → pago. Un agente que reciba CFDIs del SAT, los clasifique según catálogo de cuentas mexicano, y los registre automáticamente en CONTPAqi/Aspel sería equivalente.
 - El "no-touch rate" del 85% es el KPI a alcanzar.
 - La integración con ERPs locales (CONTPAqi, Aspel, Contpaq i) vía API es el bloqueo tecnológico principal.
 
 **Dificultad de copiar: ⭐⭐⭐⭐ (Alta)** — Requiere entrenar modelos específicos para CFDIs mexicanos y catálogo de cuentas SAT.
 
-**Impacto para despachos mexicanos: 🔴 TRANSFORMADOR** — Un despacho con 50 clientes PYME procesa miles de CFDIs/mes. Automatizar el 85% liberaría 60-70% del tiempo del equipo.
+**Impacto para despachos mexicanos: TRANSFORMADOR** — Un despacho con 50 clientes PYME procesa miles de CFDIs/mes. Automatizar el 85% liberaría 60-70% del tiempo del equipo.
 
 ---
 
@@ -85,8 +85,8 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🔴 **ALTA PRIORIDAD**: El flujo "bank statement → journal entries → GL" es exactamente lo que necesita un contador mexicano. Adaptar para:
+**Qué copiar para Atiende Despachos:**
+- **ALTA PRIORIDAD**: El flujo "bank statement → journal entries → GL" es exactamente lo que necesita un contador mexicano. Adaptar para:
   1. Leer estados de cuenta bancarios mexicanos (BBVA, Banorte, Santander, etc.)
   2. Generar pólizas de diario conforme al catálogo de cuentas SAT
   3. Postear directamente a CONTPAqi/Aspel
@@ -94,7 +94,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **Dificultad de copiar: ⭐⭐⭐ (Media)** — El core (bank statement → journal entries) es relativamente directo con LLMs. La dificultad está en la integración con ERPs mexicanos.
 
-**Impacto para despachos mexicanos: 🟠 ALTO** — La conciliación bancaria es una de las tareas más repetitivas en despachos. Automatizarla al 80%+ ahorraría 15-20 horas/mes por cliente.
+**Impacto para despachos mexicanos: ALTO** — La conciliación bancaria es una de las tareas más repetitivas en despachos. Automatizarla al 80%+ ahorraría 15-20 horas/mes por cliente.
 
 ---
 
@@ -125,8 +125,8 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🔴 **ALTA PRIORIDAD**: El concepto de "Accountant Copilot" que hace book review + anomaly detection es perfecto para despachos mexicanos. Un agente que:
+**Qué copiar para Atiende Despachos:**
+- **ALTA PRIORIDAD**: El concepto de "Accountant Copilot" que hace book review + anomaly detection es perfecto para despachos mexicanos. Un agente que:
   1. Revise automáticamente las pólizas del mes de cada cliente
   2. Detecte anomalías (duplicados, clasificaciones incorrectas, montos atípicos)
   3. Sugiera correcciones antes de que el contador senior revise
@@ -134,7 +134,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **Dificultad de copiar: ⭐⭐⭐ (Media)** — El core es LLM + reglas contables mexicanas. El Smart Mailroom requiere integración con email.
 
-**Impacto para despachos mexicanos: 🔴 TRANSFORMADOR** — El "Accountant Copilot" permitiría a un despacho atender 3x más clientes con el mismo equipo.
+**Impacto para despachos mexicanos: TRANSFORMADOR** — El "Accountant Copilot" permitiría a un despacho atender 3x más clientes con el mismo equipo.
 
 ---
 
@@ -162,15 +162,15 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No tiene presencia en México. Opera en UK, USA, Australia, Canadá.
 
-**Qué copiar para Likida:**
-- 🟡 **MEDIA PRIORIDAD**: La extracción de datos de CFDIs ya existe en México (Facturapi, SW Sapien, etc.), pero la capa de clasificación automática + sync a ERP es lo que falta. Likida podría:
+**Qué copiar para Atiende Despachos:**
+- **MEDIA PRIORIDAD**: La extracción de datos de CFDIs ya existe en México (Facturapi, SW Sapien, etc.), pero la capa de clasificación automática + sync a ERP es lo que falta. Atiende Despachos podría:
   1. Extraer datos de CFDIs (XML del SAT)
   2. Clasificar automáticamente según el catálogo de cuentas del cliente
   3. Registrar en el ERP contable
 
 **Dificultad de copiar: ⭐⭐ (Baja-Media)** — El OCR/extracción de CFDIs es straightforward con XML parsing. La clasificación inteligente requiere entrenamiento.
 
-**Impacto para despachos mexicanos: 🟡 MEDIO** — Ya existen soluciones parciales en México. El diferenciador sería la clasificación inteligente que aprende del criterio del despacho.
+**Impacto para despachos mexicanos: MEDIO** — Ya existen soluciones parciales en México. El diferenciador sería la clasificación inteligente que aprende del criterio del despacho.
 
 ---
 
@@ -199,8 +199,8 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🟡 **MEDIA PRIORIDAD**: El modelo "AI-native accounting" (no automizar lo existente, sino re-diseñar desde cero con AI) es el paradigma correcto. Para México:
+**Qué copiar para Atiende Despachos:**
+- **MEDIA PRIORIDAD**: El modelo "AI-native accounting" (no automizar lo existente, sino re-diseñar desde cero con AI) es el paradigma correcto. Para México:
   1. Accounting en tiempo real para ecommerce mexicano (Shopify MX, Mercado Libre, Amazon MX)
   2. Integración con plataformas de marketplace latinas
   3. Tax compliance mexicano automatizado
@@ -208,7 +208,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **Dificultad de copiar: ⭐⭐⭐ (Media)** — El ecommerce accounting requiere integraciones específicas con marketplaces.
 
-**Impacto para despachos mexicanos: 🟡 MEDIO** — Nicho específico (ecommerce) pero creciente en México.
+**Impacto para despachos mexicanos: MEDIO** — Nicho específico (ecommerce) pero creciente en México.
 
 ---
 
@@ -243,16 +243,16 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🔴 **ALTA PRIORIDAD**: El concepto de "AI Accountant Agent" + "AI CFO Agent" como capas separadas es brillante. Para Likida:
+**Qué copiar para Atiende Despachos:**
+- **ALTA PRIORIDAD**: El concepto de "AI Accountant Agent" + "AI CFO Agent" como capas separadas es brillante. Para Atiende Despachos:
   1. **Agente Contable**: Ejecuta asientos, conciliaciones, verificaciones
   2. **Agente Fiscal**: Prepara declaraciones (IVA provisional, ISR, DIOT)
   3. **Agente de Cierre**: Ejecuta el cierre mensual autónomo
-- El **Zeni MCP** (conectar libros a modelos de AI) es un patrón emergente que Likida debería adoptar — permitiría que despachos consulten sus datos contables via AI.
+- El **Zeni MCP** (conectar libros a modelos de AI) es un patrón emergente que Atiende Despachos debería adoptar — permitiría que despachos consulten sus datos contables via AI.
 
 **Dificultad de copiar: ⭐⭐⭐ (Media)** — Los agentes individuales son replicables. La integración completa end-to-end es el reto.
 
-**Impacto para despachos mexicanos: 🔴 TRANSFORMADOR** — El ahorro de 70 horas/mes es el claim y es creíble para un despacho que automatice completamente.
+**Impacto para despachos mexicanos: TRANSFORMADOR** — El ahorro de 70 horas/mes es el claim y es creíble para un despacho que automatice completamente.
 
 ---
 
@@ -285,8 +285,8 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🔴 **ALTA PRIORIDAD**: El modelo hybrid AI+human es el más realista y escalable para México:
+**Qué copiar para Atiende Despachos:**
+- **ALTA PRIORIDAD**: El modelo hybrid AI+human es el más realista y escalable para México:
   1. AI hace el trabajo repetitivo (data entry, clasificación, conciliación)
   2. Human accountant revisa, aprueba, y maneja excepciones
   3. El humano escala: de atender 10 clientes a 30+
@@ -294,7 +294,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **Dificultad de copiar: ⭐⭐ (Baja-Media)** — El modelo híbrido es más fácil de implementar que full-autonomous. El reto es el talento humano + la AI.
 
-**Impacto para despachos mexicanos: 🔴 TRANSFORMADOR** — Este modelo permite a despachos mexicanos escalar sin contratar proporcionalmente más gente.
+**Impacto para despachos mexicanos: TRANSFORMADOR** — Este modelo permite a despachos mexicanos escalar sin contratar proporcionalmente más gente.
 
 ---
 
@@ -325,8 +325,8 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🔴 **ALTA PRIORIDAD**: El "Close Automation" completo es el Santo Grial para despachos mexicanos. Adaptar:
+**Qué copiar para Atiende Despachos:**
+- **ALTA PRIORIDAD**: El "Close Automation" completo es el Santo Grial para despachos mexicanos. Adaptar:
   1. **Checklist de cierre mensual** adaptado al ciclo fiscal mexicano (cierre IVA provisional, cierre ISR, DIOT)
   2. **Cash Matching bancario** con bancos mexicanos
   3. **JE Automation** que postea a CONTPAqi/Aspel
@@ -335,7 +335,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **Dificultad de copiar: ⭐⭐⭐⭐ (Alta)** — El close management completo requiere múltiples integraciones y lógica de negocio compleja.
 
-**Impacto para despachos mexicanos: 🔴 TRANSFORMADOR** — El cierre mensual es la tarea más intensiva. Reducir de 5 días a 1 día por cliente cambiaría la economía del despacho.
+**Impacto para despachos mexicanos: TRANSFORMADOR** — El cierre mensual es la tarea más intensiva. Reducir de 5 días a 1 día por cliente cambiaría la economía del despacho.
 
 ---
 
@@ -365,15 +365,15 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🟠 **MEDIA-ALTA PRIORIDAD**: El concepto de "Auditable AI" es crítico para despachos — cada acción del agente debe ser trazable y auditable. Likida debe implementar:
+**Qué copiar para Atiende Despachos:**
+- **MEDIA-ALTA PRIORIDAD**: El concepto de "Auditable AI" es crítico para despachos — cada acción del agente debe ser trazable y auditable. Atiende Despachos debe implementar:
   1. Log de cada decisión del agente
   2. Approval workflow humano antes de postear
   3. Audit trail completo
 
 **Dificultad de copiar: ⭐⭐⭐ (Media)** — La funcionalidad es replicable; el "auditable" es un plus de diseño.
 
-**Impacto para despachos mexicanos: 🟠 ALTO** — La auditoría es esencial para cumplimiento fiscal mexicano.
+**Impacto para despachos mexicanos: ALTO** — La auditoría es esencial para cumplimiento fiscal mexicano.
 
 ---
 
@@ -401,12 +401,12 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🟡 **MEDIA PRIORIDAD**: El procure-to-pay es más relevante para empresas medianas/grandes que para PYMEs mexicanos. Sin embargo, el concepto de "87% automatizado" es un benchmark valioso.
+**Qué copiar para Atiende Despachos:**
+- **MEDIA PRIORIDAD**: El procure-to-pay es más relevante para empresas medianas/grandes que para PYMEs mexicanos. Sin embargo, el concepto de "87% automatizado" es un benchmark valioso.
 
 **Dificultad de copiar: ⭐⭐⭐⭐ (Alta)** — Procure-to-pay requiere integraciones complejas con múltiples sistemas.
 
-**Impacto para despachos mexicanos: 🟡 MEDIO** — Relevante solo para despachos con clientes corporativos medianos/grandes.
+**Impacto para despachos mexicanos: MEDIO** — Relevante solo para despachos con clientes corporativos medianos/grandes.
 
 ---
 
@@ -435,15 +435,15 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No tiene presencia en México. Opera globalmente pero focus en USA/Europa.
 
-**Qué copiar para Likida:**
-- 🟡 **MEDIA PRIORIDAD**: El "Automated Tax Compliance" (captura automática de info fiscal) es directamente adaptable al RFC/SAT. Likida podría:
+**Qué copiar para Atiende Despachos:**
+- **MEDIA PRIORIDAD**: El "Automated Tax Compliance" (captura automática de info fiscal) es directamente adaptable al RFC/SAT. Atiende Despachos podría:
   1. Validar RFCs automáticamente contra el padrón del SAT
   2. Clasificar regímenes fiscales de proveedores
   3. Generar DIOT automáticamente
 
 **Dificultad de copiar: ⭐⭐⭐ (Media)** — La integración con SAT es el bloqueo principal.
 
-**Impacto para despachos mexicanos: 🟠 ALTO** — La DIOT es una tarea mensual tediosa para todos los despachos.
+**Impacto para despachos mexicanos: ALTO** — La DIOT es una tarea mensual tediosa para todos los despachos.
 
 ---
 
@@ -475,8 +475,8 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🟠 **MEDIA-ALTA PRIORIDAD**: El concepto de "AI agents que enforcean políticas" es adaptable:
+**Qué copiar para Atiende Despachos:**
+- **MEDIA-ALTA PRIORIDAD**: El concepto de "AI agents que enforcean políticas" es adaptable:
   1. Agente que verifique si gastos de clientes PYME cumplen con deducibilidad SAT
   2. Agente que clasifique gastos según deducibilidad (100%, parcial, no deducible)
   3. Alertas automáticas de compliance fiscal
@@ -484,7 +484,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **Dificultad de copiar: ⭐⭐⭐ (Media)** — El expense management es relativamente directo. La dificultad está en las reglas fiscales mexicanas.
 
-**Impacto para despachos mexicanos: 🟠 ALTO** — Clasificación automática de deducibilidad sería un diferenciador enorme.
+**Impacto para despachos mexicanos: ALTO** — Clasificación automática de deducibilidad sería un diferenciador enorme.
 
 ---
 
@@ -515,12 +515,12 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en LATAM.
 
-**Qué copiar para Likida:**
-- 🟡 **MEDIA PRIORIDAD**: El intercompany reconciliation es relevante para grupos empresariales mexicanos. El IntelliDoc (AI document extraction) es directamente adaptable a CFDIs.
+**Qué copiar para Atiende Despachos:**
+- **MEDIA PRIORIDAD**: El intercompany reconciliation es relevante para grupos empresariales mexicanos. El IntelliDoc (AI document extraction) es directamente adaptable a CFDIs.
 
 **Dificultad de copiar: ⭐⭐⭐ (Media)**
 
-**Impacto para despachos mexicanos: 🟡 MEDIO** — Relevante para despachos con clientes corporativos/grupos.
+**Impacto para despachos mexicanos: MEDIO** — Relevante para despachos con clientes corporativos/grupos.
 
 ---
 
@@ -555,12 +555,12 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** Tiene presencia global pero no enfocada en el mercado fiscal mexicano.
 
-**Qué copiar para Likida:**
-- 🟡 **MEDIA PRIORIDAD**: BlackLine es el "enterprise-grade" del sector. El concepto de "Agentic Financial Operations Platform" como posicionamiento es poderoso. Likida podría posicionarse como "El BlackLine de México" — plataforma agentic para el mercado fiscal mexicano.
+**Qué copiar para Atiende Despachos:**
+- **MEDIA PRIORIDAD**: BlackLine es el "enterprise-grade" del sector. El concepto de "Agentic Financial Operations Platform" como posicionamiento es poderoso. Atiende Despachos podría posicionarse como "El BlackLine de México" — plataforma agentic para el mercado fiscal mexicano.
 
 **Dificultad de copiar: ⭐⭐⭐⭐⭐ (Muy Alta)** — Es una plataforma masiva. Copiar la visión, no la totalidad.
 
-**Impacto para despachos mexicanos: 🟡 MEDIO** — Demasiado enterprise para PYMEs, pero la visión agentic es el camino.
+**Impacto para despachos mexicanos: MEDIO** — Demasiado enterprise para PYMEs, pero la visión agentic es el camino.
 
 ---
 
@@ -593,13 +593,13 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 - "#1 en México para contadores y pymes" (self-claimed)
 - Expansión activa en LATAM
 
-**LATAM/México:** ✅ **YA ESTÁ EN MÉXICO** — es competidor directo.
+**LATAM/México:** **YA ESTÁ EN MÉXICO** — es competidor directo.
 
 **Qué aprender de Alegra:**
-- 🟢 **VALIDACIÓN**: Alegra ya valida que el mercado mexicano paga por software contable en la nube
+- **VALIDACIÓN**: Alegra ya valida que el mercado mexicano paga por software contable en la nube
 - Los "Agentes de IA" de Alegra parecen superficiales (no encontré evidencia de ejecución autónoma real)
 - "Alegra Calcula" (declaración de IVA) es interesante pero parece semi-automático
-- **OPORTUNIDAD**: Likida puede diferenciarse con agentes GENUINAMENTE autónomos vs. los "agentes" superficiales de Alegra
+- **OPORTUNIDAD**: Atiende Despachos puede diferenciarse con agentes GENUINAMENTE autónomos vs. los "agentes" superficiales de Alegra
 
 ---
 
@@ -630,8 +630,8 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en México. Solo Colombia.
 
-**Qué copiar para Likida:**
-- 🔴 **ALTA PRIORIDAD**: El modelo de Tributi es directamente adaptable a México:
+**Qué copiar para Atiende Despachos:**
+- **ALTA PRIORIDAD**: El modelo de Tributi es directamente adaptable a México:
   1. Declaración anual de personas físicas (ISR) — equivalente a la declaración de renta colombiana
   2. Cálculo del mínimo impuesto a pagar (deducciones personales, estímulos fiscales)
   3. Garantía de la declaración
@@ -640,7 +640,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **Dificultad de copiar: ⭐⭐⭐ (Media)** — Las reglas fiscales mexicanas son diferentes pero el modelo es replicable.
 
-**Impacto para despachos mexicanos: 🔴 TRANSFORMADOR** — La declaración anual de personas físicas es un mercado masivo en México (~40M de declarantes potenciales).
+**Impacto para despachos mexicanos: TRANSFORMADOR** — La declaración anual de personas físicas es un mercado masivo en México (~40M de declarantes potenciales).
 
 ---
 
@@ -665,15 +665,15 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 **LATAM/México:** No opera en México.
 
-**Qué copiar para Likida:**
-- 🟡 **MEDIA PRIORIDAD**: La clasificación fiscal automática con AI es directamente relevante. Likida podría:
+**Qué copiar para Atiende Despachos:**
+- **MEDIA PRIORIDAD**: La clasificación fiscal automática con AI es directamente relevante. Atiende Despachos podría:
   1. Clasificar automáticamente productos/servicios según el régimen fiscal del SAT
   2. Asignar códigos de producto/servicio del CFDI automáticamente
 - La integración WhatsApp es un patrón que México adoptaría rápidamente.
 
 **Dificultad de copiar: ⭐⭐ (Baja-Media)**
 
-**Impacto para despachos mexicanos: 🟡 MEDIO** — Útil pero no transformador por sí solo.
+**Impacto para despachos mexicanos: MEDIO** — Útil pero no transformador por sí solo.
 
 ---
 
@@ -693,7 +693,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 ### Patrón 2: Computer use sobre ERPs
 - **Hallazgo**: Ninguna de las soluciones investigadas usa "computer use" (screen scraping/RPA sobre ERPs). Todas usan **integraciones API nativas**.
 - **Implicación**: El futuro no es RPA sobre CONTPAqi, sino **APIs** o **reemplazar el ERP**.
-- **Oportunidad**: Likida podría crear una API layer sobre ERPs mexicanos (CONTPAqi, Aspel) que permita a agentes AI operar sin computer use.
+- **Oportunidad**: Atiende Despachos podría crear una API layer sobre ERPs mexicanos (CONTPAqi, Aspel) que permita a agentes AI operar sin computer use.
 
 ### Patrón 3: Agentes que hacen cierre contable mensual autónomo
 - **Ejemplos**: Numeric (90%+ automático), FloQast (3,500+ teams), BlackLine (enterprise)
@@ -717,53 +717,53 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 ---
 
-## SECCIÓN 4: OPORTUNIDADES PRIORIZADAS PARA LIKIDA
+## SECCIÓN 4: OPORTUNIDADES PRIORIZADAS PARA ATIENDE DESPACHOS
 
-### 🥇 OPORTUNIDAD #1: Agente de Cierre Mensual Autónomo (Inspired by Numeric + FloQast)
+### OPORTUNIDAD #1: Agente de Cierre Mensual Autónomo (Inspired by Numeric + FloQast)
 - **Qué**: Agente que ejecuta el 80%+ del cierre mensual de un despacho contable mexicano
 - **Tareas**: Conciliación bancaria, depreciaciones, provisiones, cálculo IVA provisional, preparación DIOT, generación balanza
 - **Dificultad**: ⭐⭐⭐⭐ (Alta)
-- **Impacto**: 🔴 TRANSFORMADOR
+- **Impacto**: TRANSFORMADOR
 - **Time to market**: 6-9 meses
 - **Benchmark**: Numeric logra 90%+ en conciliación bancaria
 
-### 🥈 OPORTUNIDAD #2: Accountant Copilot (Inspired by Docyt + Zeni)
+### OPORTUNIDAD #2: Accountant Copilot (Inspired by Docyt + Zeni)
 - **Qué**: Agente que revisa el trabajo del contador, detecta anomalías, sugiere correcciones
 - **Tareas**: Review de pólizas, detección de duplicados, validación fiscal, sugerencias de reclasificación
 - **Dificultad**: ⭐⭐⭐ (Media)
-- **Impacto**: 🟠 ALTO
+- **Impacto**: ALTO
 - **Time to market**: 3-6 meses
 - **Benchmark**: Docyt "Accountant Copilot"
 
-### 🥉 OPORTUNIDAD #3: Bank Statement → Journal Entries Agent (Inspired by Truewind)
+### OPORTUNIDAD #3: Bank Statement → Journal Entries Agent (Inspired by Truewind)
 - **Qué**: Agente que convierte estados de cuenta bancarios mexicanos en pólizas listas para ERP
 - **Tareas**: Importar extractos bancarios, clasificar transacciones, generar pólizas de diario, postear a ERP
 - **Dificultad**: ⭐⭐⭐ (Media)
-- **Impacto**: 🟠 ALTO
+- **Impacto**: ALTO
 - **Time to market**: 3-4 meses
 - **Benchmark**: Truewind logra integración directa con Sage Intacct
 
-### 🏅 OPORTUNIDAD #4: Declaración Fiscal Automatizada (Inspired by Tributi)
+### OPORTUNIDAD #4: Declaración Fiscal Automatizada (Inspired by Tributi)
 - **Qué**: Agente que prepara declaraciones fiscales mexicanas (IVA, ISR, DIOT) automáticamente
 - **Tareas**: Recopilar datos del período, calcular impuestos, generar formatos SAT, presentar
 - **Dificultad**: ⭐⭐⭐⭐ (Alta — reglas fiscales mexicanas complejas)
-- **Impacto**: 🔴 TRANSFORMADOR
+- **Impacto**: TRANSFORMADOR
 - **Time to market**: 6-12 meses
 - **Benchmark**: Tributi logra declaración de renta en 2 horas
 
-### 🏅 OPORTUNIDAD #5: CFDI Processing Agent (Inspired by Vic.ai + Stampli)
+### OPORTUNIDAD #5: CFDI Processing Agent (Inspired by Vic.ai + Stampli)
 - **Qué**: Agente que procesa CFDIs end-to-end (recibe → extrae → clasifica → registra → concilia con pago)
 - **Tareas**: Recepción de CFDIs del SAT, extracción XML, clasificación automática, registro en ERP, matching con pagos
 - **Dificultad**: ⭐⭐⭐ (Media)
-- **Impacto**: 🟠 ALTO
+- **Impacto**: ALTO
 - **Time to market**: 4-6 meses
 - **Benchmark**: Vic.ai logra 85% no-touch rate
 
-### 🏅 OPORTUNIDAD #6: Hybrid AI + Human Bookkeeping Service (Inspired by Bench)
+### OPORTUNIDAD #6: Hybrid AI + Human Bookkeeping Service (Inspired by Bench)
 - **Qué**: Servicio de bookkeeping donde AI hace el trabajo pesado y humanos supervisan
 - **Tareas**: Todo el ciclo contable con supervisión humana
 - **Dificultad**: ⭐⭐ (Baja-Media — más modelo de negocio que tecnología)
-- **Impacto**: 🔴 TRANSFORMADOR
+- **Impacto**: TRANSFORMADOR
 - **Time to market**: 2-4 meses (MVP)
 - **Benchmark**: Bench cobra $299+/mes y tiene 35,000+ clientes
 
@@ -773,23 +773,23 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 | Solución | País | Agente Autónomo | Close Mgmt | AP | Conciliación | Fiscal Local | LATAM/MX | Revenue |
 |---|---|---|---|---|---|---|---|---|
-| Vic.ai | USA | ✅ VicAgents | ✅ | ✅ 85% no-touch | ✅ | ❌ USA only | ❌ | $125M+ funding |
-| Truewind | USA | ✅ | ✅ | ❌ | ✅ 90%+ | ❌ USA only | ❌ | Startup |
-| Docyt | USA | ✅ HpAI | ✅ | ✅ | ✅ | ❌ USA only | ❌ | Startup |
-| Dext | UK | ✅ | ❌ | ❌ | ❌ | ❌ UK/USA | ❌ | Establecida |
-| Finaloop | Israel/USA | ✅ | ✅ | ❌ | ✅ | ❌ USA only | ❌ | 2,500+ brands |
-| Zeni | USA | ✅ AI Agents | ✅ | ✅ | ✅ | ❌ USA only | ❌ | Startup |
-| Bench | Canadá | ✅ (hybrid) | ✅ | ❌ | ✅ | ❌ USA/CA | ❌ | 35,000+ clients |
-| Numeric | USA | ✅ | ✅ 90%+ | ❌ | ✅ | ❌ USA only | ❌ | Startup |
-| FloQast | USA | ✅ AI Agents | ✅ | ❌ | ✅ | ❌ Global enterprise | ❌ | 3,500+ teams |
-| Stampli | USA | ✅ | ❌ | ✅ 87% | ❌ | ❌ USA only | ❌ | 1,800+ clients |
-| Tipalti | Israel | ✅ | ❌ | ✅ | ✅ | ❌ Global | ❌ | $270M+ funding |
-| Ramp | USA | ✅ | ❌ | ✅ | ❌ | ❌ USA only | ❌ | 70,000+ teams |
-| ReconArt | USA | ✅ | ✅ | ✅ | ✅ | ❌ Enterprise | ❌ | Enterprise |
-| BlackLine | USA | ✅ Verity AI | ✅ | ✅ | ✅ | ❌ Enterprise | ❌ | ~$5B mkt cap |
-| Alegra | Colombia/MX | ⚠️ Parcial | ❌ | ❌ | ❌ | ⚠️ MX/CO | ✅ | 50,000+ MX |
-| Tributi | Colombia | ✅ | ❌ | ❌ | ❌ | ✅ CO | ❌ | 300+ experts |
-| Omie | Brasil | ⚠️ Clasif fiscal | ❌ | ❌ | ❌ | ⚠️ BR | ❌ | Líder BR |
+| Vic.ai | USA | VicAgents | Sí | 85% no-touch | Sí | USA only | No | $125M+ funding |
+| Truewind | USA | Sí | Sí | No | 90%+ | USA only | No | Startup |
+| Docyt | USA | HpAI | Sí | Sí | Sí | USA only | No | Startup |
+| Dext | UK | Sí | No | No | No | UK/USA | No | Establecida |
+| Finaloop | Israel/USA | Sí | Sí | No | Sí | USA only | No | 2,500+ brands |
+| Zeni | USA | AI Agents | Sí | Sí | Sí | USA only | No | Startup |
+| Bench | Canadá | (hybrid) | Sí | No | Sí | USA/CA | No | 35,000+ clients |
+| Numeric | USA | Sí | 90%+ | No | Sí | USA only | No | Startup |
+| FloQast | USA | AI Agents | Sí | No | Sí | Global enterprise | No | 3,500+ teams |
+| Stampli | USA | Sí | No | 87% | No | USA only | No | 1,800+ clients |
+| Tipalti | Israel | Sí | No | Sí | Sí | Global | No | $270M+ funding |
+| Ramp | USA | Sí | No | Sí | No | USA only | No | 70,000+ teams |
+| ReconArt | USA | Sí | Sí | Sí | Sí | Enterprise | No | Enterprise |
+| BlackLine | USA | Verity AI | Sí | Sí | Sí | Enterprise | No | ~$5B mkt cap |
+| Alegra | Colombia/MX | Parcial | No | No | No | MX/CO | Sí | 50,000+ MX |
+| Tributi | Colombia | Sí | No | No | No | CO | No | 300+ experts |
+| Omie | Brasil | Clasif fiscal | No | No | No | BR | No | Líder BR |
 
 ---
 
@@ -802,7 +802,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 4. **Los despachos mexicanos están hambrientos de automatización** — el SAT ha digitalizado forzosamente
 5. **La ventana es de 12-18 meses** antes de que players globales (Vic.ai, Numeric) o Alegra lancen agentes genuinos
 
-### ¿Qué necesitaría Likida?
+### ¿Qué necesitaría Atiende Despachos?
 1. **Motor de reglas fiscales mexicanas** (SAT, CFDI, DIOT, ISR, IVA)
 2. **Integración con ERPs mexicanos** (CONTPAqi, Aspel, Contpaq i) — idealmente API, no computer use
 3. **Modelo de AI entrenado en contabilidad mexicana** (catálogo de cuentas SAT, NIF)
@@ -811,4 +811,4 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 
 ---
 
-*Documento generado como insumo para la estrategia de Likida. Los datos reflejan el estado de cada empresa según su presencia pública en agosto 2026.*
+*Documento generado como insumo para la estrategia de Atiende Despachos. Los datos reflejan el estado de cada empresa según su presencia pública en agosto 2026.*

@@ -1,7 +1,7 @@
 # Profundidad: Soluciones Agenticas de Contabilidad Globales
 
 > **Fecha:** 31 julio 2026  
-> **Propósito:** Entender cómo funcionan internamente las 8 mejores soluciones agenticas de contabilidad del mundo para construir algo superior con Likida AI Enterprise.  
+> **Propósito:** Entender cómo funcionan internamente las 8 mejores soluciones agenticas de contabilidad del mundo para construir algo superior con Atiende Despachos.  
 > **Fuentes:** Sitios web oficiales, blogs técnicos, páginas de AI information, G2/Capterra, documentación de producto.
 
 ---
@@ -658,7 +658,7 @@ Stampli es una plataforma **AI-powered Procure-to-Pay** para equipos de finanzas
 
 ---
 
-## LEARNINGS CLAVE PARA LIKIDA AI ENTERPRISE
+## LEARNINGS CLAVE PARA ATIENDE DESPACHOS
 
 ### 1. Lo que TODOS hacen bien
 - **Human-in-the-loop:** NINGUNO permite autonomía total sin aprobación humana
@@ -666,7 +666,7 @@ Stampli es una plataforma **AI-powered Procure-to-Pay** para equipos de finanzas
 - **Feedback loops:** Todos aprenden de correcciones humanas
 - **Audit trail:** Todos mantienen historial completo de decisiones
 
-### 2. Lo que NADIE hace bien (Oportunidad para Likida)
+### 2. Lo que NADIE hace bien (Oportunidad para Atiende Despachos)
 - **Mercado mexicano:** NINGUNO tiene expertise en CFDI 4.0, nómina mexicana, fiscal compliance
 - **Despachos contables:** Muy pocos están diseñados para despachos que manejan múltiples clientes
 - **Full autonomy con compliance fiscal:** Nadie combina AI agents + compliance fiscal mexicano
@@ -682,12 +682,12 @@ Stampli es una plataforma **AI-powered Procure-to-Pay** para equipos de finanzas
 6. **AI Agents framework** — FloQast, Vic.ai VicAgents
 
 ### 4. Métricas a Superar
-- **Vic.ai 97% accuracy** → Likida debe alcanzar 98%+ en CFDI
-- **Stampli 87% coverage, 92% accuracy** → Likida debe superar en contexto mexicano
-- **Numeric 90%+ cash matching** → Likida debe igualar
-- **Truewind 75% time reduction** → Likida debe lograr 80%+
+- **Vic.ai 97% accuracy** → Atiende Despachos debe alcanzar 98%+ en CFDI
+- **Stampli 87% coverage, 92% accuracy** → Atiende Despachos debe superar en contexto mexicano
+- **Numeric 90%+ cash matching** → Atiende Despachos debe igualar
+- **Truewind 75% time reduction** → Atiende Despachos debe lograr 80%+
 
 ### 5. Pricing Strategy Insights
 - **Entry level:** $299/mes (Docyt)
 - **Enterprise:** Custom pricing (la mayoría)
-- **Modelo recomendado para Likida:** Pricing por entidad/cliente, escalable por volumen de facturas
+- **Modelo recomendado para Atiende Despachos:** Pricing por entidad/cliente, escalable por volumen de facturas

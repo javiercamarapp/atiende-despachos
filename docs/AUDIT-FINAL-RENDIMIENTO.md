@@ -1,4 +1,4 @@
-# Auditoría de Rendimiento y Costos — Likida AI Enterprise
+# Auditoría de Rendimiento y Costos — Atiende Despachos
 
 **Fecha:** 2026-08-01
 **Alcance:** b2b_ai/db/, b2b_ai/api/, b2b_ai/services/, b2b_ai/infrastructure/, Dockerfile, railway.toml
@@ -106,12 +106,12 @@ q = "SELECT COUNT(*), SUM(CAST(total AS REAL)), SUM(CAST(iva AS REAL)) FROM invo
 
 | Columna filtrada | Índice actual | Queries que lo necesitan |
 |---|---|---|
-| `invoices.status` | ❌ Ninguno | `WHERE status='pending_approval'` |
-| `invoices.valido` | ❌ Ninguno | `WHERE valido=?` en list_invoices |
-| `invoices.emisor_rfc` | ❌ Ninguno | Dashboard top providers, anomaly detection |
+| `invoices.status` | Ninguno | `WHERE status='pending_approval'` |
+| `invoices.valido` | Ninguno | `WHERE valido=?` en list_invoices |
+| `invoices.emisor_rfc` | Ninguno | Dashboard top providers, anomaly detection |
 | `invoices.folio_fiscal` | Solo en UNIQUE(tenant_id, folio_fiscal) | SAT status check |
-| `classifications.invoice_id` | ❌ Ninguno | JOIN con invoices |
-| `audit_entries.tenant_id` | ✅ idx_audit_entries_tenant | OK |
+| `classifications.invoice_id` | Ninguno | JOIN con invoices |
+| `audit_entries.tenant_id` | idx_audit_entries_tenant | OK |
 
 **Impacto:** Full table scan en queries frecuentes del dashboard y API.
 
@@ -843,25 +843,25 @@ historico = db.list_invoices(tenant_id=tenant_id, limit=200)
 
 | # | ID | Severidad | Categoría | Ahorro Estimado | Esfuerzo |
 |---|---|---|---|---|---|
-| 1 | DB-01 | 🔴 CRÍTICO | Database | -10ms/request | 5 min |
-| 2 | API-02 | 🔴 CRÍTICO | Latency | -200ms/request | 15 min |
-| 3 | BATCH-01 | 🔴 CRÍTICO | Batch | -90% tiempo batch | 2 horas |
-| 4 | CACHE-01 | 🔴 CRÍTICO | Caching | -50% queries DB | 4 horas |
-| 5 | SCALE-02 | 🔴 CRÍTICO | Scaling | Habilita HA | 8 horas |
-| 6 | RL-01 | 🔴 CRÍTICO | Rate Limits | Habilita multi-worker RL | 1 hora |
-| 7 | DB-02 | 🔴 CRÍTICO | Database | -30% datos transferidos | 2 horas |
-| 8 | DB-03 | 🔴 CRÍTICO | Database | -90% RAM dashboard | 1 hora |
-| 9 | API-01 | 🔴 CRÍTICO | Latency | +50% throughput | 8 horas |
-| 10 | MEM-01 | 🔴 CRÍTICO | Memory | Previene OOM | 1 hora |
-| 11 | SCALE-01 | 🔴 CRÍTICO | Scaling | Previene data loss | 5 min |
-| 12 | DB-04 | 🟠 ALTO | Database | -20% query time | 30 min |
-| 13 | DB-06 | 🟠 ALTO | Database | -80% commit time batch | 2 horas |
-| 14 | API-03 | 🟠 ALTO | Latency | -90% dashboard time | 2 horas |
-| 15 | API-04 | 🟠 ALTO | Latency | -80% stats time | 1 hora |
-| 16 | LLM-01 | 🟠 ALTO | LLM Costs | -$24/mes | 1 hora |
-| 17 | COST-01 | 🟠 ALTO | Railway | +100% throughput | 5 min |
-| 18 | BATCH-02 | 🟠 ALTO | Batch | Previene thread exhaustion | 30 min |
-| 19 | MEM-02 | 🟠 ALTO | Memory | Previene data loss | 2 horas |
+| 1 | DB-01 | CRÍTICO | Database | -10ms/request | 5 min |
+| 2 | API-02 | CRÍTICO | Latency | -200ms/request | 15 min |
+| 3 | BATCH-01 | CRÍTICO | Batch | -90% tiempo batch | 2 horas |
+| 4 | CACHE-01 | CRÍTICO | Caching | -50% queries DB | 4 horas |
+| 5 | SCALE-02 | CRÍTICO | Scaling | Habilita HA | 8 horas |
+| 6 | RL-01 | CRÍTICO | Rate Limits | Habilita multi-worker RL | 1 hora |
+| 7 | DB-02 | CRÍTICO | Database | -30% datos transferidos | 2 horas |
+| 8 | DB-03 | CRÍTICO | Database | -90% RAM dashboard | 1 hora |
+| 9 | API-01 | CRÍTICO | Latency | +50% throughput | 8 horas |
+| 10 | MEM-01 | CRÍTICO | Memory | Previene OOM | 1 hora |
+| 11 | SCALE-01 | CRÍTICO | Scaling | Previene data loss | 5 min |
+| 12 | DB-04 | ALTO | Database | -20% query time | 30 min |
+| 13 | DB-06 | ALTO | Database | -80% commit time batch | 2 horas |
+| 14 | API-03 | ALTO | Latency | -90% dashboard time | 2 horas |
+| 15 | API-04 | ALTO | Latency | -80% stats time | 1 hora |
+| 16 | LLM-01 | ALTO | LLM Costs | -$24/mes | 1 hora |
+| 17 | COST-01 | ALTO | Railway | +100% throughput | 5 min |
+| 18 | BATCH-02 | ALTO | Batch | Previene thread exhaustion | 30 min |
+| 19 | MEM-02 | ALTO | Memory | Previene data loss | 2 horas |
 
 ---
 

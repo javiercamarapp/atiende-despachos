@@ -342,7 +342,7 @@ hay una cuenta con ese email."}`.
 Escenario: se prueba una lista de correos de contadores del gremio y se separa
 en dos con un `if status == 200`.
 
-Consecuencia: se confirma qué despachos son clientes de Likida — inteligencia
+Consecuencia: se confirma qué despachos son clientes de Atiende Despachos — inteligencia
 para phishing dirigido — y se acota la lista de objetivos del hallazgo crítico
 del bootstrap. El comentario es lo grave: la próxima revisión lee "evita
 enumeración" y pasa de largo.

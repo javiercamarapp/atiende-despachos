@@ -1,4 +1,4 @@
-# 🚀 Likida AI Enterprise — Guía de Demo para Prospectos
+# Atiende Despachos — Guía de Demo para Prospectos
 
 ## Inicio rápido
 
@@ -29,11 +29,11 @@ El servidor arranca en **http://localhost:8080** con un dashboard interactivo.
 
 1. Ejecuta `./demo_run.sh`
 2. Abre **http://localhost:8080** en el navegador
-3. Verás el dashboard de Likida AI Enterprise con las estadísticas en 0
+3. Verás el dashboard de Atiende Despachos con las estadísticas en 0
 
 ### 2. Procesar los 10 CFDI de ejemplo
 
-1. Haz clic en **"🔄 Procesar los 10 CFDI de Demo"**
+1. Haz clic en **"Procesar los 10 CFDI de Demo"**
 2. Observa la barra de progreso mientras se procesan
 3. El dashboard se actualiza con:
    - Total de facturas procesadas (10)
@@ -43,7 +43,7 @@ El servidor arranca en **http://localhost:8080** con un dashboard interactivo.
 
 ### 3. Explorar los resultados
 
-1. Ve a la pestaña **"📋 Resultados"**
+1. Ve a la pestaña **"Resultados"**
 2. La tabla muestra cada factura con:
    - Archivo, emisor, fecha, monto
    - **Categoría contable** (Gasto Operativo, Activo Fijo, Nómina, etc.)
@@ -66,7 +66,7 @@ Cada anomalía incluye la **referencia legal** (CFF, Ley del IVA, etc.)
 
 ### 5. Subir un CFDI personalizado
 
-1. Ve a la pestaña **"📤 Subir CFDI"**
+1. Ve a la pestaña **"Subir CFDI"**
 2. Arrastra o selecciona un archivo `.xml` de CFDI 4.0
 3. El sistema lo procesa en tiempo real y muestra la clasificación
 
@@ -84,8 +84,8 @@ Cada anomalía incluye la **referencia legal** (CFF, Ley del IVA, etc.)
 | 6 | nota_credito1.xml | E (Egreso) | Gasto Operativo | $0.00 | Devolución papelería |
 | 7 | nota_credito2.xml | E | Gasto Operativo | $0.00 | Ajuste hosting |
 | 8 | activo_fijo_computo.xml | I | Activo Fijo | $40,600 | Laptop Dell |
-| 9 | factura_cancelada.xml | I | Gasto Operativo | $3,480 | ⚠️ Factura cancelada |
-| 10 | monto_inusual.xml | I | Activo Fijo | $1,136,800 | ⚠️ Monto inusual |
+| 9 | factura_cancelada.xml | I | Gasto Operativo | $3,480 | Factura cancelada |
+| 10 | monto_inusual.xml | I | Activo Fijo | $1,136,800 | Monto inusual |
 
 ---
 
@@ -153,4 +153,4 @@ Esto genera un reporte HTML estático en `b2b_ai/demo-output/demo-report.html`.
 
 ---
 
-*Likida AI Enterprise — Agente contable inteligente para despachos mexicanos*
+*Atiende Despachos — Agente contable inteligente para despachos mexicanos*

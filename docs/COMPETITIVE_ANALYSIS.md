@@ -1,4 +1,4 @@
-# Competitive Analysis — Likida AI Enterprise
+# Competitive Analysis — Atiende Despachos
 
 **Date:** 2026-08-01
 **Status:** Living document
@@ -7,7 +7,7 @@
 
 ## 1. Market Overview
 
-The Mexican accounting software market is dominated by established players serving contadores, despachos, and enterprise finance teams. Likida enters as the **first AI-native platform** for accounting automation in Mexico.
+The Mexican accounting software market is dominated by established players serving contadores, despachos, and enterprise finance teams. Atiende Despachos enters as the **first AI-native platform** for accounting automation in Mexico.
 
 ---
 
@@ -68,28 +68,28 @@ The Mexican accounting software market is dominated by established players servi
 
 ## 4. Feature Comparison Matrix
 
-| Feature | Likida | CONTPAQi | Aspel | QuickBooks |
+| Feature | Atiende Despachos | CONTPAQi | Aspel | QuickBooks |
 |---------|--------|----------|-------|------------|
-| **AI Agents** | ✅ Full | ❌ | ❌ | ❌ |
-| **Computer Use (ERP automation)** | ✅ Unique | ❌ | ❌ | ❌ |
-| **50+ Integrations** | ✅ | ⚠️ ~20 | ⚠️ ~15 | ✅ ~30 |
-| **SAT/Fiscal Compliance** | ✅ Built-in | ✅ Deep | ✅ Good | ⚠️ Partial |
-| **CFDI Processing** | ✅ | ✅ | ✅ | ⚠️ |
-| **Human-in-the-Loop** | ✅ Native | ❌ | ❌ | ❌ |
-| **Cloud-First** | ✅ | ⚠️ Hybrid | ⚠️ Hybrid | ✅ |
-| **Real-time Dashboards** | ✅ | ⚠️ | ⚠️ | ✅ |
-| **Multi-client Management** | ✅ | ✅ | ✅ | ⚠️ |
-| **API Access** | ✅ Full | ⚠️ Limited | ⚠️ Limited | ✅ |
+| **AI Agents** | Full | No | No | No |
+| **Computer Use (ERP automation)** | Unique | No | No | No |
+| **50+ Integrations** | Sí | ~20 | ~15 | ~30 |
+| **SAT/Fiscal Compliance** | Built-in | Deep | Good | Partial |
+| **CFDI Processing** | Sí | Sí | Sí | Advertencia |
+| **Human-in-the-Loop** | Native | No | No | No |
+| **Cloud-First** | Sí | Hybrid | Hybrid | Sí |
+| **Real-time Dashboards** | Sí | Advertencia | Advertencia | Sí |
+| **Multi-client Management** | Sí | Sí | Sí | Advertencia |
+| **API Access** | Full | Limited | Limited | Sí |
 | **Price (MXN/year)** | $8K–$80K | $5K–$50K | $3K–$30K | $2K–$20K |
 
 ### Legend
-- ✅ = Full support
-- ⚠️ = Partial or limited support
-- ❌ = Not available
+- = Full support
+- = Partial or limited support
+- = Not available
 
 ---
 
-## 5. Competitive Differentiation (Likida Moat)
+## 5. Competitive Differentiation (Atiende Despachos Moat)
 
 ### 5.1 AI-Powered Automation (UNIQUE)
 No competitor offers AI agents that autonomously:
@@ -101,10 +101,10 @@ No competitor offers AI agents that autonomously:
 This is a **category-creating** feature in the Mexican market.
 
 ### 5.2 Computer Use for ERPs (UNIQUE)
-Likida's computer-use capability allows AI agents to interact with legacy ERP desktops (CONTPAQi, Aspel, SAP Business One) directly — no API needed. This bridges the gap between old and new systems.
+Atiende Despachos's computer-use capability allows AI agents to interact with legacy ERP desktops (CONTPAQi, Aspel, SAP Business One) directly — no API needed. This bridges the gap between old and new systems.
 
 ### 5.3 50+ Integrations (MOST COMPREHENSIVE)
-While competitors offer limited integrations, Likida's marketplace provides:
+While competitors offer limited integrations, Atiende Despachos's marketplace provides:
 - Banking (10+ banks)
 - E-commerce (Shopify, Mercado Libre, Amazon)
 - Payroll (ADP, Nomina32)
@@ -113,7 +113,7 @@ While competitors offer limited integrations, Likida's marketplace provides:
 - ERP connectors
 
 ### 5.4 Mexican Fiscal Expertise (BUILT-IN)
-Unlike global players (QuickBooks, Xero), Likida was built from day one for:
+Unlike global players (QuickBooks, Xero), Atiende Despachos was built from day one for:
 - CFDI 4.0 compliance
 - SAT portal automation
 - Monthly/annual fiscal obligations
@@ -134,7 +134,7 @@ Critical differentiator for regulated industries:
                     AI Capabilities
                          ▲
                          │
-              Likida ★    │
+              Atiende Despachos    │
                          │
          ────────────────┼──────────────► Mexican Market Fit
                          │
@@ -142,7 +142,7 @@ Critical differentiator for regulated industries:
                          │         Aspel
 ```
 
-**Likida occupies the top-right quadrant:** high AI capabilities + deep Mexican market fit. No competitor currently occupies this space.
+**Atiende Despachos occupies the top-right quadrant:** high AI capabilities + deep Mexican market fit. No competitor currently occupies this space.
 
 ---
 

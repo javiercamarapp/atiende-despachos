@@ -1,6 +1,6 @@
 # Production-Grade para Despachos Contables Reales en México
 
-> **Estado:** Guía de referencia · Likida AI Enterprise  
+> **Estado:** Guía de referencia · Atiende Despachos  
 > **Última actualización:** 2026-08-01  
 > **Stack:** Python 3.11 + FastAPI + PostgreSQL + Redis + Docker  
 
@@ -23,9 +23,9 @@
 
 | Patrón | Pros | Contras | Recomendación |
 |--------|------|---------|---------------|
-| **Row-level (RLS)** | Simple, un solo schema, PG nativo | Riesgo de leak si olvidas el filtro | ✅ **Para MVP y fase 1** |
+| **Row-level (RLS)** | Simple, un solo schema, PG nativo | Riesgo de leak si olvidas el filtro | **Para MVP y fase 1** |
 | **Schema per tenant** | Aislamiento fuerte, migración independiente | Complejidad operacional, más schemas que manejar | Fase 2 (despachos enterprise) |
-| **DB per tenant** | Máximo aislamiento | Impracticable a escala, costoso | ❌ No recomendado |
+| **DB per tenant** | Máximo aislamiento | Impracticable a escala, costoso | No recomendado |
 
 #### Decisión: Row-Level Security (RLS) con PostgreSQL
 
@@ -464,9 +464,9 @@ pg_dump \
 # Verificar integridad del dump
 pg_restore -l "$BACKUP_DIR/backup_${TIMESTAMP}.dump" > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-    echo "[$TIMESTAMP] ✅ Backup verificado OK"
+    echo "[$TIMESTAMP] Backup verificado OK"
 else
-    echo "[$TIMESTAMP] ❌ ERROR: Backup corrupto" >&2
+    echo "[$TIMESTAMP] ERROR: Backup corrupto" >&2
     exit 1
 fi
 
@@ -476,18 +476,18 @@ aws s3 cp "$BACKUP_DIR/backup_${TIMESTAMP}.dump.gz" "$S3_BUCKET/" \
   --sse AES256 \
   --storage-class STANDARD_IA
 
-echo "[$TIMESTAMP] ✅ Backup subido a $S3_BUCKET/"
+echo "[$TIMESTAMP] Backup subido a $S3_BUCKET/"
 
 # Limpiar backups locales antiguos
 find "$BACKUP_DIR" -name "*.dump.gz" -mtime +$RETENTION_DAYS -delete
-echo "[$TIMESTAMP] 🧹 Backups locales >${RETENTION_DAYS} días eliminados"
+echo "[$TIMESTAMP] Backups locales >${RETENTION_DAYS} días eliminados"
 
 # Verificar que el backup en S3 es accesible
 aws s3 ls "$S3_BUCKET/backup_${TIMESTAMP}.dump.gz" > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-    echo "[$TIMESTAMP] ✅ Backup en S3 verificado"
+    echo "[$TIMESTAMP] Backup en S3 verificado"
 else
-    echo "[$TIMESTAMP] ⚠️  WARNING: Backup no encontrado en S3" >&2
+    echo "[$TIMESTAMP]  WARNING: Backup no encontrado en S3" >&2
     exit 1
 fi
 ```
@@ -848,15 +848,15 @@ class BatchProcessor:
 
 | Característica | Celery | arq | RQ |
 |---------------|--------|-----|-----|
-| **Async nativo** | No (usa threads/gevent) | ✅ Sí (asyncio) | No (fork-based) |
-| **Redis backend** | ✅ | ✅ | ✅ |
-| **PostgreSQL backend** | ✅ (django-celery) | ❌ | ❌ |
-| **Scheduled tasks** | ✅ Celery Beat | ✅ built-in | ❌ (necesita rq-scheduler) |
-| **Monitoring** | ✅ Flower | ❌ básico | ✅ rq-dashboard |
-| **Retries** | ✅ avanzado | ✅ básico | ✅ básico |
-| **Rate limiting** | ✅ built-in | ❌ manual | ❌ manual |
-| **Result backend** | ✅ | ✅ | ✅ |
-| **Chains/Groups** | ✅ Canvas | ❌ | ❌ |
+| **Async nativo** | No (usa threads/gevent) | Sí (asyncio) | No (fork-based) |
+| **Redis backend** | Sí | Sí | Sí |
+| **PostgreSQL backend** | (django-celery) | No | No |
+| **Scheduled tasks** | Celery Beat | built-in | (necesita rq-scheduler) |
+| **Monitoring** | Flower | básico | rq-dashboard |
+| **Retries** | avanzado | básico | básico |
+| **Rate limiting** | built-in | manual | manual |
+| **Result backend** | Sí | Sí | Sí |
+| **Chains/Groups** | Canvas | No | No |
 | **Mature/SO** | Muy maduro | Joven, creciendo | Maduro |
 | **Footprint** | Pesado (~100MB deps) | Liviano (~5MB) | Mediano |
 
@@ -872,7 +872,7 @@ Para despachos contables reales necesitamos:
 ```python
 # b2b_ai/tasks/celery_app.py
 """
-Configuración de Celery para Likida AI.
+Configuración de Celery para Atiende Despachos.
 Optimizada para workloads fiscales: batches de CFDIs, nómina, reportes.
 """
 from __future__ import annotations
@@ -1296,7 +1296,7 @@ server {
 ```python
 # b2b_ai/api/security.py — Modelo completo de cifrado
 """
-Capa de seguridad para Likida AI.
+Capa de seguridad para Atiende Despachos.
 
 Cifra en reposo:
   - AES-256-GCM para campos sensibles (RFC, nómina, CLABE)
@@ -1661,7 +1661,7 @@ Obligaciones del despacho contable (como responsable):
   6. Notificación de brechas de seguridad
   7. Registro ante INAI (si maneja >5000 sujetos)
 
-Para Likida AI (como encargado del despacho):
+Para Atiende Despachos (como encargado del despacho):
   - Procesamos datos personales EN NOMBRE del despacho
   - El despacho sigue siendo el responsable
   - Nosotros somos encargados bajo contrato de tratamiento
@@ -1823,7 +1823,7 @@ class LFPDPPPCompliance:
 
         # ALERTA CRÍTICA: Notificar inmediatamente al equipo
         logger.critical(
-            f"🔒 BRECHA DE DATOS detectada: {breach_id} | "
+            f"BRECHA DE DATOS detectada: {breach_id} | "
             f"Tenant: {tenant_id} | Afectados: {affected_subjects}"
         )
 
@@ -1879,7 +1879,7 @@ class LFPDPPPCompliance:
 ### 3.5 SOC 2 / ISO 27001 — Roadmap
 
 ```markdown
-## Roadmap SOC 2 / ISO 27001 para Likida AI
+## Roadmap SOC 2 / ISO 27001 para Atiende Despachos
 
 ### Fase 1 (0-3 meses): Fundamentos
 - [ ] Políticas de seguridad documentadas
@@ -1891,8 +1891,8 @@ class LFPDPPPCompliance:
 - [ ] Vendor risk assessment (proveedores cloud)
 
 ### Fase 2 (3-6 meses): Controles técnicos
-- [ ] Encryption at rest (AES-256-GCM) ✅
-- [ ] Encryption in transit (TLS 1.3) ✅
+- [ ] Encryption at rest (AES-256-GCM)
+- [ ] Encryption in transit (TLS 1.3)
 - [ ] MFA obligatorio para acceso admin
 - [ ] Secret scanning en CI/CD
 - [ ] Vulnerability scanning (Snyk/Trivy)
@@ -1915,18 +1915,18 @@ class LFPDPPPCompliance:
 
 ### Trust Service Criteria Mapping (SOC 2)
 
-| Criterio | Control Likida AI | Estado |
+| Criterio | Control Atiende Despachos | Estado |
 |----------|-------------------|--------|
-| CC6.1 | RBAC + permisos granulares | ✅ Implementado |
-| CC6.2 | Autenticación JWT + MFA | 🔶 JWT ✅, MFA pendiente |
-| CC6.3 | Authorization en cada endpoint | ✅ Middleware |
-| CC6.6 | Encryption en tránsito (TLS 1.3) | ✅ nginx config |
-| CC6.7 | Encryption en reposo (AES-256-GCM) | ✅ security.py |
-| CC7.1 | Monitoring + alertas | ✅ monitoring/ |
-| CC7.2 | Incident detection + response | 🔶 Básico, necesita plan formal |
-| CC8.1 | Change management | 🔶 CI/CD, falta proceso formal |
-| CC9.1 | Risk assessment | ❌ Pendiente |
-| A1.2 | Availability (SLA 99.9%) | 🔶 Healthcheck, falta SLO tracking |
+| CC6.1 | RBAC + permisos granulares | Implementado |
+| CC6.2 | Autenticación JWT + MFA | JWT, MFA pendiente |
+| CC6.3 | Authorization en cada endpoint | Middleware |
+| CC6.6 | Encryption en tránsito (TLS 1.3) | nginx config |
+| CC6.7 | Encryption en reposo (AES-256-GCM) | security.py |
+| CC7.1 | Monitoring + alertas | monitoring/ |
+| CC7.2 | Incident detection + response | Básico, necesita plan formal |
+| CC8.1 | Change management | CI/CD, falta proceso formal |
+| CC9.1 | Risk assessment | Pendiente |
+| A1.2 | Availability (SLA 99.9%) | Healthcheck, falta SLO tracking |
 ```
 
 ---
@@ -1936,7 +1936,7 @@ class LFPDPPPCompliance:
 ### 4.1 Arquitectura de Monitoring
 
 ```yaml
-# Arquitectura observability para Likida AI
+# Arquitectura observability para Atiende Despachos
 
 components:
   # Métricas (ya existe b2b_ai/monitoring/metrics.py)
@@ -2353,7 +2353,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Likida API está caída"
+          summary: "Atiende Despachos API está caída"
           description: "El servicio no responde en {{ $labels.instance }}"
 
       - alert: HighErrorRate
@@ -2412,7 +2412,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "⚠️ CSD EXPIRADO — No se pueden timbrar CFDIs"
+          summary: " CSD EXPIRADO — No se pueden timbrar CFDIs"
 
       # --- Seguridad ---
       - alert: UnauthorizedCrossTenantAccess
@@ -2427,7 +2427,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "🔒 BRECHA DE DATOS — Verificar inmediatamente"
+          summary: "BRECHA DE DATOS — Verificar inmediatamente"
 ```
 
 ---
@@ -2660,7 +2660,7 @@ networks:
 ### 5.2 Railway (Producción managed)
 
 ```toml
-# railway.toml — Configuración de Railway para Likida AI
+# railway.toml — Configuración de Railway para Atiende Despachos
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
@@ -2685,7 +2685,7 @@ restartPolicyMaxRetries = 3
 ```yaml
 # .github/workflows/deploy.yml — Pipeline de CI/CD completo
 
-name: Deploy Likida AI
+name: Deploy Atiende Despachos
 
 on:
   push:
@@ -2823,7 +2823,7 @@ jobs:
 ```python
 # migrations/env.py — Alembic configurado para PostgreSQL con RLS
 """
-Migraciones seguras para Likida AI.
+Migraciones seguras para Atiende Despachos.
 
 Reglas:
   1. TODAS las migraciones deben ser reversibles (downgrade)
@@ -2838,18 +2838,18 @@ Reglas:
 MIGRATION_SAFETY_RULES = """
 -- REGLAS DE SEGURIDAD PARA MIGRACIONES:
 
--- ✅ SEGURO: CREATE TABLE (no bloquea)
--- ✅ SEGURO: CREATE INDEX CONCURRENTLY (no bloquea lecturas/escrituras)
--- ✅ SEGURO: ALTER TABLE ADD COLUMN (si tiene DEFAULT, PG 11+ es seguro)
--- ✅ SEGURO: ALTER TABLE ADD CONSTRAINT con NOT VALID (validar después)
+-- SEGURO: CREATE TABLE (no bloquea)
+-- SEGURO: CREATE INDEX CONCURRENTLY (no bloquea lecturas/escrituras)
+-- SEGURO: ALTER TABLE ADD COLUMN (si tiene DEFAULT, PG 11+ es seguro)
+-- SEGURO: ALTER TABLE ADD CONSTRAINT con NOT VALID (validar después)
 
--- ⚠️  PELIGROSO: DROP TABLE (irreversible)
--- ⚠️  PELIGROSO: ALTER TABLE DROP COLUMN (irreversible sin backup)
--- ⚠️  PELIGROSO: CREATE UNIQUE INDEX (sin CONCURRENTLY, bloquea escrituras)
--- ⚠️  PELIGROSO: ALTER TABLE ALTER TYPE (puede bloquear la tabla entera)
--- ⚠️  PELIGROSO: DELETE FROM (sin WHERE, borra todo)
+--  PELIGROSO: DROP TABLE (irreversible)
+--  PELIGROSO: ALTER TABLE DROP COLUMN (irreversible sin backup)
+--  PELIGROSO: CREATE UNIQUE INDEX (sin CONCURRENTLY, bloquea escrituras)
+--  PELIGROSO: ALTER TABLE ALTER TYPE (puede bloquear la tabla entera)
+--  PELIGROSO: DELETE FROM (sin WHERE, borra todo)
 
--- ❌ PROHIBIDO en producción:
+-- PROHIBIDO en producción:
 -- DROP DATABASE
 -- TRUNCATE (sin confirmación explícita)
 """
@@ -3232,4 +3232,4 @@ Con AWS directo (EC2 + RDS + ElastiCache): $150-300/mes pero más control.
 
 ---
 
-*Documento generado para Likida AI Enterprise · 2026-08-01*
+*Documento generado para Atiende Despachos · 2026-08-01*

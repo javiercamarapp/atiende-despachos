@@ -244,10 +244,10 @@ class TestRetry:
         event = WebhookEvent(event_type=WebhookEventType.CFDI_PROCESSED, payload={"rfc": "ABC"})
         proc.deliver(WebhookDelivery(subscription_id=sub.id, event_id=event.id,
                                      event_type=event.event_type), sub, event)
-        assert "X-Likida-Signature" in captured
-        assert captured["X-Likida-Signature"].startswith("sha256=")
-        assert captured["X-Likida-Event"] == "cfdi.processed"
-        assert captured["X-Likida-Event-Id"] == event.id
+        assert "X-Atiende Despachos-Signature" in captured
+        assert captured["X-Atiende Despachos-Signature"].startswith("sha256=")
+        assert captured["X-Atiende Despachos-Event"] == "cfdi.processed"
+        assert captured["X-Atiende Despachos-Event-Id"] == event.id
 
 
 # ---------------------------------------------------------------------------

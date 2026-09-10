@@ -14,7 +14,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# --- Likida AI Enterprise: la URL real viene de B2B_DB_URL, DATABASE_URL o B2B_DB_PATH (postgresql://).
+# --- Atiende Despachos: la URL real viene de B2B_DB_URL, DATABASE_URL o B2B_DB_PATH (postgresql://).
 # El fallback en alembic.ini solo se usa si no hay variable de entorno.
 _dsn = os.environ.get("B2B_DB_URL") or os.environ.get("DATABASE_URL") or os.environ.get("B2B_DB_PATH")
 if _dsn:

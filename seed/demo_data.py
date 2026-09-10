@@ -258,7 +258,7 @@ def _persist_db(dataset: Dict[str, Any], db_path: str) -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Genera datos de demo para el piloto de Likida AI.")
+    parser = argparse.ArgumentParser(description="Genera datos de demo para el piloto de Atiende Despachos.")
     parser.add_argument("--db", default="", help="Ruta opcional a b2b_ai.db para persistir en SQLite")
     parser.add_argument("--out-dir", default="demo-output/seed", help="Directorio de salida JSON")
     parser.add_argument("--cfdis", type=int, default=50, help="Número de CFDIs (default 50)")

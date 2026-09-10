@@ -3,7 +3,7 @@
 notification_service.py — Multi-channel alert notification service.
 
 Sends alerts over email (SMTP), WhatsApp (HTTP API) and dashboard push,
-with a clean Likida-branded HTML template for email.
+with a clean Atiende Despachos-branded HTML template for email.
 
 Rate limiting & dedup:
   - Rate limit: max 1 notification per (category, company) per day.
@@ -46,7 +46,7 @@ class NotificationConfig:
     max_per_category_per_day: int = 1
     dedup_window_hours: int = 24
     sender_email: str = "alertas@likida.mx"
-    brand_name: str = "Likida"
+    brand_name: str = "Atiende Despachos"
     smtp_host: str = "localhost"
     smtp_port: int = 587
     smtp_username: Optional[str] = None
@@ -57,10 +57,10 @@ class NotificationConfig:
 
 
 # ---------------------------------------------------------------------------
-# Likida email template
+# Atiende Despachos email template
 # ---------------------------------------------------------------------------
 
-LIKIDA_EMAIL_TEMPLATE = """\
+EMAIL_TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -100,7 +100,7 @@ LIKIDA_EMAIL_TEMPLATE = """\
         <!-- Footer -->
         <tr>
           <td style="background-color:#0b2545;padding:16px 32px;border-radius:0 0 12px 12px;">
-            <span style="color:#8bb0d6;font-size:12px;">© 2026 Likida · Alertas automáticas de cumplimiento fiscal.</span>
+            <span style="color:#8bb0d6;font-size:12px;">© 2026 Atiende Despachos · Alertas automáticas de cumplimiento fiscal.</span>
           </td>
         </tr>
       </table>
@@ -263,7 +263,7 @@ class AlertNotificationService:
     def render_email_html(self, alert: Alert, company: str, category: str,
                           subject: str, now: Optional[datetime] = None) -> str:
         sev = alert.severity or AlertSeverity.INFO
-        return LIKIDA_EMAIL_TEMPLATE.format(
+        return EMAIL_TEMPLATE.format(
             subject=subject,
             brand_name=self.config.brand_name,
             severity_badge=_SEVERITY_BADGE[sev],

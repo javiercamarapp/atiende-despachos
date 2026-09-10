@@ -700,11 +700,11 @@ def build_executive_summary(data: Dict[str, Any]) -> Dict[str, Any]:
         },
         "clientes_top5": sorted(clients, key=lambda c: c["mensualidad"], reverse=True)[:5],
         "kpi_cards": [
-            {"label": "CFDIs Procesados", "value": str(roi["resumen_firma"]["total_cfdi_procesados"]), "icon": "📄"},
-            {"label": "Monto Total", "value": f"${roi['resumen_firma']['monto_total_procesado']:,.0f}", "icon": "💰"},
+            {"label": "CFDIs Procesados", "value": str(roi["resumen_firma"]["total_cfdi_procesados"]), "icon": ""},
+            {"label": "Monto Total", "value": f"${roi['resumen_firma']['monto_total_procesado']:,.0f}", "icon": ""},
             {"label": "Horas Ahorradas", "value": f"{roi['ahorro_ia']['total_horas_ahorradas']}h", "icon": "⏱️"},
-            {"label": "Ahorro Mensual", "value": f"${roi['ahorro_ia']['ahorro_mensual_mx']:,.0f}", "icon": "📈"},
-            {"label": "ROI Mensual", "value": f"{roi['comparativa_roi']['roi_mensual_pct']}%", "icon": "🎯"},
-            {"label": "Calidad (error AI)", "value": f"{roi['calidad']['tasa_error_ai_pct']}%", "icon": "✅"},
+            {"label": "Ahorro Mensual", "value": f"${roi['ahorro_ia']['ahorro_mensual_mx']:,.0f}", "icon": ""},
+            {"label": "ROI Mensual", "value": f"{roi['comparativa_roi']['roi_mensual_pct']}%", "icon": ""},
+            {"label": "Calidad (error AI)", "value": f"{roi['calidad']['tasa_error_ai_pct']}%", "icon": ""},
         ],
     }

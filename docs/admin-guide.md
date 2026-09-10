@@ -1,7 +1,7 @@
 # Guía de Administración — Configuración de Tenants
 
 Esta guía es para el **administrador del sistema** que gestiona los despachos
-(clientes) en Likida AI Enterprise. Cubre el modelo multi-tenant, cómo crear y aislar
+(clientes) en Atiende Despachos. Cubre el modelo multi-tenant, cómo crear y aislar
 tenants, cómo provisionar API keys y cómo operar el sistema de forma segura.
 
 ---
@@ -18,12 +18,12 @@ Tablas principales y su aislamiento:
 | Tabla | ¿Tiene `tenant_id`? | Contenido |
 |---|---|---|
 | `tenants` | — | Los despachos (el catálogo de tenants). |
-| `users` | ✅ | Usuarios dentro de un tenant. |
-| `invoices` | ✅ | CFDI procesados (registro central). |
-| `classifications` | ✅ | Historial de clasificaciones por factura. |
-| `audit_log` | ✅ | Bitácora de TODAS las llamadas a tools. |
-| `notifications` | ✅ | Notificaciones enviadas/en cola. |
-| `api_keys` | ✅ | API keys (hashadas) por tenant. |
+| `users` | Sí | Usuarios dentro de un tenant. |
+| `invoices` | Sí | CFDI procesados (registro central). |
+| `classifications` | Sí | Historial de clasificaciones por factura. |
+| `audit_log` | Sí | Bitácora de TODAS las llamadas a tools. |
+| `notifications` | Sí | Notificaciones enviadas/en cola. |
+| `api_keys` | Sí | API keys (hashadas) por tenant. |
 | `leads` | — | Leads de la landing (sin tenant). |
 
 ---
@@ -79,7 +79,7 @@ En la API, el tenant se impone de dos maneras:
    cuando no se pasa uno explícito.
 2. **Por query param:** `GET /api/v1/invoices?tenant_id=2`.
 
-> ⚠️ **Seguridad:** en multi-tenant real, asegúrate de que cada despacho use
+> **Seguridad:** en multi-tenant real, asegúrate de que cada despacho use
 > **su propia API key** ligada a su `tenant_id`, para que el aislamiento
 > funcione de extremo a extremo. No uses la key de servicio (`B2B_API_KEY`)
 > en producción multi-tenant.

@@ -147,7 +147,7 @@ class AlertEngine:
                 days_unreconciled=days,
                 severity=AlertSeverity.CRITICAL,
                 message=(
-                    f"🔴 Movimiento no identificado por ${monto:,.2f} — "
+                    f"Movimiento no identificado por ${monto:,.2f} — "
                     f"requiere revisión urgente (umbral ${self.large_movement_threshold:,.0f})"
                 ),
                 rule="large_unidentified",
@@ -163,7 +163,7 @@ class AlertEngine:
                 days_unreconciled=days,
                 severity=severity if severity == AlertSeverity.CRITICAL else AlertSeverity.WARNING,
                 message=(
-                    f"⚠️ Depósito de ${monto:,.2f} el {mov.fecha} sin factura asociada — "
+                    f" Depósito de ${monto:,.2f} el {mov.fecha} sin factura asociada — "
                     f"posible ingreso no declarado ({days} días sin conciliar)"
                 ),
                 rule="deposit_no_cfdi",
@@ -179,7 +179,7 @@ class AlertEngine:
                 days_unreconciled=days,
                 severity=severity if severity == AlertSeverity.CRITICAL else AlertSeverity.WARNING,
                 message=(
-                    f"⚠️ Retiro de ${monto:,.2f} sin factura — "
+                    f" Retiro de ${monto:,.2f} sin factura — "
                     f"verificar deducibilidad ({days} días sin conciliar)"
                 ),
                 rule="withdrawal_no_cfdi",
@@ -195,7 +195,7 @@ class AlertEngine:
                 days_unreconciled=days,
                 severity=AlertSeverity.CRITICAL,
                 message=(
-                    f"🔴 Partida sin conciliar por {days} días — "
+                    f"Partida sin conciliar por {days} días — "
                     f"monto ${monto:,.2f} requiere atención inmediata"
                 ),
                 rule="aging_escalation",
@@ -232,7 +232,7 @@ class AlertEngine:
                             days_unreconciled=self._days_since(group[i].fecha, ref_date),
                             severity=AlertSeverity.WARNING,
                             message=(
-                                f"⚠️ Posible pago duplicado: mismo monto "
+                                f" Posible pago duplicado: mismo monto "
                                 f"(${abs(group[i].monto):,.2f}) y proveedor "
                                 f"en 24 horas ({group[i].fecha} / {group[j].fecha})"
                             ),
@@ -263,7 +263,7 @@ class AlertEngine:
                 days_unreconciled=0,
                 severity=AlertSeverity.CRITICAL,
                 message=(
-                    f"🔴 ALERTA: Depósitos (${total_deposits:,.2f}) superan "
+                    f"ALERTA: Depósitos (${total_deposits:,.2f}) superan "
                     f"ingresos declarados (${declared_income:,.2f}) × {self.income_discrepancy_ratio} — "
                     f"riesgo de discrepancia fiscal (Art. 91 LISR)"
                 ),

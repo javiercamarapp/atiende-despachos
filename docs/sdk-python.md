@@ -1,11 +1,11 @@
-# SDK de Python — likida-sdk
+# SDK de Python — atiende-despachos-sdk
 
-Cliente oficial de Python para la API REST de Likida AI Enterprise (Likida) Enterprise.
+Cliente oficial de Python para la API REST de Atiende Despachos.
 Envuelve todos los endpoints del contrato OpenAPI (`docs/openapi.json`) en una
 API tipada, con reintentos, manejo de errores y helpers para facturas, reportes
 y webhooks.
 
-> **Estado:** este documento define la superficie del SDK `likida-sdk` tal como
+> **Estado:** este documento define la superficie del SDK `atiende-despachos-sdk` tal como
 > se distribuye a los clientes del despacho. La referencia de endpoints y
 > payloads se deriva 1:1 del contrato OpenAPI real de la API (nunca de memoria),
 > de modo que los ejemplos siempre funcionan contra la API actual.
@@ -15,7 +15,7 @@ y webhooks.
 ## 1. Instalación
 
 ```bash
-pip install likida-sdk
+pip install atiende-despachos-sdk
 ```
 
 Requiere Python ≥ 3.9. Dependencias: `requests` (HTTP), `pydantic>=2`
@@ -26,7 +26,7 @@ Requiere Python ≥ 3.9. Dependencias: `requests` (HTTP), `pydantic>=2`
 ## 2. Client setup
 
 ```python
-from likida import Client
+from atiende_despachos import Client
 
 client = Client(
     api_key="sk_live_xxxxxxxxxxxxxxxx",   # API key del despacho (header X-API-Key)
@@ -162,7 +162,7 @@ valida el payload y responde `2xx` para confirmar la entrega:
 
 ```python
 from fastapi import FastAPI, Request
-from likida.webhooks import WebhookReceiver
+from atiende_despachos.webhooks import WebhookReceiver
 
 app = FastAPI()
 receiver = WebhookReceiver()
@@ -210,7 +210,7 @@ print(retried.reintentadas)
 ## 6. Auth enterprise (JWT)
 
 ```python
-from likida import Client
+from atiende_despachos import Client
 
 api = Client(api_key="sk_live_xxx")   # para registrar el 1er admin del tenant
 
@@ -245,7 +245,7 @@ El SDK lanza excepciones tipadas por código HTTP:
 | `APIServerError` | 5xx | Error de servidor |
 
 ```python
-from likida import Client, RateLimitError
+from atiende_despachos import Client, RateLimitError
 
 try:
     client.process_invoice_file("factura.xml")
