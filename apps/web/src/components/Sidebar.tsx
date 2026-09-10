@@ -10,6 +10,7 @@ import {
   PanelLeftOpen,
   UserRound,
   CreditCard,
+  Bell,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
@@ -99,12 +100,17 @@ export function Sidebar({ tenantLabel, onLogout }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="p-2 space-y-0.5 shrink-0">
+      {/* Bloque de cuenta — mismo patrón de dos capas que dashboard/chrome.tsx
+          de Likida (y el mismo fix ya aplicado en atiende-restaurantes/
+          citas-reservaciones/licitaciones/hoteles/rentas): zona hundida a
+          todo lo ancho (bg-muted + sombra interior) y tarjeta de usuario
+          SOBREPUESTA (margen negativo, fondo/borde/sombra propios). */}
+      <div className="shrink-0 border-t border-border">
         {!collapsed && (
-          <div className="rounded-xl bg-muted/60 p-1.5 space-y-0.5 mb-1.5">
+          <div className="bg-muted px-2 pt-2 pb-5 space-y-0.5 shadow-[inset_0_2px_5px_-2px_rgba(0,0,0,0.08)]">
             <button
               disabled
-              className="w-full flex items-center gap-2 px-3 py-1.5 mb-1 rounded-full text-[13px] border border-border bg-card opacity-50 cursor-not-allowed"
+              className="mb-1 flex w-full items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] opacity-50 cursor-not-allowed"
             >
               <HelpCircle className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.75} />
               <span className="flex-1 flex items-center justify-between min-w-0 gap-2">
@@ -112,7 +118,11 @@ export function Sidebar({ tenantLabel, onLogout }: SidebarProps) {
                 <span className="font-mono text-[9px] uppercase tracking-[0.06em] text-muted-foreground/60 shrink-0">Pronto</span>
               </span>
             </button>
+            {/* Mismos 5 ítems y mismo orden que el bloque ABAJO real de
+                Likida; activo = píldora sólida bg-primary. Solo
+                "Configuración" tiene página real hoy en este repo. */}
             {[
+              { label: "Notificaciones", icon: Bell },
               { label: "Mi perfil", icon: UserRound },
               { label: "Plan y facturación", icon: CreditCard },
             ].map((it) => (
@@ -133,7 +143,7 @@ export function Sidebar({ tenantLabel, onLogout }: SidebarProps) {
               className={({ isActive }) =>
                 cn(
                   "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-full text-[13px] transition-colors",
-                  isActive ? "text-foreground bg-background" : "text-muted-foreground hover:bg-background",
+                  isActive ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:bg-background",
                 )
               }
             >
@@ -146,9 +156,9 @@ export function Sidebar({ tenantLabel, onLogout }: SidebarProps) {
           </div>
         )}
 
-        <div className={cn("border-t border-border pt-1.5", collapsed ? "px-0" : "px-1")}>
+        <div className={cn("relative px-2 pb-2", collapsed ? "-mt-1" : "-mt-3.5")}>
           {!collapsed ? (
-            <div className="flex items-center gap-2 px-2 py-1">
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-sm">
               <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-medium shrink-0">
                 D
               </div>
@@ -161,7 +171,7 @@ export function Sidebar({ tenantLabel, onLogout }: SidebarProps) {
               </button>
             </div>
           ) : (
-            <Button onClick={onLogout} variant="ghost" size="icon" className="w-full" aria-label="Cerrar sesión">
+            <Button onClick={onLogout} variant="ghost" size="icon" className="w-full rounded-xl border border-border bg-card shadow-sm" aria-label="Cerrar sesión">
               <LogOut className="w-5 h-5" />
             </Button>
           )}
