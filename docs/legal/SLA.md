@@ -1,4 +1,4 @@
-# Acuerdo de Nivel de Servicio (SLA) — Atiende Despachos (Atiende Despachos)
+# Acuerdo de Nivel de Servicio (SLA) — Atiende Despachos
 
 **Versión:** 1.0  
 **Fecha de última actualización:** 1 de agosto de 2026  
@@ -9,7 +9,7 @@
 
 ## 1. Alcance
 
-El presente Acuerdo de Nivel de Servicio («SLA») establece las métricas de desempeño, niveles de disponibilidad y compromisos de soporte técnico que el Proveedor garantiza al Cliente en relación con la Plataforma Atiende Despachos (Atiende Despachos).
+El presente Acuerdo de Nivel de Servicio («SLA») establece las métricas de desempeño, niveles de disponibilidad y compromisos de soporte técnico que el Proveedor garantiza al Cliente en relación con la Plataforma Atiende Despachos.
 
 Este SLA forma parte integral del contrato o cotización suscrito entre las partes y de los Términos de Servicio vigentes.
 
@@ -19,7 +19,7 @@ Este SLA forma parte integral del contrato o cotización suscrito entre las part
 
 | Término | Definición |
 |---|---|
-| **Plataforma** | El conjunto de servicios SaaS de automatización contable y fiscal proporcionados por el Proveedor bajo la marca Atiende Despachos / Atiende Despachos. |
+| **Plataforma** | El conjunto de servicios SaaS de automatización contable y fiscal proporcionados por el Proveedor bajo la marca Atiende Despachos. |
 | **Tiempo de actividad (Uptime)** | Porcentaje del tiempo total en que la Plataforma está disponible y operativa para el Cliente, excluyendo las ventanas de mantenimiento programado. |
 | **Tiempo de inactividad (Downtime)** | Periodo en que la Plataforma no está disponible o presenta degradación severa que impide su uso normal, excluyendo causas atribuibles al Cliente. |
 | **Mantenimiento programado** | Ventanas de mantenimiento planificado notificadas al Cliente con al menos 48 horas de anticipación. |
@@ -196,5 +196,5 @@ Al aceptar la cotización o firmar el contrato con el Proveedor, el Cliente decl
 
 **Atiende Despachos, S.A. de C.V.**  
 Ciudad de México, México  
-Sitio web: [www.likida.ai](https://www.likida.ai)  
-Contacto técnico: soporte@likida.ai
+Sitio web: [dominio pendiente de asignar]  
+Contacto técnico: [correo de contacto pendiente de asignar]

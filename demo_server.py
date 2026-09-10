@@ -733,7 +733,6 @@ tr:hover td { background: var(--gray-50); }
     <div class="section">
       <div class="section-title">Subir CFDI XML</div>
       <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
-        <div class="icon"></div>
         <p><strong>Arrastra un archivo XML aquí</strong> o haz clic para seleccionar</p>
         <p style="margin-top:0.25rem;font-size:0.8rem;color:var(--gray-400);">CFDI 4.0 — Formato estándar del SAT</p>
       </div>
@@ -748,8 +747,7 @@ tr:hover td { background: var(--gray-50); }
       <div class="section-title">Facturas Procesadas</div>
       <div class="table-wrap" id="results-table-wrap">
         <div class="empty-state">
-          <div class="icon"></div>
-          <p>No hay resultados aún. Procesa los CFDI de demo o sube un archivo.</p>
+            <p>No hay resultados aún. Procesa los CFDI de demo o sube un archivo.</p>
         </div>
       </div>
     </div>
@@ -966,7 +964,7 @@ function updateStatsFromResults() {
 function renderResultsTable() {
   const wrap = document.getElementById('results-table-wrap');
   if (!allResults.length) {
-    wrap.innerHTML = '<div class="empty-state"><div class="icon"></div><p>No hay resultados aún.</p></div>';
+    wrap.innerHTML = '<div class="empty-state"><p>No hay resultados aún.</p></div>';
     return;
   }
 
