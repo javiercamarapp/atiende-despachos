@@ -1,4 +1,4 @@
-# Likida AI Enterprise — Content Calendar
+# Atiende Despachos — Content Calendar
 
 ## Overview
 - **Campaign Duration:** 4 weeks
@@ -16,7 +16,7 @@
 |-------|--------------|--------------------------------------------------|------------|-----------|
 | Mon   | LinkedIn     | "¿Cuántas horas pierdes capturando facturas?"    | Post       | Draft     |
 | Wed   | Blog         | "Why Mexican accountants need AI now"            | Article    | Draft     |
-| Fri   | Email        | "Introducing Likida AI Enterprise"               | Newsletter | Draft     |
+| Fri   | Email        | "Introducing Atiende Despachos"               | Newsletter | Draft     |
 
 #### LinkedIn Post (Monday)
 **Hook:** "El 70% del tiempo de un contador se va en tareas repetitivas. ¿Y si pudieras recuperar esas horas?"
@@ -42,7 +42,7 @@
 **Subject:** "Tu despacho contable podría funcionar mejor"
 
 **Content:**
-- Brief intro to Likida AI
+- Brief intro to Atiende Despachos
 - Problem statement
 - Invitation to learn more
 - CTA: Read the blog post
@@ -60,7 +60,7 @@
 | Fri   | Email        | "Agenda tu demo gratuita de 20 minutos"          | Email      | Draft     |
 
 #### LinkedIn Post (Monday)
-**Hook:** "Imagina que tus facturas se procesan solas. Así se ve en Likida AI."
+**Hook:** "Imagina que tus facturas se procesan solas. Así se ve en Atiende Despachos."
 
 **Body:**
 - Demo visual/screenshot of the product
@@ -80,7 +80,7 @@
 5. CTA: Try it yourself
 
 #### Email (Friday)
-**Subject:** "Ve cómo Likida procesa facturas en segundos"
+**Subject:** "Ve cómo Atiende Despachos procesa facturas en segundos"
 
 **Content:**
 - Recap of Week 1 content
@@ -133,7 +133,7 @@
 
 ## Week 4: Conversion Push
 
-### Theme: "Your ROI with Likida AI"
+### Theme: "Your ROI with Atiende Despachos"
 
 | Day   | Channel      | Content Title                                    | Format     | Status    |
 |-------|--------------|--------------------------------------------------|------------|-----------|
@@ -162,7 +162,7 @@
 5. CTA: Start your free trial
 
 #### Email (Friday)
-**Subject:** "Última llamada: 30 días gratis para probar Likida"
+**Subject:** "Última llamada: 30 días gratis para probar Atiende Despachos"
 
 **Content:**
 - Special offer announcement

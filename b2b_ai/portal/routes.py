@@ -247,7 +247,7 @@ def _build_report(db, report_id, invoices):
 # --------------------------------------------------------------------------
 
 # Constantes de la métrica de ahorro (calculadas sobre la operación del
-# despacho: cuánto cuesta capturar/validar un CFDI a mano vs. con Likida AI).
+# despacho: cuánto cuesta capturar/validar un CFDI a mano vs. con Atiende Despachos).
 _HORAS_POR_CFDI_MANUAL = 0.45          # ~27 min por CFDI capturado a mano
 _COSTO_HORA_CONTABLE = 320.0           # MXN/h aprox. costo interno por hora
 _HORAS_POR_CFDI_AUTOMATICO = 0.03      # ~2 min por CFDI procesado por la IA
@@ -816,7 +816,7 @@ def build_portal_pages_router(db):
     @router.get("/selfservice", response_class=HTMLResponse,
                 include_in_schema=False)
     def selfservice_page(request: Request):
-        """Página del dashboard self-service (mobile-first, Likida branding)."""
+        """Página del dashboard self-service (mobile-first, Atiende Despachos branding)."""
         user = _resolve_user(db, request)
         if user is None:
             return RedirectResponse(url="/portal/login", status_code=302)

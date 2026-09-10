@@ -534,7 +534,7 @@ def generate_demo_report(results: List[Dict], output_dir: str,
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Likida AI Enterprise — Demo Reporte CFDI</title>
+    <title>Atiende Despachos — Demo Reporte CFDI</title>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
@@ -623,7 +623,7 @@ def generate_demo_report(results: List[Dict], output_dir: str,
 </head>
 <body>
     <div class="container">
-        <h1>Likida AI Enterprise <span style="font-weight:300;font-size:1.4rem;background:none;-webkit-text-fill-color:#94a3b8;">— Demo Procesamiento CFDI</span></h1>
+        <h1>Atiende Despachos <span style="font-weight:300;font-size:1.4rem;background:none;-webkit-text-fill-color:#94a3b8;">— Demo Procesamiento CFDI</span></h1>
         <p class="subtitle">Procesado el {hoy} &middot; Tiempo total: {tiempo_str}</p>
 
         <div class="stats-grid">
@@ -645,10 +645,10 @@ def generate_demo_report(results: List[Dict], output_dir: str,
             </div>
         </div>
 
-        <h2 class="section-title">📊 Distribución por Categoría</h2>
+        <h2 class="section-title">Distribución por Categoría</h2>
         <div class="chart">{cat_bars}</div>
 
-        <h2 class="section-title">📋 Detalle de Facturas</h2>
+        <h2 class="section-title">Detalle de Facturas</h2>
         <div style="overflow-x:auto;">
         <table>
             <thead>
@@ -666,11 +666,11 @@ def generate_demo_report(results: List[Dict], output_dir: str,
         </table>
         </div>
 
-        {f'''<h2 class="section-title">🚨 Anomalías Detectadas</h2>
+        {f'''<h2 class="section-title">Anomalías Detectadas</h2>
         <div class="anomalies">{anom_cards}</div>''' if anom_cards else ''}
 
         <div class="footer">
-            <p class="logo">Likida AI Enterprise</p>
+            <p class="logo">Atiende Despachos</p>
             <p>Reporte generado automáticamente por el agente contable inteligente.</p>
             <p>Los resultados son informativos y no constituyen asesoría fiscal.</p>
         </div>
@@ -698,11 +698,11 @@ def run_demo(data_dir: str, output_dir: str, live: bool = False) -> int:
         from b2b_ai.services.llm import OpenRouterLLM
         from b2b_ai.tools.registry import inject_tool
         llm = OpenRouterLLM()
-        print("  🟢 Modo LIVE: usando DeepSeek real vía OpenRouter")
-        print("  ⚡ Mostrando reasoning del LLM en tiempo real (streaming)...\n")
+        print("  Modo LIVE: usando DeepSeek real vía OpenRouter")
+        print("  Mostrando reasoning del LLM en tiempo real (streaming)...\n")
     else:
-        print("  🟡 Modo DEMO: usando LLM simulado (MockLLM)")
-        print("  💡 Usa --live para procesar con DeepSeek real\n")
+        print("  Modo DEMO: usando LLM simulado (MockLLM)")
+        print("  Usa --live para procesar con DeepSeek real\n")
 
     logger.set_db(db)
 
@@ -717,13 +717,13 @@ def run_demo(data_dir: str, output_dir: str, live: bool = False) -> int:
         if f.endswith(".xml")
     )
     if not xmls:
-        print("  📦 Generando CFDI de ejemplo...")
+        print("  Generando CFDI de ejemplo...")
         xmls = generate_sample_xmls(data_dir)
         print(f"     {len(xmls)} archivos XML creados")
 
     total = len(xmls)
     print(f"\n  {'='*50}")
-    print(f"  🔄 Procesando {total} CFDI(s)...")
+    print(f"  Procesando {total} CFDI(s)...")
     print(f"  {'='*50}\n")
 
     t_start = time.time()
@@ -748,10 +748,10 @@ def run_demo(data_dir: str, output_dir: str, live: bool = False) -> int:
                 res["clasificacion"].get("categoria", "?"),
             )
             anom_count = len(res.get("anomalias", []))
-            anom_flag = f" ⚠️ {anom_count} anomalía(s)" if anom_count else ""
+            anom_flag = f" {anom_count} anomalía(s)" if anom_count else ""
             print(f"     ✔ ${total_amt:,.2f} — {cat}{anom_flag}")
         except Exception as e:
-            print(f"     ✖ Error: {e}")
+            print(f"     Error: {e}")
             results.append({
                 "archivo": fname,
                 "datos": {"total": 0, "emisor_nombre": "ERROR", "emisor_rfc": "",
@@ -769,18 +769,18 @@ def run_demo(data_dir: str, output_dir: str, live: bool = False) -> int:
 
     # Resumen
     print(f"\n  {'='*50}")
-    print(f"  ✅ Procesamiento completado en {elapsed:.2f}s")
+    print(f"  Procesamiento completado en {elapsed:.2f}s")
     ok = sum(1 for r in results if r.get("validacion", {}).get("ok"))
-    print(f"  📊 {ok}/{total} facturas válidas")
-    print(f"  🚨 {sum(1 for r in results if r.get('anomalias'))} con anomalías")
+    print(f"  {ok}/{total} facturas válidas")
+    print(f"  {sum(1 for r in results if r.get('anomalias'))} con anomalías")
     print(f"  {'='*50}\n")
 
     # Generar reporte HTML
-    print(f"  📄 Generando reporte HTML...")
+    print(f"  Generando reporte HTML...")
     report_path = generate_demo_report(results, output_dir, elapsed)
     print(f"     Reporte: {report_path}")
     print(f"\n  {'='*50}")
-    print(f"  🎉 Demo completada. Abre el reporte en tu navegador:")
+    print(f"  Demo completada. Abre el reporte en tu navegador:")
     print(f"     file://{report_path}")
     print(f"  {'='*50}\n")
 

@@ -26,7 +26,7 @@ TABLAS CUBIERTAS (dinero y PII, las que pidió H-18):
 
 `leads` se DEJA FUERA deliberadamente pese a tener tenant_id (añadido en
 0008_privacy_consent): en el código actual (b2b_ai/db/db.py::add_lead/
-list_leads) es el buzón de leads comerciales DE Likida (landing pública),
+list_leads) es el buzón de leads comerciales DE Atiende Despachos (landing pública),
 nunca se escribe con un tenant_id real (siempre NULL) y se lee sin scope de
 tenant (panel interno de Likide, no dato de un despacho cliente). Meterle
 una política tenant_id=current_setting(...) no protegería nada real hoy (no

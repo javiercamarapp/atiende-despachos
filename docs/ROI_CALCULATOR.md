@@ -1,6 +1,6 @@
-# Likida AI Enterprise — ROI Calculator
+# Atiende Despachos — ROI Calculator
 
-*Herramienta para evaluar el retorno de inversión de Likida AI en un despacho contable.*
+*Herramienta para evaluar el retorno de inversión de Atiende Despachos en un despacho contable.*
 
 ---
 
@@ -13,13 +13,13 @@
 | Costo hora contador | $150 MXN | Promedio IMCP 2025 (incluye prestaciones) |
 | Tasa de error manual | 3-5% | RFC, montos, clasificación |
 | Costo promedio por error | $500 MXN | Tiempo de corrección + posible multa |
-| Plan Likida AI | Pro ($20,000/mes) | Para 500 CFDI/mes |
+| Plan Atiende Despachos | Pro ($20,000/mes) | Para 500 CFDI/mes |
 
 ---
 
 ## Ahorro de Tiempo
 
-### Antes de Likida AI (manual)
+### Antes de Atiende Despachos (manual)
 
 | Actividad | Tiempo por factura |
 |-----------|-------------------|
@@ -31,7 +31,7 @@
 | Capturar en ERP / sistema | 2 min |
 | **Total por factura** | **12 min** |
 
-### Después de Likida AI (automatizado)
+### Después de Atiende Despachos (automatizado)
 
 | Actividad | Tiempo por factura |
 |-----------|-------------------|
@@ -51,7 +51,7 @@
 
 ## Ahorro de Costos
 
-### Costo manual (sin Likida)
+### Costo manual (sin Atiende Despachos)
 
 | Concepto | Cálculo | Costo mensual |
 |----------|---------|---------------|
@@ -59,13 +59,13 @@
 | Corrección de errores | 500 × 4% × $500 | $10,000 MXN |
 | **Costo total manual** | | **$25,000 MXN/mes** |
 
-### Costo con Likida AI (Plan Pro)
+### Costo con Atiende Despachos (Plan Pro)
 
 | Concepto | Costo mensual |
 |----------|---------------|
-| Suscripción Likida AI | $20,000 MXN |
+| Suscripción Atiende Despachos | $20,000 MXN |
 | Tiempo de revisión humano | 500 × 3 min × $150/hr ÷ 60 = $3,750 MXN |
-| **Costo total con Likida** | **$23,750 MXN/mes** |
+| **Costo total con Atiende Despachos** | **$23,750 MXN/mes** |
 
 ### Ahorro neto mensual
 
@@ -77,7 +77,7 @@
 
 > **Nota honesta**: El ahorro directo en el plan Pro es moderado. El verdadero ROI viene de:
 > 1. **Escalar sin contratar**: procesar 2x o 3x más facturas sin contratar personal adicional
-> 2. **Eliminar errores**: un solo error de RFC puede costar más que una mensualidad de Likida
+> 2. **Eliminar errores**: un solo error de RFC puede costar más que una mensualidad de Atiende Despachos
 > 3. **Cumplimiento fiscal**: evitar multas del SAT por CFDI mal validados
 > 4. **Retención de talento**: liberar contadores de tareas repetitivas para trabajo de mayor valor
 
@@ -87,37 +87,37 @@
 
 ### Scenario A: Despacho pequeño (Starter — 300 CFDI/mes)
 
-| Métrica | Manual | Con Likida | Ahorro |
+| Métrica | Manual | Con Atiende Despachos | Ahorro |
 |---------|--------|------------|--------|
 | Tiempo/mes | 60 hrs | 15 hrs | 45 hrs (75%) |
 | Costo captura | $9,000 | $2,250 | $6,750 |
 | Errores/mes (3%) | 9 facturas | ~1 factura | 8 errores menos |
 | Costo errores | $4,500 | $500 | $4,000 |
-| Costo Likida | — | $8,000 | — |
+| Costo Atiende Despachos | — | $8,000 | — |
 | **Costo total** | **$13,500** | **$10,750** | **$2,750/mes (20%)** |
 | **ROI anual** | | | **$33,000 MXN** |
 
 ### Scenario B: Despacho mediano (Pro — 900 CFDI/mes)
 
-| Métrica | Manual | Con Likida | Ahorro |
+| Métrica | Manual | Con Atiende Despachos | Ahorro |
 |---------|--------|------------|--------|
 | Tiempo/mes | 180 hrs | 45 hrs | 135 hrs (75%) |
 | Costo captura | $27,000 | $6,750 | $20,250 |
 | Errores/mes (3%) | 27 facturas | ~3 facturas | 24 errores menos |
 | Costo errores | $13,500 | $1,500 | $12,000 |
-| Costo Likida | — | $20,000 | — |
+| Costo Atiende Despachos | — | $20,000 | — |
 | **Costo total** | **$40,500** | **$28,250** | **$12,250/mes (30%)** |
 | **ROI anual** | | | **$147,000 MXN** |
 
 ### Scenario C: Despacho grande (Business — 2,500 CFDI/mes)
 
-| Métrica | Manual | Con Likida | Ahorro |
+| Métrica | Manual | Con Atiende Despachos | Ahorro |
 |---------|--------|------------|--------|
 | Tiempo/mes | 500 hrs | 125 hrs | 375 hrs (75%) |
 | Costo captura | $75,000 | $18,750 | $56,250 |
 | Errores/mes (3%) | 75 facturas | ~8 facturas | 67 errores menos |
 | Costo errores | $37,500 | $4,000 | $33,500 |
-| Costo Likida | — | $40,000 | — |
+| Costo Atiende Despachos | — | $40,000 | — |
 | **Costo total** | **$112,500** | **$62,750** | **$49,750/mes (44%)** |
 | **ROI anual** | | | **$597,000 MXN** |
 
@@ -125,7 +125,7 @@
 
 ## Break-Even Analysis
 
-### Cuándo se paga solo Likida AI?
+### Cuándo se paga solo Atiende Despachos?
 
 | Plan | Pago mensual | Ahorro neto/mes | Break-even |
 |------|-------------|-----------------|------------|
@@ -138,7 +138,7 @@
 
 El verdadero ROI se multiplica cuando el despacho **escala sin contratar**:
 
-| Escenario | Facturas/mes | Personal manual necesario | Con Likida | Empleados evitados | Ahorro anual |
+| Escenario | Facturas/mes | Personal manual necesario | Con Atiende Despachos | Empleados evitados | Ahorro anual |
 |-----------|-------------|--------------------------|------------|-------------------|-------------|
 | Duplicar volumen | 1,000 → 2,000 | +1 contador ($218K/yr) | Mismo equipo | 1 FTE | $218,400 |
 | Triangular volumen | 1,000 → 3,000 | +2 contadores ($437K/yr) | +1 medio FTE | 1.5 FTE | $327,600 |

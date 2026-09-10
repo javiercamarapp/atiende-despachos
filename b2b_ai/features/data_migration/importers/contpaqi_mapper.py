@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""contpaqi_mapper.py — Mapeo del formato de exportación de CONTPAQi a Likida.
+"""contpaqi_mapper.py — Mapeo del formato de exportación de CONTPAQi a Atiende Despachos.
 
 CONTPAQi (CONTPAQ i Contabilidad / Comercial) no expone API pública, así que
 la vía práctica es importar sus exportaciones. Esta clase conoce las formas
 típicas de los reportes CSV/XLS de CONTPAQi y las convierte al esquema
-canónico de Likida AI (el mismo que producen excel_importer/csv_importer).
+canónico de Atiende Despachos (el mismo que producen excel_importer/csv_importer).
 
 Mapea las columnas que CONTPAQi suele emitir (en español) a los campos
 canónicos, tolerando encabezados variantes. La detección del tipo se hace por
@@ -67,7 +67,7 @@ _CONTPAQI_COLUMNS = {
 
 
 class ContpaqiMapper:
-    """Convierte exportaciones de CONTPAQi al esquema de Likida AI."""
+    """Convierte exportaciones de CONTPAQi al esquema de Atiende Despachos."""
 
     # ------------------------------------------------------------------
     def map_sheet(self, sheet_name: str, rows: List[Dict[str, Any]]) -> List[MigrationItem]:

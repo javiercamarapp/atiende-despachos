@@ -369,7 +369,7 @@ class TestSPEIPayment:
             cuenta_beneficiario="646180157000000001",
             cuenta_ordenante="646180157000000002",
             nombre_beneficiario="Proveedor Test",
-            nombre_ordenante="Likida Test",
+            nombre_ordenante="Atiende Despachos Test",
             rfc_beneficiario="EKU9003173C9",
             rfc_ordenante="AAA010101AAA",
             institucion_beneficiario=90646,

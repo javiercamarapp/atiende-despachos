@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-conekta_gateway.py — Gateway completo de Conekta para Likida AI Enterprise.
+conekta_gateway.py — Gateway completo de Conekta para Atiende Despachos.
 
 Extiende el proveedor base con funcionalidad avanzada:
   1. API client para crear clientes, suscripciones y cargos
@@ -188,7 +188,7 @@ class ConektaAPIClient:
 # Conekta Gateway
 # ---------------------------------------------------------------------------
 class ConektaGateway:
-    """Gateway completo de pagos Conekta para Likida AI Enterprise.
+    """Gateway completo de pagos Conekta para Atiende Despachos.
 
     Proporciona:
       - Creación de clientes
@@ -489,7 +489,7 @@ class ConektaGateway:
         expires_at: Optional[str],
     ) -> PaymentResult:
         """Procesa pago offline (SPEI/OXXO) via Conekta orders."""
-        desc = description or f"Cargo Likida AI ({method.value})"
+        desc = description or f"Cargo Atiende Despachos ({method.value})"
         payload: Dict[str, Any] = {
             "currency": currency.lower(),
             "customer_info": {"customer_id": customer_id},
@@ -639,7 +639,7 @@ class ConektaGateway:
                 status=InvoiceStatus.OPEN,
             )
 
-        desc = description or "Cargo Likida AI Enterprise"
+        desc = description or "Cargo Atiende Despachos"
         items = line_items or [{
             "name": desc,
             "unit_price": int(round(amount * 100)),
@@ -679,7 +679,7 @@ class ConektaGateway:
         return self.create_invoice(
             customer_id=customer_id,
             amount=final_amount,
-            description=f"Likida AI {plan_id.title()} — mensualidad",
+            description=f"Atiende Despachos {plan_id.title()} — mensualidad",
         )
 
     # ------------------------------------------------------------------

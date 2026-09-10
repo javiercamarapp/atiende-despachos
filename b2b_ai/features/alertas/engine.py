@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-engine.py — Alert Engine for Likida AI Enterprise.
+engine.py — Alert Engine for Atiende Despachos.
 
 Evaluates alert rules against incoming data and produces Alert instances.
 

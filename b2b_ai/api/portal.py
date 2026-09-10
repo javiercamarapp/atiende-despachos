@@ -381,7 +381,7 @@ def build_portal_router(db):
         try:
             db.insert_notification(
                 user["tenant_id"], "portal_magic_link", "email",
-                email, "Tu enlace de acceso al portal Likida AI",
+                email, "Tu enlace de acceso al portal Atiende Despachos",
                 "Haz clic en el enlace para acceder a tu portal.",
                 status="sent")
         except Exception:  # noqa: BLE001

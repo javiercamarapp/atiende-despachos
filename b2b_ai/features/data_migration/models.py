@@ -2,7 +2,7 @@
 """models.py — Entidades de dominio del módulo de migración de datos.
 
 Define las entidades centrales del subsistema de importación de datos desde
-sistemas existentes (CONTPAQi, Excel, CSV) al MVP de Likida AI:
+sistemas existentes (CONTPAQi, Excel, CSV) al MVP de Atiende Despachos:
 
     MigrationJob   — un trabajo de migración (archivo subido por un tenant).
     MigrationItem  — una pieza de datos extraída del archivo (cliente, CFDI,

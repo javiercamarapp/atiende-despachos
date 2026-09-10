@@ -1,4 +1,4 @@
-# Likida AI Enterprise — Guía de Demo
+# Atiende Despachos — Guía de Demo
 
 Demo lista para presentar a un prospecto con **un solo comando**:
 

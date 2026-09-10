@@ -1,4 +1,4 @@
-# Deployment — Likida AI Enterprise (enterprise MVP)
+# Deployment — Atiende Despachos (enterprise MVP)
 
 Guía para desplegar el agente contable IA en producción (VPS con Docker).
 Stack objetivo: **API FastAPI (uvicorn) + PostgreSQL + Redis + Nginx**.

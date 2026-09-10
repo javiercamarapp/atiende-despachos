@@ -1,4 +1,4 @@
-# Outreach Strategy — Likida AI Enterprise
+# Outreach Strategy — Atiende Despachos
 
 ## Overview
 
@@ -98,15 +98,15 @@ Estrategia multicanal para adquirir 50 clientes en los primeros 12 meses. Enfoqu
 **Hook:** "Automatice la captura con IA — sin cambiar su sistema actual"
 
 **Mensaje:**
-> "Likida AI se integra con CONTPAQi/Aspel y procesa facturas automáticamente. Sin captura manual, sin errores, sin contratar más gente."
+> "Atiende Despachos se integra con CONTPAQi/Aspel y procesa facturas automáticamente. Sin captura manual, sin errores, sin contratar más gente."
 
 **Canal:** Email, demo, WhatsApp
 
 ### Product-Aware (Bottom of Funnel)
-**Hook:** "Likida AI — su agente contable con IA"
+**Hook:** "Atiende Despachos — su agente contable con IA"
 
 **Mensaje:**
-> "50 despachos ya están usando Likida AI. Redujeron 70% del tiempo de captura y eliminaron errores fiscales. ¿Quiere ver cómo funciona?"
+> "50 despachos ya están usando Atiende Despachos. Redujeron 70% del tiempo de captura y eliminaron errores fiscales. ¿Quiere ver cómo funciona?"
 
 **Canal:** Demo, WhatsApp, llamada
 
@@ -120,9 +120,9 @@ Estrategia multicanal para adquirir 50 clientes en los primeros 12 meses. Enfoqu
 |-----|--------|----------|
 | 1 | Connection request | "Hola [Nombre], veo que dirige [Despacho] en [Ciudad]. Estoy ayudando a despachos contables a automatizar su captura de facturas. ¿Le gustaría conectar?" |
 | 3 | Welcome message | "¡Gracias por conectar! Trabajo con despachos contables que usan CONTPAQi/Aspel para automatizar la captura con IA. ¿Le gustaría ver cómo funciona?" |
-| 7 | Value proposition | "Un despacho como el suyo gasta ~20 horas/semana en captura manual. Likida AI reduce eso a 2 horas. ¿Le interesa una demo rápida de 20 min?" |
-| 14 | Case study | "Le comparto un caso de éxito: [Despacho X] redujo 70% su tiempo de captura con Likida AI. ¿Le gustaría saber más?" |
-| 21 | Demo offer | "Último mensaje: ¿le gustaría agendar una demo de 20 minutos para ver cómo Likida AI puede ayudar a su despacho? Aquí está mi calendario: [link]" |
+| 7 | Value proposition | "Un despacho como el suyo gasta ~20 horas/semana en captura manual. Atiende Despachos reduce eso a 2 horas. ¿Le interesa una demo rápida de 20 min?" |
+| 14 | Case study | "Le comparto un caso de éxito: [Despacho X] redujo 70% su tiempo de captura con Atiende Despachos. ¿Le gustaría saber más?" |
+| 21 | Demo offer | "Último mensaje: ¿le gustaría agendar una demo de 20 minutos para ver cómo Atiende Despachos puede ayudar a su despacho? Aquí está mi calendario: [link]" |
 
 ### Email Sequence
 
@@ -131,7 +131,7 @@ Estrategia multicanal para adquirir 50 clientes en los primeros 12 meses. Enfoqu
 | 1 | ¿Cuántas horas pierde su equipo en captura manual? | Problem-aware |
 | 3 | [Despacho X] redujo 70% su tiempo de captura | Social proof |
 | 7 | Automatice la facturación sin cambiar su sistema | Solution |
-| 14 | Video: Cómo funciona Likida AI en 60 segundos | Demo |
+| 14 | Video: Cómo funciona Atiende Despachos en 60 segundos | Demo |
 | 21 | ¿Una demo de 20 minutos? | CTA directo |
 
 ---

@@ -3,7 +3,7 @@
 report_pdf.py — Generador de reporte PDF con métricas de ROI para demos.
 
 Genera un PDF profesional con:
-  - Portada con branding Likida AI Enterprise
+  - Portada con branding Atiende Despachos
   - Resumen ejecutivo
   - Métricas de ROI y ahorro
   - Tabla de clientes principales
@@ -260,7 +260,7 @@ def generate_roi_report(
         Path to the generated PDF file.
     """
     os.makedirs(output_path, exist_ok=True)
-    pdf_path = os.path.join(output_path, "Likida_AI_Reporte_ROI_Demo.pdf")
+    pdf_path = os.path.join(output_path, "Atiende_Despachos_Reporte_ROI_Demo.pdf")
 
     styles = _build_styles()
     roi = data["roi_metrics"]
@@ -285,7 +285,7 @@ def generate_roi_report(
     # PORTADA
     # -----------------------------------------------------------------------
     elements.append(Spacer(1, 60))
-    elements.append(Paragraph("Likida AI Enterprise", styles["cover_title"]))
+    elements.append(Paragraph("Atiende Despachos", styles["cover_title"]))
     elements.append(Paragraph(
         "Reporte de ROI — Modo Demo",
         styles["cover_subtitle"],
@@ -311,7 +311,7 @@ def generate_roi_report(
     ))
     elements.append(Spacer(1, 30))
     elements.append(Paragraph(
-        "Este reporte demuestra las capacidades del agente contable inteligente Likida AI Enterprise "
+        "Este reporte demuestra las capacidades del agente contable inteligente Atiende Despachos "
         "en un escenario de firma contable con 50 clientes y ~500 CFDIs procesados mensualmente.",
         ParagraphStyle("fnote", fontSize=9, leading=13, textColor=BRAND_GRAY_600, alignment=TA_CENTER),
     ))
@@ -353,7 +353,7 @@ def generate_roi_report(
 
     # Resumen texto
     elements.append(Paragraph(
-        f"Durante el periodo de <b>{summary['periodo']}</b>, el agente Likida AI Enterprise procesó "
+        f"Durante el periodo de <b>{summary['periodo']}</b>, el agente Atiende Despachos procesó "
         f"<b>{summary['resumen']['cfdis_procesados']} CFDIs</b> de "
         f"<b>{summary['resumen']['clientes_activos']} clientes activos</b>, "
         f"con un monto total de <b>${summary['resumen']['monto_total']:,.2f} MXN</b>. "
@@ -420,7 +420,7 @@ def generate_roi_report(
     calidad_data = [
         [Paragraph("<b>Métrica</b>", styles["table_header"]),
          Paragraph("<b>Proceso Manual</b>", styles["table_header"]),
-         Paragraph("<b>Con Likida AI Enterprise</b>", styles["table_header"]),
+         Paragraph("<b>Con Atiende Despachos</b>", styles["table_header"]),
          Paragraph("<b>Factor de mejora</b>", styles["table_header"])],
         [Paragraph("Tasa de error", styles["table_cell"]),
          Paragraph(f"{calidad['tasa_error_humano_pct']}%", styles["table_cell"]),
@@ -457,7 +457,7 @@ def generate_roi_report(
     comp_data = [
         [Paragraph("<b>Concepto</b>", styles["table_header"]),
          Paragraph("<b>Valor</b>", styles["table_header"])],
-        [Paragraph("Inversión mensual Likida AI Enterprise", styles["table_cell"]),
+        [Paragraph("Inversión mensual Atiende Despachos", styles["table_cell"]),
          Paragraph(f"${comp['inversion_mensual_b2b_ai']:,.0f} MXN", styles["table_cell_right"])],
         [Paragraph("Ahorro operativo mensual", styles["table_cell"]),
          Paragraph(f"${ahorro['ahorro_mensual_mx']:,.0f} MXN", styles["table_cell_right"])],
@@ -667,7 +667,7 @@ def generate_roi_report(
     elements.append(HRFlowable(width="100%", thickness=1, color=BRAND_BLUE_LIGHT, spaceAfter=8))
 
     conclusions = [
-        f"<b>Eficiencia operativa:</b> Likida AI Enterprise reduce el tiempo de procesamiento de CFDIs en "
+        f"<b>Eficiencia operativa:</b> Atiende Despachos reduce el tiempo de procesamiento de CFDIs en "
         f"{ahorro['eficiencia_porcentaje']}%, pasando de {ahorro['minutos_por_factura_antes']} min/factura "
         f"a {ahorro['minutos_por_factura_despues']} min/factura.",
 
@@ -695,12 +695,12 @@ def generate_roi_report(
     elements.append(Spacer(1, 20))
     elements.append(HRFlowable(width="40%", thickness=1, color=BRAND_GRAY_200, spaceAfter=10))
     elements.append(Paragraph(
-        "Este reporte fue generado automáticamente por el agente contable inteligente Likida AI Enterprise. "
+        "Este reporte fue generado automáticamente por el agente contable inteligente Atiende Despachos. "
         "Los datos son simulados para fines de demostración comercial.",
         styles["footer"],
     ))
     elements.append(Paragraph(
-        f"Likida AI Enterprise — {firm['nombre']} — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        f"Atiende Despachos — {firm['nombre']} — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         styles["footer"],
     ))
 

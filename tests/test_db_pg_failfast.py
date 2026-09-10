@@ -15,11 +15,34 @@ servidor real y se salta sin uno).
 """
 from __future__ import annotations
 
+import os
+
 import psycopg
 import pytest
 from sqlalchemy.exc import OperationalError as SAOperationalError
 
 from b2b_ai.db.db import Database, _is_pg_unreachable_error
+
+
+@pytest.fixture(autouse=True)
+def _no_env_leak():
+    """`Database._pg_migrate()` hace `os.environ["B2B_DB_URL"] = self.path`
+    incondicionalmente (antes de saber si la conexión real tendrá éxito) —
+    comportamiento de producción intencional (para que procesos hijos
+    hereden el DSN resuelto), pero aquí construimos `Database(...)` con un
+    DSN Postgres FALSO (`127.0.0.1:1`, puerto cerrado) para simular fallas
+    de conectividad. Sin este fixture, ese DSN falso queda pegado en
+    `os.environ` para el resto de la sesión de pytest y contamina cualquier
+    test posterior (en este u otro archivo) que lance un subproceso
+    heredando `os.environ` — `DEFAULT_DB` prioriza `B2B_DB_URL` sobre
+    `B2B_DB_PATH`, así que ese subproceso intenta hablar con PostgreSQL en
+    vez de usar su SQLite temporal."""
+    original = os.environ.get("B2B_DB_URL")
+    yield
+    if original is None:
+        os.environ.pop("B2B_DB_URL", None)
+    else:
+        os.environ["B2B_DB_URL"] = original
 
 
 def test_is_pg_unreachable_error_detecta_sqlalchemy_operational_error():

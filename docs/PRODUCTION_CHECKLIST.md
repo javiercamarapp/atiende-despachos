@@ -1,9 +1,9 @@
-# Production Checklist — Likida AI Enterprise
+# Production Checklist — Atiende Despachos
 ## Para 20 clientes activos
 
 ---
 
-## ✅ LISTO (no necesita nada)
+## LISTO (no necesita nada)
 
 ### Agentes (12)
 - [x] Conciliación bancaria
@@ -61,7 +61,7 @@
 
 ---
 
-## ⚠️ NECESITA CONFIGURACIÓN (API Keys)
+## NECESITA CONFIGURACIÓN (API Keys)
 
 ### IA (agrega al .env)
 - [ ] `OPENAI_API_KEY` — para GPT-4 en tareas complejas
@@ -102,7 +102,7 @@
 
 ---
 
-## ⚠️ NECESITA IMPLEMENTACIÓN REAL (no mock)
+## NECESITA IMPLEMENTACIÓN REAL (no mock)
 
 ### Computer Use
 - [ ] Playwright driver real (reemplazar MockDesktop)
@@ -116,7 +116,7 @@
 
 ---
 
-## ⚠️ NECESITA MIGRACIÓN DB
+## NECESITA MIGRACIÓN DB
 
 ### PostgreSQL (antes de 20 clientes)
 - [ ] Migrar de SQLite a PostgreSQL
@@ -127,7 +127,7 @@
 
 ---
 
-## 📊 COSTOS ESTIMADOS (20 clientes)
+## COSTOS ESTIMADOS (20 clientes)
 
 | Concepto | Costo/mes |
 |----------|-----------|
@@ -141,7 +141,7 @@
 
 ---
 
-## 📅 TIMELINE
+## TIMELINE
 
 | Semana | Tarea |
 |--------|-------|

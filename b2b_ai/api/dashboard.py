@@ -32,7 +32,7 @@ from b2b_ai.services import anomaly as anomaly_svc
 from b2b_ai.services.reports import GerentialReports
 
 # Datos del emisor que se muestran en el encabezado del panel.
-EMISOR = {"rfc": "DESP820101AB1", "nombre": "Despacho Contable Likida"}
+EMISOR = {"rfc": "DESP820101AB1", "nombre": "Despacho Contable Atiende Despachos"}
 
 
 # Cache TTL para las lecturas agregadas del dashboard (/dashboard/data y
@@ -86,7 +86,7 @@ def _build_dashboard_data(db: Any, tenant_id: Optional[int] = None) -> Dict[str,
     conciliacion = _demo_reconcile(invoices)
 
     return {
-        "service": "Likida AI Enterprise — Enterprise",
+        "service": "Atiende Despachos — Enterprise",
         "emisor": EMISOR,
         "tenant_id": tenant_id,
         "metricas": {
@@ -323,7 +323,7 @@ _HTML = """<!DOCTYPE html>
 <div class="wrap">
   <header>
     <div>
-      <h1>🧾 {title} <span class="badge">Dashboard en vivo</span></h1>
+      <h1>{title} <span class="badge">Dashboard en vivo</span></h1>
       <div class="sub">{emisor_rfc} · {emisor_nombre} · Tenant {tenant}</div>
     </div>
     <button id="refresh" onclick="refresh()">↻ Refrescar</button>
@@ -457,7 +457,7 @@ def build_dashboard_router(db: Any, require_api_key: Optional[Any] = None,
         data_json = json.dumps(data, ensure_ascii=False, default=str)\
             .replace("<", "\\u003c").replace(">", "\\u003e")
         html = _HTML.format(
-            title="Likida AI Enterprise",
+            title="Atiende Despachos",
             data=data_json,
             emisor_rfc=EMISOR["rfc"],
             emisor_nombre=EMISOR["nombre"],

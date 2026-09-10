@@ -186,7 +186,7 @@ class TestGenerator:
     def test_despacho_info(self, gen):
         info = gen.despacho_info()
         assert "nombre" in info
-        assert "Likida" in info["nombre"]
+        assert "Atiende Despachos" in info["nombre"]
 
 
 # ===========================================================================

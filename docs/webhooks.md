@@ -1,4 +1,4 @@
-# Webhooks — Likida AI Enterprise Enterprise
+# Webhooks — Atiende Despachos
 
 Documentación del sistema de webhooks del agente contable. Cubre las dos
 direcciones del tráfico:

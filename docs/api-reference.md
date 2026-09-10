@@ -1,6 +1,6 @@
-# API Reference — Likida AI Enterprise — API
+# API Reference — Atiende Despachos
 
-## Likida AI Enterprise — API Documentation
+## Atiende Despachos — API Documentation
 
 ### Authentication
 All endpoints (except `/health` and `/api/v1/leads`) require authentication via the `X-API-Key` header.

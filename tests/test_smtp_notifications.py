@@ -7,7 +7,7 @@ Cubre:
   2. Plantillas HTML (welcome, invoice_processed, collection_reminder, weekly_report)
   3. Envío masivo (bulk)
   4. Envío por plantilla con contexto
-  5. Branding Likida AI en templates
+  5. Branding Atiende Despachos en templates
   6. Env vars dual support (SMTP_* y B2B_SMTP_*)
   7. Edge cases (to vacío, template faltante, aiosmtplib mock failure)
 """
@@ -471,10 +471,10 @@ class TestPlantillasHTML:
 
 
 # ====================================================================== #
-# 6. Branding Likida AI
+# 6. Branding Atiende Despachos
 # ====================================================================== #
-class TestBrandingLikidaAI:
-    """Verifica que los templates están brandeados con Likida AI."""
+class TestBrandingAtiendeDespachos:
+    """Verifica que los templates están brandeados con Atiende Despachos."""
 
     @pytest.mark.parametrize("template_name,ctx", [
         ("welcome", _welcome_context()),
@@ -483,9 +483,9 @@ class TestBrandingLikidaAI:
         ("weekly_report", _weekly_context()),
     ])
     def test_branding_presente(self, template_name, ctx):
-        """Todos los templates core contienen branding Likida AI."""
+        """Todos los templates core contienen branding Atiende Despachos."""
         _, html = render_html(template_name, ctx)
-        assert "Likida AI" in html
+        assert "Atiende Despachos" in html
 
     @pytest.mark.parametrize("template_name,ctx", [
         ("welcome", _welcome_context()),

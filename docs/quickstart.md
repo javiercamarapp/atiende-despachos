@@ -1,7 +1,7 @@
-# Quickstart — Integra Likida AI en 5 pasos
+# Quickstart — Integra Atiende Despachos en 5 pasos
 
 Guía rápida para que un despacho contable conecte su sistema con la API de
-Likida AI. Base URL: `https://api.b2b-ai.local` (local: `http://localhost:8000`).
+Atiende Despachos. Base URL: `https://api.b2b-ai.local` (local: `http://localhost:8000`).
 
 > **Nota sobre obtener tu API key:** la API emite una key al **crear un tenant**
 > (`POST /api/v1/tenants`). No existe un `onboarding/register`; el registro de

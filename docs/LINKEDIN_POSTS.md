@@ -1,4 +1,4 @@
-# Likida AI Enterprise — LinkedIn Posts
+# Atiende Despachos — LinkedIn Posts
 
 ## Post 1: The Problem Statement
 
@@ -8,15 +8,15 @@
 
 Cada mes, los despachos contables mexicanos pierden decenas de horas:
 
-❌ Capturando datos de facturas manualmente
-❌ Verificando XMLs con el SAT
-❌ Corrigiendo errores de digitación
-❌ Conciliando pagos uno por uno
+Capturando datos de facturas manualmente
+Verificando XMLs con el SAT
+Corrigiendo errores de digitación
+Conciliando pagos uno por uno
 
 Esas horas podrían dedicarse a:
-✅ Consultoría estratégica
-✅ Atención al cliente
-✅ Crecimiento del negocio
+Consultoría estratégica
+Atención al cliente
+Crecimiento del negocio
 
 La pregunta no es SI automatizar, sino CUÁNDO empezar.
 
@@ -28,7 +28,7 @@ La pregunta no es SI automatizar, sino CUÁNDO empezar.
 
 ## Post 2: The Solution Overview
 
-**Hook:** Imagina que tus facturas se procesan solas. Así se ve en Likida AI.
+**Hook:** Imagina que tus facturas se procesan solas. Así se ve en Atiende Despachos.
 
 **Body:**
 
@@ -41,12 +41,12 @@ Así funciona la automatización con IA en contabilidad:
 
 Resultado:
 ⏱️ 40 horas mensuales recuperadas
-🎯 99.8% de precisión
-💰 Cero multas por errores
+99.8% de precisión
+Cero multas por errores
 
 ¿Listo para verlo en acción?
 
-🔗 [Enlace a demo]
+[Enlace a demo]
 
 #InteligenciaArtificial #Contabilidad #Automatización #México
 
@@ -66,14 +66,14 @@ ANTES:
 • Estrés por fechas del SAT
 • Equipo quemado
 
-DESPUÉS (con Likida AI):
+DESPUÉS (con Atiende Despachos):
 • 3 horas/mes (solo supervisión)
 • 0.2% de error rate
 • Cumplimiento automático
 • Equipo enfocado en consultoría
 
 El socio director dice:
-"Likida transformó nuestra operación. Ahora asesoramos en vez de capturar."
+"Atiende Despachos transformó nuestra operación. Ahora asesoramos en vez de capturar."
 
 ¿Tu despacho enfrenta los mismos desafíos?
 
@@ -92,7 +92,7 @@ Hagamos cuentas (ustedes son contadores, les gusta):
 Costo actual (sin IA):
 • 50 horas/mes × $500/hora = $25,000 MXN/mes
 
-Con Likida AI:
+Con Atiende Despachos:
 • 5 horas/mes × $500/hora = $2,500 MXN/mes
 
 AHORRO MENSUAL: $22,500 MXN
@@ -124,11 +124,11 @@ Nuevas exigencias fiscales en México:
 La solución no es más personal manual.
 La solución es automatización inteligente.
 
-Likida AI Enterprise:
-✅ Procesa CFDIs conforme a las últimas reglas del SAT
-✅ Valida automáticamente antes de declarar
-✅ Genera reportes listos para auditoría
-✅ Te avisa de cambios en la normativa
+Atiende Despachos:
+Procesa CFDIs conforme a las últimas reglas del SAT
+Valida automáticamente antes de declarar
+Genera reportes listos para auditoría
+Te avisa de cambios en la normativa
 
 No esperes a que te multen. Automatiza hoy.
 
@@ -145,10 +145,10 @@ No esperes a que te multen. Automatiza hoy.
 Nuestra feature favorita: Auto-Capture
 
 Funciona así:
-📄 Subes el PDF o XML
-🤖 La IA lee y extrae cada dato
-✅ Verificas (o confías en el 99.8% de precisión)
-💾 Se integra a tu sistema
+Subes el PDF o XML
+La IA lee y extrae cada dato
+Verificas (o confías en el 99.8% de precisión)
+Se integra a tu sistema
 
 Lo que antes tomaba 15 minutos por factura, ahora toma 15 segundos.
 
@@ -158,7 +158,7 @@ Y no es solo captura. También:
 • Clasifica por cuenta contable
 • Valida con el SAT
 
-¿Quieres probarlo? Link en comentarios 👇
+¿Quieres probarlo? Link en comentarios
 
 #Automatización #IA #Contabilidad #CFDI
 
@@ -172,10 +172,10 @@ Y no es solo captura. También:
 
 Datos que no pueden ignorar:
 
-📊 70% del trabajo contable es repetitivo
-📊 El 40% de los errores fiscales son por digitación
-📊 Los despachos que automatizan crecen 3x más rápido
-📊 La IA contable reduce costos operativos en 60%
+70% del trabajo contable es repetitivo
+El 40% de los errores fiscales son por digitación
+Los despachos que automatizan crecen 3x más rápido
+La IA contable reduce costos operativos en 60%
 
 Mientras algunos despachos siguen con Excel y captura manual, otros ya:
 • Procesan facturas en segundos
@@ -197,7 +197,7 @@ La brecha se va a ampliar. ¿De qué lado estarás?
 
 ¿Alguna vez te has preguntado cómo la IA lee una factura?
 
-El proceso de Likida AI:
+El proceso de Atiende Despachos:
 
 1️⃣ OCR + NLP: Leemos el PDF como lo haría un humano
 2️⃣ Validación: Cruzamos datos con el catálogo del SAT
@@ -207,7 +207,7 @@ El proceso de Likida AI:
 
 Todo esto en menos de 5 segundos por factura.
 
-¿Quieres ver el proceso en acción? Agenda una demo 👇
+¿Quieres ver el proceso en acción? Agenda una demo
 
 #IA #Tecnología #Contabilidad #Automatización
 
@@ -222,9 +222,9 @@ Todo esto en menos de 5 segundos por factura.
 Quiero conocer su experiencia:
 
 ⏰ ¿Cuántas horas pierden en captura manual de CFDIs?
-❌ ¿Cuántos errores cometen al mes?
-😰 ¿Qué tan estresantes son las fechas del SAT?
-👥 ¿Cuántas personas dedican solo a esta tarea?
+¿Cuántos errores cometen al mes?
+¿Qué tan estresantes son las fechas del SAT?
+¿Cuántas personas dedican solo a esta tarea?
 
 He visto despachos que dedican 2-3 personas solo a capturar facturas.
 
@@ -234,7 +234,7 @@ Con la automatización, esas personas podrían:
 • Desarrollar nuevos servicios
 • Crece el negocio
 
-Cuéntame en los comentarios 👇
+Cuéntame en los comentarios
 
 #Contadores #Pregunta #Automatización #México
 
@@ -242,13 +242,13 @@ Cuéntame en los comentarios 👇
 
 ## Post 10: Product Update
 
-**Hook:** Nueva función en Likida AI: Conciliación automática con tu banco.
+**Hook:** Nueva función en Atiende Despachos: Conciliación automática con tu banco.
 
 **Body:**
 
 🆕 Estreno de funcionalidad: Bank Reconciliation
 
-Ahora Likida AI no solo procesa facturas, sino que:
+Ahora Atiende Despachos no solo procesa facturas, sino que:
 
 1️⃣ Descarga tu estado de cuenta
 2️⃣ Identifica cada transacción

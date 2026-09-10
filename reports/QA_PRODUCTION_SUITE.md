@@ -95,7 +95,7 @@ Target `GET /api/v1/invoices?limit=10` (auth + lectura DB), uvicorn workers=1, S
 **? Inferido**
 - Los 15 tests `skipped` de la suite completa son los archivos PG que un worker concurrente (Zuck) agregó (`tests/test_pg_*.py`, `test_db_pg_integration.py`); se saltan porque requieren `B2B_DB_URL` + `psycopg` v3 que no están configurados. Trabajo en curso de Zuck, fuera de mi alcance forzarlo.
 
-**✗ Incierto / no revisado**
+**Incierto / no revisado**
 - Integración de la app con PG/Redis: **no existe** (H1) — los tests cubren la infra, no el adaptador porque no hay adaptador.
 - Comportamiento del rate limiter bajo bypass real multi-replica con Redis: no probado (no hay Redis integrado).
 
