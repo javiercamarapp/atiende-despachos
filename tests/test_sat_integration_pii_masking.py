@@ -30,7 +30,12 @@ _CONSULTA_ADAPTERS = [
     EcodexAdapter,
     FinkokAdapter,
     SATPortalAdapter,
-    FacturapiAdapter,
+    # FacturapiAdapter NO va en esta lista: a diferencia de los demás (aún
+    # simulados), FacturapiAdapter es real y su consultar_rfc lanza
+    # NotImplementedError a propósito porque FacturAPI no ofrece esa
+    # capacidad en su API pública (ver b2b_ai/integrations/sat/pacs/
+    # facturapi_adapter.py). Se cubre aparte en
+    # test_facturapi_consultar_rfc_no_soportado_no_expone_rfc_en_logs.
     PAXFACTURASAdapter,
     CorefiAdapter,
     MultifacturaAdapter,
@@ -68,6 +73,27 @@ def test_consultar_rfc_no_expone_rfc_en_logs(adapter_cls, caplog):
     )
     assert "<rfc>" in log_text, (
         f"{adapter_cls.__name__}.consultar_rfc no aplicó mask_pii al RFC "
+        f"(se esperaba el token <rfc> en el log): {log_text!r}"
+    )
+
+
+def test_facturapi_consultar_rfc_no_soportado_no_expone_rfc_en_logs(caplog):
+    """FacturapiAdapter.consultar_rfc lanza NotImplementedError a propósito
+    (FacturAPI no ofrece esa capacidad), pero el RFC recibido debe quedar
+    enmascarado en el log de advertencia antes de propagar la excepción."""
+    adapter = FacturapiAdapter()
+    adapter.connect()
+
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(NotImplementedError):
+            adapter.consultar_rfc(RFC_EMISOR)
+
+    log_text = "\n".join(r.getMessage() for r in caplog.records)
+    assert RFC_EMISOR not in log_text, (
+        f"FacturapiAdapter.consultar_rfc filtró el RFC sin enmascarar: {log_text!r}"
+    )
+    assert "<rfc>" in log_text, (
+        f"FacturapiAdapter.consultar_rfc no aplicó mask_pii al RFC "
         f"(se esperaba el token <rfc> en el log): {log_text!r}"
     )
 
