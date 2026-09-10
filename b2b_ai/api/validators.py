@@ -278,28 +278,31 @@ def validate_nss(nss: str) -> bool:
 # ---------------------------------------------------------------------------
 _CLABE_RE = re.compile(r"^\d{18}$")
 
-# Bank codes (first 3 digits) — SAT registry
+# Bank codes (first 3 digits) — verificado contra el catálogo oficial de
+# instituciones de crédito (gob.mx/SAT, https://www.gob.mx/cms/uploads/attachment/file/151413/catalogo_bancos.pdf).
+# La tabla anterior tenía nombres mal asignados a varios códigos (ej. 037 no
+# es Mifel, 058 no es Banco Azteca) y dos entradas con texto corrupto — se
+# reconstruyó completa en vez de solo corregir las visibles. Un código sin
+# entrada aquí cae en "Banco desconocido (código)" (ver validate_clabe) en
+# vez de inventar un nombre no verificado.
 _BANK_CODES = {
     "002": "Banamex", "006": "Bancomext", "009": "Banobras",
     "012": "BBVA", "014": "Santander", "019": "Banjercito",
-    "021": "HSBC", "030": "Banco del Bajío", "036": "Inbursa",
-    "037": "Mifel", "042": "Finterra", "058": "Banco Azteca",
-    "059": "Banco Autofin", "060": "Bancoppel", "062": "T墈ỸỸỸỸỸ",
-    "072": "Banco Regional", "102": "Deutsche Bank", "103": "American Express",
-    "106": "Bank of America", "108": "Bank of Tokyo", "110": "JP Morgan",
-    "112": "Monex", "113": "Ve por Más", "116": "ING",
-    "124": "Deutsche Bank", "126": "Credit Suisse", "127": "Azteca",
-    "128": "Banco Autofin", "129": "Barclays", "130": "Banco Bolsa",
-    "131": "Banco Famsa", "132": "BMultiplica", "133": "Actinver",
-    "134": "Wallmart", "135": "NAFIN", "136": "Scotiabank",
-    "137": "Pagatodo", "138": "Ubankéa", "139": "Banregio",
-    "140": "Invex", "141": "Banca Mifel", "142": "Multiva",
-    "143": "Intercam", "144": "Volkswagen", "145": "CIBanco",
-    "146": "Banco Base", "147": "Bankaool", "148": "PagaTodo",
-    "150": "Banco Ahorro Famsa", "151": "Kuspit", "152": "Sofiexpress",
-    "153": "Covalto", "154": "BanCoppel", "155": "Consubanco",
-    "156": "Fincomún", "157": "Hey Banco", "158": "Banco Finterra",
-    "159": "Caja Pop Mexica", "160": "Caja Telecomm", "162": "JeōỶỸỸ",
+    "021": "HSBC", "030": "Banco del Bajío", "032": "IXE",
+    "036": "Inbursa", "037": "Banco Interacciones", "042": "Banca Mifel",
+    "044": "Scotiabank", "058": "Banregio", "059": "Invex",
+    "060": "Bansi", "062": "Afirme", "072": "Banorte",
+    "102": "The Royal Bank of Scotland México", "103": "American Express",
+    "106": "Bank of America México", "108": "Bank of Tokyo-Mitsubishi UFJ",
+    "110": "JP Morgan", "112": "Banco Monex", "113": "Banco Ve por Más",
+    "116": "ING", "124": "Deutsche Bank México", "126": "Credit Suisse México",
+    "127": "Banco Azteca", "128": "Banco Autofin", "129": "Barclays",
+    "130": "Banco Compartamos", "131": "Banco Famsa", "132": "Banco Multiva",
+    "133": "Banco Actinver", "134": "Banco Wal-Mart", "135": "Nafin",
+    "136": "Inter Banco", "137": "BanCoppel", "138": "ABC Capital",
+    "139": "UBS Bank México", "140": "Consubanco", "141": "Volkswagen Bank",
+    "143": "CIBanco", "145": "Banco Base", "166": "Bansefi",
+    "168": "Sociedad Hipotecaria Federal",
 }
 
 
