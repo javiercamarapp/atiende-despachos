@@ -10,7 +10,7 @@
     LugarExpedicion="06600" SubTotal="2500.00" Total="2900.00"
     NoCertificado="00001000000000000000" Sello="T1dGbG93b2ZDb21wb2NfVGVzdA==">
     <cfdi:Emisor Rfc="STC880202MN7" Nombre="SERVICIOS TECNICOS COMPUTACIONALES, S.A. DE C.V." RegimenFiscal="601"/>
-    <cfdi:Receptor Rfc="LIK920101X01" Nombre="LIKIDA AI DESPACHO CONTABLE, S.C."
+    <cfdi:Receptor Rfc="ATD920101X01" Nombre="ATIENDE DESPACHOS DEMO, S.C."
         DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="603" UsoCFDI="G03"/>
     <cfdi:Conceptos>
         <cfdi:Concepto ClaveProdServ="81111800" Cantidad="1"

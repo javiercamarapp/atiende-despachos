@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# pilot_setup.sh — One-click pilot environment setup for Likida AI Enterprise
+# pilot_setup.sh — One-click pilot environment setup for Atiende Despachos
 #
 # Automatiza todo el proceso de preparar un tenant de demo para piloto:
 #   1. Verifica prerequisitos (Python 3.11, pip, PostgreSQL si se pide PG)
@@ -64,7 +64,7 @@ while [[ $# -gt 0 ]]; do
         --host) HOST="$2"; shift ;;
         --db) DB_ARG="$2"; shift ;;
         -h|--help) usage ;;
-        *) echo "❌ Flag desconocido: $1"; usage ;;
+ *) echo " Flag desconocido: $1"; usage ;;
     esac
     shift
 done
@@ -72,8 +72,8 @@ done
 # ---- Helpers ----------------------------------------------------------------
 step() { printf "\n\033[1;34m▶ %s\033[0m\n" "$*"; }
 ok()   { printf "\033[1;32m  ✔ %s\033[0m\n" "$*"; }
-warn() { printf "\033[1;33m  ⚠ %s\033[0m\n" "$*"; }
-die()  { printf "\033[1;31m✖ %s\033[0m\n" "$*" >&2; exit 1; }
+warn() { printf "\033[1;33m %s\033[0m\n" "$*"; }
+die() { printf "\033[1;31m %s\033[0m\n" "$*" >&2; exit 1; }
 
 # ---- Variables de entorno de desarrollo (fail-fast del server) --------------
 B2B_JWT_SECRET="${B2B_JWT_SECRET:-$(openssl rand -hex 32)}"
@@ -325,7 +325,7 @@ URL="http://${HOST}:${PORT}"
 cat <<EOF
 
 ═══════════════════════════════════════════════════════════════════
-  ✅  PILOTO LISTO — Likida AI Enterprise
+ PILOTO LISTO — Atiende Despachos
 ═══════════════════════════════════════════════════════════════════
   API ................. $URL
   Health check ........ $URL/health

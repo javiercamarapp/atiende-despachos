@@ -1,4 +1,4 @@
-# Netlify configuration for Likida AI landing
+# Netlify configuration for Atiende Despachos landing
 # Alternative deploy target to Vercel. Static site — no build step required.
 # Videos are pre-optimized H.264 in assets/. Publish dir is the site root.
 

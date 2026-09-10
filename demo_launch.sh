@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# demo_launch.sh — One-Click Demo Launch for Likida AI Enterprise Sales Presentations
+# demo_launch.sh — One-Click Demo Launch for Atiende Despachos Sales Presentations
 #
 # This script:
 #   1. Activates the virtual environment
@@ -46,7 +46,7 @@ while [[ $# -gt 0 ]]; do
         --month) MONTH="$2"; shift 2 ;;
         --help|-h)
             echo ""
-            echo "  Likida AI Enterprise — One-Click Demo Launcher"
+            echo "  Atiende Despachos — One-Click Demo Launcher"
             echo "  ================================="
             echo ""
             echo "  Usage: ./demo_launch.sh [OPTIONS]"
@@ -74,19 +74,19 @@ elif command -v python3 &>/dev/null; then
 elif command -v python &>/dev/null; then
     PYTHON="$(command -v python)"
 else
-    echo -e "  ${RED}❌ Error: Python not found in PATH${NC}"
+ echo -e " ${RED} Error: Python not found in PATH${NC}"
     exit 1
 fi
 
 echo ""
 echo -e "  ${BOLD}${BLUE}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "  ${BOLD}${BLUE}║         Likida AI Enterprise — Demo Completo de Ventas         ║${NC}"
+echo -e "  ${BOLD}${BLUE}║         Atiende Despachos — Demo Completo de Ventas         ║${NC}"
 echo -e "  ${BOLD}${BLUE}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  ${CYAN}🐍 Python:${NC}    $PYTHON"
-echo -e "  ${CYAN}📂 Directorio:${NC} $DIR"
-echo -e "  ${CYAN}📅 Periodo:${NC}    $MONTH"
-echo -e "  ${CYAN}🌐 Puerto:${NC}     $PORT"
+echo -e " ${CYAN} Python:${NC} $PYTHON"
+echo -e " ${CYAN} Directorio:${NC} $DIR"
+echo -e " ${CYAN} Periodo:${NC} $MONTH"
+echo -e " ${CYAN} Puerto:${NC} $PORT"
 echo ""
 
 cd "$DIR"
@@ -103,7 +103,7 @@ if [ "$SERVER_ONLY" = false ]; then
 import sys, os
 sys.path.insert(0, '$DIR')
 
-print('  📊 Generando datos de firma contable demo...')
+print(' Generando datos de firma contable demo...')
 from b2b_ai.demo.firm_generator import generate_demo_firm, build_executive_summary
 data = generate_demo_firm(month='$MONTH', seed=42)
 print(f'     ✓ {len(data[\"clients\"])} clientes generados')
@@ -113,7 +113,7 @@ print(f'     ✓ {len(data[\"nominas\"])} nóminas generadas')
 print()
 
 if '$PDF_ONLY' == 'true' or True:
-    print('  📄 Generando reporte PDF con métricas de ROI...')
+ print(' Generando reporte PDF con métricas de ROI...')
     from b2b_ai.demo.report_pdf import generate_roi_report
     output_dir = os.path.join('$DIR', 'demo-output')
     os.makedirs(output_dir, exist_ok=True)
@@ -136,21 +136,21 @@ if '$PDF_ONLY' == 'true' or True:
         }, f, ensure_ascii=False, indent=2)
     print(f'     ✓ Datos JSON: {json_path}')
     print()
-    print(f'  ✅ Datos y reporte generados exitosamente')
+ print(f' Datos y reporte generados exitosamente')
 "
     echo ""
 
     if [ "$PDF_ONLY" = true ]; then
         echo -e "  ${BOLD}${GREEN}╔══════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${BOLD}${GREEN}║  ✅ Reporte PDF generado exitosamente             ║${NC}"
+ echo -e " ${BOLD}${GREEN}║ Reporte PDF generado exitosamente ║${NC}"
         echo -e "  ${BOLD}${GREEN}╚══════════════════════════════════════════════════╝${NC}"
         echo ""
-        echo -e "  📄 PDF: $DIR/demo-output/Likida_AI_Reporte_ROI_Demo.pdf"
-        echo -e "  📊 JSON: $DIR/demo-output/demo-summary.json"
+ echo -e " PDF: $DIR/demo-output/Atiende_Despachos_Reporte_ROI_Demo.pdf"
+ echo -e " JSON: $DIR/demo-output/demo-summary.json"
         echo ""
         # Open PDF
         if command -v open &>/dev/null; then
-            open "$DIR/demo-output/Likida_AI_Reporte_ROI_Demo.pdf"
+            open "$DIR/demo-output/Atiende_Despachos_Reporte_ROI_Demo.pdf"
         fi
         exit 0
     fi
@@ -178,15 +178,15 @@ fi
 echo -e "  ${BOLD}Paso 3/3:${NC} Iniciando servidor demo..."
 echo ""
 echo -e "  ${BOLD}${GREEN}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "  ${BOLD}${GREEN}║          🚀 Demo Server Listo para Venta         ║${NC}"
+echo -e " ${BOLD}${GREEN}║ Demo Server Listo para Venta ║${NC}"
 echo -e "  ${BOLD}${GREEN}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  ${BOLD}🌐 Dashboard:${NC}    http://localhost:$PORT"
-echo -e "  ${BOLD}📡 API Docs:${NC}     http://localhost:$PORT/docs"
-echo -e "  ${BOLD}📊 Demo API:${NC}     http://localhost:$PORT/api/demo/health"
-echo -e "  ${BOLD}📄 ROI Report:${NC}   $DIR/demo-output/Likida_AI_Reporte_ROI_Demo.pdf"
+echo -e " ${BOLD} Dashboard:${NC} http://localhost:$PORT"
+echo -e " ${BOLD} API Docs:${NC} http://localhost:$PORT/docs"
+echo -e " ${BOLD} Demo API:${NC} http://localhost:$PORT/api/demo/health"
+echo -e " ${BOLD} ROI Report:${NC} $DIR/demo-output/Atiende_Despachos_Reporte_ROI_Demo.pdf"
 echo ""
-echo -e "  ${YELLOW}💡 Tips para la venta:${NC}"
+echo -e " ${YELLOW} Tips para la venta:${NC}"
 echo -e "     • Abre el dashboard para mostrar la UI"
 echo -e "     • Usa /api/demo/process-all para demostrar procesamiento"
 echo -e "     • Muestra el PDF de ROI para justificar la inversión"

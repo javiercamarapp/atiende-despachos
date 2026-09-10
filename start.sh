@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# start.sh — Levanta Likida AI Enterprise (landing + API + DB) en 5 minutos.
+# start.sh — Levanta Atiende Despachos (landing + API + DB) en 5 minutos.
 #
 # Modos:
 #   ./start.sh          → arranca con Docker Compose (recomendado, prod-like).
@@ -19,7 +19,7 @@ MODE="${1:-compose}"
 if [ ! -f .env ]; then
     echo "→ Creando .env desde .env.example ..."
     cp .env.example .env
-    echo "  ⚠ Edita .env y define una B2B_API_KEY fuerte (openssl rand -hex 32)."
+ echo " Edita .env y define una B2B_API_KEY fuerte (openssl rand -hex 32)."
 fi
 
 # Cargar B2B_PORT para el modo local / mensajes.
@@ -43,7 +43,7 @@ echo "→ Levantando con Docker Compose ..."
 docker compose up --build -d
 
 echo ""
-echo "  ✔ Likida AI Enterprise arrancado."
+echo "  ✔ Atiende Despachos arrancado."
 echo "  → Landing :  http://localhost:${PORT}/"
 echo "  → API docs:  http://localhost:${PORT}/docs"
 echo "  → Health  :  http://localhost:${PORT}/health"

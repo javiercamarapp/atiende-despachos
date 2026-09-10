@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "7f749cf5-0000-4000-8000-likidaapi0001",
-    "name": "Likida AI Enterprise API",
-    "description": "Colección de la API REST de Likida AI (agente contable para despachos). Autenticación vía API key en header X-API-Key (variable {{api_key}}). Generada por el equipo de ingeniería — ver docs/api-reference.md.",
+    "name": "Atiende Despachos API",
+    "description": "Colección de la API REST de Atiende Despachos (agente contable para despachos). Autenticación vía API key en header X-API-Key (variable {{api_key}}). Generada por el equipo de ingeniería — ver docs/api-reference.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

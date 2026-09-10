@@ -1,5 +1,5 @@
 # =============================================================================
-# railway.toml — Configuración de Railway para Likida AI Enterprise
+# railway.toml — Configuración de Railway para Atiende Despachos
 # =============================================================================
 # Railway auto-detecta este archivo en la raíz del repo.
 # Railway CLI: railway up | railway variables set | railway logs

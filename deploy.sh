@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# deploy.sh — Deploy de Likida AI Enterprise
+# deploy.sh — Deploy de Atiende Despachos
 #
 # Opción A: deploy local (VPS con Docker Compose) — ya funciona
 #   ./deploy.sh local [--no-build] [--prune]
@@ -91,7 +91,7 @@ deploy_local() {
   if docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" -p "$STACK" \
        run --rm --no-deps "$APP_SERVICE" python -c \
        "from b2b_ai.db.db import Database; Database(); print('migraciones OK')"; then
-    echo "==> ✅ Migraciones aplicadas."
+ echo "==> Migraciones aplicadas."
   else
     echo "WARN: el one-shot de migraciones falló (¿DB aún no arranca?). Se reintenta al levantar servicios." >&2
   fi
@@ -102,7 +102,7 @@ deploy_local() {
   echo "==> Esperando que el API responda en $HEALTH_URL/health..."
   for i in $(seq 1 30); do
     if curl -fsS -m 5 "$HEALTH_URL/health" >/dev/null 2>&1; then
-      echo "==> ✅ API sano (intento $i)."
+ echo "==> API sano (intento $i)."
       break
     fi
     if [ "$i" -eq 30 ]; then
@@ -152,7 +152,7 @@ deploy_cloud() {
 
     echo "==> Ejecutando: vercel --prod"
     vercel --prod --yes
-    echo "==> ✅ Landing desplegada en Vercel"
+ echo "==> Landing desplegada en Vercel"
 
     # Obtener la URL de preview/producción
     echo "==> URL de producción asignada por Vercel (revisa el output arriba)"
@@ -188,7 +188,7 @@ deploy_cloud() {
       # Ya vinculado: deploy directo
       echo "==> Subiendo a Railway..."
       railway up --yes
-      echo "==> ✅ API desplegada en Railway"
+ echo "==> API desplegada en Railway"
 
       echo "==> Para configurar variables de entorno en Railway:"
       echo "   railway variables set B2B_API_KEY=..."

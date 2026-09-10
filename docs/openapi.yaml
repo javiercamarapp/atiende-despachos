@@ -12,14 +12,14 @@ info:
 
     ### API Key Authentication
 
-    curl -H "X-API-Key: ***" https://api.likida.ai/api/v1/stats\n```
+    curl -H "X-API-Key: ***" https://api.atiende.ai/api/v1/stats\n```
 
 
     ### JWT Bearer Token (Auth endpoints)
 
     ```
 
-    curl -H "Authorization: Bearer ***" https://api.likida.ai/api/v1/stats\n```
+    curl -H "Authorization: Bearer ***" https://api.atiende.ai/api/v1/stats\n```
 
 
     ## Versioning

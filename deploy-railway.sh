@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# deploy-railway.sh — Deploy de Likida AI Enterprise a Railway
+# deploy-railway.sh — Deploy de Atiende Despachos a Railway
 #
 # Uso:
 #   ./deploy-railway.sh                    # deploy completo (build + push)
@@ -34,9 +34,9 @@ BLUE='\033[0;34m'
 NC='\033[0m'  # No Color
 
 info()  { echo -e "${BLUE}==> $1${NC}"; }
-ok()    { echo -e "${GREEN}✅ $1${NC}"; }
-warn()  { echo -e "${YELLOW}⚠️  $1${NC}"; }
-fail()  { echo -e "${RED}❌ $1${NC}" >&2; exit 1; }
+ok() { echo -e "${GREEN} $1${NC}"; }
+warn() { echo -e "${YELLOW}️ $1${NC}"; }
+fail() { echo -e "${RED} $1${NC}" >&2; exit 1; }
 
 # ---------- Pre-flight checks ----------
 preflight() {
@@ -173,7 +173,7 @@ setup_domain() {
 
 # ---------- Teardown ----------
 teardown() {
-  warn "⚠️  Esto ELIMINARÁ el servicio de Railway."
+ warn "️ Esto ELIMINARÁ el servicio de Railway."
   read -p "¿Estás seguro? (escribe 'yes' para confirmar): " confirm
   if [ "$confirm" = "yes" ]; then
     railway service delete
