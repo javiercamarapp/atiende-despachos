@@ -1,0 +1,315 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Color system: white / blue / sky-blue.
+ * Adapted from Likida's (proyect-x-) documented design discipline — one
+ * dominant accent used "with an eyedropper", every status carries a label
+ * not just a color, dashed internal dividers — repointed from their
+ * black/white/gray console palette to this product's blue/sky-blue.
+ * Hex reference (see docs/agente-voz or the blueprint for the source):
+ *   bg #f7f9fc  surface #ffffff  ink #0f1b2d  muted #5b6b82  line #e2e8f0
+ *   accent (blue) #1d4ed8  secondary (sky) #0ea5e9  bad #c0122a
+ */
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 216 50% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 216 50% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 216 50% 12%;
+
+    --primary: 224 76% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 224 76% 48%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 30% 95%;
+    --muted-foreground: 215 18% 43%;
+
+    --accent: 224 76% 48%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 352 83% 41%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 224 76% 48%;
+
+    --radius: 0.75rem;
+
+    /* Custom tokens (blue/sky-blue equivalents of the old gold/terracotta set) */
+    --gold: 199 89% 48%;
+    --gold-foreground: 0 0% 100%;
+    --terracotta: 224 76% 48%;
+    --terracotta-light: 199 89% 48%;
+    --sand: 210 30% 95%;
+    --olive: 224 76% 48%;
+    --cream: 210 40% 98%;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(224 76% 48% / 0.95) 0%, hsl(199 89% 40%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 40%) 100%);
+    --gradient-warm: linear-gradient(180deg, hsl(210 40% 98%) 0%, hsl(0 0% 100%) 100%);
+
+    /* Shadows */
+    --shadow-card: 0 4px 24px -4px hsl(216 50% 12% / 0.08);
+    --shadow-elevated: 0 12px 40px -8px hsl(216 50% 12% / 0.15);
+    --shadow-glow: 0 0 40px hsl(224 76% 48% / 0.2);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 216 50% 12%;
+    --sidebar-primary: 224 76% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 30% 95%;
+    --sidebar-accent-foreground: 224 76% 48%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 199 89% 48%;
+  }
+
+  .dark {
+    --background: 216 45% 9%;
+    --foreground: 210 30% 95%;
+
+    --card: 216 40% 13%;
+    --card-foreground: 210 30% 95%;
+
+    --popover: 216 40% 11%;
+    --popover-foreground: 210 30% 95%;
+
+    --primary: 213 82% 62%;
+    --primary-foreground: 216 45% 9%;
+
+    --secondary: 199 89% 55%;
+    --secondary-foreground: 216 45% 9%;
+
+    --muted: 216 30% 18%;
+    --muted-foreground: 215 18% 65%;
+
+    --accent: 199 89% 55%;
+    --accent-foreground: 216 45% 9%;
+
+    --destructive: 352 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 216 30% 20%;
+    --input: 216 30% 20%;
+    --ring: 213 82% 62%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    overflow-x: clip;
+  }
+  
+  body {
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-body;
+  }
+}
+
+@layer components {
+  .pattern-arabesque {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c96830' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  .text-gradient-gold {
+    background: var(--gradient-gold);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@layer utilities {
+  .animate-fade-up {
+    animation: fadeUp 0.6s ease-out forwards;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.4s ease-out forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.5s ease-out forwards;
+  }
+
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+
+  @keyframes wave {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(-2%);
+    }
+  }
+
+  @keyframes waveSlide {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes waveFloat {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-15px);
+    }
+  }
+
+  @keyframes wiggleFloat {
+    0%, 100% {
+      transform: translateY(0) rotate(0deg) scale(1);
+    }
+    25% {
+      transform: translateY(-8px) rotate(1deg) scale(1.02);
+    }
+    50% {
+      transform: translateY(-12px) rotate(-1deg) scale(1.01);
+    }
+    75% {
+      transform: translateY(-6px) rotate(0.5deg) scale(1.015);
+    }
+  }
+
+  /* Likida's real button/pill mechanism (proyect-x-/src/app/globals.css,
+     already ported once for the login screen in src/pages/login.css) —
+     applied here app-wide so every <button> gets the same press
+     feedback, not just Button-component or login instances. Gated
+     behind prefers-reduced-motion exactly like the source. */
+  @media (prefers-reduced-motion: no-preference) {
+    button:not(:disabled):active {
+      transform: scale(0.97);
+      transition: transform 80ms ease-out;
+    }
+
+    /* Opt-in hover lift for clickable card-like elements (Likida's
+       a.card). Not wired into any component yet — add this class to a
+       card that acts as a link/button to get the same lift + shadow
+       language as the pill buttons. */
+    .card-interactive {
+      transition: transform 150ms ease-out, box-shadow 150ms ease-out, opacity 150ms ease, border-color 150ms ease;
+    }
+    .card-interactive:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-elevated);
+    }
+  }
+}
+
+/* Pantalla de carga del producto: el logo respira, no parpadea — tomado del
+   mismo patrón que usa Likida (proyect-x-, `likida-respira`) en vez de un
+   `animate-pulse` genérico que salta entre dos opacidades. */
+@keyframes atiende-respira {
+  0%, 100% { opacity: 0.35; transform: scale(0.985); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+.atiende-respira { animation: atiende-respira 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .atiende-respira { animation: none; opacity: 0.6; }
+}
+
+/* Glifo animado del mark: las 3 líneas de movimiento corren en cascada
+   detrás de la figura, como el gesto animado del glifo real de Likida —
+   mismo timing escalonado, en azul en vez de negro. */
+@keyframes atiende-linea-correr {
+  0%   { transform: translateX(-3px); opacity: 0.35; }
+  40%  { transform: translateX(0);    opacity: 1; }
+  100% { transform: translateX(2px);  opacity: 0.35; }
+}
+.atiende-glifo-animado .atiende-linea {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: atiende-linea-correr 1.1s ease-in-out infinite;
+}
+.atiende-glifo-animado .atiende-linea-1 { animation-delay: 0s; }
+.atiende-glifo-animado .atiende-linea-2 { animation-delay: 0.15s; }
+.atiende-glifo-animado .atiende-linea-3 { animation-delay: 0.3s; }
+@media (prefers-reduced-motion: reduce) {
+  .atiende-glifo-animado .atiende-linea { animation: none; }
+}
+
+/* El fondo animado de "Pregunta a tus datos" ahora es CampoPixeles.tsx —
+   puerto directo del canvas real de Likida (dashboard/pixeles.tsx), no CSS.
+   Ver ese componente para el porqué. */

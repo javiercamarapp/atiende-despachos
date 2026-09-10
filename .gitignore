@@ -7,5 +7,11 @@ __pycache__/
 *.db-wal
 *.egg-info/
 node_modules/
+apps/web/dist/
+apps/web/*.tsbuildinfo
 .env
 .env.*
+# Plantillas de ejemplo (sin secretos) — deben quedar rastreadas aunque
+# empiecen con ".env.": mismo criterio que .env.example/.env.production.example
+# ya versionados en la raíz del repo.
+!**/.env.example

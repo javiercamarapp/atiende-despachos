@@ -97,6 +97,11 @@ class SettingsUpdate(BaseModel):
     notif_recipient: Optional[str] = None
 
 
+class LoginBody(BaseModel):
+    email: str
+    password: str
+
+
 # --------------------------------------------------------------------------
 # Password / sesión (mismas primitivas que api/portal.py)
 # --------------------------------------------------------------------------
@@ -213,6 +218,52 @@ def _filter_invoices(invoices, estado=None, proveedor=None, q=None,
 
 def _notifications_for(db, tenant_id, limit=50):
     return db.list_notifications(tenant_id=tenant_id, limit=limit)
+
+
+def _tenant_settings(db, tenant_id):
+    """Config actual del tenant (mismos defaults que settings_page)."""
+    return {
+        "rfc": db.get_tenant_config(tenant_id, "rfc", "") or "",
+        "erp_type": db.get_tenant_config(tenant_id, "erp_type",
+                                         "contpaqi") or "contpaqi",
+        "plantilla_contable": db.get_tenant_config(
+            tenant_id, "plantilla_contable", "SAT") or "SAT",
+        "notif_channel": db.get_tenant_config(tenant_id, "notif_channel",
+                                              "email") or "email",
+        "notif_recipient": db.get_tenant_config(tenant_id, "notif_recipient",
+                                                "") or "",
+    }
+
+
+def _invoice_json(inv: dict) -> dict:
+    """Serializa una factura completa (mismos campos que invoice_detail.html)."""
+    return {
+        "id": inv.get("id"),
+        "archivo": inv.get("archivo"),
+        "folio_fiscal": inv.get("folio_fiscal"),
+        "fecha": inv.get("fecha"),
+        "tipo": inv.get("tipo"),
+        "serie": inv.get("serie"),
+        "folio": inv.get("folio"),
+        "emisor_rfc": inv.get("emisor_rfc"),
+        "emisor_nombre": inv.get("emisor_nombre"),
+        "receptor_rfc": inv.get("receptor_rfc"),
+        "subtotal": round(_dec(inv.get("subtotal")), 2),
+        "iva": round(_dec(inv.get("iva")), 2),
+        "total": round(_dec(inv.get("total")), 2),
+        "moneda": inv.get("moneda") or "MXN",
+        "categoria": inv.get("categoria"),
+        "confianza": inv.get("confianza"),
+        "descripcion": inv.get("descripcion"),
+        "erp_status": inv.get("erp_status"),
+        "procesado_en": inv.get("procesado_en"),
+        "razon_clasificacion": inv.get("razon_clasificacion"),
+        "issues": inv.get("issues"),
+        "valido": bool(inv.get("valido")),
+        "requires_human_review": bool(inv.get("requires_human_review")),
+        "status": inv.get("status"),
+        "estatus": _estado(inv),
+    }
 
 
 def _query_string(request):
@@ -510,6 +561,42 @@ def build_portal_pages_router(db):
         resp.delete_cookie(COOKIE_NAME, path="/")
         return resp
 
+    # ---- Sesión (JSON — para el panel SPA de apps/web) --------------------
+    @router.post("/api/login")
+    def login_api(request: Request, body: LoginBody, response: Response):
+        """Login JSON para el SPA de React: reutiliza exactamente la misma
+        lógica de verificación/rate-limit/sesión que login_submit (form),
+        solo cambia el transporte (JSON in, cookie + JSON out)."""
+        em = (body.email or "").strip().lower()
+        password = body.password or ""
+        if not em or not password:
+            return JSONResponse(status_code=401,
+                                content={"ok": False,
+                                         "error": "Correo y contraseña requeridos."})
+        ip = request.client.host if request.client else "unknown"
+        if not _login_limiter.check((ip, em)):
+            return JSONResponse(status_code=429,
+                                content={"ok": False,
+                                         "error": "Demasiados intentos. Intenta de nuevo en unos minutos."})
+        user = db.get_client_user_by_email(em)
+        if user is None or not _check_password(password, user["password_hash"]):
+            return JSONResponse(status_code=401,
+                                content={"ok": False,
+                                         "error": "Credenciales inválidas."})
+        token = _new_token()
+        db.create_portal_session(user["id"], token, _expires())
+        response.set_cookie(COOKIE_NAME, token, max_age=SESSION_TTL_DAYS * 86400,
+                            httponly=True, secure=True, samesite="lax", path="/")
+        return {"ok": True}
+
+    @router.post("/api/logout")
+    def logout_api(request: Request, response: Response):
+        user = _resolve_user(db, request)
+        if user is not None:
+            db.delete_portal_session(user["token"])
+        response.delete_cookie(COOKIE_NAME, path="/")
+        return {"ok": True}
+
     # ---- Dashboard --------------------------------------------------------
     @router.get("/dashboard", response_class=HTMLResponse,
                 include_in_schema=False)
@@ -643,6 +730,17 @@ def build_portal_pages_router(db):
             request, "invoice_detail.html",
             {"request": request, "user": user, "inv": inv})
 
+    @router.get("/api/invoices/{invoice_id}")
+    def invoice_detail_api(request: Request, invoice_id: int):
+        """Igual que invoice_detail (misma consulta, mismo tenant-scope) pero
+        en JSON, para el detalle de factura del SPA de React."""
+        user = _require_user_json(db, request)
+        inv = db.get_invoice(invoice_id, tenant_id=user["tenant_id"])
+        if inv is None:
+            raise HTTPException(status_code=404,
+                                detail="Factura no encontrada.")
+        return _invoice_json(inv)
+
     # ---- Reportes ---------------------------------------------------------
     @router.get("/reports", response_class=HTMLResponse, include_in_schema=False)
     def reports_page(request: Request):
@@ -655,6 +753,15 @@ def build_portal_pages_router(db):
             {"request": request, "user": user,
              "reports": REPORT_CATALOG,
              "invoice_count": len(invoices)})
+
+    @router.get("/api/reports")
+    def reports_api(request: Request):
+        """Catálogo de reportes + conteo de facturas, en JSON (mismo dato
+        que reports_page ya calcula) — el botón de descarga real del SPA
+        sigue apuntando directo a /portal/reports/{id}/download."""
+        user = _require_user_json(db, request)
+        invoices = db.list_invoices(tenant_id=user["tenant_id"])
+        return {"reports": REPORT_CATALOG, "invoice_count": len(invoices)}
 
     @router.get("/reports/{report_id}/download", include_in_schema=False)
     def report_download(request: Request, report_id: str):
@@ -678,22 +785,20 @@ def build_portal_pages_router(db):
             return RedirectResponse(url="/portal/login", status_code=302)
         tenant = user["tenant_id"]
         tenant_row = db.get_tenant_by_id(tenant) or {}
-        cfg = {
-            "rfc": db.get_tenant_config(tenant, "rfc", "") or "",
-            "erp_type": db.get_tenant_config(tenant, "erp_type",
-                                             "contpaqi") or "contpaqi",
-            "plantilla_contable": db.get_tenant_config(
-                tenant, "plantilla_contable", "SAT") or "SAT",
-            "notif_channel": db.get_tenant_config(tenant, "notif_channel",
-                                                  "email") or "email",
-            "notif_recipient": db.get_tenant_config(tenant, "notif_recipient",
-                                                    "") or "",
-        }
+        cfg = _tenant_settings(db, tenant)
         saved = request.query_params.get("saved")
         return templates.TemplateResponse(
             request, "settings.html",
             {"request": request, "user": user, "tenant": tenant_row,
              "cfg": cfg, "saved": saved == "1"})
+
+    @router.get("/api/settings")
+    def settings_api(request: Request):
+        """Config actual del tenant en JSON — misma fuente que settings_page,
+        para precargar el formulario de Configuración del SPA de React."""
+        user = _require_user_json(db, request)
+        return {"tenant_id": user["tenant_id"],
+                "settings": _tenant_settings(db, user["tenant_id"])}
 
     @router.put("/settings")
     def settings_update(request: Request, body: SettingsUpdate):
