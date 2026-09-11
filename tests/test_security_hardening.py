@@ -223,6 +223,13 @@ def test_env_example_no_contiene_valores_reales(ctx):
                 # la longitud de valores inocuos como "production" por
                 # encima del umbral y producía un falso positivo.
                 v = v.split("#", 1)[0].strip()
+                # Un valor con forma de email (p.ej. B2B_DEFAULT_EMAIL) es un
+                # identificador de configuración, no un secreto -- no aplica
+                # el chequeo de entropía. Antes de este dominio (atiende.ai,
+                # 16 chars) el valor era admin@likida.ai (15 chars) y nunca
+                # cruzaba el umbral; el rebrandeo lo hizo un falso positivo.
+                if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", v):
+                    continue
                 # "cambia-este-..." es el placeholder en español usado en
                 # este .env.example (p.ej. POSTGRES_PASSWORD); el resto de
                 # marcadores son ingleses y no lo cubrían.
