@@ -501,6 +501,11 @@ class Database:
                              if (erp or {}).get("status") == "rejected_invalid_cfdi"
                              else "procesado")),
             "procesado_en": now,
+            # REQ-CONC-016: opcionales, None cuando el caller no los manda
+            # (todo el histórico previo a esta migración) -- nunca un
+            # default inventado.
+            "canal_cobro": datos.get("canal_cobro") or None,
+            "id_terminal": datos.get("id_terminal") or None,
         }
         try:
             cur = self.conn.execute("""
@@ -510,14 +515,16 @@ class Database:
                     subtotal, iva, total, moneda, descripcion,
                     categoria, confianza, razon_clasificacion,
                     valido, requires_human_review, issues,
-                    erp_poliza, erp_status, status, procesado_en)
+                    erp_poliza, erp_status, status, procesado_en,
+                    canal_cobro, id_terminal)
                 VALUES (
                     :tenant_id, :folio_fiscal, :archivo, :fecha, :tipo, :serie, :folio,
                     :emisor_rfc, :emisor_nombre, :receptor_rfc,
                     :subtotal, :iva, :total, :moneda, :descripcion,
                     :categoria, :confianza, :razon_clasificacion,
                     :valido, :requires_human_review, :issues,
-                    :erp_poliza, :erp_status, :status, :procesado_en)
+                    :erp_poliza, :erp_status, :status, :procesado_en,
+                    :canal_cobro, :id_terminal)
             """, row)
             invoice_id = cur.lastrowid
             inserted = True
@@ -587,12 +594,15 @@ class Database:
 
     # Columnas explícitas de `invoices` (evita SELECT * en las lecturas
     # más sensibles de la capa multi-tenant: facturas fiscales por cliente).
+    # canal_cobro/id_terminal (REQ-CONC-016, migración 0020): opcionales,
+    # NULL para todo el histórico previo -- acotan el filtrado de
+    # candidatos de conciliación N-a-1 por canal (REQ-CONC-015).
     _INVOICE_COLUMNS = (
         "id, tenant_id, folio_fiscal, archivo, fecha, tipo, serie, folio, "
         "emisor_rfc, emisor_nombre, receptor_rfc, subtotal, iva, total, "
         "moneda, descripcion, categoria, confianza, razon_clasificacion, "
         "valido, requires_human_review, issues, erp_poliza, erp_status, "
-        "status, procesado_en, created_at"
+        "status, procesado_en, created_at, canal_cobro, id_terminal"
     )
 
     def list_invoices(self, tenant_id=None, limit=None,
@@ -1189,23 +1199,35 @@ class Database:
     # ---- Cobranza automatizada (FASE 3) ----
     def upsert_outstanding_invoice(self, tenant_id, factura_id, monto,
                                    fecha_vencimiento, dias_vencido=0,
-                                   score=0.0):
+                                   score=0.0, canal_cobro=None,
+                                   id_terminal=None):
         """Crea o actualiza una factura pendiente de la cartera de cobranza.
 
         Devuelve el id de la fila. Si la factura ya existe (por tenant+factura),
         se actualizan monto, vencimiento, días vencidos y score.
+
+        `canal_cobro`/`id_terminal` (REQ-CONC-016) son opcionales -- acotan
+        el filtrado de candidatos de conciliación N-a-1 por canal
+        (REQ-CONC-015). `None` (default) no toca lo ya guardado en un
+        upsert repetido: usar COALESCE(excluded.x, tabla.x) en vez de
+        sobreescribir con NULL cuando esta llamada no trae el dato.
         """
         with self.conn:
             self.conn.execute(
                 "INSERT INTO outstanding_invoices(tenant_id, factura_id, monto, "
-                "fecha_vencimiento, dias_vencido, score, updated_at) "
-                "VALUES (?,?,?,?,?,?, CURRENT_TIMESTAMP) "
+                "fecha_vencimiento, dias_vencido, score, canal_cobro, "
+                "id_terminal, updated_at) "
+                "VALUES (?,?,?,?,?,?,?,?, CURRENT_TIMESTAMP) "
                 "ON CONFLICT (tenant_id, factura_id) DO UPDATE SET "
                 "monto=excluded.monto, fecha_vencimiento=excluded.fecha_vencimiento, "
                 "dias_vencido=excluded.dias_vencido, score=excluded.score, "
+                "canal_cobro=COALESCE(excluded.canal_cobro, "
+                "outstanding_invoices.canal_cobro), "
+                "id_terminal=COALESCE(excluded.id_terminal, "
+                "outstanding_invoices.id_terminal), "
                 "updated_at=CURRENT_TIMESTAMP",
                 (tenant_id, factura_id, float(monto), fecha_vencimiento,
-                 int(dias_vencido), float(score)))
+                 int(dias_vencido), float(score), canal_cobro, id_terminal))
         row = self.conn.execute(
             "SELECT id FROM outstanding_invoices "
             "WHERE tenant_id=? AND factura_id=?",

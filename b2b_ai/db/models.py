@@ -899,6 +899,56 @@ MIGRATIONS = [
             ON devolucion_iva_papeles_trabajo(tenant_id, periodo);
         """,
     },
+    {
+        "version": 22,
+        "name": "canal_cobro_invoices_outstanding",
+        "sql": """
+        -- REQ-CONC-016: acota el filtrado de candidatos de conciliación
+        -- N-a-1 por canal (REQ-CONC-015). Equivalente SQLite de
+        -- migrations/versions/0020_canal_cobro_invoices.py (PostgreSQL).
+        -- Ambas columnas opcionales, NULL para todo el histórico previo.
+        ALTER TABLE invoices ADD COLUMN canal_cobro TEXT;
+        ALTER TABLE invoices ADD COLUMN id_terminal TEXT;
+        ALTER TABLE outstanding_invoices ADD COLUMN canal_cobro TEXT;
+        ALTER TABLE outstanding_invoices ADD COLUMN id_terminal TEXT;
+        CREATE INDEX IF NOT EXISTS idx_invoices_canal_cobro
+            ON invoices(tenant_id, canal_cobro);
+        CREATE INDEX IF NOT EXISTS idx_outstanding_canal_cobro
+            ON outstanding_invoices(tenant_id, canal_cobro);
+        """,
+    },
+    {
+        "version": 23,
+        "name": "reconciliation_group_matches",
+        "sql": """
+        -- REQ-CONC-013: persistencia de decisiones de _pass_group.
+        -- Equivalente SQLite de
+        -- migrations/versions/0019_recon_group_matches.py (PostgreSQL).
+        -- Ver ese archivo para el razonamiento completo de columnas.
+        CREATE TABLE IF NOT EXISTS reconciliation_group_matches (
+            id INTEGER PRIMARY KEY,
+            tenant_id INTEGER,
+            group_id TEXT NOT NULL,
+            transaction_id TEXT NOT NULL,
+            invoice_ref TEXT,
+            naturaleza TEXT NOT NULL,
+            confidence TEXT,
+            estado TEXT NOT NULL,
+            score REAL,
+            aprobado_por TEXT,
+            aprobado_en TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_recon_group_matches_tenant
+            ON reconciliation_group_matches(tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_recon_group_matches_group
+            ON reconciliation_group_matches(group_id);
+        CREATE INDEX IF NOT EXISTS idx_recon_group_matches_tx
+            ON reconciliation_group_matches(transaction_id);
+        CREATE INDEX IF NOT EXISTS idx_recon_group_matches_estado
+            ON reconciliation_group_matches(estado);
+        """,
+    },
 ]
 
 
