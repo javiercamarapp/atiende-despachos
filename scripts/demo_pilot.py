@@ -48,7 +48,7 @@ _NOMINA_DIR = _DEMO_DIR / "nominas"
 _DEFAULT_DB = _DEMO_DIR / "demo_pilot.db"
 
 os.environ.setdefault("B2B_ENV", "local")
-os.environ.setdefault("B2B_API_KEY", "demo-key-likida-2026")
+os.environ.setdefault("B2B_API_KEY", "demo-key-atiende-2026")
 os.environ.setdefault("B2B_DEFAULT_TENANT_ID", "1")
 os.environ.setdefault("B2B_DB_PATH", str(_DEFAULT_DB))
 
@@ -86,7 +86,7 @@ def _section(text: str):
 
 
 def _ok(text: str):
-    print(_c(_GREEN, "  ✔ " + text))
+    print(_c(_GREEN, "  " + text))
 
 
 def _kv(key: str, value: str):

@@ -1,6 +1,6 @@
 # AUDIT-FINAL-TESTING.md — Auditoría Exhaustiva de Cobertura de Tests
 
-**Proyecto**: likida-ai-enterprise  
+**Proyecto**: atiende-despachos  
 **Fecha**: 2026-08-01  
 **Auditor**: Testing Specialist (subagent)  
 **Stack**: pytest, FastAPI TestClient, SQLite in-memory/tmp  

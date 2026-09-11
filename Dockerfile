@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# Likida AI — Agente contable IA enterprise
+# Atiende Despachos — Agente contable IA enterprise
 # =============================================================================
 
 # ---- Stage 1: builder ----
@@ -40,7 +40,7 @@ WORKDIR /app
 
 LABEL org.opencontainers.image.title="b2b-ai" \
       org.opencontainers.image.version="1.0.0" \
-      org.opencontainers.image.description="Agente contable IA enterprise (Likida AI)"
+      org.opencontainers.image.description="Agente contable IA enterprise (Atiende Despachos)"
 
 COPY --from=builder /install /usr/local
 COPY --from=builder /build/landing /app/landing

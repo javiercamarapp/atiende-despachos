@@ -1036,22 +1036,22 @@ def flujo_conciliacion_apar(tenant_id, statement_path, bank):
 │  CAPA                 TECNOLOGÍA          ESTADO    USO          │
 │  ─────────────────    ──────────────      ────────  ──────────   │
 │  API Framework        FastAPI              Existe  REST API    │
-│  Task Queue           Celery + Redis       🆕 Nuevo   Batch jobs │
-│  Message Bus          Redis Streams        🆕 Nuevo   Eventos    │
-│  Cache                Redis                🆕 Nuevo   Cache      │
+│  Task Queue           Celery + Redis       Nuevo   Batch jobs │
+│  Message Bus          Redis Streams        Nuevo   Eventos    │
+│  Cache                Redis                Nuevo   Cache      │
 │  DB Dev               SQLite               Existe  Dev/test   │
 │  DB Prod              PostgreSQL           Existe  Producción │
 │  ORM/Query            psycopg (raw SQL)    Existe  Queries    │
 │  XML Parsing          lxml/xml.etree       Existe  CFDI XML   │
-│  SAT SOAP             zeep                 🆕 Nuevo   API SAT    │
-│  PDF Parsing          pdfplumber           🆕 Nuevo   Bank stmts │
-│  ML/Clasificación     scikit-learn         🆕 Nuevo   Accounts   │
+│  SAT SOAP             zeep                 Nuevo   API SAT    │
+│  PDF Parsing          pdfplumber           Nuevo   Bank stmts │
+│  ML/Clasificación     scikit-learn         Nuevo   Accounts   │
 │  LLM Service          OpenAI/mock          Existe  Classify   │
-│  Scheduler            APScheduler          🆕 Nuevo   Cron-like  │
+│  Scheduler            APScheduler          Nuevo   Cron-like  │
 │  Monitoring           Custom audit_log     Existe  Auditoría  │
 │  Testing              pytest               Existe  Tests      │
-│  Containerization     Docker               🆕 Nuevo   Deploy     │
-│  Process Manager      systemd/Docker       🆕 Nuevo   Workers    │
+│  Containerization     Docker               Nuevo   Deploy     │
+│  Process Manager      systemd/Docker       Nuevo   Workers    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1103,7 +1103,7 @@ services:
       - postgres
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://likida:secret@postgres:5432/likida
+      - DATABASE_URL=postgresql://b2b:secret@postgres:5432/b2b_ai
 
   celery-beat:
     build: .
@@ -1118,16 +1118,16 @@ services:
 b2b_ai/
 ├── agent/
 │   ├── loop.py                    # Existente
-│   └── orchestrator.py            # 🆕 AgentOrchestrator
+│   └── orchestrator.py            # AgentOrchestrator
 │
-├── agents/                        # 🆕 Directorio de agentes
+├── agents/                        # Directorio de agentes
 │   ├── __init__.py
-│   ├── base.py                    # 🆕 BaseAgent abstracto
-│   ├── fiscal.py                  # 🆕 Agente 1: Fiscal
-│   ├── contable.py                # 🆕 Agente 2: Contable
-│   ├── close.py                   # 🆕 Agente 3: Close Manager
-│   ├── apar.py                    # 🆕 Agente 4: AP/AR
-│   └── nomina_agent.py            # 🆕 Agente 5: Nómina
+│   ├── base.py                    # BaseAgent abstracto
+│   ├── fiscal.py                  # Agente 1: Fiscal
+│   ├── contable.py                # Agente 2: Contable
+│   ├── close.py                   # Agente 3: Close Manager
+│   ├── apar.py                    # Agente 4: AP/AR
+│   └── nomina_agent.py            # Agente 5: Nómina
 │
 ├── services/
 │   ├── pipeline.py                # Existente
@@ -1141,24 +1141,24 @@ b2b_ai/
 │   ├── balanza.py                 # Existente
 │   ├── contabilidad_electronica.py # Existente
 │   ├── diot_service.py            # Existente
-│   ├── accounting_rules_engine.py # 🆕 Motor de reglas contables
-│   ├── declaration_engine.py      # 🆕 Motor de declaraciones
-│   ├── close_manager.py           # 🆕 Gestor de cierre
-│   └── apar_manager.py            # 🆕 Gestor AP/AR
+│   ├── accounting_rules_engine.py # Motor de reglas contables
+│   ├── declaration_engine.py      # Motor de declaraciones
+│   ├── close_manager.py           # Gestor de cierre
+│   └── apar_manager.py            # Gestor AP/AR
 │
-├── infra/                         # 🆕 Infraestructura
+├── infra/                         # Infraestructura
 │   ├── __init__.py
-│   ├── event_bus.py               # 🆕 Redis Streams event bus
-│   ├── celery_app.py              # 🆕 Configuración Celery
-│   ├── tasks.py                   # 🆕 Tareas Celery
-│   ├── scheduler.py               # 🆕 APScheduler wrapper
-│   └── health.py                  # 🆕 Health check agentes
+│   ├── event_bus.py               # Redis Streams event bus
+│   ├── celery_app.py              # Configuración Celery
+│   ├── tasks.py                   # Tareas Celery
+│   ├── scheduler.py               # APScheduler wrapper
+│   └── health.py                  # Health check agentes
 │
 ├── db/
 │   ├── db.py                      # Existente
 │   ├── models.py                  # Existente (añadir nuevas tablas)
-│   └── migrations/                # 🆕 Migraciones SQL
-│       └── 027_agent_tables.sql   # 🆕 SQL de las nuevas tablas
+│   └── migrations/                # Migraciones SQL
+│       └── 027_agent_tables.sql   # SQL de las nuevas tablas
 │
 ├── integrations/                  # Todo existente
 │   ├── hub.py
@@ -1171,7 +1171,7 @@ b2b_ai/
 ├── cfdi/                          # Todo existente
 └── api/
     ├── app.py                     # Existente (añadir nuevos routers)
-    └── v3_agents.py               # 🆕 API endpoints para agentes
+    └── v3_agents.py               # API endpoints para agentes
 ```
 
 ---

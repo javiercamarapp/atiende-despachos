@@ -1,6 +1,6 @@
 # APIs y Servicios de Integración para Agentes Contables en México
 
-> **Proyecto:** likida-ai-enterprise — 5 agentes contables autónomos para despachos mexicanos
+> **Proyecto:** atiende-despachos — 5 agentes contables autónomos para despachos mexicanos
 > **Última actualización:** 2026-08-01
 > **Stack:** Python FastAPI — ya procesa CFDI 4.0 y nómina
 
@@ -13,7 +13,7 @@
 3. [ERPs Mexicanos (Integración)](#3-erps-mexicanos-integración)
 4. [Banca y Pagos](#4-banca-y-pagos)
 5. [Tabla Comparativa Resumen](#5-tabla-comparativa-resumen)
-6. [Recomendaciones para Atiende Despachos](#6-recomendaciones-para-likida-ai)
+6. [Recomendaciones para Atiende Despachos](#6-recomendaciones-para-atiende-despachos)
 
 ---
 
@@ -201,7 +201,7 @@ certificates/
 
 ## 2. Facturadores Electrónicos (APIs)
 
-### 2.1 Facturapi ⭐ RECOMENDADO
+### 2.1 Facturapi (RECOMENDADO)
 
 **URL:** https://www.facturapi.io
 **Documentación API:** https://docs.facturapi.io/api/
@@ -1124,12 +1124,12 @@ payment_intent = stripe.PaymentIntent.create(
 
 | Servicio | Pricing | Multi-RFC | SDK Python | API REST | Descarga Masiva | Recomendado |
 |----------|---------|-----------|------------|----------|-----------------|-------------|
-| **Facturapi** | $299/mes + $0.60/timbre | Sí | (Node, .NET, PHP) | Sí | Sí | ⭐⭐⭐ |
-| **FiscalAPI** | $199/mes + paquetes | Sí | Sí | Sí | Sí | ⭐⭐⭐ |
+| **Facturapi** | $299/mes + $0.60/timbre | Sí | (Node, .NET, PHP) | Sí | Sí | 3/5 |
+| **FiscalAPI** | $199/mes + paquetes | Sí | Sí | Sí | Sí | 3/5 |
 | **Finkok** | OnDemand | N/D | No | SOAP/REST | No | Advertencia |
-| **SW Sapien** | No público | N/D | N/D | Sí | N/D | ⭐⭐ |
-| **Timbox** | No público | N/D | N/D | Sí | N/D | ⭐⭐ |
-| **CONTPAQi Timbra** | Por volumen | N/D | N/D | Sí | N/D | ⭐⭐ |
+| **SW Sapien** | No público | N/D | N/D | Sí | N/D | 2/5 |
+| **Timbox** | No público | N/D | N/D | Sí | N/D | 2/5 |
+| **CONTPAQi Timbra** | Por volumen | N/D | N/D | Sí | N/D | 2/5 |
 
 ### ERPs
 
@@ -1233,7 +1233,7 @@ CONTPAQI_DB_PASSWORD=xxxxx
 # QuickBooks
 QB_CLIENT_ID=xxxxx
 QB_CLIENT_SECRET=xxxxx
-QB_REDIRECT_URI=https://likida.ai/callback
+QB_REDIRECT_URI=https://atiende.ai/callback
 
 # STP (SPEI)
 STP_API_URL=https://services.stpmex.com

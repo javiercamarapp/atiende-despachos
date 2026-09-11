@@ -63,12 +63,12 @@ las fija el script. Si quieres tocarlas a mano, el panel → **Variables**:
 
 | Variable | Requerida | Ejemplo |
 |---|---|---|
-| `DATABASE_URL` | ✔ (auto) | Postgres DSN inyectado por el plugin |
-| `B2B_JWT_SECRET` | ✔ | `openssl rand -hex 32` |
-| `B2B_ENCRYPTION_KEY` | ✔ | `openssl rand -hex 24` |
-| `B2B_API_KEY` | ✔ | `openssl rand -hex 32` (dásela a tus clientes) |
-| `B2B_ENV` | ✔ | `production` |
-| `B2B_CORS_ORIGINS` | solo multi-dominio | `https://app.likida.ai,...` |
+| `DATABASE_URL` | Sí (auto) | Postgres DSN inyectado por el plugin |
+| `B2B_JWT_SECRET` | Sí | `openssl rand -hex 32` |
+| `B2B_ENCRYPTION_KEY` | Sí | `openssl rand -hex 24` |
+| `B2B_API_KEY` | Sí | `openssl rand -hex 32` (dásela a tus clientes) |
+| `B2B_ENV` | Sí | `production` |
+| `B2B_CORS_ORIGINS` | solo multi-dominio | `https://app.atiende.ai,...` |
 
 > **Importante:** sin `B2B_JWT_SECRET` o `B2B_ENCRYPTION_KEY` la app **falla al
 > arrancar** (fail-fast de seguridad) — es intencional.
@@ -76,7 +76,7 @@ las fija el script. Si quieres tocarlas a mano, el panel → **Variables**:
 ### 5. Dominio custom (opcional)
 
 ```bash
-./scripts/deploy-railway.sh --domain api.likida.ai
+./scripts/deploy-railway.sh --domain api.atiende.ai
 ```
 
 ### 6. Debugging

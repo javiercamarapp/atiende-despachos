@@ -6,12 +6,12 @@
 All endpoints (except `/health` and `/api/v1/leads`) require authentication via the `X-API-Key` header.
 
 #### API Key Authentication
-curl -H "X-API-Key: ***" https://api.likida.ai/api/v1/stats
+curl -H "X-API-Key: ***" https://api.atiende.ai/api/v1/stats
 ```
 
 #### JWT Bearer Token (Auth endpoints)
 ```
-curl -H "Authorization: Bearer ***" https://api.likida.ai/api/v1/stats
+curl -H "Authorization: Bearer ***" https://api.atiende.ai/api/v1/stats
 
 ### Versioning
 The API supports simultaneous v1 and v2 endpoints:
@@ -47,7 +47,7 @@ Register webhooks via `POST /api/v2/webhooks` to receive event notifications. Su
 - **Versión:** 0.1.0
 - **Rutas:** 284 · **Schemas:** 152
 - **Base URL (local):** `http://localhost:8000`
-- **Base URL (producción):** `https://api.likida.ai`
+- **Base URL (producción):** `https://api.atiende.ai`
 - **Interactiva:** `GET /docs` (Swagger), `GET /redoc`
 - **Contrato:** `GET /openapi.json`
 

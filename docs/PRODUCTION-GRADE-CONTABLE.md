@@ -367,12 +367,12 @@ backup:
       retention_days: 30
       tool: pg_dump
       compression: gzip
-      destination: s3://likida-backups/postgres/full/
+      destination: s3://atiende-despachos-backups/postgres/full/
 
     # WAL archiving continuo (point-in-time recovery)
     wal_archiving:
       enabled: true
-      destination: s3://likida-backups/postgres/wal/
+      destination: s3://atiende-despachos-backups/postgres/wal/
       retention_days: 7
 
     # Backup incremental cada 6 horas
@@ -385,7 +385,7 @@ backup:
   cfdi_documents:
     # Los XMLs firmados son inmutables: backup a S3 con versioning
     strategy: s3_versioning
-    bucket: s3://likida-cfdi-archive/
+    bucket: s3://atiende-despachos-cfdi-archive/
     encryption: AES-256          # Server-side encryption
     retention_years: 5           # CFF Art. 30: mínimo 5 años
     lifecycle:
@@ -444,7 +444,7 @@ set -euo pipefail
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="/backups/postgres"
-S3_BUCKET="${BACKUP_S3_BUCKET:-s3://likida-backups/postgres/full}"
+S3_BUCKET="${BACKUP_S3_BUCKET:-s3://atiende-despachos-backups/postgres/full}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
 
 mkdir -p "$BACKUP_DIR"
@@ -885,7 +885,7 @@ from celery.schedules import crontab
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 app = Celery(
-    "likida",
+    "atiende-despachos",
     broker=REDIS_URL,
     backend=REDIS_URL,
     include=[
@@ -1253,7 +1253,7 @@ async def check_sat_rate_limit(operation: str = "consulta") -> bool:
 # nginx/nginx.conf — TLS 1.3 obligatorio
 server {
     listen 443 ssl http2;
-    server_name api.likida.ai;
+    server_name api.atiende.ai;
 
     # TLS 1.3 only (eliminar TLS 1.2 para máxima seguridad)
     ssl_protocols TLSv1.3;
@@ -1449,14 +1449,14 @@ class CSDManager:
         # 2. Almacenar .cer en S3 cifrado (AES-256 SSE)
         cer_key = f"csd/{tenant_id}/{cert_info.serial_number}.cer"
         await self.s3.put_object(
-            Bucket="likida-csd-store",
+            Bucket="atiende-despachos-csd-store",
             Key=cer_key,
             Body=cer_bytes,
             ServerSideEncryption="AES256",
         )
 
         # 3. Almacenar .key + password en Secrets Manager
-        secret_id = f"likida/csd/{tenant_id}/{cert_info.serial_number}"
+        secret_id = f"atiende-despachos/csd/{tenant_id}/{cert_info.serial_number}"
         await self.vault.put_secret(
             Name=secret_id,
             SecretString={
@@ -1518,7 +1518,7 @@ class CSDManager:
 
         Returns: (cer_bytes, key_bytes, key_password)
         """
-        secret_id = f"likida/csd/{tenant_id}/{serial_number}"
+        secret_id = f"atiende-despachos/csd/{tenant_id}/{serial_number}"
 
         # Leer de Secrets Manager
         secret = await self.vault.get_secret_value(SecretId=secret_id)
@@ -1530,7 +1530,7 @@ class CSDManager:
         # Leer .cer de S3
         csd_record = await self._get_csd_record(tenant_id, serial_number)
         cer_obj = await self.s3.get_object(
-            Bucket="likida-csd-store",
+            Bucket="atiende-despachos-csd-store",
             Key=csd_record["s3_cer_key"],
         )
         cer_bytes = await cer_obj["Body"].read()
@@ -1966,9 +1966,9 @@ components:
   alerting:
     type: prometheus_alertmanager + pagerduty
     channels:
-      - slack: #likida-alerts
-      - pagerduty: likida-oncall
-      - email: ops@likida.ai
+      - slack: #atiende-despachos-alerts
+      - pagerduty: atiende-despachos-oncall
+      - email: ops@atiende.ai
 
   # Tracing (futuro)
   tracing:
@@ -2255,7 +2255,7 @@ class FiscalJSONFormatter(logging.Formatter):
     Cada línea es un JSON válido (NDJSON) con campos estándar:
       - timestamp: ISO 8601
       - level: INFO/WARNING/ERROR/CRITICAL
-      - service: "likida"
+      - service: "atiende-despachos"
       - tenant_id: UUID del tenant
       - user_id: UUID del usuario
       - action: acción fiscal (STAMP, CANCEL, VALIDATE, etc.)
@@ -2271,7 +2271,7 @@ class FiscalJSONFormatter(logging.Formatter):
         log_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
-            "service": "likida",
+            "service": "atiende-despachos",
             "logger": record.name,
             "message": record.getMessage(),
         }
@@ -2299,7 +2299,7 @@ def setup_fiscal_logging():
     root.addHandler(handler)
 
     # Logger fiscal específico
-    fiscal = logging.getLogger("likida.fiscal")
+    fiscal = logging.getLogger("atiende_despachos.fiscal")
     fiscal.setLevel(logging.DEBUG)
     fiscal.addHandler(handler)
 
@@ -2318,7 +2318,7 @@ def log_fiscal_operation(
     """
     Helper para loggear una operación fiscal con todos los campos.
     """
-    logger = logging.getLogger("likida.fiscal")
+    logger = logging.getLogger("atiende_despachos.fiscal")
 
     extra = {
         "tenant_id": tenant_id,
@@ -2344,11 +2344,11 @@ def log_fiscal_operation(
 # monitoring/alerts.yml — Reglas de alerta para Prometheus/Alertmanager
 
 groups:
-  - name: likida_fiscal_alerts
+  - name: atiende_despachos_fiscal_alerts
     rules:
       # --- Disponibilidad ---
       - alert: ServiceDown
-        expr: up{job="likida"} == 0
+        expr: up{job="atiende-despachos"} == 0
         for: 1m
         labels:
           severity: critical
@@ -2442,19 +2442,19 @@ El proyecto ya tiene `docker-compose.yml`. Para producción:
 # docker-compose.prod.yml — Stack de producción
 # Incluye: app, postgres (con RLS), redis, nginx (TLS), celery, celery-beat, flower
 
-name: likida-prod
+name: atiende-despachos-prod
 
 services:
   # --- API ---
   app:
     build: .
-    image: likida:latest
+    image: atiende-despachos:latest
     restart: unless-stopped
     env_file: .env.production
     environment:
       - B2B_ENV=production
       - B2B_WORKERS=4
-      - DATABASE_URL=postgresql://likida:${POSTGRES_PASSWORD}@postgres:5432/likida
+      - DATABASE_URL=postgresql://atiende_despachos:${POSTGRES_PASSWORD}@postgres:5432/atiende_despachos
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - app-data:/data
@@ -2483,8 +2483,8 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: likida
-      POSTGRES_USER: likida
+      POSTGRES_DB: atiende_despachos
+      POSTGRES_USER: atiende_despachos
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--data-checksums"
     volumes:
@@ -2496,7 +2496,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U likida -d likida"]
+      test: ["CMD-SHELL", "pg_isready -U atiende_despachos -d atiende_despachos"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -2510,7 +2510,7 @@ services:
       postgres
         -c wal_level=replica
         -c archive_mode=on
-        -c archive_command='aws s3 cp %p s3://likida-backups/postgres/wal/%f'
+        -c archive_command='aws s3 cp %p s3://atiende-despachos-backups/postgres/wal/%f'
         -c max_wal_senders=3
         -c log_statement=mod
         -c log_min_duration_statement=1000
@@ -2542,7 +2542,7 @@ services:
     restart: unless-stopped
     env_file: .env.production
     environment:
-      - DATABASE_URL=postgresql://likida:${POSTGRES_PASSWORD}@postgres:5432/likida
+      - DATABASE_URL=postgresql://atiende_despachos:${POSTGRES_PASSWORD}@postgres:5432/atiende_despachos
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_CONCURRENCY=4
     command: >
@@ -2569,7 +2569,7 @@ services:
     restart: unless-stopped
     env_file: .env.production
     environment:
-      - DATABASE_URL=postgresql://likida:${POSTGRES_PASSWORD}@postgres:5432/likida
+      - DATABASE_URL=postgresql://atiende_despachos:${POSTGRES_PASSWORD}@postgres:5432/atiende_despachos
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
     command: >
       celery -A b2b_ai.tasks.celery_app beat
@@ -2719,7 +2719,7 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: likida_test
+          POSTGRES_DB: atiende_despachos_test
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
         options: >-
@@ -2734,7 +2734,7 @@ jobs:
         ports:
           - 6379:6379
     env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/likida_test
+      DATABASE_URL: postgresql://test:test@localhost:5432/atiende_despachos_test
       REDIS_URL: redis://localhost:6379/0
       B2B_ENCRYPTION_KEY: dGVzdGtleTEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5
     steps:
@@ -2799,7 +2799,7 @@ jobs:
       - uses: railwayapp/deploy-action@v1
         with:
           railway_token: ${{ secrets.RAILWAY_STAGING_TOKEN }}
-          service: likida-staging
+          service: atiende-despachos-staging
 
   # --- Deploy to Production (manual approval) ---
   deploy-production:
@@ -2811,11 +2811,11 @@ jobs:
       - uses: railwayapp/deploy-action@v1
         with:
           railway_token: ${{ secrets.RAILWAY_PROD_TOKEN }}
-          service: likida-production
+          service: atiende-despachos-production
       # Smoke test post-deploy
       - run: |
           sleep 30
-          curl -fsS https://api.likida.ai/health || exit 1
+          curl -fsS https://api.atiende.ai/health || exit 1
 ```
 
 ### 5.4 Database Migrations Seguras
@@ -3150,9 +3150,9 @@ B2B_WORKERS=4
 B2B_TRUST_PROXY=true
 
 # === Base de datos PostgreSQL ===
-DATABASE_URL=postgresql://likida:PASSWORD@postgres:5432/likida
-POSTGRES_DB=likida
-POSTGRES_USER=likida
+DATABASE_URL=postgresql://atiende_despachos:PASSWORD@postgres:5432/atiende_despachos
+POSTGRES_DB=atiende_despachos
+POSTGRES_USER=atiende_despachos
 POSTGRES_PASSWORD=CHANGE_ME_STRONG_PASSWORD
 
 # === Redis ===
@@ -3180,10 +3180,10 @@ FLOWER_PASSWORD=CHANGE_ME_FLOWER_PASSWORD
 # === Alertas ===
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx/yyy/zzz
 PAGERDUTY_SERVICE_KEY=TU_PAGERDUTY_KEY
-ALERT_EMAIL=ops@likida.ai
+ALERT_EMAIL=ops@atiende.ai
 
 # === Backup ===
-BACKUP_S3_BUCKET=s3://likida-backups/postgres/full
+BACKUP_S3_BUCKET=s3://atiende-despachos-backups/postgres/full
 BACKUP_RETENTION_DAYS=30
 AWS_ACCESS_KEY_ID=TU_AWS_KEY
 AWS_SECRET_ACCESS_KEY=TU_AWS_SECRET

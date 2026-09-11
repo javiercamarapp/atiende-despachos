@@ -111,7 +111,7 @@ Un agente de IA que:
 | Métrica | Estado |
 |---------|--------|
 | **Producto funcional** | API completa, 11 módulos, 50+ integraciones, tests unitarios y de integración |
-| **Landing page** | En producción en likida.ai |
+| **Landing page** | En producción en atiende.ai |
 | **Docker desplegable** | Stack completo: API + PostgreSQL + Redis + Nginx |
 | **Onboarding wizard** | Checklist interactivo para nuevos clientes |
 | **Beta testing** | En proceso con 2 despachos piloto |
