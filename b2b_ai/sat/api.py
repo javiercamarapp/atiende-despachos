@@ -43,6 +43,14 @@ class SATDownloadRequest(BaseModel):
 
 class SATVerifyRequest(BaseModel):
     folio_fiscal: str
+    # FIS-024: el servicio real de Verificación de CFDI del SAT construye
+    # 'expresionImpresa' con re/rr/tt/id — sin estos tres, SATValidator
+    # falla cerrado (ok=False) sin llamar al SAT. Opcionales para no romper
+    # llamadores existentes que solo mandan folio_fiscal (siguen recibiendo
+    # un error explícito de datos insuficientes, nunca un estatus inventado).
+    rfc_emisor: str = ""
+    rfc_receptor: str = ""
+    total: float | None = None
 
 
 class SATScheduleRequest(BaseModel):
@@ -106,7 +114,9 @@ def build_sat_router(db, require_api_key,
                    auth_info: dict = Depends(require_api_key)):
         tenant = auth_info.get("tenant_id")
         val = validator or SATValidator(db=db, tenant_id=tenant)
-        result = val.verify_cfdi(req.folio_fiscal)
+        result = val.verify_cfdi(req.folio_fiscal, rfc_emisor=req.rfc_emisor or None,
+                                 rfc_receptor=req.rfc_receptor or None,
+                                 total=req.total)
         db.log_call("sat", "verify", entity="cfdi",
                     entity_id=req.folio_fiscal,
                     payload={"estado": result.get("estado")},

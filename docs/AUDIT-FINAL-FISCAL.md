@@ -249,12 +249,31 @@
 - **Severidad:** ALTO (ya cubierto en FIS-07, pero el alcance del impacto es transversal)
 - **Fix:** Migrar `engine.py` a importar de `fiscal_tables.py`. Eliminar copias hardcodeadas.
 
-### FIS-024 [ALTO] — SAT validator es mock completo — sin conexión real
-- **Archivo:** b2b_ai/sat/validator.py:35-148
-- **Descripción:** `SATValidator.check_status()` usa mock determinista (folio termina en "0" → cancelado). No consulta el SAT real. En producción, cualquier CFDI con folio fiscal válido será reportado como "vigente" salvo que casualmente termine en "0". Esto es aceptable para MVP/desarrollo pero **no para producción**.
+### FIS-024 [RESUELTO] — SAT validator es mock completo — sin conexión real
+- **Archivo:** b2b_ai/sat/validator.py
+- **Descripción original:** `SATValidator.check_status()` usaba mock determinista (folio termina en "0" → cancelado). No consultaba el SAT real. En producción, cualquier CFDI con folio fiscal válido se reportaba como "vigente" salvo que casualmente terminara en "0".
 - **Artículo:** Regla 2.7.1.39 RMF
-- **Severidad:** ALTO (documentado como mock-first, pero debe implementarse)
-- **Fix:** Implementar consulta real al Web Service SAT de estatus de CFDI (SOAP o REST). Alternativa: integrar con PAC.
+- **Severidad original:** ALTO
+- **Resolución:** Implementado un cliente SOAP real contra el WSDL público
+  del SAT "Verificación de Comprobantes Fiscales Digitales por Internet"
+  (`https://consultaqr.facturaelectronica.sat.gob.mx/ConsultaCFDIService.svc?wsdl`,
+  operación `Consulta`), sin credenciales (público). Fail-closed ante
+  cualquier error de red/parseo/SOAP Fault — nunca fabrica un estatus.
+  `SAT_VALIDATOR_VERIFICADO_CONTRA_REAL = False` hasta que se corra contra
+  el servicio real del SAT y se confirme el contrato (ver disclaimer
+  completo y la versión de especificación asumida — 1.4, nov-2022 — en el
+  docstring de `b2b_ai/sat/validator.py` y en
+  `docs/CONTRATO-SAT-INTEGRACION-REAL.md` §1, ahora actualizado). Tests
+  contra un simulador local (`tests/fixtures/sat_consulta_cfdi_simulator.py`,
+  mismo patrón que FacturAPI), nunca contra el SAT real.
+  `check_status()` ahora exige `rfc_emisor`/`rfc_receptor`/`total` (el
+  servicio real los necesita para `expresionImpresa`, no solo el folio) —
+  `SATScheduler.run_weekly()` y `/api/v1/sat/verify` se actualizaron para
+  pasarlos; `b2b_ai/services/pipeline.py` deliberadamente NO se actualizó en
+  este cambio (ver TODO en ese archivo) para no introducir una dependencia
+  de red real no mockeada en su amplia suite de tests existente — queda
+  como seguimiento explícito, no como brecha oculta.
+- **Fix:** Ver commit(s) de la rama `fix/despachos-fis-024-sat-validator-real`.
 
 ### FIS-025 [BAJO] — EFOS 69-B: lista estática de ejemplo
 - **Archivo:** b2b_ai/sat/efos_69b.py:39-43

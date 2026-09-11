@@ -1,18 +1,38 @@
 # -*- coding: utf-8 -*-
-"""Tests de los endpoints /api/v1/sat/* (auth + download + verify + schedule)."""
+"""Tests de los endpoints /api/v1/sat/* (auth + download + verify + schedule).
+
+`/verify` usa SATValidator, que desde FIS-024 hace una llamada SOAP real al
+WSDL público del SAT. `client` (sin validador inyectado) solo prueba el
+camino fail-closed por falta de rfc_emisor/rfc_receptor/total — nunca toca
+la red. `client_sat_simulator` inyecta un SATValidator apuntando al
+simulador local (tests/fixtures/sat_consulta_cfdi_simulator.py) para probar
+el camino feliz/real sin tocar consultaqr.facturaelectronica.sat.gob.mx.
+"""
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from b2b_ai.db.db import Database
 from b2b_ai.sat.api import build_sat_router
+from b2b_ai.sat.validator import SATValidator
 
 API_KEY = "sat-test-key-123"
 RFC = "XAXX010101000"
 
+SAT_SIM_PORT = 18779
+SAT_SIM_URL = f"http://127.0.0.1:{SAT_SIM_PORT}"
+
 
 def _auth():
     return {"X-API-Key": API_KEY}
+
+
+@pytest.fixture(scope="module")
+def sat_consulta_cfdi_simulator():
+    from tests.fixtures.sat_consulta_cfdi_simulator import start_sat_consulta_cfdi_simulator
+    server = start_sat_consulta_cfdi_simulator(port=SAT_SIM_PORT)
+    yield SAT_SIM_URL
+    server.shutdown()
 
 
 @pytest.fixture
@@ -22,6 +42,19 @@ def client(tmp_path):
     db.create_api_key(1, "test-key", API_KEY)
     app = FastAPI()
     app.include_router(build_sat_router(db, _make_require(db)))
+    return TestClient(app), db
+
+
+@pytest.fixture
+def client_sat_simulator(tmp_path, sat_consulta_cfdi_simulator):
+    """Igual que `client`, pero con SATValidator apuntando al simulador
+    local en vez de al servicio real del SAT (nunca red real en tests)."""
+    db = Database(str(tmp_path / "sat_api_sim.db"))
+    db.create_tenant("Despacho SAT", rfc=RFC)
+    db.create_api_key(1, "test-key", API_KEY)
+    validator = SATValidator(base_url=sat_consulta_cfdi_simulator)
+    app = FastAPI()
+    app.include_router(build_sat_router(db, _make_require(db), validator=validator))
     return TestClient(app), db
 
 
@@ -69,21 +102,54 @@ def test_download_login_fallido_400(client):
     assert r.status_code == 400
 
 
-def test_verify_ok(client):
+def test_verify_sin_datos_suficientes_no_toca_red(client):
+    """Sin rfc_emisor/rfc_receptor/total, SATValidator falla cerrado antes
+    de intentar cualquier llamada de red — nunca un estatus inventado."""
     c, _ = client
     r = c.post("/api/v1/sat/verify", headers=_auth(), json={
         "folio_fiscal": "12345678901234567890123456789011"})
     assert r.status_code == 200
     body = r.json()
+    assert body["ok"] is False
+    assert body["valido"] is False
+    assert body["estado"] is None
+    assert "rfc_emisor" in body["estatus"]["error"]
+
+
+def test_verify_ok_contra_simulador(client_sat_simulator):
+    c, _ = client_sat_simulator
+    r = c.post("/api/v1/sat/verify", headers=_auth(), json={
+        "folio_fiscal": "12345678901234567890123456789011",
+        "rfc_emisor": "AAA010101AAA", "rfc_receptor": "XAXX010101000",
+        "total": 1000.0})
+    assert r.status_code == 200
+    body = r.json()
     assert body["valido"] is True
     assert body["estado"] == "vigente"
+    assert body["estatus"]["simulado"] is False
+    assert body["estatus"]["verificado_contra_real"] is False
 
 
-def test_verify_no_encontrado_404(client):
-    c, _ = client
-    r = c.post("/api/v1/sat/verify", headers=_auth(),
-               json={"folio_fiscal": "corto"})
+def test_verify_no_encontrado_404_contra_simulador(client_sat_simulator):
+    from tests.fixtures.sat_consulta_cfdi_simulator import FOLIO_NO_ENCONTRADO_TEST
+    c, _ = client_sat_simulator
+    r = c.post("/api/v1/sat/verify", headers=_auth(), json={
+        "folio_fiscal": FOLIO_NO_ENCONTRADO_TEST,
+        "rfc_emisor": "AAA010101AAA", "rfc_receptor": "XAXX010101000",
+        "total": 1000.0})
     assert r.status_code == 404
+
+
+def test_verify_cancelado_contra_simulador(client_sat_simulator):
+    c, _ = client_sat_simulator
+    r = c.post("/api/v1/sat/verify", headers=_auth(), json={
+        "folio_fiscal": "12345678901234567890123456789010",  # termina en 0
+        "rfc_emisor": "AAA010101AAA", "rfc_receptor": "XAXX010101000",
+        "total": 1000.0})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["valido"] is False
+    assert body["estado"] == "cancelado"
 
 
 def test_status_ok(client):
