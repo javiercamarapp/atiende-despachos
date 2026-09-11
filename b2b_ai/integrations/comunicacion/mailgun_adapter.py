@@ -46,7 +46,7 @@ class MailgunAdapter(CommunicationAdapter):
         now = datetime.now().isoformat()
         return Message(
             id=f"mg_msg_{_uuid.uuid4().hex[:16]}", to=request.to,
-            from_addr=self.config.from_email or "noreply@likida.ai",
+            from_addr=self.config.from_email or "noreply@atiendedespachos.mx",
             subject=request.subject, body=request.body,
             channel=MessageChannel.EMAIL, status=MessageStatus.SENT,
             metadata=request.metadata, created_at=now, sent_at=now,
@@ -63,7 +63,7 @@ class MailgunAdapter(CommunicationAdapter):
         now = datetime.now().isoformat()
         return Message(
             id=f"mg_notif_{_uuid.uuid4().hex[:16]}", to=request.user_id,
-            from_addr=self.config.from_email or "noreply@likida.ai",
+            from_addr=self.config.from_email or "noreply@atiendedespachos.mx",
             subject=request.title, body=f"{request.title}: {request.body}",
             channel=MessageChannel.EMAIL, status=MessageStatus.SENT,
             metadata=request.metadata, created_at=now, sent_at=now,

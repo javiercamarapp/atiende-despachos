@@ -17,7 +17,7 @@ class S3Adapter(StorageAdapter):
             provider=StorageProvider.S3,
             api_key=os.environ.get("AWS_ACCESS_KEY_ID", ""),
             api_secret=os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
-            bucket=os.environ.get("AWS_S3_BUCKET", "likida-bucket"),
+            bucket=os.environ.get("AWS_S3_BUCKET", "atiende-despachos-bucket"),
             region=os.environ.get("AWS_REGION", "us-east-1"),
         )
         super().__init__(config=config)
@@ -46,7 +46,7 @@ class S3Adapter(StorageAdapter):
     def upload(self, file_path: str, folder: str = "/") -> UploadResult:
         self._ensure_connected()
         now = datetime.now().isoformat()
-        bucket = self.config.bucket or "likida-bucket"
+        bucket = self.config.bucket or "atiende-despachos-bucket"
         key = f"{folder.strip('/')}/{os.path.basename(file_path)}"
         if self._client:
             try:
@@ -61,7 +61,7 @@ class S3Adapter(StorageAdapter):
 
     def download(self, file_id: str) -> bytes:
         self._ensure_connected()
-        bucket = self.config.bucket or "likida-bucket"
+        bucket = self.config.bucket or "atiende-despachos-bucket"
         if self._client:
             try:
                 from io import BytesIO
@@ -75,7 +75,7 @@ class S3Adapter(StorageAdapter):
     def list_files(self, folder: str = "/") -> List[FileMetadata]:
         self._ensure_connected()
         now = datetime.now().isoformat()
-        bucket = self.config.bucket or "likida-bucket"
+        bucket = self.config.bucket or "atiende-despachos-bucket"
         prefix = folder.strip("/") + "/" if folder != "/" else ""
         if self._client:
             try:
@@ -91,7 +91,7 @@ class S3Adapter(StorageAdapter):
 
     def delete(self, file_id: str) -> bool:
         self._ensure_connected()
-        bucket = self.config.bucket or "likida-bucket"
+        bucket = self.config.bucket or "atiende-despachos-bucket"
         if self._client:
             try:
                 self._client.delete_object(Bucket=bucket, Key=file_id)
@@ -102,7 +102,7 @@ class S3Adapter(StorageAdapter):
 
     def share(self, file_id: str, permissions: List[SharePermission]) -> ShareResult:
         self._ensure_connected()
-        bucket = self.config.bucket or "likida-bucket"
+        bucket = self.config.bucket or "atiende-despachos-bucket"
         if self._client:
             try:
                 from botocore.config import Config

@@ -89,8 +89,8 @@ DEFAULT_DESPACHO = {
     "calle": "Av. Insurgentes Sur 1234, Piso 8",
     "ciudad": "Ciudad de México, CDMX",
     "telefono": "+52 55 0000 0000",
-    "correo": "contacto@likida.ai",
-    "sitio": "likida.ai",
+    "correo": "contacto@atiendedespachos.mx",
+    "sitio": "atiendedespachos.mx",
 }
 
 LEGAL_DISCLAIMER = (

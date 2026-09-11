@@ -41,7 +41,7 @@ class TwilioAdapter(CommunicationAdapter):
             api_key=os.environ.get("TWILIO_ACCOUNT_SID", ""),
             api_secret=os.environ.get("TWILIO_AUTH_TOKEN", ""),
             from_phone=os.environ.get("TWILIO_PHONE_NUMBER", ""),
-            from_email="sms@likida.ai",
+            from_email="sms@atiendedespachos.mx",
         )
         super().__init__(config=config)
         self._client = None

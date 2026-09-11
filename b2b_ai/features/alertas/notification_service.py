@@ -45,7 +45,7 @@ class NotificationConfig:
     """Configuration for the notification service."""
     max_per_category_per_day: int = 1
     dedup_window_hours: int = 24
-    sender_email: str = "alertas@likida.mx"
+    sender_email: str = "alertas@atiendedespachos.mx"
     brand_name: str = "Atiende Despachos"
     smtp_host: str = "localhost"
     smtp_port: int = 587

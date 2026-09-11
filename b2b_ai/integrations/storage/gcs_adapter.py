@@ -16,7 +16,7 @@ class GCSAdapter(StorageAdapter):
         config = config or StorageConfig(
             provider=StorageProvider.GCS,
             api_key=os.environ.get("GCS_PROJECT_ID", ""),
-            bucket=os.environ.get("GCS_BUCKET", "likida-gcs-bucket"),
+            bucket=os.environ.get("GCS_BUCKET", "atiende-despachos-gcs-bucket"),
         )
         super().__init__(config=config)
         self._client = None
@@ -41,7 +41,7 @@ class GCSAdapter(StorageAdapter):
     def upload(self, file_path: str, folder: str = "/") -> UploadResult:
         self._ensure_connected()
         now = datetime.now().isoformat()
-        bucket_name = self.config.bucket or "likida-gcs-bucket"
+        bucket_name = self.config.bucket or "atiende-despachos-gcs-bucket"
         blob_name = f"{folder.strip('/')}/{os.path.basename(file_path)}"
         if self._client:
             try:
@@ -59,7 +59,7 @@ class GCSAdapter(StorageAdapter):
 
     def download(self, file_id: str) -> bytes:
         self._ensure_connected()
-        bucket_name = self.config.bucket or "likida-gcs-bucket"
+        bucket_name = self.config.bucket or "atiende-despachos-gcs-bucket"
         if self._client:
             try:
                 bucket = self._client.bucket(bucket_name)
@@ -72,7 +72,7 @@ class GCSAdapter(StorageAdapter):
     def list_files(self, folder: str = "/") -> List[FileMetadata]:
         self._ensure_connected()
         now = datetime.now().isoformat()
-        bucket_name = self.config.bucket or "likida-gcs-bucket"
+        bucket_name = self.config.bucket or "atiende-despachos-gcs-bucket"
         prefix = folder.strip("/") + "/" if folder != "/" else ""
         if self._client:
             try:
@@ -88,7 +88,7 @@ class GCSAdapter(StorageAdapter):
 
     def delete(self, file_id: str) -> bool:
         self._ensure_connected()
-        bucket_name = self.config.bucket or "likida-gcs-bucket"
+        bucket_name = self.config.bucket or "atiende-despachos-gcs-bucket"
         if self._client:
             try:
                 bucket = self._client.bucket(bucket_name)
@@ -101,7 +101,7 @@ class GCSAdapter(StorageAdapter):
 
     def share(self, file_id: str, permissions: List[SharePermission]) -> ShareResult:
         self._ensure_connected()
-        bucket_name = self.config.bucket or "likida-gcs-bucket"
+        bucket_name = self.config.bucket or "atiende-despachos-gcs-bucket"
         if self._client:
             try:
                 bucket = self._client.bucket(bucket_name)

@@ -79,7 +79,7 @@ class SendGridAdapter(CommunicationAdapter):
         """Send email via SendGrid API."""
         self._ensure_connected()
         now = datetime.now().isoformat()
-        from_email = self.config.from_email or "noreply@likida.ai"
+        from_email = self.config.from_email or "noreply@atiendedespachos.mx"
 
         if self._client:
             try:
@@ -129,7 +129,7 @@ class SendGridAdapter(CommunicationAdapter):
         """Send notification via email through SendGrid."""
         self._ensure_connected()
         now = datetime.now().isoformat()
-        from_email = self.config.from_email or "noreply@likida.ai"
+        from_email = self.config.from_email or "noreply@atiendedespachos.mx"
 
         if self._client:
             try:
