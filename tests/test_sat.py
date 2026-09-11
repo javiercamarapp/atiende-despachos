@@ -12,6 +12,19 @@ from b2b_ai.sat.scheduler import SATScheduler
 
 RFC = "XAXX010101000"  # RFC genérico de pruebas (formato válido, no registrado)
 
+SAT_SIM_PORT = 18780
+SAT_SIM_URL = f"http://127.0.0.1:{SAT_SIM_PORT}"
+
+
+@pytest.fixture(scope="module")
+def sat_consulta_cfdi_simulator():
+    """Simulador local del WSDL de Verificación de CFDI del SAT (FIS-024) —
+    ver tests/fixtures/sat_consulta_cfdi_simulator.py. Nunca red real."""
+    from tests.fixtures.sat_consulta_cfdi_simulator import start_sat_consulta_cfdi_simulator
+    server = start_sat_consulta_cfdi_simulator(port=SAT_SIM_PORT)
+    yield SAT_SIM_URL
+    server.shutdown()
+
 
 # -------------------------------------------------------------------------- #
 # Downloader: login / logout
@@ -133,32 +146,31 @@ def test_catalogo_cuentas_ok():
 # -------------------------------------------------------------------------- #
 # Validator
 # -------------------------------------------------------------------------- #
-def test_check_status_obligatorio():
+# FIS-024: SATValidator dejó de ser mock — ahora llama (o intenta llamar) al
+# WSDL público real del SAT. Las pruebas de contrato/comportamiento del
+# cliente SOAP real (feliz, cancelado, no encontrado, SOAP Fault, XML
+# inválido, error de red, etc.) viven en tests/test_sat_validator_real.py,
+# contra el simulador local (nunca contra el SAT real). Aquí solo queda lo
+# que no requiere red: la validación de folio_fiscal/rfc obligatorios y el
+# formato de RFC (verify_rfc no cambió: sigue siendo solo validación de
+# formato, ver docstring de SATValidator.verify_rfc).
+def test_check_status_folio_obligatorio_sin_red():
     v = SATValidator()
-    assert v.check_status("")["ok"] is False
+    res = v.check_status("")
+    assert res["ok"] is False
 
 
-def test_check_status_vigente_y_cancelado():
-    v = SATValidator()
-    vig = v.check_status("12345678901234567890123456789012")
-    assert vig["estado"] == "vigente"
-    canc = v.check_status("12345678901234567890123456789010")  # termina en 0
-    assert canc["estado"] == "cancelado"
+def test_check_status_sin_rfc_total_falla_cerrado_sin_red():
+    """Sin rfc_emisor/rfc_receptor/total no se intenta ninguna llamada real
+    — se prueba pasando un http_client que lanzaría si se usara."""
+    class _ClienteQueNuncaDebeUsarse:
+        def post(self, *a, **k):
+            raise AssertionError("no debía intentarse ninguna llamada de red")
 
-
-def test_check_status_no_encontrado():
-    v = SATValidator()
-    res = v.check_status("corto")
-    assert res["estado"] == "no_encontrado"
-
-
-def test_verify_cfdi_integra_estado_y_cadena():
-    v = SATValidator()
-    res = v.verify_cfdi("a" * 31 + "1")  # 32 chars, termina en 1 → vigente
-    assert res["ok"] is True
-    assert res["estado"] == "vigente"
-    assert res["cadena"]["ok"] is True
-    assert len(res["cadena"]["cadena"]) >= 3
+    v = SATValidator(http_client=_ClienteQueNuncaDebeUsarse())
+    res = v.check_status("12345678901234567890123456789011")
+    assert res["ok"] is False
+    assert "rfc_emisor" in res["error"]
 
 
 def test_verify_rfc_formato_y_registrado():
@@ -166,7 +178,7 @@ def test_verify_rfc_formato_y_registrado():
     assert v.verify_rfc("1234")["valido"] is False
     ok = v.verify_rfc("AAA010101AAA")
     assert ok["valido"] is True
-    # In mock mode, existencia real no se puede verificar
+    # No existe servicio público del SAT para existencia de RFC de terceros.
     assert ok["registrado"] is None
     gen = v.verify_rfc("XAXX010101000")
     assert gen["valido"] is True
@@ -178,6 +190,8 @@ def test_verify_rfc_formato_y_registrado():
 # -------------------------------------------------------------------------- #
 def test_run_daily_descarga_ambos_tipos():
     dl = SATDownloader(rfc=RFC, ciec="x")
+    # run_daily() no usa el validador (solo descarga); SATValidator() aquí
+    # no hace ninguna llamada de red al solo instanciarse.
     sched = SATScheduler(downloader=dl, validator=SATValidator(),
                          rfc=RFC, ciec="x")
     res = sched.run_daily(fecha="2026-01-10")
@@ -187,7 +201,7 @@ def test_run_daily_descarga_ambos_tipos():
     assert len(dl._ledger) == 4
 
 
-def test_run_weekly_alertas_cancelacion(tmp_path):
+def test_run_weekly_alertas_cancelacion(tmp_path, sat_consulta_cfdi_simulator):
     from b2b_ai.db.db import Database
     db = Database(str(tmp_path / "sat.db"))
     db.create_tenant("Despacho SAT", rfc=RFC)
@@ -201,8 +215,12 @@ def test_run_weekly_alertas_cancelacion(tmp_path):
     # marcamos estatus vigente en ledger y forzamos estado.
     dl._ledger[1]["estatus"] = "vigente"
     dl._save_ledger()
+    # FIS-024: SATValidator real necesita apuntar al simulador local (nunca
+    # al SAT real) — el ledger ya trae emisor_rfc/receptor_rfc/total, que
+    # scheduler.run_weekly() ahora le pasa a check_status().
+    validator = SATValidator(base_url=sat_consulta_cfdi_simulator)
     sched = SATScheduler(db=db, tenant_id=1, downloader=dl,
-                         validator=SATValidator(), rfc=RFC, ciec="x")
+                         validator=validator, rfc=RFC, ciec="x")
     res = sched.run_weekly()
     assert res["checked"] == 2
     # Al menos una alerta si hay folio terminado en 0 en el ledger.
