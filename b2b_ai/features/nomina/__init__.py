@@ -6,7 +6,11 @@ Expone:
   - validate_nomina()       : Valida contra reglas SAT.
   - build_nomina_router()   : Router FastAPI con endpoints /nomina/*.
   - NominaManager           : Gestión de registros de nómina (payroll).
-  - PayrollCalculator       : Cálculo de ISR, IMSS y neto.
+  - PayrollCalculator       : [DEPRECADO] Cálculo simplificado de ISR/IMSS/
+                              neto sin SBC ni INFONAVIT. NominaManager ya no
+                              lo usa; usa nomina_completa.service.calculate_
+                              taxes. Se conserva solo por compatibilidad de
+                              import y emite DeprecationWarning al usarse.
   - PayrollSummaryGenerator : Resúmenes agregados + exportación CSV.
 """
 from b2b_ai.features.nomina.parser import parse_nomina, NominaData

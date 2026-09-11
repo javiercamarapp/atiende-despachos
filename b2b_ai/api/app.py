@@ -1227,7 +1227,11 @@ def create_app(db=None):
     # estatus + programación automática. Mock-first (sin e.firma real).
     app.include_router(build_sat_router(db, require_api_key))
 
-    # Nómina: parser y validador de complementos Nomina 1.2 del SAT.
+    # Nómina: parser/validador de complementos Nomina 1.2 del SAT +
+    # /nomina/records (CRUD de nómina). El cálculo de ISR/IMSS de
+    # /nomina/records delega en nomina_completa.service.calculate_taxes
+    # (SBC + INFONAVIT correctos); el PayrollCalculator original de este
+    # módulo quedó deprecado — ver b2b_ai/features/nomina/service.py.
     app.include_router(build_nomina_router(require_api_key))
 
     # Complemento de Pagos: parser y validador de complementos Pagos 1.1 del SAT.
