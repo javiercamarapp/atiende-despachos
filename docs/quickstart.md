@@ -40,7 +40,7 @@ Respuesta:
     "name": "Despacho Contable XYZ",
     "rfc": "DESP820101AB1",
     "user_id": 3,
-    "api_key": "sk_likida_XXXXXXXX"
+    "api_key": "sk_atiende_XXXXXXXX"
   }
 }
 ```
@@ -48,7 +48,7 @@ Respuesta:
 Guarda la key en una variable:
 
 ```bash
-export LIKIDA_API_KEY="sk_likida_XXXXXXXX"
+export ATIENDE_API_KEY="sk_atiende_XXXXXXXX"
 ```
 
 > En un entorno local/demo, la key de servicio de la env `B2B_API_KEY`
@@ -63,7 +63,7 @@ póliza ERP):
 
 ```bash
 curl -X POST https://api.b2b-ai.local/api/v1/invoices/process \
-  -H "X-API-Key: $LIKIDA_API_KEY" \
+  -H "X-API-Key: $ATIENDE_API_KEY" \
   -F "xml_file=@factura.xml"
 ```
 
@@ -95,7 +95,7 @@ Lista tus facturas (o consulta una por id):
 
 ```bash
 curl "https://api.b2b-ai.local/api/v1/invoices?limit=10" \
-  -H "X-API-Key: $LIKIDA_API_KEY"
+  -H "X-API-Key: $ATIENDE_API_KEY"
 ```
 
 ```json
@@ -113,7 +113,7 @@ curl "https://api.b2b-ai.local/api/v1/invoices?limit=10" \
 Detalle individual:
 
 ```bash
-curl https://api.b2b-ai.local/api/v1/invoices/12 -H "X-API-Key: $LIKIDA_API_KEY"
+curl https://api.b2b-ai.local/api/v1/invoices/12 -H "X-API-Key: $ATIENDE_API_KEY"
 ```
 
 ---
@@ -125,18 +125,18 @@ Conecta una cuenta y lee sus transacciones:
 ```bash
 # 1) Conecta la cuenta
 curl -X POST https://api.b2b-ai.local/api/v1/bank-feeds/accounts \
-  -H "X-API-Key: $LIKIDA_API_KEY" \
+  -H "X-API-Key: $ATIENDE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "provider": "BBVA", "clabe": "012180015000000001",
         "account_label": "Cuenta operativa" }'
 
 # 2) Sincroniza el feed
 curl -X POST "https://api.b2b-ai.local/api/v1/bank-feeds/accounts/acc-1/sync" \
-  -H "X-API-Key: $LIKIDA_API_KEY"
+  -H "X-API-Key: $ATIENDE_API_KEY"
 
 # 3) Lista las transacciones
 curl "https://api.b2b-ai.local/api/v1/bank-feeds/accounts/acc-1/transactions?limit=50" \
-  -H "X-API-Key: $LIKIDA_API_KEY"
+  -H "X-API-Key: $ATIENDE_API_KEY"
 ```
 
 ```json
@@ -157,7 +157,7 @@ Genera un reporte financiero mensual con KPIs:
 
 ```bash
 curl -X POST https://api.b2b-ai.local/api/v1/reportes/monthly \
-  -H "X-API-Key: $LIKIDA_API_KEY" \
+  -H "X-API-Key: $ATIENDE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_id": "default",
@@ -182,7 +182,7 @@ O genera un PDF gerencial:
 
 ```bash
 curl "https://api.b2b-ai.local/api/v1/reports/monthly/2026-07" \
-  -H "X-API-Key: $LIKIDA_API_KEY" \
+  -H "X-API-Key: $ATIENDE_API_KEY" \
   -o resumen_mensual_2026-07.pdf
 ```
 

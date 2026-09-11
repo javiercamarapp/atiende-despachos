@@ -1,5 +1,5 @@
 # AUDITORÍA DE DESTRUCCIÓN — SEGURIDAD
-## likida-ai-enterprise
+## atiende-despachos
 
 **Fecha:** 2026-08-01  
 **Método:** Revisión estática ofensiva del código fuente completo (~411 archivos Python)  

@@ -46,7 +46,7 @@ def configured_provider():
         port=587,
         user="user@test.com",
         password="secret",
-        from_addr="agente@likida.ai",
+        from_addr="agente@atiende.ai",
         use_ssl=False,
     )
 
@@ -75,8 +75,8 @@ def _welcome_context():
         "rfc": "XAXX010101000",
         "plan": "Pro",
         "fecha": "2026-08-01",
-        "url_portal": "https://app.likida.ai/portal",
-        "soporte_email": "soporte@likida.ai",
+        "url_portal": "https://app.atiende.ai/portal",
+        "soporte_email": "soporte@atiende.ai",
     }
 
 
@@ -91,7 +91,7 @@ def _invoice_context():
         "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
         "fecha": "2026-08-01",
         "revision": "",
-        "soporte_email": "soporte@likida.ai",
+        "soporte_email": "soporte@atiende.ai",
     }
 
 
@@ -105,8 +105,8 @@ def _collection_context():
         "dias_vencido": "17",
         "metodo_pago": "",
         "aviso_urgente": "",
-        "url_portal": "https://app.likida.ai/portal",
-        "soporte_email": "soporte@likida.ai",
+        "url_portal": "https://app.atiende.ai/portal",
+        "soporte_email": "soporte@atiende.ai",
     }
 
 
@@ -120,7 +120,7 @@ def _weekly_context():
         "pendientes": "4",
         "fila_resumen": "",
         "detalle": "",
-        "soporte_email": "soporte@likida.ai",
+        "soporte_email": "soporte@atiende.ai",
     }
 
 
@@ -622,7 +622,7 @@ class TestMessageBuilding:
         )
         assert msg["To"] == "a@b.com"
         assert msg["Subject"] == "Test"
-        assert msg["From"] == "agente@likida.ai"
+        assert msg["From"] == "agente@atiende.ai"
         parts = msg.get_payload()
         assert len(parts) >= 1  # al menos text/plain
 

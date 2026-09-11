@@ -54,7 +54,7 @@ def cmd_process(args, db):
     print(f"\n=== bb-ai process: {args.file} ===")
     res = process_file(args.file, db=db, tenant_id=args.tenant_id)
     _print_resumen(res)
-    print("\nProcesado. ✔")
+    print("\nProcesado.")
 
 
 def cmd_batch(args, db):
@@ -73,7 +73,7 @@ def cmd_batch(args, db):
     print(f"  Insertadas        : {s['insertadas']}")
     print(f"  Categorías        : {s['por_categoria']}")
     print(f"\n  Total en DB: {db.count_invoices(tenant_id=args.tenant_id)}")
-    print("\nBatch completado. ✔")
+    print("\nBatch completado.")
 
 
 def cmd_report(args, db):

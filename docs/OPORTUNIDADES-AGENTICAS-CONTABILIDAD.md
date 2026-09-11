@@ -54,7 +54,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 - El "no-touch rate" del 85% es el KPI a alcanzar.
 - La integración con ERPs locales (CONTPAqi, Aspel, Contpaq i) vía API es el bloqueo tecnológico principal.
 
-**Dificultad de copiar: ⭐⭐⭐⭐ (Alta)** — Requiere entrenar modelos específicos para CFDIs mexicanos y catálogo de cuentas SAT.
+**Dificultad de copiar: Alta** — Requiere entrenar modelos específicos para CFDIs mexicanos y catálogo de cuentas SAT.
 
 **Impacto para despachos mexicanos: TRANSFORMADOR** — Un despacho con 50 clientes PYME procesa miles de CFDIs/mes. Automatizar el 85% liberaría 60-70% del tiempo del equipo.
 
@@ -92,7 +92,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   3. Postear directamente a CONTPAqi/Aspel
 - El flux analysis comparando contra históricos es una feature diferenciadora poderosa para despachos.
 
-**Dificultad de copiar: ⭐⭐⭐ (Media)** — El core (bank statement → journal entries) es relativamente directo con LLMs. La dificultad está en la integración con ERPs mexicanos.
+**Dificultad de copiar: Media** — El core (bank statement → journal entries) es relativamente directo con LLMs. La dificultad está en la integración con ERPs mexicanos.
 
 **Impacto para despachos mexicanos: ALTO** — La conciliación bancaria es una de las tareas más repetitivas en despachos. Automatizarla al 80%+ ahorraría 15-20 horas/mes por cliente.
 
@@ -132,7 +132,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   3. Sugiera correcciones antes de que el contador senior revise
 - El Smart Mailroom que procesa emails de clientes y extrae información contable es muy relevante para el workflow de despachos.
 
-**Dificultad de copiar: ⭐⭐⭐ (Media)** — El core es LLM + reglas contables mexicanas. El Smart Mailroom requiere integración con email.
+**Dificultad de copiar: Media** — El core es LLM + reglas contables mexicanas. El Smart Mailroom requiere integración con email.
 
 **Impacto para despachos mexicanos: TRANSFORMADOR** — El "Accountant Copilot" permitiría a un despacho atender 3x más clientes con el mismo equipo.
 
@@ -168,7 +168,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   2. Clasificar automáticamente según el catálogo de cuentas del cliente
   3. Registrar en el ERP contable
 
-**Dificultad de copiar: ⭐⭐ (Baja-Media)** — El OCR/extracción de CFDIs es straightforward con XML parsing. La clasificación inteligente requiere entrenamiento.
+**Dificultad de copiar: Baja-Media** — El OCR/extracción de CFDIs es straightforward con XML parsing. La clasificación inteligente requiere entrenamiento.
 
 **Impacto para despachos mexicanos: MEDIO** — Ya existen soluciones parciales en México. El diferenciador sería la clasificación inteligente que aprende del criterio del despacho.
 
@@ -206,7 +206,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   3. Tax compliance mexicano automatizado
 - El "Finaloop AI" (chatbot sobre datos contables propios) es muy replicable con LLMs.
 
-**Dificultad de copiar: ⭐⭐⭐ (Media)** — El ecommerce accounting requiere integraciones específicas con marketplaces.
+**Dificultad de copiar: Media** — El ecommerce accounting requiere integraciones específicas con marketplaces.
 
 **Impacto para despachos mexicanos: MEDIO** — Nicho específico (ecommerce) pero creciente en México.
 
@@ -250,7 +250,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   3. **Agente de Cierre**: Ejecuta el cierre mensual autónomo
 - El **Zeni MCP** (conectar libros a modelos de AI) es un patrón emergente que Atiende Despachos debería adoptar — permitiría que despachos consulten sus datos contables via AI.
 
-**Dificultad de copiar: ⭐⭐⭐ (Media)** — Los agentes individuales son replicables. La integración completa end-to-end es el reto.
+**Dificultad de copiar: Media** — Los agentes individuales son replicables. La integración completa end-to-end es el reto.
 
 **Impacto para despachos mexicanos: TRANSFORMADOR** — El ahorro de 70 horas/mes es el claim y es creíble para un despacho que automatice completamente.
 
@@ -292,7 +292,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   3. El humano escala: de atender 10 clientes a 30+
 - El pricing de $299+/mes da una referencia de lo que el mercado está dispuesto a pagar.
 
-**Dificultad de copiar: ⭐⭐ (Baja-Media)** — El modelo híbrido es más fácil de implementar que full-autonomous. El reto es el talento humano + la AI.
+**Dificultad de copiar: Baja-Media** — El modelo híbrido es más fácil de implementar que full-autonomous. El reto es el talento humano + la AI.
 
 **Impacto para despachos mexicanos: TRANSFORMADOR** — Este modelo permite a despachos mexicanos escalar sin contratar proporcionalmente más gente.
 
@@ -333,7 +333,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   4. **Flux Analysis** comparando contra meses anteriores
 - El claim "90%+ automático en cash matching" es el target.
 
-**Dificultad de copiar: ⭐⭐⭐⭐ (Alta)** — El close management completo requiere múltiples integraciones y lógica de negocio compleja.
+**Dificultad de copiar: Alta** — El close management completo requiere múltiples integraciones y lógica de negocio compleja.
 
 **Impacto para despachos mexicanos: TRANSFORMADOR** — El cierre mensual es la tarea más intensiva. Reducir de 5 días a 1 día por cliente cambiaría la economía del despacho.
 
@@ -371,7 +371,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   2. Approval workflow humano antes de postear
   3. Audit trail completo
 
-**Dificultad de copiar: ⭐⭐⭐ (Media)** — La funcionalidad es replicable; el "auditable" es un plus de diseño.
+**Dificultad de copiar: Media** — La funcionalidad es replicable; el "auditable" es un plus de diseño.
 
 **Impacto para despachos mexicanos: ALTO** — La auditoría es esencial para cumplimiento fiscal mexicano.
 
@@ -404,7 +404,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 **Qué copiar para Atiende Despachos:**
 - **MEDIA PRIORIDAD**: El procure-to-pay es más relevante para empresas medianas/grandes que para PYMEs mexicanos. Sin embargo, el concepto de "87% automatizado" es un benchmark valioso.
 
-**Dificultad de copiar: ⭐⭐⭐⭐ (Alta)** — Procure-to-pay requiere integraciones complejas con múltiples sistemas.
+**Dificultad de copiar: Alta** — Procure-to-pay requiere integraciones complejas con múltiples sistemas.
 
 **Impacto para despachos mexicanos: MEDIO** — Relevante solo para despachos con clientes corporativos medianos/grandes.
 
@@ -441,7 +441,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   2. Clasificar regímenes fiscales de proveedores
   3. Generar DIOT automáticamente
 
-**Dificultad de copiar: ⭐⭐⭐ (Media)** — La integración con SAT es el bloqueo principal.
+**Dificultad de copiar: Media** — La integración con SAT es el bloqueo principal.
 
 **Impacto para despachos mexicanos: ALTO** — La DIOT es una tarea mensual tediosa para todos los despachos.
 
@@ -482,7 +482,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   3. Alertas automáticas de compliance fiscal
 - El "Stack by Ramp" para accounting firms es un modelo a seguir.
 
-**Dificultad de copiar: ⭐⭐⭐ (Media)** — El expense management es relativamente directo. La dificultad está en las reglas fiscales mexicanas.
+**Dificultad de copiar: Media** — El expense management es relativamente directo. La dificultad está en las reglas fiscales mexicanas.
 
 **Impacto para despachos mexicanos: ALTO** — Clasificación automática de deducibilidad sería un diferenciador enorme.
 
@@ -518,7 +518,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 **Qué copiar para Atiende Despachos:**
 - **MEDIA PRIORIDAD**: El intercompany reconciliation es relevante para grupos empresariales mexicanos. El IntelliDoc (AI document extraction) es directamente adaptable a CFDIs.
 
-**Dificultad de copiar: ⭐⭐⭐ (Media)**
+**Dificultad de copiar: Media**
 
 **Impacto para despachos mexicanos: MEDIO** — Relevante para despachos con clientes corporativos/grupos.
 
@@ -558,7 +558,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 **Qué copiar para Atiende Despachos:**
 - **MEDIA PRIORIDAD**: BlackLine es el "enterprise-grade" del sector. El concepto de "Agentic Financial Operations Platform" como posicionamiento es poderoso. Atiende Despachos podría posicionarse como "El BlackLine de México" — plataforma agentic para el mercado fiscal mexicano.
 
-**Dificultad de copiar: ⭐⭐⭐⭐⭐ (Muy Alta)** — Es una plataforma masiva. Copiar la visión, no la totalidad.
+**Dificultad de copiar: Muy Alta** — Es una plataforma masiva. Copiar la visión, no la totalidad.
 
 **Impacto para despachos mexicanos: MEDIO** — Demasiado enterprise para PYMEs, pero la visión agentic es el camino.
 
@@ -638,7 +638,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   4. Modelo hybrid AI + expertos tributarios
 - El "2 horas" claim es un diferenciador poderoso para México donde las declaraciones toman días.
 
-**Dificultad de copiar: ⭐⭐⭐ (Media)** — Las reglas fiscales mexicanas son diferentes pero el modelo es replicable.
+**Dificultad de copiar: Media** — Las reglas fiscales mexicanas son diferentes pero el modelo es replicable.
 
 **Impacto para despachos mexicanos: TRANSFORMADOR** — La declaración anual de personas físicas es un mercado masivo en México (~40M de declarantes potenciales).
 
@@ -671,7 +671,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
   2. Asignar códigos de producto/servicio del CFDI automáticamente
 - La integración WhatsApp es un patrón que México adoptaría rápidamente.
 
-**Dificultad de copiar: ⭐⭐ (Baja-Media)**
+**Dificultad de copiar: Baja-Media**
 
 **Impacto para despachos mexicanos: MEDIO** — Útil pero no transformador por sí solo.
 
@@ -722,7 +722,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 ### OPORTUNIDAD #1: Agente de Cierre Mensual Autónomo (Inspired by Numeric + FloQast)
 - **Qué**: Agente que ejecuta el 80%+ del cierre mensual de un despacho contable mexicano
 - **Tareas**: Conciliación bancaria, depreciaciones, provisiones, cálculo IVA provisional, preparación DIOT, generación balanza
-- **Dificultad**: ⭐⭐⭐⭐ (Alta)
+- **Dificultad**: Alta
 - **Impacto**: TRANSFORMADOR
 - **Time to market**: 6-9 meses
 - **Benchmark**: Numeric logra 90%+ en conciliación bancaria
@@ -730,7 +730,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 ### OPORTUNIDAD #2: Accountant Copilot (Inspired by Docyt + Zeni)
 - **Qué**: Agente que revisa el trabajo del contador, detecta anomalías, sugiere correcciones
 - **Tareas**: Review de pólizas, detección de duplicados, validación fiscal, sugerencias de reclasificación
-- **Dificultad**: ⭐⭐⭐ (Media)
+- **Dificultad**: Media
 - **Impacto**: ALTO
 - **Time to market**: 3-6 meses
 - **Benchmark**: Docyt "Accountant Copilot"
@@ -738,7 +738,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 ### OPORTUNIDAD #3: Bank Statement → Journal Entries Agent (Inspired by Truewind)
 - **Qué**: Agente que convierte estados de cuenta bancarios mexicanos en pólizas listas para ERP
 - **Tareas**: Importar extractos bancarios, clasificar transacciones, generar pólizas de diario, postear a ERP
-- **Dificultad**: ⭐⭐⭐ (Media)
+- **Dificultad**: Media
 - **Impacto**: ALTO
 - **Time to market**: 3-4 meses
 - **Benchmark**: Truewind logra integración directa con Sage Intacct
@@ -746,7 +746,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 ### OPORTUNIDAD #4: Declaración Fiscal Automatizada (Inspired by Tributi)
 - **Qué**: Agente que prepara declaraciones fiscales mexicanas (IVA, ISR, DIOT) automáticamente
 - **Tareas**: Recopilar datos del período, calcular impuestos, generar formatos SAT, presentar
-- **Dificultad**: ⭐⭐⭐⭐ (Alta — reglas fiscales mexicanas complejas)
+- **Dificultad**: Alta — reglas fiscales mexicanas complejas
 - **Impacto**: TRANSFORMADOR
 - **Time to market**: 6-12 meses
 - **Benchmark**: Tributi logra declaración de renta en 2 horas
@@ -754,7 +754,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 ### OPORTUNIDAD #5: CFDI Processing Agent (Inspired by Vic.ai + Stampli)
 - **Qué**: Agente que procesa CFDIs end-to-end (recibe → extrae → clasifica → registra → concilia con pago)
 - **Tareas**: Recepción de CFDIs del SAT, extracción XML, clasificación automática, registro en ERP, matching con pagos
-- **Dificultad**: ⭐⭐⭐ (Media)
+- **Dificultad**: Media
 - **Impacto**: ALTO
 - **Time to market**: 4-6 meses
 - **Benchmark**: Vic.ai logra 85% no-touch rate
@@ -762,7 +762,7 @@ El mercado global de contabilidad agéntica está en plena explosión. Existen a
 ### OPORTUNIDAD #6: Hybrid AI + Human Bookkeeping Service (Inspired by Bench)
 - **Qué**: Servicio de bookkeeping donde AI hace el trabajo pesado y humanos supervisan
 - **Tareas**: Todo el ciclo contable con supervisión humana
-- **Dificultad**: ⭐⭐ (Baja-Media — más modelo de negocio que tecnología)
+- **Dificultad**: Baja-Media — más modelo de negocio que tecnología
 - **Impacto**: TRANSFORMADOR
 - **Time to market**: 2-4 meses (MVP)
 - **Benchmark**: Bench cobra $299+/mes y tiene 35,000+ clientes

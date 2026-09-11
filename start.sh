@@ -43,7 +43,7 @@ echo "→ Levantando con Docker Compose ..."
 docker compose up --build -d
 
 echo ""
-echo "  ✔ Atiende Despachos arrancado."
+echo "  Atiende Despachos arrancado."
 echo "  → Landing :  http://localhost:${PORT}/"
 echo "  → API docs:  http://localhost:${PORT}/docs"
 echo "  → Health  :  http://localhost:${PORT}/health"
