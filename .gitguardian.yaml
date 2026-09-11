@@ -1,0 +1,30 @@
+version: 2
+
+secret:
+  # Falso positivo conocido y documentado (familia de repos "atiende"):
+  # `scripts/demo_pilot.py` es un script de demo comercial (levanta un
+  # FastAPI local + BD sqlite de ejemplo para mostrarle el producto a un
+  # prospecto). La línea `os.environ.setdefault("B2B_API_KEY",
+  # "demo-key-atiende-2026")` fija un valor de API key SOLO como default
+  # local (setdefault -- si ya existe la env var real, esta línea no hace
+  # nada) para autenticar al propio script contra el servidor que él mismo
+  # levanta en localhost. No es una credencial de ningún proveedor externo
+  # ni de ningún servicio de producción: `B2B_API_KEY` es el mecanismo de
+  # auth propio de esta app (ver b2b_ai/api/auth.py, APIKeyAuth), configurado
+  # en producción vía variable de entorno real, nunca con este valor.
+  # El script además IMPRIME esta key en la terminal al arrancar
+  # ("Servidor listo · API key demo: ...", línea ~421) porque está pensada
+  # para mostrarse en vivo a un prospecto -- por diseño no es secreta.
+  # El mismo patrón de key de relleno para demos/tests ("test-api-key",
+  # "service-master-key", "load-test-key-0001", "contract-test-key-123456",
+  # "standalone-env-key-123") ya vive sin incidentes en tests/*.py.
+  # GitGuardian la marca "Generic High Entropy Secret" solo por la forma
+  # del string (guiones + dígitos), no porque sea un secreto real.
+  #
+  # Incidente GitGuardian afectado (PR #6):
+  #   37190872 — scripts/demo_pilot.py (B2B_API_KEY de demo local)
+  ignored_matches:
+    - name: "B2B_API_KEY de demo local (scripts/demo_pilot.py, no es un secreto real)"
+      match: "demo-key-atiende-2026"
+    - name: "B2B_API_KEY de demo local (variante branding anterior, mismo patrón)"
+      match: "demo-key-likida-2026"
