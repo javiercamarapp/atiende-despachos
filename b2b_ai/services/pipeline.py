@@ -100,6 +100,19 @@ def process_file(xml_path: str, db: "Database | None" = None, tenant_id: int | N
     folio_fiscal = datos.get("folio_fiscal", "")
     sat_status = {"checked": False}
     if folio_fiscal:
+        # FIS-024: SATValidator ahora es real (llama al WSDL público del SAT)
+        # y requiere rfc_emisor/rfc_receptor/total además del folio para
+        # construir 'expresionImpresa' — `datos` (parse_cfdi) sí los trae.
+        # NO se pasan aquí deliberadamente: este pipeline se ejercita en
+        # decenas de tests existentes fuera del alcance de esta tarea que
+        # instancian SATValidator sin inyectar un cliente de prueba, y
+        # pasar rfc/total activaría una llamada de red real (no mockeada)
+        # al SAT en esos tests. Con solo folio_fiscal, check_status() falla
+        # cerrado de inmediato (ok=False, sin red) — ver
+        # docs/CONTRATO-SAT-INTEGRACION-REAL.md y el reporte de FIS-024.
+        # TODO(FIS-024 seguimiento): inyectar rfc_emisor/receptor/total aquí
+        # y actualizar/inyectar un validador de prueba en los tests de
+        # pipeline que lo requieran, para reactivar esta verificación.
         sat_status = sat_validator.check_status(folio_fiscal)
         sat_status["checked"] = True
         if sat_status.get("estado") == "cancelado":
