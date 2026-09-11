@@ -5,7 +5,7 @@ service.py — Lógica de negocio del módulo de Nómina (payroll).
 Clases:
   - NominaManager          : alta, listado, validación, pago y anulación de nóminas.
   - NominaValidator        : validación de RFC, periodos, montos y duplicados.
-  - PayrollCalculator      : cálculo de ISR (Tabla Art. 96 LISR), IMSS y neto.
+  - PayrollCalculator      : [DEPRECADO] cálculo de ISR/IMSS/neto simplificado.
   - PayrollSummaryGenerator: resumen agregado por periodo + exportación CSV.
 
 Almacenamiento: en memoria (dict) con `_reset_state()` para tests, coherente
@@ -13,14 +13,23 @@ con el patrón de bank_feeds / vencimientos / monthly_close. Todos los
 registros llevan `tenant_id`; todas las operaciones de escritura/lectura
 filtran por tenant para garantizar el aislamiento multi-tenant.
 
-Los cálculos de ISR reutilizan la Tabla del Art. 96 de la LISR (límite
-inferior, cuota fija, tasa sobre excedente) — la misma usada por
-`ap_ar/retention_engine.py`. El IMSS usa tasas simplificadas documentadas.
+DEPRECACIÓN (consolidación de calculadoras de nómina, ver commit que agrega
+esta nota): `PayrollCalculator` calculaba el IMSS sobre el salario bruto
+plano, sin Salario Base de Cotización (SBC) ni tope de 25 UMA (LSS art. 28),
+y no calculaba INFONAVIT. `NominaManager.create_nomina_record` ya NO usa
+`PayrollCalculator` para el cálculo real: delega en
+`b2b_ai.features.nomina_completa.service.calculate_taxes`, que sí aplica SBC
+topado, INFONAVIT patronal (Ley INFONAVIT art. 29-II) y subsidio al empleo
+(LISR art. 113). El contrato externo de `/nomina/records` (path y forma de
+la respuesta) no cambia. `PayrollCalculator` se conserva únicamente por
+compatibilidad de import y emite `DeprecationWarning` explícito al usarse
+directamente — no debe usarse para cálculos nuevos.
 """
 from __future__ import annotations
 
 import csv
 import io
+import warnings
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
@@ -31,6 +40,9 @@ from b2b_ai.features.nomina.models import (
     NominaRecordCreate,
     NominaStatus,
     PayrollSummary,
+)
+from b2b_ai.features.nomina_completa.service import (
+    calculate_taxes as _calculate_taxes_completo,
 )
 
 
@@ -190,11 +202,29 @@ def _parse_date(value: Optional[str]) -> Optional[date]:
 
 
 # ---------------------------------------------------------------------------
-# PayrollCalculator
+# PayrollCalculator [DEPRECADO]
 # ---------------------------------------------------------------------------
 
+_PAYROLL_CALCULATOR_DEPRECATION_MSG = (
+    "PayrollCalculator (b2b_ai.features.nomina.service) está deprecado: "
+    "calcula IMSS sobre salario bruto plano, sin Salario Base de Cotización "
+    "(SBC) ni tope de 25 UMA (LSS art. 28), y no calcula INFONAVIT. "
+    "NominaManager.create_nomina_record ya no lo usa para el cálculo real. "
+    "Use b2b_ai.features.nomina_completa.service.calculate_taxes."
+)
+
+
 class PayrollCalculator:
-    """Cálculo de ISR, IMSS y neto a pagar."""
+    """[DEPRECADO] Cálculo simplificado de ISR, IMSS y neto a pagar.
+
+    No usar para cálculos nuevos: el IMSS aquí se calcula sobre salario
+    bruto plano (sin SBC ni tope de 25 UMA) y no incluye INFONAVIT. El
+    cálculo correcto vive en
+    `b2b_ai.features.nomina_completa.service.calculate_taxes`, que es el
+    que usa `NominaManager.create_nomina_record`. Esta clase se conserva
+    solo por compatibilidad de import; cada método emite
+    `DeprecationWarning` explícito al invocarse.
+    """
 
     @staticmethod
     def calculate_isr(income: float, period: str = "03") -> float:
@@ -212,6 +242,9 @@ class PayrollCalculator:
         Returns:
             ISR retenido redondeado a 2 decimales.
         """
+        warnings.warn(
+            _PAYROLL_CALCULATOR_DEPRECATION_MSG, DeprecationWarning, stacklevel=2
+        )
         if income is None or income <= 0:
             return 0.0
         factor_days = PERIOD_FACTOR_DAYS.get(str(period), 30)
@@ -227,7 +260,14 @@ class PayrollCalculator:
 
         Tasas simplificadas (ver constantes IMSS_*_RATE). Retorna dict con
         `imss_employer` y `imss_employee`.
+
+        ADVERTENCIA: esto calcula IMSS sobre el salario bruto plano, SIN
+        Salario Base de Cotización (SBC) ni tope de 25 UMA (LSS art. 28).
+        Ver `_PAYROLL_CALCULATOR_DEPRECATION_MSG`.
         """
+        warnings.warn(
+            _PAYROLL_CALCULATOR_DEPRECATION_MSG, DeprecationWarning, stacklevel=2
+        )
         sal = max(float(salary or 0.0), 0.0)
         return {
             "imss_employer": round(sal * IMSS_EMPLOYER_RATE, 2),
@@ -280,6 +320,10 @@ class NominaManager:
     def __init__(self, db: Any = None):
         self.db = db
         self.validator = NominaValidator()
+        # NOTA: `self.calculator` (PayrollCalculator) se conserva solo por
+        # compatibilidad de atributo — `create_nomina_record` YA NO lo usa
+        # para calcular ISR/IMSS (ver deprecación arriba). El cálculo real
+        # delega en `nomina_completa.service.calculate_taxes`.
         self.calculator = PayrollCalculator()
 
     # ------------------------------------------------------------------
@@ -319,11 +363,16 @@ class NominaManager:
 
         gross = round(data.base_salary + data.overtime_pay + data.bonuses, 2)
         if auto_calculate:
-            calc = self.calculator.calculate_net_pay(gross, data.deductions)
-            isr = calc["isr"]
-            imss_employer = calc["imss_employer"]
-            imss_employee = calc["imss_employee"]
-            net_pay = calc["net_pay"]
+            # Cálculo correcto (SBC topado a 25 UMA, INFONAVIT, subsidio al
+            # empleo) delegado en nomina_completa — NO en el
+            # `PayrollCalculator` deprecado de este módulo. El periodo se
+            # trata como mensual (30 días), igual que el comportamiento
+            # previo de este endpoint (no deriva días de period_start/end).
+            taxes = _calculate_taxes_completo(salary=gross)
+            isr = taxes.isr
+            imss_employer = taxes.imss_patronal
+            imss_employee = taxes.imss_obrero
+            net_pay = round(gross - data.deductions - isr - imss_employee, 2)
         else:
             isr = 0.0
             imss_employer = 0.0

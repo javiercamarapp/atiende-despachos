@@ -118,7 +118,17 @@ class SATScheduler:
             if not folio:
                 continue
             checked += 1
-            status = self.validator.check_status(folio)
+            # FIS-024: el validador real necesita rfc_emisor/rfc_receptor/
+            # total para construir 'expresionImpresa' — el ledger del
+            # downloader ya los trae (ver b2b_ai/sat/downloader.py). Si un
+            # CFDI del ledger no los trae, check_status() falla cerrado
+            # (ok=False, sin 'estado') en vez de inventar un estatus.
+            status = self.validator.check_status(
+                folio,
+                rfc_emisor=cfdi.get("emisor_rfc"),
+                rfc_receptor=cfdi.get("receptor_rfc"),
+                total=cfdi.get("total"),
+            )
             estado = status.get("estado")
             prev = cfdi.get("estatus", "vigente")
             # Persistir el estado actual en el ledger.

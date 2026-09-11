@@ -338,3 +338,39 @@ def _reset_llm_circuit_breaker():
     _cb_registry.reset_all()
     yield
     _cb_registry.reset_all()
+
+
+@pytest.fixture(autouse=True)
+def _reset_llm_token_budget():
+    """Resetea el presupuesto de tokens LLM compartido entre tests.
+
+    `services/llm.py` da a cada `LLMService()` el MISMO `TokenBudget` vía el
+    singleton de módulo `get_token_budget()` (`_global_budget`), igual que
+    `_LLM_CIRCUIT_BREAKER` de arriba — a propósito, así un presupuesto real
+    limita el gasto agregado del proceso completo. Pero en la suite de tests
+    eso significa que `calls_made`/`total_cost_usd` suman sobre TODAS las
+    llamadas reales (no solo las que fallan) hechas por cualquier test
+    anterior en el mismo proceso: sin reset, en una corrida completa de miles
+    de tests el contador termina cruzando `max_calls` (100) o `max_cost_usd`
+    ($5.00) en algún punto arbitrario del orden de ejecución, y CUALQUIER
+    test posterior que dependa de un `_run()` exitoso (`source == "llm"`)
+    recibe en su lugar el fallback a reglas — no por su propia lógica, sino
+    por cuántas llamadas reales acumularon los tests que corrieron antes.
+    Esto es justo lo que producía el fallo intermitente y dependiente del
+    orden/cantidad total de tests en
+    `test_services_llm_coverage.py::test_non_list_anomalias_wrapped`
+    (pasa limpio en aislado, fallaba solo en la corrida completa — mismo
+    patrón que `_reset_llm_circuit_breaker` arriba).
+    """
+    from b2b_ai.services.llm import get_token_budget
+    budget = get_token_budget()
+
+    def _reset():
+        budget.calls_made = 0
+        budget.total_input_tokens = 0
+        budget.total_output_tokens = 0
+        budget.total_cost_usd = 0.0
+
+    _reset()
+    yield
+    _reset()

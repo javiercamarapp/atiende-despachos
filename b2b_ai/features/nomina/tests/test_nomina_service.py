@@ -2,6 +2,8 @@
 """Tests para los modelos y el servicio de payroll del módulo nómina."""
 from __future__ import annotations
 
+import warnings
+
 import pytest
 from fastapi.testclient import TestClient
 from b2b_ai.features.nomina.models import (
@@ -103,6 +105,25 @@ class TestPayrollCalculator:
         assert net["isr"] > 0
 
 
+# ── PayrollCalculator [DEPRECADO] ──
+
+class TestPayrollCalculatorDeprecation:
+    """PayrollCalculator debe advertir explícitamente que está deprecado
+    (consolidación de calculadoras de nómina sobre nomina_completa)."""
+
+    def test_calculate_isr_warns(self):
+        with pytest.warns(DeprecationWarning, match="nomina_completa"):
+            PayrollCalculator.calculate_isr(10000, "03")
+
+    def test_calculate_imss_warns(self):
+        with pytest.warns(DeprecationWarning, match="SBC"):
+            PayrollCalculator.calculate_imss(10000)
+
+    def test_calculate_net_pay_warns(self):
+        with pytest.warns(DeprecationWarning):
+            PayrollCalculator.calculate_net_pay(10000, 1000)
+
+
 # ── NominaManager ──
 
 class TestNominaManager:
@@ -113,6 +134,47 @@ class TestNominaManager:
         assert rec.total_gross == 10700.0
         assert rec.net_pay < 10700.0
         assert rec.isr_retention > 0
+
+    def test_create_record_uses_sbc_correct_calculator_not_deprecated_one(self):
+        """NominaManager.create_nomina_record ya NO debe usar el
+        PayrollCalculator deprecado (IMSS plano sin SBC, tasa patronal
+        20.40%): debe delegar en nomina_completa.service.calculate_taxes
+        (SBC topado a 25 UMA, tasa patronal 14.25%).
+
+        Regresión de la consolidación de calculadoras de nómina: si alguien
+        revierte el cambio y vuelve a usar PayrollCalculator, este test debe
+        fallar (la tasa patronal calculada no coincidirá con 14.25% de SBC).
+        """
+        mgr = NominaManager()
+        rec = mgr.create_nomina_record("T1", _rec(
+            base=10000, ot=0, bonuses=0, deductions=0))
+        gross = rec.total_gross  # 10000.0
+
+        # nomina_completa: IMSS patronal = 14.25% del SBC diario topado ×30.
+        # Con un salario bajo, el SBC diario (gross/30) no toca el tope de
+        # 25 UMA, así que el patronal debe ser ~14.25% del bruto.
+        assert rec.imss_employer == pytest.approx(gross * 0.1425, rel=0.02)
+        # El PayrollCalculator deprecado habría dado ~20.40% del bruto —
+        # verificamos explícitamente que NO es ese el resultado.
+        assert rec.imss_employer != pytest.approx(gross * 0.2040, rel=0.02)
+
+        # nomina_completa: IMSS obrero = 1.25% del SBC (no 2.725% plano).
+        assert rec.imss_employee == pytest.approx(gross * 0.0125, rel=0.02)
+        assert rec.imss_employee != pytest.approx(gross * 0.02725, rel=0.02)
+
+        # No debe emitirse el DeprecationWarning de PayrollCalculator al
+        # crear un registro por la vía normal — la ruta correcta
+        # (nomina_completa) no está deprecada.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            mgr.create_nomina_record("T1", _rec(
+                base=8000, ot=0, bonuses=0, deductions=0,
+                rfc="EFGH123456ABC", name="Otra Persona"))
+        deprecation_warnings = [
+            w for w in caught if issubclass(w.category, DeprecationWarning)
+            and "PayrollCalculator" in str(w.message)
+        ]
+        assert deprecation_warnings == []
 
     def test_create_requires_tenant(self):
         mgr = NominaManager()
