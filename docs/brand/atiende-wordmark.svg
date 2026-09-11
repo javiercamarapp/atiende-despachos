@@ -1,0 +1,17 @@
+<svg viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg">
+  <g>
+    <rect x="0" y="10" width="13" height="4" rx="2" fill="#7DD3FC" />
+    <rect x="4" y="18" width="13" height="4" rx="2" fill="#7DD3FC" />
+    <rect x="0" y="26" width="13" height="4" rx="2" fill="#7DD3FC" />
+    <circle cx="26" cy="12" r="5" fill="#38BDF8" />
+    <path
+      d="M14 38 L20 26 Q22 22 27 22 L31 22 Q34 22 36 19 L38 16"
+      stroke="#1D4ED8"
+      stroke-width="7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      fill="none"
+    />
+  </g>
+  <text x="52" y="30" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#1D4ED8" letter-spacing="-0.5">atiende</text>
+</svg>
