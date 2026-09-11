@@ -1746,7 +1746,7 @@ No tiene un SDK oficial en Python, se consume vía REST/SOAP
 
 ## 5. Facturadores Electrónicos APIs
 
-### 5.1 Facturapi (⭐ RECOMENDADO)
+### 5.1 Facturapi (RECOMENDADO)
 
 **Facturapi** es el PAC (Proveedor Autorizado de Certificación) más developer-friendly de México.
 
@@ -2059,7 +2059,7 @@ Desventaja: Menos adoption que Facturapi
 | Característica | Facturapi | Finkok | SW Sapien | Timbox | FiscalAPI |
 |---------------|-----------|--------|-----------|--------|-----------|
 | **API REST** | Sí | (SOAP) | Sí | Sí | Sí |
-| **Documentación** | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **Documentación** | 5/5 | 2/5 | 4/5 | 3/5 | 4/5 |
 | **SDK Python** | Oficial | No | Sí | No | Sí |
 | **CFDI 4.0** | Sí | Sí | Sí | Sí | Sí |
 | **Carta Porte** | Sí | Sí | Sí | Sí | Sí |
@@ -2070,7 +2070,7 @@ Desventaja: Menos adoption que Facturapi
 | **Webhooks** | Sí | No | Sí | No | Sí |
 | **Cancelación** | Sí | Sí | Sí | Sí | Sí |
 | **Precio base** | $499/mes | $199/mes | $599/mes | $299/mes | $399/mes |
-| **Calidad API** | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **Calidad API** | 5/5 | 2/5 | 4/5 | 3/5 | 4/5 |
 
 **Recomendación: Facturapi** es el mejor para producción por:
 1. API REST moderna y bien documentada

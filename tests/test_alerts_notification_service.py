@@ -24,7 +24,7 @@ def _alert(**kw):
 
 
 class TestEmailRendering:
-    def test_template_has_likida_branding(self):
+    def test_template_has_atiende_branding(self):
         assert "Atiende Despachos" in EMAIL_TEMPLATE
         assert "Inteligencia de Negocio" in EMAIL_TEMPLATE
 
@@ -53,12 +53,12 @@ class TestChannels:
         )
         res = svc.notify(
             _alert(), company="Empresa X", category="DIOT",
-            channels=["email"], recipients={"email": ["x@likida.mx"]},
+            channels=["email"], recipients={"email": ["x@atiende.mx"]},
         )
         assert len(res) == 1
         assert res[0]["channel"] == "email"
         assert "Atiende Despachos" in captured[0][2]
-        assert captured[0][0] == "x@likida.mx"
+        assert captured[0][0] == "x@atiende.mx"
 
     def test_whatsapp_sent(self):
         captured = []
@@ -99,7 +99,7 @@ class TestChannels:
         res = svc.notify(
             _alert(), company="E", category="DIOT",
             channels=["email", "whatsapp"],
-            recipients={"email": ["x@likida.mx"], "whatsapp": ["+5215500000000"]},
+            recipients={"email": ["x@atiende.mx"], "whatsapp": ["+5215500000000"]},
         )
         channels = {r["channel"] for r in res}
         assert channels == {"email", "whatsapp"}
@@ -116,11 +116,11 @@ class TestRateLimit:
             config=cfg, send_email=lambda *a, **k: True, now_fn=lambda: BASE,
         )
         first = svc.notify(_alert(id="a1"), company="E", category="DIOT",
-                           channels=["email"], recipients={"email": ["x@likida.mx"]})
+                           channels=["email"], recipients={"email": ["x@atiende.mx"]})
         assert len(first) == 1
         # Second in same day, same category+company -> blocked
         second = svc.notify(_alert(id="a2"), company="E", category="DIOT",
-                            channels=["email"], recipients={"email": ["x@likida.mx"]})
+                            channels=["email"], recipients={"email": ["x@atiende.mx"]})
         assert second == []
 
     def test_different_category_allowed(self):
@@ -129,10 +129,10 @@ class TestRateLimit:
             config=cfg, send_email=lambda *a, **k: True, now_fn=lambda: BASE,
         )
         svc.notify(_alert(id="a1"), company="E", category="DIOT", channels=["email"],
-                   recipients={"email": ["x@likida.mx"]})
+                   recipients={"email": ["x@atiende.mx"]})
         # Different category, same company -> allowed
         assert svc.notify(_alert(id="a2"), company="E", category="ANOMALY",
-                          channels=["email"], recipients={"email": ["x@likida.mx"]})
+                          channels=["email"], recipients={"email": ["x@atiende.mx"]})
 
     def test_rate_limit_resets_next_day(self):
         cfg = NotificationConfig(max_per_category_per_day=1)
@@ -142,14 +142,14 @@ class TestRateLimit:
             config=cfg, send_email=lambda *a, **k: True, now_fn=lambda: now[0],
         )
         svc.notify(_alert(id="a1"), company="E", category="DIOT", channels=["email"],
-                   recipients={"email": ["x@likida.mx"]})
+                   recipients={"email": ["x@atiende.mx"]})
         assert svc.notify(_alert(id="a2"), company="E", category="DIOT",
-                          channels=["email"], recipients={"email": ["x@likida.mx"]}) == []
+                          channels=["email"], recipients={"email": ["x@atiende.mx"]}) == []
         # Next day
         now[0] = day2
         assert len(svc.notify(_alert(id="a3"), company="E", category="DIOT",
                               channels=["email"],
-                              recipients={"email": ["x@likida.mx"]})) == 1
+                              recipients={"email": ["x@atiende.mx"]})) == 1
 
     def test_can_send_now(self):
         cfg = NotificationConfig(max_per_category_per_day=1)
@@ -157,7 +157,7 @@ class TestRateLimit:
                                        now_fn=lambda: BASE)
         assert svc.can_send_now("DIOT", "E") is True
         svc.notify(_alert(id="a1"), company="E", category="DIOT", channels=["email"],
-                   recipients={"email": ["x@likida.mx"]})
+                   recipients={"email": ["x@atiende.mx"]})
         assert svc.can_send_now("DIOT", "E") is False
 
 
@@ -167,7 +167,7 @@ class TestDedup:
             config=NotificationConfig(max_per_category_per_day=10),
             send_email=lambda *a, **k: True, now_fn=lambda: BASE,
         )
-        recipients = {"email": ["x@likida.mx"]}
+        recipients = {"email": ["x@atiende.mx"]}
         first = svc.notify(_alert(), company="E", category="DIOT", channels=["email"],
                            recipients=recipients)
         second = svc.notify(_alert(), company="E", category="DIOT", channels=["email"],
@@ -180,7 +180,7 @@ class TestDedup:
             config=NotificationConfig(max_per_category_per_day=10),
             send_email=lambda *a, **k: True, now_fn=lambda: BASE,
         )
-        recipients = {"email": ["x@likida.mx"]}
+        recipients = {"email": ["x@atiende.mx"]}
         svc.notify(_alert(message="msg A"), company="E", category="DIOT",
                    channels=["email"], recipients=recipients)
         second = svc.notify(_alert(message="msg B"), company="E", category="DIOT",
@@ -195,7 +195,7 @@ class TestLog:
             now_fn=lambda: BASE,
         )
         svc.notify(_alert(), company="E", category="DIOT", channels=["email"],
-                   recipients={"email": ["x@likida.mx"]})
+                   recipients={"email": ["x@atiende.mx"]})
         log = svc.get_notification_log()
         assert len(log) == 1
         assert log[0]["category"] == "DIOT"

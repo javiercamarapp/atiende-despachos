@@ -1151,8 +1151,8 @@ Si no hay match claro, responde: {{"registro_id": null, "confidence": 0, "razona
 | **Depósito sin CFDI emitido** | Marcar como "pendiente de identificar" | "Depósito de $X el día Y sin factura asociada — posible ingreso no declarado" |
 | **Retiro sin CFDI recibido** | Marcar como "pendiente de identificar" | "Retiro de $X sin factura — verificar deducibilidad" |
 | **Transferencia entre cuentas propias** | Identificar automáticamente (misma CLABE titular) | "Transferencia entre cuentas propias — excluida de conciliación fiscal" |
-| **Comisión bancaria** | Clasificar como gasto bancario (6030200) | ℹ️ "Comisión bancaria de $X — gasto deducible" |
-| **Depósito de préstamo** | Preguntar al usuario | ℹ️ "Depósito grande sin factura — ¿es préstamo, cobro o anticipo?" |
+| **Comisión bancaria** | Clasificar como gasto bancario (6030200) | "Comisión bancaria de $X — gasto deducible" |
+| **Depósito de préstamo** | Preguntar al usuario | "Depósito grande sin factura — ¿es préstamo, cobro o anticipo?" |
 | **Depósito > ingresos declarados × 1.15** | Alerta inmediata (Art. 91 LISR) | "ALERTA: Depósitos superan ingresos declarados — riesgo de discrepancia fiscal" |
 | **CFDI cancelado pero pago registrado** | No conciliar, alertar | "CFDI UUID cancelado — verificar si hay sustituto" |
 | **Pago duplicado** | Marcar como duplicado | "Posible pago duplicado: mismo monto y proveedor en 24 horas" |

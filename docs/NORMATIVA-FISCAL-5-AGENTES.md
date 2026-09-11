@@ -1,6 +1,6 @@
 # NORMATIVA FISCAL MEXICANA — 5 SOLUCIONES AGENTICAS
 
-> **Documento de referencia técnica** para el desarrollo de agentes IA en `likida-ai-enterprise`.
+> **Documento de referencia técnica** para el desarrollo de agentes IA en `atiende-despachos`.
 > Todas las referencias son artículos reales y verificables del CFF, LISR, LIVA, LFT, RMF y NIF.
 >
 > Última actualización: Agosto 2026 | Basado en legislación vigente (incluye reformas 2024-2025)
