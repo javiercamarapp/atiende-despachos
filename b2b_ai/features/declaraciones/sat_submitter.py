@@ -245,7 +245,8 @@ class SATSubmitter:
                 "declaración %s NO se envía al SAT, se fabrica un folio "
                 "SIM- localmente.", declaration_id or "(sin id)",
             )
-            folio = f"SIM-{hashlib.md5(xml_signed).hexdigest()[:12].upper()}"
+            # Fake sandbox folio only, not a cryptographic use.
+            folio = f"SIM-{hashlib.md5(xml_signed, usedforsecurity=False).hexdigest()[:12].upper()}"
             result = SubmissionResult(
                 status=SubmissionStatus.PENDING,
                 folio=folio,

@@ -286,7 +286,9 @@ def _tx_id(raw: dict) -> str:
                      str(raw.get("monto")),
                      str(raw.get("descripcion")),
                      str(raw.get("ref"))])
-    return "tx_" + hashlib.sha1(seed.encode("utf-8")).hexdigest()[:12]
+    return "tx_" + hashlib.sha1(
+        seed.encode("utf-8"), usedforsecurity=False
+    ).hexdigest()[:12]
 
 
 # ---------------------------------------------------------------------------

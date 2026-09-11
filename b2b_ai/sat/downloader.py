@@ -59,7 +59,7 @@ def _parse_date(value: str) -> date:
 def _mk_uuid(rfc: str, day: str, tipo: str, idx: int) -> str:
     """UUID determinista por (rfc, día, tipo, índice) → tests estables."""
     seed = f"{rfc}|{day}|{tipo}|{idx}".encode("utf-8")
-    return str(uuid.UUID(hashlib.md5(seed).hexdigest()))
+    return str(uuid.UUID(hashlib.md5(seed, usedforsecurity=False).hexdigest()))
 
 
 class SATDownloader:

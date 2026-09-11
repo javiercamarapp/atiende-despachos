@@ -68,10 +68,13 @@ class SPEIPayment:
         payload = self.build_payload(order)
 
         if not self.stp_token or self.stp_token.startswith("test"):
-            # Sandbox mode: simulate success
+            # Sandbox mode: simulate success. Not a security use (just a
+            # deterministic-looking fake id), so mark it explicitly for
+            # Bandit/CI — otherwise B324 flags MD5 as a weak hash.
             stp_id = hashlib.md5(
                 f"{order.clave_rastreo}{order.monto}{datetime.utcnow().isoformat()}"
-                .encode()
+                .encode(),
+                usedforsecurity=False,
             ).hexdigest()[:16]
             return {
                 "stp_id": stp_id,
