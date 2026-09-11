@@ -2,8 +2,20 @@
 """reconciliation_group_matches: persistencia de decisiones de _pass_group
 
 Revision ID: 0019_recon_group_matches
-Revises: 0018_mapeos_migracion_catalogo
+Revises: 0019_migracion_audit_log
 Create Date: 2026-09-11
+
+NOTA DE FUSIÓN (closure/despachos-fusion-lote1): esta migración y
+`0019_migracion_audit_log.py` se numeraron ambas "0019" porque se
+desarrollaron en ramas paralelas independientes, cada una con
+`down_revision = 0018_mapeos_migracion_catalogo`. Al fusionar ambas ramas
+se re-encadenó esta migración para que dependa de
+`0019_migracion_audit_log` en vez de `0018` directamente -- deja la
+cadena de Alembic lineal (un solo head) sin necesidad de renombrar
+archivos ni IDs de revisión ya referenciados por otros módulos y tests.
+Los cambios de esquema de esta migración (`reconciliation_group_matches`)
+no dependen de nada de `0019_migracion_audit_log`; el orden entre ambas
+es arbitrario, solo se eligió para tener una cadena única.
 
 REQ-CONC-013 (`docs/BLUEPRINT-AGENTES-FISCALES.md`, matriz REQ-CONC).
 
@@ -55,7 +67,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "0019_recon_group_matches"
-down_revision = "0018_mapeos_migracion_catalogo"
+down_revision = "0019_migracion_audit_log"
 branch_labels = None
 depends_on = None
 
