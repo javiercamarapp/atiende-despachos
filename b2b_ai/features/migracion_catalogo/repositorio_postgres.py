@@ -51,8 +51,10 @@ cada consulta de este módulo (todas las consultas de abajo filtran por
 """
 from __future__ import annotations
 
+import json
+import uuid as _uuid
 from collections.abc import MutableMapping
-from typing import Any, Iterator
+from typing import Any, Dict, Iterator, Optional
 
 from .models import EstadoMapeoMigracion, MapeoMigracionCuenta, TipoMatchMigracion
 
@@ -218,3 +220,103 @@ class RepositorioMapeosPostgres(MutableMapping):
                 (self._migracion_id, mapeo_id),
             ).fetchone()
         return fila is not None
+
+
+# ---------------------------------------------------------------------------
+# Log de auditoría append-only (REQ-MIG-016)
+# ---------------------------------------------------------------------------
+#
+# `migracion_catalogo_audit_log`
+# (`migrations/versions/0019_migracion_audit_log.py`) es una tabla
+# separada de `mapeos_migracion_catalogo`, protegida por un trigger de
+# Postgres que rechaza cualquier UPDATE/DELETE (ver el docstring extenso de
+# esa migración sobre por qué trigger y no GRANT/REVOKE en este repo).
+# `RegistroAuditoriaPostgres` es el equivalente, para esa tabla, de lo que
+# `RepositorioMapeosPostgres` es para `mapeos_migracion_catalogo`: un
+# adaptador inyectable que `MigracionCatalogoService` (`service.py`) usa a
+# través de la interfaz mínima `service.RegistradorAuditoria` (un
+# `Protocol` con un solo método, `.registrar(...)`) -- `service.py` NO
+# importa este módulo ni sabe que existe Postgres; solo llama a
+# `self._auditoria.registrar(...)` si se le inyectó algo (default `None` =
+# sin auditoría, para no romper ninguna de las pruebas unitarias en
+# memoria que ya existían antes de REQ-MIG-016).
+#
+# NOTA sobre atomicidad: igual que `RepositorioMapeosPostgres.__setitem__`
+# de arriba, cada llamada a `.registrar()` abre y cierra su propia
+# transacción (`with conn.transaction():`). Si `service.py` construye el
+# repositorio de mapeos y este registrador con la MISMA conexión, hay dos
+# COMMITs secuenciales (mapeo, luego auditoría) -- no una única
+# transacción atómica que cubra ambas escrituras. Un crash exactamente
+# entre esos dos commits dejaría el mapeo actualizado sin su fila de
+# auditoría correspondiente. Esto es una limitación real, documentada
+# aquí a propósito (no un half-fix silencioso): unificarlas requeriría que
+# `service.py` conozca y controle una transacción compartida entre dos
+# repositorios inyectables distintos, lo cual rompería el diseño actual
+# (repositorio de mapeos 100% agnóstico de Postgres, ver su propio
+# docstring de módulo). Dado que REQ-MIG-016 solo pide que la fila se
+# inserte "en cada punto donde se modifique el catálogo" y que el log sea
+# append-only una vez escrito -- no que sea transaccionalmente atómico con
+# el cambio de estado -- se acepta esta limitación en vez de forzar un
+# rediseño más amplio fuera de alcance.
+class RegistroAuditoriaPostgres:
+    """Escribe una fila inmutable en `migracion_catalogo_audit_log` por
+    cada aprobación/rechazo/edición de un `MapeoMigracionCuenta`
+    (REQ-MIG-016). Cumple la interfaz `service.RegistradorAuditoria`."""
+
+    def __init__(self, conn: Any, migracion_id: str) -> None:
+        if not migracion_id or not str(migracion_id).strip():
+            raise ValueError(
+                "migracion_id no puede estar vacío -- identifica a qué "
+                "migración cross-database pertenece esta fila de "
+                "auditoría (mismo criterio que RepositorioMapeosPostgres)."
+            )
+        self._conn = conn
+        self._migracion_id = migracion_id
+
+    @property
+    def migracion_id(self) -> str:
+        return self._migracion_id
+
+    def registrar(
+        self,
+        *,
+        mapeo_id: str,
+        accion: str,
+        decidido_por: str,
+        nota: Optional[str],
+        valores_antes: Optional[Dict[str, Any]],
+        valores_despues: Dict[str, Any],
+    ) -> str:
+        """Inserta una fila de auditoría. Devuelve el `id` generado.
+
+        `valores_antes`/`valores_despues` son dicts JSON-serializables
+        (típicamente `MapeoMigracionCuenta.model_dump(mode="json")`,
+        que ya deja los `Enum` como su `.value` de cadena) -- se
+        serializan aquí con `json.dumps` y se castean a `jsonb` en el
+        propio SQL, en vez de depender del adaptador automático de
+        psycopg para dicts (ambiguo entre `json`/`jsonb`), igual que ya
+        hace `b2b_ai/audit/trail.py` con columnas JSON de este repo.
+        """
+        entrada_id = str(_uuid.uuid4())
+        with self._conn.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO migracion_catalogo_audit_log (
+                    id, migracion_id, mapeo_id, accion, decidido_por,
+                    nota, valores_antes, valores_despues
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb)
+                """,
+                (
+                    entrada_id,
+                    self._migracion_id,
+                    mapeo_id,
+                    accion,
+                    decidido_por,
+                    nota,
+                    json.dumps(valores_antes, default=str, ensure_ascii=False)
+                    if valores_antes is not None
+                    else None,
+                    json.dumps(valores_despues, default=str, ensure_ascii=False),
+                ),
+            )
+        return entrada_id
