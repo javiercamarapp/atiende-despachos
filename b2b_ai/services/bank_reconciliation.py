@@ -325,6 +325,14 @@ class BankReconciliation:
         # auto-aplica (ADR-2): no generan filas en `matches`, la factura y
         # el movimiento quedan libres.
         self.grouped_suggestions = []
+        # REQ-CONC-014 / ADR-1: movimientos evaluados por `_pass_group` para
+        # los que NINGÚN subconjunto de facturas cayó dentro de la banda de
+        # tolerancia. Estado explícito `estado="sin_conciliar"` -- nunca se
+        # asigna automáticamente el candidato individual de menor
+        # diferencia si ese candidato está fuera de la banda; se deja
+        # trazabilidad de los candidatos evaluados más cercanos para que un
+        # humano entienda por qué no hubo match.
+        self.sin_conciliar = []
         self.last_error = None
         self.date_tolerance_days = 3
         self.monto_tolerance_pct = 5   # tolerancia parcial de monto (%)
@@ -440,6 +448,7 @@ class BankReconciliation:
         # de una corrida anterior sobre la sesión.
         self.grouped_ambiguous = []
         self.grouped_suggestions = []
+        self.sin_conciliar = []
         if not invoices:
             return []
         stmt = list(statement or [])
@@ -581,11 +590,17 @@ class BankReconciliation:
                      and (_dec(i.get("total")) or 0) > 0]
         if len(candidatos) < 2:
             return out
-        # Universo tratable por fuerza bruta; con más candidatos que el
-        # techo, este pase se abstiene en vez de arriesgar una búsqueda
-        # combinatoria descontrolada (o peor, un timeout silencioso).
-        if len(candidatos) > self.MAX_GROUP_CANDIDATE_INVOICES:
-            candidatos = candidatos[:self.MAX_GROUP_CANDIDATE_INVOICES]
+        # NOTA (REQ-CONC-015): el techo `MAX_GROUP_CANDIDATE_INVOICES` se
+        # aplica MÁS ABAJO, por movimiento y DESPUÉS de
+        # `_filtrar_por_canal` -- nunca aquí, globalmente, sobre el pool
+        # completo de facturas de TODOS los movimientos combinados. Con
+        # varios canales/terminales reales mezclados (p. ej. 30 depósitos
+        # de terminales distintas y 150+ facturas en total, REQ-CONC-018),
+        # truncar el pool global a 60 ANTES de filtrar por canal
+        # descartaría en silencio facturas de terminales que ni siquiera
+        # participan en los primeros movimientos procesados -- el propio
+        # comentario de esa constante ya decía "por movimiento": esto lo
+        # hace cierto en el código, no solo en el comentario.
 
         for t in stmt:
             if t["id"] in used_tx:
@@ -603,11 +618,47 @@ class BankReconciliation:
             if target_cents <= 0:
                 continue
             libres = [i for i in candidatos if _inv_key(i) not in used_inv_keys]
+            # REQ-CONC-015: acota el universo de candidatos por canal_cobro
+            # / id_terminal ANTES del subset-sum, cuando el movimiento
+            # bancario declara ese dato (ver `_filtrar_por_canal`). Sin
+            # `canal_cobro`/`id_terminal` en `t` (dato faltante, el caso de
+            # todo el histórico previo a REQ-CONC-016), el filtro se
+            # abstiene y no cambia el comportamiento existente.
+            libres = _filtrar_por_canal(libres, t)
+            # Universo tratable por fuerza bruta PARA ESTE MOVIMIENTO ya
+            # acotado por canal; con más candidatos que el techo, este
+            # pase se abstiene para ESTE `t` en vez de arriesgar una
+            # búsqueda combinatoria descontrolada (o un timeout
+            # silencioso) -- nunca afecta a los demás movimientos del
+            # mismo statement.
+            if len(libres) > self.MAX_GROUP_CANDIDATE_INVOICES:
+                libres = libres[:self.MAX_GROUP_CANDIDATE_INVOICES]
             if len(libres) < 2:
                 continue
             subconjuntos = _subset_sums_exact(
                 libres, target_cents, max_size=self.MAX_GROUP_SIZE)
             if not subconjuntos:
+                # REQ-CONC-014 / ADR-1: ningún subconjunto cayó en la banda
+                # de tolerancia para este movimiento. Estado explícito
+                # "sin_conciliar" -- NUNCA se asigna aquí el candidato
+                # individual de menor diferencia (`_candidatos_mas_cercanos`
+                # es solo trazabilidad para un humano, nunca una fuente de
+                # match automático). El movimiento y las facturas quedan
+                # libres para los pases siguientes.
+                self.sin_conciliar.append({
+                    "transaction_id": t["id"],
+                    "naturaleza": naturaleza_tx,
+                    "monto": str(abs(monto_tx)),
+                    "estado": "sin_conciliar",
+                    "candidatos_evaluados": len(libres),
+                    "candidatos_mas_cercanos": _candidatos_mas_cercanos(
+                        libres, target_cents),
+                    "razon": ("ningún subconjunto de 2+ facturas/"
+                             "comprobantes cuadra la suma exacta de este "
+                             "movimiento dentro de la banda de tolerancia "
+                             "(ADR-1): se deja para revisión manual en vez "
+                             "de inventar el candidato más parecido"),
+                })
                 continue
             if len(subconjuntos) > 1:
                 # Ambigüedad real (ADR-2): nunca se auto-resuelve, sin
@@ -976,6 +1027,73 @@ def _confidence_sort_value(v) -> float:
 def _to_cents(d: Decimal) -> int:
     """Convierte un Decimal (pesos) a centavos ENTEROS (nunca floats)."""
     return int((d * 100).to_integral_value())
+
+
+def _filtrar_por_canal(candidatos: list, tx: dict) -> list:
+    """REQ-CONC-015: acota `candidatos` (facturas/comprobantes) por
+    `canal_cobro` (terminal/spei/cheque/efectivo) e `id_terminal` del
+    movimiento bancario `tx`, ANTES de correr el subset-sum.
+
+    Solo filtra cuando el DATO EXISTE en el movimiento (`tx`) -- un
+    movimiento sin `canal_cobro`/`id_terminal` (todo el histórico previo a
+    REQ-CONC-016, o un banco/canal que no reporta esa metadata) deja el
+    universo de candidatos intacto, para no romper el comportamiento
+    existente ni inventar un filtro sobre un dato que no existe.
+
+    Del lado de la factura/comprobante candidato, una factura SIN
+    `canal_cobro`/`id_terminal` propio (histórico previo a REQ-CONC-016)
+    se considera universal -- sigue siendo candidata para cualquier canal,
+    porque no hay evidencia de que pertenezca a un canal distinto (mismo
+    principio de "ausencia de dato nunca es un veto automático" que usa
+    `group_scoring.py` para la dimensión de comisión sin perfil conocido).
+    Una factura que SÍ declara un canal/terminal distinto al del
+    movimiento queda excluida: ese es el caso literal del criterio de
+    aceptación (facturas de 2 terminales distintas mezcladas -> el
+    subset-sum del depósito de la terminal A nunca considera facturas de
+    la terminal B).
+    """
+    canal_tx = tx.get("canal_cobro")
+    terminal_tx = tx.get("id_terminal")
+    if not canal_tx and not terminal_tx:
+        return candidatos
+    filtrados = []
+    for inv in candidatos:
+        terminal_inv = inv.get("id_terminal")
+        if terminal_tx and terminal_inv and terminal_inv != terminal_tx:
+            continue
+        canal_inv = inv.get("canal_cobro")
+        if canal_tx and canal_inv and canal_inv != canal_tx:
+            continue
+        filtrados.append(inv)
+    return filtrados
+
+
+_MAX_CANDIDATOS_CERCANOS_TRAZA = 5
+
+
+def _candidatos_mas_cercanos(libres: list, target_cents: int) -> list:
+    """REQ-CONC-014: detalle de trazabilidad de los candidatos INDIVIDUALES
+    más cercanos al monto del movimiento, para que un humano entienda por
+    qué el movimiento quedó `estado="sin_conciliar"` -- nunca se usa para
+    decidir un match, solo se reporta (ADR-1: el candidato de menor
+    diferencia jamás se asigna automáticamente si está fuera de la banda).
+
+    Ordena por diferencia absoluta en centavos (ascendente) y devuelve
+    hasta `_MAX_CANDIDATOS_CERCANOS_TRAZA` entradas.
+    """
+    con_diff = []
+    for inv in libres:
+        total = _dec(inv.get("total"))
+        if total is None:
+            continue
+        diff_cents = abs(_to_cents(total) - target_cents)
+        con_diff.append({
+            "invoice_ref": _inv_key(inv),
+            "monto": str(total),
+            "diferencia": str(Decimal(diff_cents) / Decimal(100)),
+        })
+    con_diff.sort(key=lambda c: Decimal(c["diferencia"]))
+    return con_diff[:_MAX_CANDIDATOS_CERCANOS_TRAZA]
 
 
 def _subset_sums_exact(items: list, target_cents: int, max_size: int = 15,

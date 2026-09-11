@@ -1,16 +1,19 @@
-# Contrato de integración real con el SAT — pendiente (FIS-019 / FIS-024)
+# Contrato de integración real con el SAT (FIS-019 pendiente / FIS-024 resuelto)
 
-**Estado de este documento:** especificación de la interfaz que debería
-implementarse cuando existan credenciales de e.firma/CIEC reales para
-probar contra el SAT. **No es una implementación** — es el contrato que
-`SATSubmitter._send_soap()` y `SATValidator` deberían cumplir el día que se
-construya la integración real. Ninguna parte de este repo llama hoy al SAT.
+**Estado de este documento:** §1 (`SATValidator`, FIS-024) **SE IMPLEMENTÓ**
+— ver `b2b_ai/sat/validator.py`, cuyo docstring confirma la versión del PDF
+de especificación asumida (1.4, noviembre 2022) contra las tres copias
+activas en sat.gob.mx a septiembre de 2026. §2 (`SATSubmitter._send_soap()`,
+FIS-019) sigue siendo solo especificación — **no implementado** — porque el
+propio §2 concluye que probablemente no existe un web service SOAP público
+del SAT para envío de declaraciones (ver "(C) Consecuencia de diseño" más
+abajo); no se fuerza una implementación sobre un endpoint no confirmado.
 
 Referencias cruzadas:
-- Hallazgos de auditoría: `docs/AUDIT-FINAL-FISCAL.md` (FIS-019, FIS-024)
+- Hallazgos de auditoría: `docs/AUDIT-FINAL-FISCAL.md` (FIS-019 pendiente, FIS-024 resuelto)
 - Panorama general de APIs mexicanas ya investigado: `docs/APIs-INTEGRACION-MEXICO.md` §1
-- Código stub actual: `b2b_ai/features/declaraciones/sat_submitter.py`,
-  `b2b_ai/sat/validator.py`
+- Código: `b2b_ai/features/declaraciones/sat_submitter.py` (stub, FIS-019 sigue pendiente),
+  `b2b_ai/sat/validator.py` (real, FIS-024)
 
 Este documento distingue explícitamente entre:
 - **(A) Hechos verificados** — endpoints y comportamientos con documentación
@@ -76,19 +79,26 @@ class SATValidatorReal(Protocol):
     ) -> CFDIEstatusReal: ...
 ```
 
-**(C) Decisión pendiente:** la firma actual de `check_status(folio_fiscal)`
-solo recibe el folio; el servicio real de consulta de estatus también
-necesita `rfc_emisor`, `rfc_receptor` y `total` para construir
-`expresionImpresa`. Esto es un cambio de firma, no solo de cuerpo — hay que
-decidir si se obtienen esos datos del propio CFDI almacenado (si el sistema
-ya lo tiene) o si se piden como parámetros adicionales en la API pública.
+**(C) Decisión pendiente — RESUELTA (FIS-024):** la firma de `check_status()`
+se cambió a `check_status(folio_fiscal, rfc_emisor=None, rfc_receptor=None,
+total=None, fe=None)` — se optó por pedirlos como parámetros explícitos del
+llamador (no por resolverlos automáticamente contra la DB, cuyo esquema para
+eso no estaba confirmado). `SATScheduler.run_weekly()` (ya tenía estos datos
+en el ledger) y el endpoint `/api/v1/sat/verify` (campos nuevos opcionales en
+`SATVerifyRequest`) se actualizaron para pasarlos. `b2b_ai/services/pipeline.py`
+sigue llamando solo con el folio deliberadamente (ver TODO ahí): pasar los
+datos reales activaría una llamada de red real y no mockeada en una amplia
+suite de tests de pipeline que no fue auditada/actualizada en este cambio —
+queda como seguimiento explícito. Ver `b2b_ai/sat/validator.py` para el
+detalle completo.
 
-**(C) `verify_chain()` (cadena de custodia):** no se encontró un servicio
-público del SAT que devuelva un "historial de eventos" de timbrado/registro
-como el que fabrica hoy el mock. Lo más cercano y real es encadenar: (1) el
-acuse de timbrado que ya emitió el PAC al timbrar, (2) esta misma consulta
-de estatus. Un implementador real debería replantear qué significa
-"cadena de custodia" aquí en vez de mapear 1:1 el mock actual.
+**(C) `verify_chain()` (cadena de custodia) — RESUELTA (FIS-024):** ya no
+fabrica una lista de eventos. Ahora es, literalmente, lo que este documento
+sugería: (1) el acuse de timbrado del PAC si el llamador lo pasa
+(`acuse_timbrado`), (2) la consulta de estatus real que se acaba de hacer.
+Si no hay ninguno de los dos, `cadena` queda vacía — nunca se rellena con
+eventos ficticios (el mock anterior sí lo hacía, con `datetime.now()` en
+cada llamada).
 
 ### (A) Validación de RFC
 
