@@ -39,12 +39,30 @@ inyectable). La matriz de requisitos (docs/BLUEPRINT-AGENTES-FISCALES.md
 pruebas" — a diferencia de REQ-MIG-001/009/012..016, que sí requieren
 tablas Postgres reales y son requisitos separados — así que una
 persistencia real para `MapeoMigracionCuenta` (tabla `SQLAlchemy`/
-Alembic) queda fuera del alcance de este archivo.
+Alembic) queda fuera del alcance de este archivo. Ver
+`repositorio_postgres.py::RepositorioMapeosPostgres` para la
+implementación real inyectable.
+
+REQ-MIG-016 (log de auditoría append-only): cada `aprobar()`/
+`rechazar()`/`editar()` -- las tres únicas operaciones que mueven un
+mapeo fuera de `PENDIENTE`, ver arriba -- llama además a
+`self._auditoria.registrar(...)` si se inyectó un `RegistradorAuditoria`
+(constructor, parámetro `auditoria`, default `None`). Igual que con el
+repositorio de mapeos, este archivo permanece agnóstico de Postgres:
+`RegistradorAuditoria` es solo un `Protocol` estructural definido más
+abajo; la implementación real que escribe en
+`migracion_catalogo_audit_log` (tabla protegida contra UPDATE/DELETE por
+un trigger, `migrations/versions/0019_migracion_audit_log.py`)
+vive en `repositorio_postgres.py::RegistroAuditoriaPostgres`. Con
+`auditoria=None` (el default, usado por todas las pruebas unitarias en
+memoria existentes antes de REQ-MIG-016) el comportamiento de este
+servicio no cambia en absoluto -- no auditar no es un error, es
+simplemente no tener a dónde escribir la auditoría.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from .models import EstadoMapeoMigracion, MapeoMigracionCuenta
 
@@ -84,18 +102,67 @@ def _ahora_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+@runtime_checkable
+class RegistradorAuditoria(Protocol):
+    """Interfaz mínima que `MigracionCatalogoService` necesita para dejar
+    rastro de auditoría (REQ-MIG-016) de una decisión humana. Un
+    `Protocol` estructural a propósito -- cualquier objeto con este
+    método sirve, sin que este módulo importe ni sepa nada de Postgres.
+    Implementación real: `repositorio_postgres.RegistroAuditoriaPostgres`.
+    """
+
+    def registrar(
+        self,
+        *,
+        mapeo_id: str,
+        accion: str,
+        decidido_por: str,
+        nota: Optional[str],
+        valores_antes: Optional[Dict[str, Any]],
+        valores_despues: Dict[str, Any],
+    ) -> Any: ...
+
+
 class MigracionCatalogoService:
     """Único punto de escritura de `estado` para `MapeoMigracionCuenta`
     fuera de la creación inicial por el motor de matching."""
 
     def __init__(
-        self, repositorio: Optional[Dict[str, MapeoMigracionCuenta]] = None
+        self,
+        repositorio: Optional[Dict[str, MapeoMigracionCuenta]] = None,
+        auditoria: Optional[RegistradorAuditoria] = None,
     ) -> None:
         # mapeo_id -> MapeoMigracionCuenta. Inyectable para pruebas o
         # para compartir el mismo repositorio entre el router y el motor
         # de matching dentro del mismo proceso.
         self._mapeos: Dict[str, MapeoMigracionCuenta] = (
             repositorio if repositorio is not None else {}
+        )
+        # REQ-MIG-016: sumidero opcional de auditoría append-only. `None`
+        # (default) preserva el comportamiento de siempre -- ver
+        # docstring de módulo arriba.
+        self._auditoria = auditoria
+
+    # -- auditoría (REQ-MIG-016) -----------------------------------------
+
+    def _registrar_auditoria(
+        self,
+        *,
+        accion: str,
+        decidido_por: str,
+        nota: Optional[str],
+        mapeo_antes: MapeoMigracionCuenta,
+        mapeo_despues: MapeoMigracionCuenta,
+    ) -> None:
+        if self._auditoria is None:
+            return
+        self._auditoria.registrar(
+            mapeo_id=mapeo_despues.id,
+            accion=accion,
+            decidido_por=decidido_por,
+            nota=nota,
+            valores_antes=mapeo_antes.model_dump(mode="json"),
+            valores_despues=mapeo_despues.model_dump(mode="json"),
         )
 
     # -- registro / lectura ---------------------------------------------
@@ -272,6 +339,13 @@ class MigracionCatalogoService:
             }
         )
         self._mapeos[mapeo_id] = actualizado
+        self._registrar_auditoria(
+            accion="aprobar",
+            decidido_por=decidido_por,
+            nota=actualizado.nota,
+            mapeo_antes=mapeo,
+            mapeo_despues=actualizado,
+        )
         return actualizado
 
     def rechazar(
@@ -296,6 +370,13 @@ class MigracionCatalogoService:
             }
         )
         self._mapeos[mapeo_id] = actualizado
+        self._registrar_auditoria(
+            accion="rechazar",
+            decidido_por=decidido_por,
+            nota=actualizado.nota,
+            mapeo_antes=mapeo,
+            mapeo_despues=actualizado,
+        )
         return actualizado
 
     def editar(
@@ -349,4 +430,11 @@ class MigracionCatalogoService:
             }
         )
         self._mapeos[mapeo_id] = actualizado
+        self._registrar_auditoria(
+            accion="editar",
+            decidido_por=decidido_por,
+            nota=actualizado.nota,
+            mapeo_antes=mapeo,
+            mapeo_despues=actualizado,
+        )
         return actualizado
