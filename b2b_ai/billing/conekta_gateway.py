@@ -26,7 +26,7 @@ import hmac
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -69,6 +69,19 @@ PLAN_PRICES = {
     "growth": 9999.00,
     "enterprise": 0.00,  # cotización custom
 }
+
+# Ventana por defecto de vigencia para cargos offline (SPEI/OXXO) cuando no
+# se pasa `expires_at` explícito. Debe calcularse relativa a "ahora": una
+# fecha absoluta fija se vuelve una fecha pasada (date-rot) en cuanto llega
+# esa fecha (ver auditoría 2026-09-10).
+OFFLINE_CHARGE_DEFAULT_EXPIRY_DAYS = 3
+
+
+def _default_offline_expires_at() -> str:
+    """Fecha de expiración (YYYY-MM-DD, UTC) para cargos SPEI/OXXO sin
+    `expires_at` explícito."""
+    return (datetime.now(timezone.utc)
+            + timedelta(days=OFFLINE_CHARGE_DEFAULT_EXPIRY_DAYS)).strftime("%Y-%m-%d")
 
 
 class ConektaEnvironment(str, Enum):
@@ -496,7 +509,7 @@ class ConektaGateway:
             "charges": [{
                 "payment_method": {
                     "type": method.value,
-                    "expires_at": expires_at or "2026-12-31",
+                    "expires_at": expires_at or _default_offline_expires_at(),
                 },
             }],
             "line_items": [{

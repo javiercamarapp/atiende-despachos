@@ -18,6 +18,7 @@ cliente necesita para completar el pago.
 from __future__ import annotations
 
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -41,6 +42,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 _CONEKTA_API = "https://api.conekta.io"
+
+# Ventana por defecto de vigencia para instrucciones de pago SPEI/OXXO.
+# Conekta exige una fecha futura en `expires_at`; una fecha fija hardcodeada
+# se vuelve inválida en cuanto pasa esa fecha (ver auditoría 2026-09-10).
+_OFFLINE_PAYMENT_EXPIRY_DAYS = 3
+
+
+def _default_offline_expires_at() -> str:
+    """Fecha de expiración (YYYY-MM-DD, UTC) para cargos SPEI/OXXO reales."""
+    return (datetime.now(timezone.utc)
+            + timedelta(days=_OFFLINE_PAYMENT_EXPIRY_DAYS)).strftime("%Y-%m-%d")
 
 
 class ConektaProvider(PaymentProvider):
@@ -191,7 +203,7 @@ class ConektaProvider(PaymentProvider):
                 "charges": [{
                     "payment_method": {
                         "type": method.value,
-                        "expires_at": "2026-08-02",
+                        "expires_at": _default_offline_expires_at(),
                     },
                 }],
                 "line_items": [{
