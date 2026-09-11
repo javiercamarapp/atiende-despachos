@@ -20,21 +20,21 @@ Suite completa: **386 tests, todos pasan**.
 
 | Área | Cobertura | Estado |
 |---|---|---|
-| Flujo completo API | upload multipart → parse → validate → classify → store → report → export (stats.report + dashboard/data) | ✔ |
-| Multi-tenant | **3 tenants**, aislamiento de lecturas, stats, detalle por id, IDOR bloqueado | ✔ |
-| Batch processing | **100 CFDI** en lote por `process_batch` (vía API) | ✔ |
-| Error recovery | corrupto (422), duplicado (insertado=False, sin re-insertar), cancelado (gate exige confirmación humana) | ✔ |
-| CLI coverage | `process`, `batch`, `report`, `status`, error→exit≠0 | ✔ |
+| Flujo completo API | upload multipart → parse → validate → classify → store → report → export (stats.report + dashboard/data) | OK |
+| Multi-tenant | **3 tenants**, aislamiento de lecturas, stats, detalle por id, IDOR bloqueado | OK |
+| Batch processing | **100 CFDI** en lote por `process_batch` (vía API) | OK |
+| Error recovery | corrupto (422), duplicado (insertado=False, sin re-insertar), cancelado (gate exige confirmación humana) | OK |
+| CLI coverage | `process`, `batch`, `report`, `status`, error→exit≠0 | OK |
 
 ## 2. Security hardening — `tests/test_security_hardening.py`
 
 | Área | Estado |
 |---|---|
-| SQL injection | ✔ (ya existía en `test_e2e_security.py`) |
-| **XSS** | ✔ nuevo: breakout `</script>`, escape innerHTML, content-type JSON |
-| Auth bypass | ✔ nuevo: query string / cookie / Bearer / key con espacios / POST-body → todos 401 |
-| Rate limiting | ✔ (ya existía en `test_e2e_security.py`, 429) |
-| Secrets scan | ✔ nuevo: repo + `.env.example` + archivos no servidos vía web |
+| SQL injection | OK (ya existía en `test_e2e_security.py`) |
+| **XSS** | OK nuevo: breakout `</script>`, escape innerHTML, content-type JSON |
+| Auth bypass | OK nuevo: query string / cookie / Bearer / key con espacios / POST-body → todos 401 |
+| Rate limiting | OK (ya existía en `test_e2e_security.py`, 429) |
+| Secrets scan | OK nuevo: repo + `.env.example` + archivos no servidos vía web |
 
 ## 3. Performance benchmarks — `scripts/benchmark.py` (ejecutable)
 

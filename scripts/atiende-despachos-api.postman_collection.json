@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Atiende Despachos API",
-    "description": "Colección oficial de la API REST de Atiende Despachos (Likida) Enterprise. Generada desde docs/openapi.json. Usa el environment `atiende-despachos-local` o `atiende-despachos-prod`.",
+    "description": "Colección oficial de la API REST de Atiende Despachos. Generada desde docs/openapi.json. Usa el environment `atiende-despachos-local` o `atiende-despachos-prod`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -916,7 +916,7 @@
             "description": "Calcula una nómina (ISR, IMSS, INFONAVIT) y opcional nómina CFDI.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"empleado\": {\n    \"nombre\": \"Juan Pérez\",\n    \"rfc\": \"PEJA850101XXX\"\n  },\n  \"emisor\": {\n    \"rfc\": \"DESP820101AB1\",\n    \"nombre\": \"Despacho Contable Likida\",\n    \"regimen_fiscal\": \"601\"\n  },\n  \"periodo\": {\n    \"sueldo_bruto\": 25000.0,\n    \"dias_pagados\": 30\n  },\n  \"generar_cfdi\": false\n}",
+              "raw": "{\n  \"empleado\": {\n    \"nombre\": \"Juan Pérez\",\n    \"rfc\": \"PEJA850101XXX\"\n  },\n  \"emisor\": {\n    \"rfc\": \"DESP820101AB1\",\n    \"nombre\": \"Despacho Contable Demo\",\n    \"regimen_fiscal\": \"601\"\n  },\n  \"periodo\": {\n    \"sueldo_bruto\": 25000.0,\n    \"dias_pagados\": 30\n  },\n  \"generar_cfdi\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5741,6 +5741,62 @@
           ]
         },
         {
+          "name": "GET /api/v1/reports/{report_id}/download",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/{{report_id}}/download",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "{{report_id}}",
+                "download"
+              ],
+              "query": [
+                {
+                  "key": "report_id",
+                  "value": "{{report_id}}",
+                  "disabled": false
+                }
+              ],
+              "variable": []
+            },
+            "description": "Descarga un reporte previamente generado por id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Status esperado (default 200, ajustar por endpoint)",
+                  "pm.test('Status es 200 o 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 200, 201, 202, 204]);",
+                  "});",
+                  "pm.test('Respuesta es JSON válido', function () {",
+                  "    pm.expect(pm.response.headers.get('content-type')).to.include('json');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "GET /api/v1/reports/{report_type}/{period}",
           "request": {
             "method": "GET",
@@ -5787,62 +5843,6 @@
               "variable": []
             },
             "description": "Genera un reporte PDF del periodo (tipo en invoices|monthly|reconciliation|anomaly|tax)."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Status esperado (default 200, ajustar por endpoint)",
-                  "pm.test('Status es 200 o 2xx', function () {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 200, 201, 202, 204]);",
-                  "});",
-                  "pm.test('Respuesta es JSON válido', function () {",
-                  "    pm.expect(pm.response.headers.get('content-type')).to.include('json');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET /api/v1/reports/{report_id}/download",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-API-Key",
-                "value": "{{api_key}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/reports/{{report_id}}/download",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "reports",
-                "{{report_id}}",
-                "download"
-              ],
-              "query": [
-                {
-                  "key": "report_id",
-                  "value": "{{report_id}}",
-                  "disabled": false
-                }
-              ],
-              "variable": []
-            },
-            "description": "Descarga un reporte previamente generado por id."
           },
           "event": [
             {

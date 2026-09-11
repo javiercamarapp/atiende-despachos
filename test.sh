@@ -47,7 +47,7 @@ smoke_test() {
         echo "  ✗ Smoke test FALLÓ."
         return 1
     fi
-    echo "  ✔ Smoke test OK."
+    echo "  Smoke test OK."
 }
 
 case "$MODE" in

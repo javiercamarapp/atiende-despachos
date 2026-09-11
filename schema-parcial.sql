@@ -1,4 +1,4 @@
--- Schema PARCIAL de despachos (likida-ai-enterprise), generado con 'alembic upgrade head --sql'.
+-- Schema PARCIAL de despachos (atiende-despachos), generado con 'alembic upgrade head --sql'.
 -- Cubre SOLO las migraciones 0001 y 0002 (DDL puro). La migración 0003_seed.py hace un
 -- INSERT ... RETURNING y lee el valor de vuelta para usarlo en inserts siguientes -- eso
 -- requiere una conexión real a Postgres, no se puede volcar como SQL offline.

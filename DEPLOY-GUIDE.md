@@ -71,7 +71,7 @@ cd Desktop/B2B-AI-MVP/enterprise
    ```
 3. Crear el proyecto:
    ```bash
-   railway init likida-api
+   railway init atiende-despachos-api
    ```
 4. Agregar add-ons (base de datos + cache):
    ```bash
@@ -87,7 +87,7 @@ cd Desktop/B2B-AI-MVP/enterprise
    - **Secret key:** Developers → API keys → `sk_live_...`
    - **Publishable key:** Developers → API keys → `pk_live_...`
    - **Webhook secret:** Developers → Webhooks → Crear endpoint:
-     - URL: `https://api.likida.mx/api/v1/webhooks/stripe`
+     - URL: `https://api.atiende.ai/api/v1/webhooks/stripe`
      - Eventos: `payment_intent.succeeded`, `invoice.paid`, `customer.subscription.updated`
      - Copiar el `whsec_...` del webhook
 
@@ -130,7 +130,7 @@ Si quieres que la IA clasifique CFDI con GPT:
 ### 2.7 Cloudflare (DNS + SSL)
 
 1. Crear cuenta en [cloudflare.com](https://cloudflare.com)
-2. Agregar tu dominio (ej: `likida.mx`)
+2. Agregar tu dominio (ej: `atiende.ai`)
 3. Cambiar los nameservers en tu registrador de dominio a los que da Cloudflare
 4. Esperar propagación (puede tomar hasta 24 horas)
 
@@ -177,7 +177,7 @@ cd Desktop/B2B-AI-MVP/enterprise
 railway login
 
 # Link al proyecto (si no lo hiciste)
-railway init likida-api
+railway init atiende-despachos-api
 railway add --plugin postgresql
 railway add --plugin redis
 
@@ -248,7 +248,7 @@ railway variables set B2B_LLM_MODEL=gpt-4o-mini
 railway variables set B2B_OPENAI_API_KEY=sk-tu-clave
 
 # --- CORS (si la landing está en otro dominio) ---
-railway variables set B2B_CORS_ORIGINS=https://likida.mx,https://app.likida.mx
+railway variables set B2B_CORS_ORIGINS=https://atiende.ai,https://app.atiende.ai
 railway variables set B2B_CORS_ALLOW_CREDENTIALS=true
 
 # --- Seguridad de transporte ---
@@ -290,10 +290,10 @@ Railway las gestiona automáticamente:
 
 ```bash
 # Asignar dominio custom al servicio
-railway domain api.likida.mx
+railway domain api.atiende.ai
 
 # Railway te dará un dominio interno tipo:
-#   likida-api-production.up.railway.app
+#   atiende-despachos-api-production.up.railway.app
 ```
 
 ### 5.2 Configurar DNS en Cloudflare
@@ -302,7 +302,7 @@ railway domain api.likida.mx
 2. Crear registro:
    - **Tipo:** CNAME
    - **Nombre:** `api`
-   - **Target:** `likida-api-production.up.railway.app`
+   - **Target:** `atiende-despachos-api-production.up.railway.app`
    - **Proxy status:** Proxied (naranja) — esto activa SSL automático de Cloudflare
    - **TTL:** Auto
 
@@ -317,7 +317,7 @@ railway domain api.likida.mx
 
 **Verificar que HTTPS funciona:**
 ```bash
-curl -I https://api.likida.mx/health
+curl -I https://api.atiende.ai/health
 # Debe mostrar: HTTP/2 200
 ```
 
@@ -325,7 +325,7 @@ curl -I https://api.likida.mx/health
 
 Si también necesitas el dominio del portal:
 ```
-Tipo: CNAME | Nombre: app | Target: likida-api-production.up.railway.app
+Tipo: CNAME | Nombre: app | Target: atiende-despachos-api-production.up.railway.app
 ```
 
 ---
@@ -339,28 +339,28 @@ Tipo: CNAME | Nombre: app | Target: likida-api-production.up.railway.app
 ./scripts/deploy-production.sh --health
 
 # Via curl directo
-curl -s https://api.likida.mx/health | python3 -m json.tool
+curl -s https://api.atiende.ai/health | python3 -m json.tool
 # Esperado: { "status": "ok", "version": "1.0.0", ... }
 ```
 
 ### Endpoint protegido (sin auth → 401)
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://api.likida.mx/api/v1/stats
+curl -s -o /dev/null -w "%{http_code}\n" https://api.atiende.ai/api/v1/stats
 # Esperado: 401
 ```
 
 ### Endpoint protegido (con auth)
 
 ```bash
-curl -s -H "X-API-Key: TU_API_KEY" https://api.likida.mx/api/v1/stats | python3 -m json.tool
+curl -s -H "X-API-Key: TU_API_KEY" https://api.atiende.ai/api/v1/stats | python3 -m json.tool
 # Esperado: estadísticas del sistema
 ```
 
 ### Leads (público)
 
 ```bash
-curl -s -X POST https://api.likida.mx/api/v1/leads \
+curl -s -X POST https://api.atiende.ai/api/v1/leads \
   -H 'Content-Type: application/json' \
   -d '{"nombre":"Test","email":"test@example.com"}'
 # Esperado: { "ok": true, ... }
@@ -370,7 +370,7 @@ curl -s -X POST https://api.likida.mx/api/v1/leads \
 
 Abrir en navegador:
 ```
-https://api.likida.mx/docs
+https://api.atiende.ai/docs
 ```
 
 ### Verificar logs
@@ -460,7 +460,7 @@ railway login
 ### Deploy falla: "No Railway project linked"
 
 ```bash
-railway init likida-api
+railway init atiende-despachos-api
 railway add --plugin postgresql
 railway add --plugin redis
 ```
@@ -495,7 +495,7 @@ railway add --plugin redis
 ### DNS no propaga
 
 1. Verificar en Cloudflare que el registro CNAME apunta correctamente
-2. Probar con: `dig api.likida.mx CNAME`
+2. Probar con: `dig api.atiende.ai CNAME`
 3. Esperar hasta 5 minutos (Cloudflare es rápido)
 
 ### Conekta no funciona
@@ -518,7 +518,7 @@ railway add --plugin redis
 ```
 PRIMERA VEZ:
 [ ] Cuenta Railway creada y autenticada (railway login)
-[ ] Proyecto creado (railway init likida-api)
+[ ] Proyecto creado (railway init atiende-despachos-api)
 [ ] PostgreSQL add-on agregado (railway add --plugin postgresql)
 [ ] Redis add-on agregado (railway add --plugin redis)
 [ ] B2B_API_KEY generado (openssl rand -hex 32)
@@ -529,10 +529,10 @@ PRIMERA VEZ:
 [ ] B2B_CONEKTA_KEY configurado
 [ ] B2B_SMTP_* configurado (o sin credenciales = modo seguro)
 [ ] Deploy ejecutado (railway up o ./scripts/deploy-production.sh)
-[ ] Health check OK (curl https://api.likida.mx/health)
+[ ] Health check OK (curl https://api.atiende.ai/health)
 [ ] Dominio custom configurado en Railway
 [ ] DNS CNAME configurado en Cloudflare
-[ ] HTTPS funciona (curl -I https://api.likida.mx/health)
+[ ] HTTPS funciona (curl -I https://api.atiende.ai/health)
 
 ACTUALIZACIONES:
 [ ] Tests pasan locally

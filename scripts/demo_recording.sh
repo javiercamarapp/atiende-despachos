@@ -29,7 +29,7 @@ echo "  Python : $PYTHON"
 echo ""
 
 # ── 1. Grabar la demo (captura el TTY, conserva ANSI) ───────────────────────
-echo "▶ Ejecutando demo_pilot.py (captura de terminal)…"
+echo "Ejecutando demo_pilot.py (captura de terminal)…"
 START=$(date +%s)
 
 if command -v script >/dev/null 2>&1; then
@@ -45,7 +45,7 @@ END=$(date +%s)
 echo "  Demo terminada en $((END - START))s."
 
 # ── 2. Limpiar ANSI para la transcripción ────────────────────────────────────
-echo "▶ Generando TRANSCRIPCION.md …"
+echo "Generando TRANSCRIPCION.md …"
 {
   echo "# Transcripción de la demo — Atiende Despachos"
   echo ""
@@ -67,7 +67,7 @@ echo "  Transcripción: $MD"
 
 # ── 3. Captura de pantalla (macOS, best-effort) ─────────────────────────────
 if command -v screencapture >/dev/null 2>&1; then
-  echo "▶ Captura de pantalla (macOS)…"
+  echo "Captura de pantalla (macOS)…"
   SHOT="$OUT_DIR/capturas/terminal_$(date +%H%M%S).png"
   if screencapture -x "$SHOT" 2>/dev/null; then
     echo "  Captura: $SHOT"
@@ -75,7 +75,7 @@ if command -v screencapture >/dev/null 2>&1; then
  echo " No se pudo capturar la pantalla (¿permisos de Grabación de pantalla?)."
   fi
 else
-  echo "  ℹ screencapture no disponible (solo macOS). Se omite la captura."
+  echo "  screencapture no disponible (solo macOS). Se omite la captura."
 fi
 
 echo ""

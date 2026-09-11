@@ -1,7 +1,7 @@
 # Transcripción de la demo — Atiende Despachos
 
 Fecha : 2026-08-02 12:23
-Comando: `/private/tmp/likida_demo/.venv/bin/python /private/tmp/likida_demo/scripts/demo_pilot.py`
+Comando: `/private/tmp/atiende_demo/.venv/bin/python /private/tmp/atiende_demo/scripts/demo_pilot.py`
 
 ## Salida
 
@@ -12,7 +12,7 @@ Comando: `/private/tmp/likida_demo/.venv/bin/python /private/tmp/likida_demo/scr
   Pipeline contable end-to-end para presentación a prospecto
 ▸ Poblando base de datos demo (seed_demo.py)
     Base previa eliminada: demo_pilot_rec.db
-    $ /private/tmp/likida_demo/.venv/bin/python /private/tmp/likida_demo/scripts/seed_demo.py --db /private/tmp/likida_demo/scripts/demo_data/demo_pilot_rec.db
+    $ /private/tmp/atiende_demo/.venv/bin/python /private/tmp/atiende_demo/scripts/seed_demo.py --db /private/tmp/atiende_demo/scripts/demo_data/demo_pilot_rec.db
       BD poblada correctamente.
     === RESUMEN DEMO ===
       Tenants              : 3
@@ -26,15 +26,15 @@ Comando: `/private/tmp/likida_demo/.venv/bin/python /private/tmp/likida_demo/scr
         tenant 1 admin: admin@bajio.contadores.mx (role=admin)
         tenant 2 admin: admin@norte.grupofiscal.mx (role=admin)
         tenant 3 admin: admin@pacifico.despacho.mx (role=admin)
-  ✔ Base demo lista: /private/tmp/likida_demo/scripts/demo_data/demo_pilot_rec.db
+  Base demo lista: /private/tmp/atiende_demo/scripts/demo_data/demo_pilot_rec.db
 ▸ Levantando servidor API en http://127.0.0.1:8000
-  ✔ Servidor listo · API key demo: demo-key-likida-2026 · tenant_id=1
+  Servidor listo · API key demo: demo-key-atiende-2026 · tenant_id=1
 ══════════════════════════════════════════════════════════════════════════════
  ESCENARIO S0 · Pipeline completo (CFDI → parse → bookkeeping → conciliación) 
 ══════════════════════════════════════════════════════════════════════════════
 ▸ POST /api/v1/pipeline/run
     Subiendo 5 CFDIs y 6 movimientos bancarios …
-  ✔ status=completed  job_id=19056e62-20f
+  status=completed  job_id=19056e62-20f
     CFDIs parseados:    5
     Clasificaciones:    5
     Pólizas generadas:  5
@@ -61,7 +61,7 @@ Comando: `/private/tmp/likida_demo/.venv/bin/python /private/tmp/likida_demo/scr
     Confianza:          98.0%
     Póliza ERP:         POL-640E6F0285
     Estado ERP:         registrada
-  ✔ CFDI procesado e insertado en la BD
+  CFDI procesado e insertado en la BD
 ══════════════════════════════════════════════════════════════════════════════
                ESCENARIO B · Nómina (cálculo ISR · IMSS · neto)               
 ══════════════════════════════════════════════════════════════════════════════
@@ -73,7 +73,7 @@ Comando: `/private/tmp/likida_demo/.venv/bin/python /private/tmp/likida_demo/scr
     ISR retenido:       $3,632.53 MXN
     IMSS:               $996.90 MXN
     Neto a pagar:       $20,870.57 MXN
-  ✔ Nómina calculada correctamente
+  Nómina calculada correctamente
 ══════════════════════════════════════════════════════════════════════════════
        ESCENARIO C · Conciliación bancaria (CFDIs vs estado de cuenta)        
 ══════════════════════════════════════════════════════════════════════════════
@@ -89,12 +89,12 @@ Comando: `/private/tmp/likida_demo/.venv/bin/python /private/tmp/likida_demo/scr
       · 11111111-222…  $29,000.00 MXN  vía monto+fecha
       · 11111111-222…  $8,120.00 MXN  vía monto+fecha
       · 21111111-222…  $1,160.00 MXN  vía monto+fecha
-  ✔ Reporte de conciliación generado
+  Reporte de conciliación generado
 ══════════════════════════════════════════════════════════════════════════════
                                    RESUMEN                                    
 ══════════════════════════════════════════════════════════════════════════════
-  ✔ Demo completada correctamente (3 escenarios + pipeline end-to-end).
-  ✔ Base demo: /private/tmp/likida_demo/scripts/demo_data/demo_pilot_rec.db
-  ✔ Servidor: http://127.0.0.1:8000  ·  documentación OpenAPI: http://127.0.0.1:8000/docs
+  Demo completada correctamente (3 escenarios + pipeline end-to-end).
+  Base demo: /private/tmp/atiende_demo/scripts/demo_data/demo_pilot_rec.db
+  Servidor: http://127.0.0.1:8000  ·  documentación OpenAPI: http://127.0.0.1:8000/docs
   Apagando servidor …
 ```

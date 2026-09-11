@@ -749,7 +749,7 @@ def run_demo(data_dir: str, output_dir: str, live: bool = False) -> int:
             )
             anom_count = len(res.get("anomalias", []))
             anom_flag = f" {anom_count} anomalía(s)" if anom_count else ""
-            print(f"     ✔ ${total_amt:,.2f} — {cat}{anom_flag}")
+            print(f"     ${total_amt:,.2f} — {cat}{anom_flag}")
         except Exception as e:
             print(f"     Error: {e}")
             results.append({

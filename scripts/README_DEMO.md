@@ -27,7 +27,7 @@ en cada corrida para una demo siempre consistente.
 ### 2. Levanta la API
 FastAPI en `http://localhost:<puerto>` (por defecto 8000) con la base demo.
 Credenciales demo automáticas:
-- API key: `demo-key-likida-2026` (header `X-API-Key`)
+- API key: `demo-key-atiende-2026` (header `X-API-Key`)
 - Tenant activo: `1` (Contadores Asociados del Bajío)
 - OpenAPI docs: `http://localhost:8000/docs`
 

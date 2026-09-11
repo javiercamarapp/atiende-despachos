@@ -404,7 +404,7 @@ def _build_markdown(app: Any) -> str:
         f"- **Versión:** {meta.get('version','')}",
         f"- **Rutas:** {len(paths)} · **Schemas:** {len(schemas)}",
         "- **Base URL (local):** `http://localhost:8000`",
-        "- **Base URL (producción):** `https://api.likida.ai`",
+        "- **Base URL (producción):** `https://api.atiende.ai`",
         "- **Interactiva:** `GET /docs` (Swagger), `GET /redoc`",
         "- **Contrato:** `GET /openapi.json`",
         "",

@@ -1,5 +1,5 @@
 # =============================================================================
-# Makefile — Likida AI Enterprise
+# Makefile — Atiende Despachos
 #
 # Usage:  make <target>
 #
@@ -39,7 +39,7 @@ install: ## Create venv & install deps (editable mode + test extras)
 	$(PIP) install --upgrade pip setuptools wheel
 	$(PIP) install -e ".[test]"
 	$(PIP) install ruff mypy build
-	@echo "✔  install done"
+	@echo "install done"
 
 # ---------- Quality -----------------------------------------------------------
 
@@ -72,7 +72,7 @@ test-security: ## Run tests with Bandit security checks
 .PHONY: coverage
 coverage: ## Run tests with coverage report
 	$(PYTEST) --cov=$(PROJECT) --cov-report=term-missing --cov-report=html --cov-fail-under=80
-	@echo "✔  HTML report → htmlcov/index.html"
+	@echo "HTML report → htmlcov/index.html"
 
 # ---------- Build ------------------------------------------------------------
 
@@ -80,7 +80,7 @@ coverage: ## Run tests with coverage report
 build: ## Build sdist + wheel into dist/
 	rm -rf dist/ build/
 	$(BUILD)
-	@echo "✔  dist/ contents:"
+	@echo "dist/ contents:"
 	@ls -lh dist/
 
 # ---------- Docker -----------------------------------------------------------
@@ -114,7 +114,7 @@ migrate-new: ## Create a new Alembic migration (NAME required)
 
 .PHONY: seed
 seed: ## Seed demo data (XML fixtures into DB)
-	$(PYTHON) -c "from b2b_ai.db.db import Database; db = Database(); db.migrate(); print('✔  DB migrated & seeded')"
+	$(PYTHON) -c "from b2b_ai.db.db import Database; db = Database(); db.migrate(); print('DB migrated & seeded')"
 
 # ---------- Deploy -----------------------------------------------------------
 
@@ -132,4 +132,4 @@ deploy-cloud: ## Run cloud deploy (Vercel + Railway)
 clean: ## Remove build artifacts, caches, coverage, eggs
 	rm -rf dist/ build/ *.egg-info .pytest_cache htmlcov/ .coverage
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	@echo "✔  cleaned"
+	@echo "cleaned"
