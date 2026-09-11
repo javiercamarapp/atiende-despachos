@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.security import APIKeyHeader
@@ -346,9 +346,26 @@ async def validate_cfdi(
 # ---------------------------------------------------------------------------
 
 
-def build_cfdi_validation_router(require_api_key: bool = True):
-    """Return the CFDI validation router.
+def build_cfdi_validation_router(require_api_key: Any = None):
+    """Return the CFDI validation router, secured with the app's real auth.
 
-    When require_api_key=False the endpoint skips auth via dependency override.
+    ``require_api_key`` must be the app-level dependency built by
+    ``b2b_ai.api.auth.make_require_api_key`` (the same one every other
+    ``/api/v1/*`` router uses). It validates the key against the DB/service
+    key and resolves its tenant; a key that doesn't validate, or validates
+    but has no tenant, is rejected before the route body ever runs.
+
+    Previously this router shipped its own do-nothing ``_require_api_key``
+    dependency (kept below for direct-router unit tests) as the ONLY auth on
+    the mounted route: it just checked that *some* non-empty string was sent
+    as ``X-API-Key``, never validating it against the real key store. Any
+    caller with an arbitrary string could call CFDI validation.
     """
-    return router
+    if require_api_key is None:
+        raise ValueError(
+            "require_api_key is required for the CFDI validation router; "
+            "pass the app's make_require_api_key(auth) dependency."
+        )
+    secured = APIRouter()
+    secured.include_router(router, dependencies=[Depends(require_api_key)])
+    return secured

@@ -34,6 +34,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     B2B_WORKERS=1 \
     B2B_HOST=0.0.0.0 \
     B2B_PORT=8000 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     PORT=8000
 
 WORKDIR /app
@@ -51,6 +52,16 @@ COPY --from=builder /build/migrations /app/migrations
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Computer Use (b2b_ai/computer_use) can run in mode=playwright in production;
+# the "playwright" package is now a pyproject.toml dependency (see there) so
+# it is already on /usr/local from the builder stage. Without the browser
+# binary baked into the image too, any tenant that enables mode=playwright
+# would still fail at runtime with "Executable doesn't exist". Install
+# Chromium plus its system libraries here, in a location readable by the
+# unprivileged app user created below.
+RUN python -m playwright install --with-deps chromium \
+    && chmod -R a+rX /ms-playwright
 
 RUN mkdir -p /data
 RUN useradd --create-home --uid 1000 b2b \

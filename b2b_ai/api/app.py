@@ -790,10 +790,11 @@ def create_app(db=None):
     # Invoice processing, listing, stats (extracted to routes_invoices.py)
     app.include_router(build_invoices_router(db, require_api_key))
 
-    # CFDI 4.0 validation endpoint (POST /api/v1/cfdi/validate). Router de
-    # b2b_ai/api/routes/cfdi_validation.py: trae su propia dependencia de
-    # auth (_require_api_key, exige X-API-Key) — no reusa `require_api_key`.
-    app.include_router(build_cfdi_validation_router())
+    # CFDI 4.0 validation endpoint (POST /api/v1/cfdi/validate). Antes traía
+    # su propia dependencia de auth que sólo exigía un X-API-Key no vacío,
+    # sin validarlo contra la DB/tenant real: cualquier string servía. Ahora
+    # reusa la misma `require_api_key` que el resto de /api/v1.
+    app.include_router(build_cfdi_validation_router(require_api_key))
 
     @app.get("/api/v1/tools",
              summary="Tools registradas en el agente.",

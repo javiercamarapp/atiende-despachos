@@ -108,20 +108,25 @@ MALFORMED = """not xml at all <>&"""
 
 
 @pytest.fixture
-def client():
-    """FastAPI test client with API-key dependency overridden."""
+def client(tmp_path):
+    """FastAPI test client wired with the app's real (DB-backed) auth.
+
+    The router used to be mounted with a do-nothing auth dependency, so this
+    fixture just overrode it and any non-empty string worked as a key.  Now
+    `/api/v1/cfdi/validate` is secured by the same `require_api_key` every
+    other endpoint uses (see b2b_ai/api/app.py), so getting a 200 requires a
+    real DB-backed API key bound to a tenant — exercise that real path
+    instead of bypassing it.
+    """
     from b2b_ai.api.app import create_app
-    from b2b_ai.api.routes.cfdi_validation import _require_api_key
+    from b2b_ai.db.db import Database
 
-    app = create_app()
+    db = Database(str(tmp_path / "cfdi_validate.db"))
+    tenant_id = db.create_tenant("CFDI Validate Tests", rfc="XAXX010101TST")
+    db.create_api_key(tenant_id, "cfdi-validate-tests", "test-api-key")
 
-    # Override the API-key dependency so tests can send "test-api-key"
-    async def _no_op_key() -> str:
-        return "test-api-key"
-
-    app.dependency_overrides[_require_api_key] = _no_op_key
+    app = create_app(db)
     yield TestClient(app)
-    app.dependency_overrides.clear()
 
 
 class TestValidateEndpoint:
@@ -283,21 +288,30 @@ class TestValidateEndpoint:
 
     def test_no_api_key(self, client):
         """Sin X-API-Key → 401 o 403."""
-        # Remove the override temporarily for this test
-        from b2b_ai.api.routes.cfdi_validation import _require_api_key
-        from fastapi.testclient import TestClient as TC
-
-        # The test client from the fixture has the override active.
-        # We need a clean client without override for this test.
-        from b2b_ai.api.app import create_app
-        app = create_app()
-        clean_client = TC(app)
-        resp = clean_client.post(
+        resp = client.post(
             "/api/v1/cfdi/validate",
             content=SAMPLE_CFDI,
             headers={"Content-Type": "text/xml"},
         )
         assert resp.status_code in (401, 403)
+
+    def test_invalid_api_key_rejected(self, client):
+        """Una X-API-Key arbitraria (no registrada) → 401.
+
+        Regresión: el router solía montarse con una dependencia de auth que
+        sólo exigía que X-API-Key no viniera vacío, sin validarlo contra la
+        DB — cualquier string pasaba. Ahora reusa `require_api_key` (igual
+        que el resto de /api/v1) y debe rechazar una key que no existe.
+        """
+        resp = client.post(
+            "/api/v1/cfdi/validate",
+            content=SAMPLE_CFDI,
+            headers={
+                "X-API-Key": "esta-key-no-esta-registrada-en-la-db",
+                "Content-Type": "text/xml",
+            },
+        )
+        assert resp.status_code == 401
 
     # ---- Conceptos e impuestos ----
 

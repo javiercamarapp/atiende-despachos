@@ -36,6 +36,12 @@ dependencies = [
     # presente como dependencia de test (vía FastAPI TestClient); se promueve
     # a dependencia de runtime porque ahora también la usa código de producción.
     "httpx>=0.24",
+    # Computer Use (b2b_ai/computer_use, modo mode=playwright: CONTPAQi/Aspel
+    # reales). requirements-production.txt ya lo declaraba, pero el Dockerfile
+    # de producción instala únicamente lo listado aquí (pip install .), así
+    # que sin esta línea el paquete playwright nunca llegaba a la imagen de
+    # Railway y mode=playwright fallaba en runtime con ModuleNotFoundError.
+    "playwright>=1.40",
 ]
 
 [project.optional-dependencies]

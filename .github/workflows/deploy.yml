@@ -51,4 +51,8 @@ jobs:
           B2B_ENV: development
 
       - name: Security lint (bandit)
-        run: bandit -r b2b_ai/ -ll --skip B101 || true
+        # -lll reporta únicamente severidad HIGH; sin "|| true" el build
+        # falla si aparece un hallazgo HIGH. La deuda MEDIUM/LOW se sigue
+        # auditando aparte, pero ya no se puede mezclar con un HIGH real y
+        # que el pipeline pase en verde igual.
+        run: bandit -r b2b_ai/ -lll --skip B101
